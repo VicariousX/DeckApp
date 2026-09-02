@@ -1,39 +1,68 @@
-export type Card = {
-  id: string;
-  name: string;
-  mana_cost?: string;
-  type_line: string;
-  oracle_text?: string;
-  image_uris?: {
-    small?: string;
-    normal?: string;
-  };
-};
+import { useState } from "react";
+import type { ScryfallCard } from "../types/scryfall";
 
-export function CardResult({ card }: { card: Card }) {
+
+import {
+  isMultiCard,
+  getFaces,
+  getImage
+} from "../utils/scryfall";
+
+export function CardResult({ card, onClick }: { card: ScryfallCard; onClick?: () => void }) {
+  const [showBoth, setShowBoth] = useState(false);
+  const [faceIndex, setFaceIndex] = useState(0);
+
+  const faces = getFaces(card);
+  const isMulti = isMultiCard(card);
+
+  function renderImage() {
+    // Show both faces side-by-side
+    if (showBoth) {
+      return (
+        <div className="card-faces">
+          {faces.map((face) => (
+            <img
+              key={face.name}
+              src={face.image_uris?.normal}
+              alt={face.name}
+              className="card-image"
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // Default: show one face (front or toggled)
+    return (
+      <img
+        src={getImage(card, faceIndex)}
+        alt={faces[faceIndex].name}
+        className="card-image"
+      />
+    );
+  }
+
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: "1rem",
-        padding: "1rem",
-        borderBottom: "1px solid #ddd"
-      }}
-    >
-      {card.image_uris?.small && (
-        <img
-          src={card.image_uris.small}
-          alt={card.name}
-          style={{ width: "120px", borderRadius: "4px" }}
-        />
-      )}
+    <div className="card-result" onClick={onClick}>
+      {renderImage()}
 
-      <div>
-        <h2 style={{ margin: 0 }}>{card.name}</h2>
-        {card.mana_cost && <p>{card.mana_cost}</p>}
-        <p>{card.type_line}</p>
-        {card.oracle_text && <p>{card.oracle_text}</p>}
-      </div>
+      {isMulti && (
+        <div className="face-controls">
+          <button onClick={() => setShowBoth(!showBoth)}>
+            {showBoth ? "Show One Face" : "Show Both Faces"}
+          </button>
+
+          {!showBoth && (
+            <button
+              onClick={() =>
+                setFaceIndex((faceIndex + 1) % faces.length)
+              }
+            >
+              Flip Card
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
