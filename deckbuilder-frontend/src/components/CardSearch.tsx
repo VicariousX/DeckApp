@@ -4,6 +4,7 @@ import { useScryfallSearch } from "../hooks/useScryfallSearch";
 
 import type { ScryfallCard } from "../types/scryfall";
 
+import styles from "./CardSearch.module.css";
 
 
 
@@ -22,9 +23,9 @@ export function CardSearch() {
   const cards: ScryfallCard[] = data?.data ?? [];
 
   return (
-    <div style={{ padding: "1rem" }}>
+    <div className={styles.searchContainer}>
       <input
-       className="search-input"
+       className={styles.searchInput}
        value={searchTerm}
        onChange={(e) => setSearchTerm(e.target.value)}
        placeholder="Search for a card..."
@@ -35,7 +36,7 @@ export function CardSearch() {
       {isError && <p>Something went wrong.</p>}
 
       {/* Search Results */}
-      <div className="search-results">
+      <div className={styles.resultsGrid}>
         {cards.map((card) => (
           <CardResult
             key={card.id}

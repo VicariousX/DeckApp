@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
-import "./Modal.css";
+
+import styles from "./Modal.module.css";
+
 
 export function Modal({
   children,
@@ -9,12 +11,12 @@ export function Modal({
   onClose: () => void;
 }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className={styles["modalOverlay"]} onClick={onClose}>
       <div
-        className="modal-content"
+        className={styles["modalContent"]}
         onClick={(e) => e.stopPropagation()}
       >
-        <button className="modal-close" onClick={onClose}>
+        <button className={styles["modalClose"]} onClick={onClose}>
           ✕
         </button>
         {children}

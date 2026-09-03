@@ -1,0 +1,11 @@
+:root {
+  --color-bg: #0f0b14;
+  --color-surface: #1a1324;
+  --color-border: #3b2a4d;
+  --color-text: #e8d9ff;
+  --color-accent: #b784f7;
+
+  --overlay-bg: rgba(20, 0, 40, 0.6);
+  --radius-md: 4px;
+  --shadow-md: 0 12px 32px rgba(80, 0, 120, 0.45);
+}

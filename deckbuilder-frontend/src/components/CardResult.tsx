@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { ScryfallCard } from "../types/scryfall";
 
+import styles from "./CardResult.module.css";
+
 
 import {
   isMultiCard,
@@ -43,7 +45,7 @@ export function CardResult({ card, onClick }: { card: ScryfallCard; onClick?: ()
   }
 
   return (
-    <div className="card-result" onClick={onClick}>
+    <div className={styles.cardResult} onClick={onClick}>
       {renderImage()}
 
       {isMulti && (
