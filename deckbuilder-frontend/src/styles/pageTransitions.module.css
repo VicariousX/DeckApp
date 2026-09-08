@@ -1,0 +1,49 @@
+/* Shared page enter / exit transitions */
+
+.page {
+  width: 100%;
+  min-height: 100%;
+  animation: pageEnter var(--motion-long) var(--motion-spring) both;
+}
+
+.pageExit {
+  animation: pageExit var(--motion-medium) var(--motion-ease-out) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* Landing uses a slightly different entrance */
+.landingEnter {
+  animation: landingEnter var(--motion-long) var(--motion-spring) both;
+}
+
+@keyframes landingEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
