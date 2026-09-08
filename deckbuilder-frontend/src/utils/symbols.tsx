@@ -1,6 +1,7 @@
 import React from "react";
 
-const SCRYFALL_SVG_BASE = "https://svgs.scryfall.io/card-symbols";
+/** Local path served by Vite from public/symbols/ */
+const LOCAL_SVG_BASE = "/symbols";
 
 /** Special inner codes that don't map 1:1 after stripping braces + slashes */
 const SPECIAL_CODES: Record<string, string> = {
@@ -10,7 +11,9 @@ const SPECIAL_CODES: Record<string, string> = {
 
 /**
  * Convert a Scryfall symbol string (e.g. "{W}", "{2/W}", "{½}") into the
- * corresponding official SVG URL on Scryfall's CDN.
+ * local SVG path under /symbols/.
+ *
+ * Files are produced by: npm run download:symbols
  */
 export function symbolToSvgUri(symbol: string): string {
   const raw = symbol.trim();
@@ -19,12 +22,12 @@ export function symbolToSvgUri(symbol: string): string {
     : raw;
 
   if (SPECIAL_CODES[inner]) {
-    return `${SCRYFALL_SVG_BASE}/${SPECIAL_CODES[inner]}.svg`;
+    return `${LOCAL_SVG_BASE}/${SPECIAL_CODES[inner]}.svg`;
   }
 
   // Hybrids / Phyrexian / etc. drop the slash: {W/U} → WU, {2/W} → 2W, {W/P} → WP
   const code = inner.replace(/\//g, "").toUpperCase();
-  return `${SCRYFALL_SVG_BASE}/${code}.svg`;
+  return `${LOCAL_SVG_BASE}/${code}.svg`;
 }
 
 /**
@@ -37,7 +40,7 @@ export function parseManaCost(cost: string): string[] {
 }
 
 /**
- * Render a single mana / card symbol as an <img> using Scryfall's SVG.
+ * Render a single mana / card symbol as an <img> using the local SVG.
  */
 export function renderManaSymbol(
   symbol: string,

@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:css": "npx typed-css-modules src --outDir src --camelCase"
+    "gen:css": "npx typed-css-modules src --outDir src --camelCase",
+    "download:symbols": "node scripts/download-symbols.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.102.8",
