@@ -1,10 +1,12 @@
 declare const styles: {
-  readonly "cardImage": string;
-  readonly "cardName": string;
-  readonly "cardNameMuted": string;
-  readonly "cardWrapper": string;
-  readonly "fadeIn": string;
-  readonly "resultsGrid": string;
+  readonly toolbar: string;
+  readonly sizeControl: string;
+  readonly sizeLabel: string;
+  readonly sizeRange: string;
+  readonly sizeValue: string;
+  readonly resultsGrid: string;
+  readonly cardWrapper: string;
+  readonly cardName: string;
+  readonly cardNameMuted: string;
 };
-export = styles;
-
+export default styles;

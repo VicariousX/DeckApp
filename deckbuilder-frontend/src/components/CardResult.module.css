@@ -1,11 +1,55 @@
-.resultsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: var(--grid-gap-lg);
+.toolbar {
+  display: flex;
+  justify-content: center;
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-md) var(--space-lg) var(--space-xxl);
+  padding: 0 var(--space-lg);
+}
+
+.sizeControl {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(28, 28, 34, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+}
+
+.sizeLabel {
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.sizeRange {
+  width: min(180px, 28vw);
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.sizeValue {
+  min-width: 3.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.resultsGrid {
+  --card-min: 240px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: var(--space-xl);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-lg) var(--space-xxl);
 }
 
 .cardWrapper {
