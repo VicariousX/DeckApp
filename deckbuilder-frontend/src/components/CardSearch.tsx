@@ -5,6 +5,8 @@ import { useScryfallSearch } from "../hooks/useScryfallSearch";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 
+const GHOST_COUNT = 6;
+
 export function CardSearch({
   onResults
 }: {
@@ -13,61 +15,54 @@ export function CardSearch({
   const [inputValue, setInputValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Run the Scryfall search only when Enter is pressed
   const { cards, isLoading, isError } = useScryfallSearch(searchTerm);
 
-  // ✔ Push results upward ONLY when cards change
   useEffect(() => {
     onResults(cards);
   }, [cards, onResults]);
 
   return (
     <div className={styles.searchContainer}>
-      {/* Search Bar */}
       <div className={styles.searchBar}>
         <input
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
-            setSearchTerm(""); // clears results while typing
+            setSearchTerm("");
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              setSearchTerm(inputValue); // run search only on Enter
+              setSearchTerm(inputValue);
             }
           }}
           placeholder="Search for a card..."
           className={styles.searchInput}
         />
-
-        {searchTerm === "" && inputValue !== "" && (
-          <div className={styles.searchHint}>Press Enter to search</div>
-        )}
       </div>
 
-      {/* Loading / Error */}
-      {isLoading && <p className={styles.searchStatus}>Loading…</p>}
+      {isLoading && <p className={styles.searchStatus}>Loading\u2026</p>}
       {isError && (
         <p className={styles.searchStatusError}>Something went wrong.</p>
       )}
 
-      {/* Hero Section (before first search) */}
       {searchTerm === "" && (
-        <div className={styles.hero}>
-          <h1 className={styles.heroTitle}>Search Magic Cards</h1>
-          <p className={styles.heroSubtitle}>
-            Type a card name and press Enter to begin.
-          </p>
-        </div>
-      )}
+        <>
+          <div className={styles.hero}>
+            <h1 className={styles.heroTitle}>Search Magic Cards</h1>
+          </div>
 
-      {/* Placeholder Grid (before first search) */}
-      {searchTerm === "" && (
-        <div className={styles.placeholderGrid}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className={styles.placeholderCard} />
-          ))}
-        </div>
+          <div className={styles.placeholderRow} aria-hidden>
+            {Array.from({ length: GHOST_COUNT }).map((_, i) => (
+              <div
+                key={i}
+                className={styles.placeholderCard}
+                style={{
+                  opacity: 1 - i / GHOST_COUNT,
+                }}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
