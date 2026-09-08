@@ -26,13 +26,10 @@ export function CardSearch({
       <div className={styles.searchBar}>
         <input
           value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            setSearchTerm("");
-          }}
+          onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              setSearchTerm(inputValue);
+              setSearchTerm(inputValue.trim());
             }
           }}
           placeholder="Search for a card..."
@@ -46,23 +43,17 @@ export function CardSearch({
       )}
 
       {searchTerm === "" && (
-        <>
-          <div className={styles.hero}>
-            <h1 className={styles.heroTitle}>Search Magic Cards</h1>
-          </div>
-
-          <div className={styles.placeholderRow} aria-hidden>
-            {Array.from({ length: GHOST_COUNT }).map((_, i) => (
-              <div
-                key={i}
-                className={styles.placeholderCard}
-                style={{
-                  opacity: 1 - i / GHOST_COUNT,
-                }}
-              />
-            ))}
-          </div>
-        </>
+        <div className={styles.placeholderRow} aria-hidden>
+          {Array.from({ length: GHOST_COUNT }).map((_, i) => (
+            <div
+              key={i}
+              className={styles.placeholderCard}
+              style={{
+                opacity: 1 - i / GHOST_COUNT,
+              }}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
