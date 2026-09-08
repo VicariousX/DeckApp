@@ -1,56 +1,73 @@
-import { useState } from "react";
-import { useDebounce } from "../hooks/useDebounce";
-import { useScryfallSearch } from "../hooks/useScryfallSearch";
-
-import type { ScryfallCard } from "../types/scryfall";
+import { useState, useEffect } from "react";
 
 import styles from "./CardSearch.module.css";
+import { useScryfallSearch } from "../hooks/useScryfallSearch";
 
+import type { ScryfallCard } from "../types/scryfallCard";
 
-
-import { CardResult } from "./CardResult";
-import { CardDetail } from "./CardDetail";
-import { Modal } from "./Modal";
-
-export function CardSearch() {
+export function CardSearch({
+  onResults
+}: {
+  onResults: (cards: ScryfallCard[]) => void;
+}) {
+  const [inputValue, setInputValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedTerm = useDebounce(searchTerm, 300);
 
-  const { data, isLoading, isError } = useScryfallSearch(debouncedTerm);
+  // Run the Scryfall search only when Enter is pressed
+  const { cards, isLoading, isError } = useScryfallSearch(searchTerm);
 
-  const [selectedCard, setSelectedCard] = useState<ScryfallCard | null>(null);
-
-  const cards: ScryfallCard[] = data?.data ?? [];
+  // ✔ Push results upward ONLY when cards change
+  useEffect(() => {
+    onResults(cards);
+  }, [cards, onResults]);
 
   return (
     <div className={styles.searchContainer}>
-      <input
-       className={styles.searchInput}
-       value={searchTerm}
-       onChange={(e) => setSearchTerm(e.target.value)}
-       placeholder="Search for a card..."
-      />
+      {/* Search Bar */}
+      <div className={styles.searchBar}>
+        <input
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setSearchTerm(""); // clears results while typing
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setSearchTerm(inputValue); // run search only on Enter
+            }
+          }}
+          placeholder="Search for a card..."
+          className={styles.searchInput}
+        />
 
-
-      {isLoading && <p>Loading…</p>}
-      {isError && <p>Something went wrong.</p>}
-
-      {/* Search Results */}
-      <div className={styles.resultsGrid}>
-        {cards.map((card) => (
-          <CardResult
-            key={card.id}
-            card={card}
-            onClick={() => setSelectedCard(card)}
-          />
-        ))}
+        {searchTerm === "" && inputValue !== "" && (
+          <div className={styles.searchHint}>Press Enter to search</div>
+        )}
       </div>
 
-      {/* Modal for Card Detail */}
-      {selectedCard && (
-        <Modal onClose={() => setSelectedCard(null)}>
-          <CardDetail card={selectedCard} />
-        </Modal>
+      {/* Loading / Error */}
+      {isLoading && <p className={styles.searchStatus}>Loading…</p>}
+      {isError && (
+        <p className={styles.searchStatusError}>Something went wrong.</p>
+      )}
+
+      {/* Hero Section (before first search) */}
+      {searchTerm === "" && (
+        <div className={styles.hero}>
+          <h1 className={styles.heroTitle}>Search Magic Cards</h1>
+          <p className={styles.heroSubtitle}>
+            Type a card name and press Enter to begin.
+          </p>
+        </div>
+      )}
+
+      {/* Placeholder Grid (before first search) */}
+      {searchTerm === "" && (
+        <div className={styles.placeholderGrid}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className={styles.placeholderCard} />
+          ))}
+        </div>
       )}
     </div>
   );

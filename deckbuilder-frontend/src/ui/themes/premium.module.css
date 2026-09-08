@@ -1,11 +1,77 @@
-:root {
-  --color-bg: #1c1c1f;
-  --color-surface: #2a2a2e;
-  --color-border: #3a3a3f;
-  --color-text: #f5f5f7;
-  --color-accent: #d4af37;
+/* Premium Theme — UI Layer Only */
+/* Applies gold accents, refined surfaces, premium shadows, and elevated component feel */
 
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --radius-md: 6px;
+:root {
+  /* --- Premium Surface Palette --- */
+  --color-surface: #2a2a2e;
+  --color-surface-alt: #242427;
+  --color-surface-highlight: #343438;
+
+  /* --- Premium Borders --- */
+  --color-border: #3a3a3f;
+  --color-border-strong: #4a4a50;
+  --color-border-accent: #d4af37;
+
+  /* --- Premium Text --- */
+  --color-text: #f5f5f7;
+  --color-text-muted: #c7c7cb;
+  --color-text-accent: #d4af37;
+
+  /* --- Premium Accents --- */
+  --color-accent: #d4af37;            /* gold */
+  --color-accent-soft: #bfa02f;
+  --color-accent-glow: rgba(212, 175, 55, 0.35);
+
+  /* --- Premium Shadows --- */
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 12px rgba(212, 175, 55, 0.35);
+
+  /* --- Premium Radii --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* --- Premium Focus Ring --- */
+  --focus-ring: 0 0 0 2px rgba(212, 175, 55, 0.55);
+}
+
+/* --- Premium Component Feel --- */
+
+/* Buttons, inputs, and interactive elements get a subtle gold glow on focus */
+:root .premium-focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Premium card surfaces */
+.premium-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* Premium elevated card */
+.premium-card-elevated {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Premium accent text */
+.premium-accent {
+  color: var(--color-accent);
+}
+
+/* Premium gold underline */
+.premium-underline {
+  border-bottom: 2px solid var(--color-accent);
+}
+
+/* Premium glow hover */
+.premium-hover-glow:hover {
+  box-shadow: var(--shadow-glow);
+  transition: var(--hover-transition);
 }

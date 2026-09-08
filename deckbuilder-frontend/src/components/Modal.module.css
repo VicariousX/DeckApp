@@ -1,23 +1,128 @@
-.modalOverlay {
+/* --- Overlay --- */
+
+.overlay {
   position: fixed;
   inset: 0;
   background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: flex-start;
+  padding-top: var(--space-xxl);
   animation: fadeIn var(--motion-medium) var(--motion-ease);
+  z-index: 1000;
 }
 
+/* --- Modal Container --- */
 
-.modalContent {
+.modal {
+  position: relative;     /* ⭐ REQUIRED FIX */
+  z-index: 1001;          /* ⭐ REQUIRED FIX */
+
   background: var(--color-surface);
-  color: var(--color-text);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: min(720px, 90%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--pad-lg);
+  animation: scaleIn var(--motion-medium) var(--motion-spring);
+}
+
+/* Scrollbar styling (theme‑aware) */
+.modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.modal::-webkit-scrollbar-track {
+  background: var(--color-surface-alt);
+}
+
+/* --- Header --- */
+
+.header {
+  margin-bottom: var(--space-lg);
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+}
+
+/* --- Card Image Section --- */
+
+.cardImageWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-lg);
+}
+
+.cardImage {
+  width: 100%;
+  max-width: 340px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
 }
 
+/* --- Details Section --- */
 
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+}
+
+.detailLabel {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xxs);
+}
+
+.detailValue {
+  font-size: 1rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* --- Close Button --- */
+
+.closeButton {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: var(--hover-transition);
+}
+
+.closeButton:hover {
+  color: var(--color-accent);
+}
+
+/* --- Animations --- */
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -25,15 +130,6 @@
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.96); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
-
-
-.modalClose {
-  color: var(--color-text);
-  top: var(--space-md);
-  right: var(--space-md);
-}
-
-

@@ -3,14 +3,15 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-//import './index.css'
-import "./styles/layout.css";
+import './index.css'
 
 import "./ui/tokens/spacing.module.css";
 import "./ui/tokens/motion.module.css";
 import "./ui/tokens/colors.module.css";
 import "./ui/themes/premium.module.css";
 import "./ui/density/airy.module.css";
+import "./ui/backgrounds/bg-hero.module.css";
+
 
 
 

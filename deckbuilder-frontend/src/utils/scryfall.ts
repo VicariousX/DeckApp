@@ -1,56 +1,53 @@
-import type {
-  ScryfallCard,
-  ScryfallMultiCard,
-  ScryfallSingleCard,
-  ScryfallCardFace
-} from "../types/scryfall";
+import type { ScryfallCard, ScryfallCardFace } from "../types/scryfallCard";
 
-export function isMultiCard(card: ScryfallCard): card is ScryfallMultiCard {
-  return "card_faces" in card && Array.isArray(card.card_faces);
-}
-
-// Always returns an array of faces, even for single‑faced cards.
 export function getFaces(card: ScryfallCard): ScryfallCardFace[] {
-  if (isMultiCard(card)) {
+  if (card.card_faces && card.card_faces.length > 0) {
     return card.card_faces;
   }
 
-  // Convert single-faced card into a "face-like" structure
   return [
     {
       name: card.name,
       type_line: card.type_line,
-      oracle_text: card.oracle_text,
-      mana_cost: card.mana_cost,
-      colors: card.colors,
-      image_uris: card.image_uris
+      mana_cost: card.mana_cost ?? "",
+      oracle_text: card.oracle_text ?? "",
+      artist: card.artist ?? "",
+      image_uris: card.image_uris ?? null
     }
   ];
 }
 
-// Useful for:
-// deck lists
-// autocomplete
-// hover previews
-// commander legality
-// card detail pages
-export function getFrontFace(card: ScryfallCard): ScryfallCardFace {
-  return getFaces(card)[0];
+export function isMultiCard(
+  card: ScryfallCard
+): card is ScryfallCard & { card_faces: ScryfallCardFace[] } {
+  return Array.isArray(card.card_faces) && card.card_faces.length > 1;
 }
 
-// This is used everywhere images appear.
-export function getImage(card: ScryfallCard, faceIndex = 0): string | undefined {
-  const faces = getFaces(card);
-  return faces[faceIndex]?.image_uris?.normal;
+export function getImage(card: ScryfallCard): string {
+  if (isMultiCard(card)) {
+    const front = card.card_faces[0];
+    if (front.image_uris?.normal) return front.image_uris.normal;
+    if (front.image_uris?.large) return front.image_uris.large;
+  }
+
+  if (card.image_uris?.normal) return card.image_uris.normal;
+  if (card.image_uris?.large) return card.image_uris.large;
+
+  return "";
 }
 
+export function getOracleText(card: ScryfallCard): string {
+  if (!isMultiCard(card)) {
+    return card.oracle_text ?? "";
+  }
 
-// This is used in:
-// card detail
-// deck legality
-// rules text display
-// hover previews
-export function getOracleText(card: ScryfallCard): string | undefined {
-  const faces = getFaces(card);
-  return faces.map(f => f.oracle_text).filter(Boolean).join("\n\n");
+  const faces = card.card_faces ?? [];
+
+  return faces
+    .map((face) => {
+      const header = `// ${face.name}`;
+      const text = face.oracle_text ?? "";
+      return `${header}\n${text}`;
+    })
+    .join("\n\n");
 }

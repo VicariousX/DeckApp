@@ -1,0 +1,25 @@
+/* Hero background layer: image + vignette only */
+
+/* Base background: uses theme color as base, hero image on top */
+body {
+  background:
+    var(--color-bg)
+    url("/src/assets/hero.png")
+    center / cover
+    no-repeat;
+  background-attachment: fixed;
+}
+
+/* Vignette overlay to focus content toward the center */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.45)
+  );
+  z-index: -1;
+}

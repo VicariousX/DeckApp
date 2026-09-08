@@ -1,0 +1,128 @@
+/* --- Card Detail Container --- */
+
+.detailContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--pad-md) 0;
+}
+
+/* --- Card Image --- */
+.cardImage {
+  width: 100%;
+  max-width: 320px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: var(--space-lg);
+}
+
+
+/* --- Mana Cost Row --- */
+
+.manaRow {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.manaSymbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+/* Official Scryfall SVG images (mana cost) */
+.manaSymbol :global(.mana-symbol-img) {
+  width: 22px;
+  height: 22px;
+  display: block;
+  user-select: none;
+}
+
+
+/* --- Type Line --- */
+
+.typeLine {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+
+/* --- Oracle Text --- */
+
+.oracleText {
+  font-size: 1rem;
+  color: var(--color-text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--pad-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* Inline symbols inside oracle / rules text */
+.oracleText :global(.inline-symbol) {
+  width: 1.05em;
+  height: 1.05em;
+  vertical-align: -0.2em;
+  margin: 0 0.08em;
+  display: inline-block;
+  user-select: none;
+}
+
+/* --- Flavor Text --- */
+
+.flavorText {
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin-top: var(--space-sm);
+}
+
+/* --- Set & Rarity Row --- */
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-md);
+}
+
+.setName {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.rarityBadge {
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+/* --- Artist Line --- */
+
+.artistLine {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+}
+
+/* --- Divider --- */
+
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-md) 0;
+}

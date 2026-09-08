@@ -1,5 +1,24 @@
+/* Airy Density Mode */
+/* Expands spacing and padding for a more open, premium layout */
+
 :root {
-  --card-padding: 12px;
-  --card-gap: 12px;
-  --grid-gap: 16px;
+  /* --- Airy Spacing Multipliers --- */
+  --space-xxs: calc(2px * 1.25);
+  --space-xs: calc(4px * 1.25);
+  --space-sm: calc(8px * 1.25);
+  --space-md: calc(12px * 1.25);
+  --space-lg: calc(16px * 1.25);
+  --space-xl: calc(24px * 1.25);
+  --space-xxl: calc(32px * 1.25);
+  --space-xxxl: calc(48px * 1.25);
+
+  /* --- Airy Grid Gaps --- */
+  --grid-gap-sm: var(--space-sm);
+  --grid-gap-md: var(--space-md);
+  --grid-gap-lg: var(--space-lg);
+
+  /* --- Airy Component Padding --- */
+  --pad-sm: var(--space-sm);
+  --pad-md: var(--space-md);
+  --pad-lg: var(--space-lg);
 }

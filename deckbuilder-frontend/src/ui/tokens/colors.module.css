@@ -1,7 +1,33 @@
 :root {
-  --color-bg: #1c1c1f;
-  --color-surface: #2a2a2e;
-  --color-border: #3a3a3f;
-  --color-text: #f5f5f7;
-  --color-accent: #d4af37; /* gold */
+  /* --- Neutral Background & Surface --- */
+  --color-bg: #9c2525;            /* neutral dark base */
+  --color-surface: #1e1e1e;       /* neutral surface */
+  --color-surface-alt: #2a2a2a;   /* slightly lighter/darker variant */
+
+  /* --- Neutral Borders --- */
+  --color-border: #2f2f2f;
+  --color-border-strong: #3c3c3c;
+
+  /* --- Neutral Text --- */
+  --color-text: #e6e6e6;          /* soft neutral text */
+  --color-text-muted: #b3b3b3;    /* muted neutral */
+  --color-text-inverse: #0a0a0a;  /* for light-on-dark swaps */
+
+  /* --- Neutral Accent (placeholder) --- */
+  --color-accent: #888888;        /* intentionally bland */
+  --color-accent-soft: #777777;
+  --color-accent-glow: rgba(136, 136, 136, 0.35);
+
+  /* --- Neutral Overlays --- */
+  --overlay-bg: rgba(0, 0, 0, 0.55);
+  --overlay-strong: rgba(0, 0, 0, 0.75);
+
+  /* --- Neutral Shadows --- */
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.45);
+
+  /* --- Neutral Radii --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }

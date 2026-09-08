@@ -1,70 +1,54 @@
 import { useState } from "react";
-import type { ScryfallCard } from "../types/scryfall";
 
-import styles from "./CardResult.module.css";
-
-
+import type { ScryfallCard } from "../types/scryfallCard";
 import {
-  isMultiCard,
   getFaces,
-  getImage
+  getImage,
+  isMultiCard
 } from "../utils/scryfall";
 
-export function CardResult({ card, onClick }: { card: ScryfallCard; onClick?: () => void }) {
-  const [showBoth, setShowBoth] = useState(false);
-  const [faceIndex, setFaceIndex] = useState(0);
+import styles from "./CardResult.module.css";
+import { Modal } from "./Modal";
+import { CardDetail } from "./CardDetail";
 
-  const faces = getFaces(card);
-  const isMulti = isMultiCard(card);
-
-  function renderImage() {
-    // Show both faces side-by-side
-    if (showBoth) {
-      return (
-        <div className="card-faces">
-          {faces.map((face) => (
-            <img
-              key={face.name}
-              src={face.image_uris?.normal}
-              alt={face.name}
-              className="card-image"
-            />
-          ))}
-        </div>
-      );
-    }
-
-    // Default: show one face (front or toggled)
-    return (
-      <img
-        src={getImage(card, faceIndex)}
-        alt={faces[faceIndex].name}
-        className="card-image"
-      />
-    );
-  }
+export function CardResult({ cards }: { cards: ScryfallCard[] }) {
+  const [selectedCard, setSelectedCard] = useState<ScryfallCard | null>(null);
 
   return (
-    <div className={styles.cardResult} onClick={onClick}>
-      {renderImage()}
+    <>
+      <div className={styles.resultsGrid}>
+        {cards.map((card) => {
+          const faces = getFaces(card);
+          const image = getImage(card);
 
-      {isMulti && (
-        <div className="face-controls">
-          <button onClick={() => setShowBoth(!showBoth)}>
-            {showBoth ? "Show One Face" : "Show Both Faces"}
-          </button>
-
-          {!showBoth && (
-            <button
-              onClick={() =>
-                setFaceIndex((faceIndex + 1) % faces.length)
-              }
+          return (
+            <div
+              key={card.id}
+              className={styles.cardWrapper}
+              onClick={() => setSelectedCard(card)}
             >
-              Flip Card
-            </button>
-          )}
-        </div>
+              <img
+                src={image}
+                alt={faces[0].name}
+                className={styles.cardImage}
+              />
+
+              <div className={styles.cardName}>
+                {faces[0].name}
+                {isMultiCard(card) && (
+                  <span className={styles.cardNameMuted}> (Multi‑Face)</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {selectedCard && (
+        <Modal onClose={() => setSelectedCard(null)}>
+          <CardDetail card={selectedCard} />
+        </Modal>
       )}
-    </div>
+    </>
   );
 }

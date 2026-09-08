@@ -1,13 +1,19 @@
+import { useState } from "react";
+
+import type { ScryfallCard } from "./types/scryfallCard";
+
 import { CardSearch } from "./components/CardSearch";
-//import './App.css'
+import { CardResult } from "./components/CardResult";
 
-function App() {
+import "./index.css";
+
+export default function App() {
+  const [cards, setCards] = useState<ScryfallCard[]>([]);
+
   return (
-    <div>
-          <h1>Card Search</h1>
-            <CardSearch />
+    <div className="app-root">
+      <CardSearch onResults={setCards} />
+      <CardResult cards={cards} />
     </div>
-  )
+  );
 }
-
-export default App

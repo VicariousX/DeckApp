@@ -1,6 +1,29 @@
 :root {
-  --motion-fast: 80ms;
-  --motion-medium: 140ms;
-  --motion-slow: 240ms;
-  --motion-ease: cubic-bezier(0.2, 0, 0.4, 1);
+  /* --- Durations --- */
+  --motion-fast: 120ms;
+  --motion-medium: 240ms;
+  --motion-slow: 360ms;
+  --motion-long: 480ms;
+
+  /* --- Easing Curves --- */
+  --motion-ease: cubic-bezier(0.25, 0.1, 0.25, 1);          /* standard ease */
+  --motion-ease-out: cubic-bezier(0.0, 0.0, 0.58, 1.0);     /* smooth exit */
+  --motion-ease-in: cubic-bezier(0.42, 0.0, 1.0, 1.0);      /* smooth entry */
+  --motion-spring: cubic-bezier(0.16, 1, 0.3, 1);           /* subtle bounce */
+
+  /* --- Transitions --- */
+  --transition-fast: all var(--motion-fast) var(--motion-ease);
+  --transition-medium: all var(--motion-medium) var(--motion-ease);
+  --transition-slow: all var(--motion-slow) var(--motion-ease);
+
+  /* --- Opacity Motion --- */
+  --fade-in: var(--motion-medium) var(--motion-ease);
+  --fade-out: var(--motion-medium) var(--motion-ease-out);
+
+  /* --- Transform Motion --- */
+  --scale-in: var(--motion-medium) var(--motion-spring);
+  --scale-out: var(--motion-medium) var(--motion-ease-out);
+
+  /* --- Hover Motion --- */
+  --hover-transition: var(--motion-fast) var(--motion-ease);
 }

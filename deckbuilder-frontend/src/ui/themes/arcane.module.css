@@ -1,11 +1,77 @@
-:root {
-  --color-bg: #0f0b14;
-  --color-surface: #1a1324;
-  --color-border: #3b2a4d;
-  --color-text: #e8d9ff;
-  --color-accent: #b784f7;
+/* Arcane Theme — UI Layer Only */
+/* Deep purples, glowing accents, mystical surfaces, and enchanted component feel */
 
-  --overlay-bg: rgba(20, 0, 40, 0.6);
-  --radius-md: 4px;
-  --shadow-md: 0 12px 32px rgba(80, 0, 120, 0.45);
+:root {
+  /* --- Arcane Surface Palette --- */
+  --color-surface: #1e1b2b;            /* deep violet surface */
+  --color-surface-alt: #171522;        /* darker variant */
+  --color-surface-highlight: #2a2540;  /* subtle highlight */
+
+  /* --- Arcane Borders --- */
+  --color-border: #3b3450;             /* muted violet border */
+  --color-border-strong: #4a4166;
+  --color-border-accent: #9b4dff;      /* arcane purple accent */
+
+  /* --- Arcane Text --- */
+  --color-text: #f2eaff;               /* soft pale lavender */
+  --color-text-muted: #c7b8e6;
+  --color-text-accent: #cfa8ff;        /* enchanted highlight */
+
+  /* --- Arcane Accents --- */
+  --color-accent: #9b4dff;             /* primary arcane purple */
+  --color-accent-soft: #7e3bd6;
+  --color-accent-glow: rgba(155, 77, 255, 0.35);
+
+  /* --- Arcane Shadows --- */
+  --shadow-md: 0 8px 24px rgba(40, 0, 80, 0.45);
+  --shadow-lg: 0 12px 32px rgba(50, 0, 100, 0.55);
+  --shadow-glow: 0 0 14px rgba(155, 77, 255, 0.45);
+
+  /* --- Arcane Radii --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* --- Arcane Focus Ring --- */
+  --focus-ring: 0 0 0 2px rgba(155, 77, 255, 0.55);
+}
+
+/* --- Arcane Component Feel --- */
+
+/* Arcane focus glow */
+:root .arcane-focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Arcane card surfaces */
+.arcane-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* Arcane elevated card */
+.arcane-card-elevated {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Arcane accent text */
+.arcane-accent {
+  color: var(--color-accent);
+}
+
+/* Arcane underline */
+.arcane-underline {
+  border-bottom: 2px solid var(--color-accent);
+}
+
+/* Arcane glow hover */
+.arcane-hover-glow:hover {
+  box-shadow: var(--shadow-glow);
+  transition: var(--hover-transition);
 }
