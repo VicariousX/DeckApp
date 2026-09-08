@@ -1,15 +1,12 @@
 import { useState } from "react";
 
 import type { ScryfallCard } from "../types/scryfallCard";
-import {
-  getFaces,
-  getImage,
-  isMultiCard
-} from "../utils/scryfall";
+import { getFaces, isMultiCard } from "../utils/scryfall";
 
 import styles from "./CardResult.module.css";
 import { Modal } from "./Modal";
 import { CardDetail } from "./CardDetail";
+import { CardImage } from "./CardImage";
 
 export function CardResult({ cards }: { cards: ScryfallCard[] }) {
   const [selectedCard, setSelectedCard] = useState<ScryfallCard | null>(null);
@@ -19,24 +16,18 @@ export function CardResult({ cards }: { cards: ScryfallCard[] }) {
       <div className={styles.resultsGrid}>
         {cards.map((card) => {
           const faces = getFaces(card);
-          const image = getImage(card);
 
           return (
-            <div
-              key={card.id}
-              className={styles.cardWrapper}
-              onClick={() => setSelectedCard(card)}
-            >
-              <img
-                src={image}
-                alt={faces[0].name}
-                className={styles.cardImage}
+            <div key={card.id} className={styles.cardWrapper}>
+              <CardImage
+                card={card}
+                onActivate={() => setSelectedCard(card)}
               />
 
               <div className={styles.cardName}>
                 {faces[0].name}
                 {isMultiCard(card) && (
-                  <span className={styles.cardNameMuted}> (Multi‑Face)</span>
+                  <span className={styles.cardNameMuted}> \u00b7 DFC</span>
                 )}
               </div>
             </div>

@@ -1,0 +1,120 @@
+.frame {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-md);
+  transition:
+    box-shadow var(--transition-medium),
+    filter var(--transition-medium);
+  outline: none;
+}
+
+.frame:hover {
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  filter: brightness(1.03);
+}
+
+.frameMulti:focus-visible {
+  box-shadow: var(--focus-ring), var(--shadow-md);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.both {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.imageHalf {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.controls {
+  position: absolute;
+  left: 50%;
+  bottom: 0.55rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.35rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+  z-index: 2;
+}
+
+.frame:hover .controls,
+.frame:focus-within .controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.controlBtn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 18, 22, 0.88);
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition:
+    background var(--hover-transition),
+    border-color var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.controlBtn:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  color: var(--color-accent);
+}
+
+.controlBtnActive {
+  background: linear-gradient(135deg, #e0c04a, #c9a227);
+  color: #1a1508;
+  border-color: transparent;
+}
+
+.controlBtnActive:hover {
+  color: #1a1508;
+  border-color: transparent;
+}
+
+.faceBadge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 750;
+  color: #1a1508;
+  background: linear-gradient(145deg, #e8cb55, #c9a227);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+  pointer-events: none;
+}
+
+.frame:hover .faceBadge,
+.frame:focus-within .faceBadge {
+  opacity: 1;
+}

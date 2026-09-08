@@ -23,17 +23,35 @@ export function isMultiCard(
   return Array.isArray(card.card_faces) && card.card_faces.length > 1;
 }
 
-export function getImage(card: ScryfallCard): string {
+/** Prefer normal, then large, then small for a given image_uris blob */
+function pickUri(
+  uris?: {
+    small?: string;
+    normal?: string;
+    large?: string;
+  } | null
+): string {
+  if (!uris) return "";
+  return uris.normal ?? uris.large ?? uris.small ?? "";
+}
+
+/**
+ * Image for a specific face index (0 = front).
+ * Falls back to the card-level image_uris when a face has none.
+ */
+export function getFaceImage(card: ScryfallCard, faceIndex = 0): string {
   if (isMultiCard(card)) {
-    const front = card.card_faces[0];
-    if (front.image_uris?.normal) return front.image_uris.normal;
-    if (front.image_uris?.large) return front.image_uris.large;
+    const face = card.card_faces[faceIndex] ?? card.card_faces[0];
+    const fromFace = pickUri(face?.image_uris);
+    if (fromFace) return fromFace;
   }
 
-  if (card.image_uris?.normal) return card.image_uris.normal;
-  if (card.image_uris?.large) return card.image_uris.large;
+  return pickUri(card.image_uris);
+}
 
-  return "";
+/** Front-face image (same as historical getImage behavior). */
+export function getImage(card: ScryfallCard): string {
+  return getFaceImage(card, 0);
 }
 
 export function getOracleText(card: ScryfallCard): string {
