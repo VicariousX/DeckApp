@@ -5,19 +5,19 @@ import transitions from "../styles/pageTransitions.module.css";
 const paths = [
   {
     to: "/search",
-    icon: "\ud83d\udd0d",
+    mark: "S",
     title: "Search cards",
     description: "Look up any Magic card by name and explore printings.",
   },
   {
     to: "/login",
-    icon: "\ud83d\udc64",
+    mark: "L",
     title: "Log in",
     description: "Sign in to save decks and sync your collection.",
   },
   {
     to: "/decks",
-    icon: "\ud83d\udcda",
+    mark: "D",
     title: "Public decks",
     description: "Browse decks shared by the community.",
   },
@@ -26,9 +26,15 @@ const paths = [
 export function LandingPage() {
   return (
     <div className={`${styles.landing} ${transitions.landingEnter}`}>
+      <div className={styles.glow} aria-hidden />
+
       <div className={styles.hero}>
         <p className={styles.eyebrow}>DeckApp</p>
-        <h1 className={styles.title}>Build better Magic decks</h1>
+        <h1 className={styles.title}>
+          Build better
+          <span className={styles.titleAccent}> Magic </span>
+          decks
+        </h1>
         <p className={styles.subtitle}>
           Search the full card pool, study public lists, and shape your next
           brew \u2014 all in one place.
@@ -36,13 +42,19 @@ export function LandingPage() {
       </div>
 
       <div className={styles.actions}>
-        {paths.map((path) => (
-          <Link key={path.to} to={path.to} className={styles.card}>
-            <span className={styles.cardIcon} aria-hidden>
-              {path.icon}
+        {paths.map((path, index) => (
+          <Link
+            key={path.to}
+            to={path.to}
+            className={styles.card}
+            style={{ animationDelay: `${80 + index * 70}ms` }}
+          >
+            <span className={styles.cardMark} aria-hidden>
+              {path.mark}
             </span>
             <span className={styles.cardTitle}>{path.title}</span>
             <span className={styles.cardDesc}>{path.description}</span>
+            <span className={styles.cardCta}>Open \u2192</span>
           </Link>
         ))}
       </div>
