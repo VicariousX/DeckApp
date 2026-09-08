@@ -9,18 +9,20 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg);
-  padding: var(--space-md) var(--space-xl);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
+  padding: 0.85rem var(--space-xl);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(20, 20, 24, 0.72);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
 .brand {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 1.1rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
   color: var(--color-text);
   text-decoration: none;
   transition: color var(--hover-transition);
@@ -37,28 +39,38 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 0.25rem;
   flex-wrap: wrap;
 }
 
 .navLink {
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-md);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
   color: var(--color-text-muted);
   text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background var(--hover-transition), color var(--hover-transition);
+  font-size: 0.875rem;
+  font-weight: 550;
+  transition:
+    background var(--hover-transition),
+    color var(--hover-transition),
+    box-shadow var(--hover-transition);
 }
 
 .navLink:hover {
   color: var(--color-text);
-  background: var(--color-surface-highlight, var(--color-surface-alt));
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .navLinkActive {
-  color: var(--color-text-accent, var(--color-accent));
-  background: rgba(212, 175, 55, 0.12);
+  color: #1a1508;
+  background: linear-gradient(135deg, #e0c04a, #c9a227);
+  box-shadow: 0 2px 12px rgba(212, 175, 55, 0.35);
+  font-weight: 650;
+}
+
+.navLinkActive:hover {
+  color: #1a1508;
+  background: linear-gradient(135deg, #e8cb55, #d4af37);
 }
 
 .main {

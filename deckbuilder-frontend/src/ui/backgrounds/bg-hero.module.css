@@ -1,25 +1,24 @@
-/* Hero background layer: image + vignette only */
+/* Ambient hero atmosphere behind the app */
 
-/* Base background: uses theme color as base, hero image on top */
 body {
-  background:
-    var(--color-bg)
-    url("/src/assets/hero.png")
-    center / cover
-    no-repeat;
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212, 175, 55, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(80, 60, 20, 0.12), transparent 50%),
+    linear-gradient(180deg, #121218 0%, var(--color-bg) 40%, #0a0a0d 100%);
   background-attachment: fixed;
 }
 
-/* Vignette overlay to focus content toward the center */
+/* Soft vignette so content stays readable */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
-    circle at center,
-    transparent 40%,
-    rgba(0, 0, 0, 0.45)
+    ellipse at center,
+    transparent 35%,
+    rgba(0, 0, 0, 0.35) 100%
   );
   z-index: -1;
 }

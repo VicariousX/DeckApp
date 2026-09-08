@@ -1,22 +1,25 @@
 :root {
   /* --- Neutral Background & Surface --- */
-  --color-bg: #9c2525;            /* neutral dark base */
-  --color-surface: #1e1e1e;       /* neutral surface */
-  --color-surface-alt: #2a2a2a;   /* slightly lighter/darker variant */
+  --color-bg: #121214;            /* deep neutral base */
+  --color-surface: #1e1e22;       /* neutral surface */
+  --color-surface-alt: #2a2a2e;   /* slightly lighter variant */
 
   /* --- Neutral Borders --- */
-  --color-border: #2f2f2f;
-  --color-border-strong: #3c3c3c;
+  --color-border: #2f2f34;
+  --color-border-strong: #3c3c42;
 
   /* --- Neutral Text --- */
-  --color-text: #e6e6e6;          /* soft neutral text */
-  --color-text-muted: #b3b3b3;    /* muted neutral */
+  --color-text: #e8e8ec;          /* soft neutral text */
+  --color-text-muted: #a8a8b0;    /* muted neutral */
   --color-text-inverse: #0a0a0a;  /* for light-on-dark swaps */
 
-  /* --- Neutral Accent (placeholder) --- */
-  --color-accent: #888888;        /* intentionally bland */
+  /* --- Neutral Accent (overridden by theme) --- */
+  --color-accent: #888888;
   --color-accent-soft: #777777;
   --color-accent-glow: rgba(136, 136, 136, 0.35);
+
+  /* --- Status --- */
+  --color-error: #e85d5d;
 
   /* --- Neutral Overlays --- */
   --overlay-bg: rgba(0, 0, 0, 0.55);
@@ -28,6 +31,6 @@
 
   /* --- Neutral Radii --- */
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
 }
