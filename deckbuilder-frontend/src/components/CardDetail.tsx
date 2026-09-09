@@ -27,23 +27,31 @@ export function CardDetail({ card }: { card: ScryfallCard }) {
         }}
       />
 
+      
 
-
-      {/* --- Type Line --- */}
-      {faces[0].type_line && (
-        <div className={styles.typeLine}>
-          {faces[0].type_line}
-        </div>
-      )}
+      
 
       {/* --- Mana Cost Row --- */}
       {faces[0].mana_cost && (
         <div className={styles.manaRow}>
+          {/* --- Card Name --- */}
+          <div className={styles.cardName}>
+            {faces[0].name}
+          </div>
+          &nbsp; - &nbsp;
           {parseManaCost(faces[0].mana_cost).map((symbol, i) => (
             <span key={i} className={styles.manaSymbol}>
               {renderManaSymbol(symbol, 22)}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* --- Type Line --- */}
+      {faces[0].type_line && (
+        <div className={styles.typeLine}>
+          {/* --- Type --- */}
+          {faces[0].type_line}
         </div>
       )}
 

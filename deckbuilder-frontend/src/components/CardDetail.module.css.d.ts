@@ -1,6 +1,7 @@
 declare const styles: {
   readonly "artistLine": string;
   readonly "cardImage": string;
+  readonly "cardName": string;
   readonly "detailContainer": string;
   readonly "divider": string;
   readonly "flavorText": string;
