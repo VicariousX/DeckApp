@@ -27,14 +27,16 @@
   height: auto;
 }
 
-.both {
-  display: grid;
+.frameBoth {
   width: 100%;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  background: rgba(0, 0, 0, 0.35);
 }
 
+.both {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.35);
+}
 
 .imageHalf {
   display: block;
@@ -42,7 +44,6 @@
   height: auto;
 }
 
-/* Controls: upper third, centered */
 .controls {
   position: absolute;
   left: 50%;
@@ -97,9 +98,27 @@
   border-color: transparent;
 }
 
+.faceBadge {
+  position: absolute;
+  bottom: 0.45rem;
+  left: 0.45rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 750;
+  color: #1a1508;
+  background: linear-gradient(145deg, #e8cb55, #c9a227);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+  pointer-events: none;
+  z-index: 2;
+}
 
 .frame:hover .faceBadge,
 .frame:focus-within .faceBadge {
   opacity: 1;
 }
-

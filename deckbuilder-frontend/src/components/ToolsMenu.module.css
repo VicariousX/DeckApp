@@ -1,6 +1,6 @@
 .anchor {
   position: absolute;
-  top: calc(var(--space-xx-xxl) + 0.35rem);
+  top: calc(var(--space-xxl) + 0.35rem);
   right: var(--space-xl);
   z-index: 40;
 }

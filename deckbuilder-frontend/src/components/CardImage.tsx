@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 import {
@@ -13,20 +13,24 @@ export type CardFaceView = "front" | "back" | "both";
 
 type CardImageProps = {
   card: ScryfallCard;
-  /** Optional class on the outer frame */
   className?: string;
-  /** Called when the main image area is activated (not control buttons) */
   onActivate?: (card: ScryfallCard) => void;
+  onViewChange?: (view: CardFaceView) => void;
 };
 
-/**
- * Reusable card art viewer with double-faced controls.
- * Hover reveals Flip / Both when the card has multiple faces.
- */
-export function CardImage({ card, className, onActivate }: CardImageProps) {
+export function CardImage({
+  card,
+  className,
+  onActivate,
+  onViewChange,
+}: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
   const [view, setView] = useState<CardFaceView>("front");
+
+  useEffect(() => {
+    onViewChange?.(view);
+  }, [view, onViewChange]);
 
   const frontSrc = getFaceImage(card, 0);
   const backSrc = multi ? getFaceImage(card, 1) : "";
@@ -52,6 +56,7 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
   const frameClass = [
     styles.frame,
     multi ? styles.frameMulti : "",
+    view === "both" ? styles.frameBoth : "",
     className ?? "",
   ]
     .filter(Boolean)
@@ -80,13 +85,13 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
             src={frontSrc}
             alt={frontName}
             className={styles.imageHalf}
-            draggable={true}
+            draggable={false}
           />
           <img
             src={backSrc}
             alt={backName}
             className={styles.imageHalf}
-            draggable={true}
+            draggable={false}
           />
         </div>
       ) : (
@@ -94,7 +99,7 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
           src={view === "back" && multi ? backSrc : frontSrc}
           alt={view === "back" && multi ? backName : frontName}
           className={styles.image}
-          draggable={true}
+          draggable={false}
         />
       )}
 
@@ -125,6 +130,11 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
         </div>
       )}
 
+      {multi && view !== "both" && (
+        <span className={styles.faceBadge} aria-hidden>
+          {view === "back" ? "B" : "A"}
+        </span>
+      )}
     </div>
   );
 }
