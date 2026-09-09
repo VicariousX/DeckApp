@@ -85,13 +85,13 @@ export function CardImage({
             src={frontSrc}
             alt={frontName}
             className={styles.imageHalf}
-            draggable={false}
+            draggable={true}
           />
           <img
             src={backSrc}
             alt={backName}
             className={styles.imageHalf}
-            draggable={false}
+            draggable={true}
           />
         </div>
       ) : (
@@ -99,7 +99,7 @@ export function CardImage({
           src={view === "back" && multi ? backSrc : frontSrc}
           alt={view === "back" && multi ? backName : frontName}
           className={styles.image}
-          draggable={false}
+          draggable={true}
         />
       )}
 
@@ -128,12 +128,6 @@ export function CardImage({
             Both
           </button>
         </div>
-      )}
-
-      {multi && view !== "both" && (
-        <span className={styles.faceBadge} aria-hidden>
-          {view === "back" ? "B" : "A"}
-        </span>
       )}
     </div>
   );
