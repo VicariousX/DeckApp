@@ -19,6 +19,16 @@ export function CardDetail({ card }: { card: ScryfallCard }) {
   return (
     <div className={styles.detailContainer}>
 
+      {/* --- Background Image --- */}
+      <div
+        className={styles.modalBackgroundImage}
+        style={{
+          backgroundImage: `url(${faces[0].image_uris?.art_crop ?? ""})`,
+        }}
+      />
+
+
+
       {/* --- Type Line --- */}
       {faces[0].type_line && (
         <div className={styles.typeLine}>

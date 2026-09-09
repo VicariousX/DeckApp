@@ -5,7 +5,7 @@ import { useScryfallSearch } from "../hooks/useScryfallSearch";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 
-const GHOST_COUNT = 6;
+const GHOST_COUNT = 5;
 
 export function CardSearch({
   onResults

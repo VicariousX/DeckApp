@@ -7,6 +7,7 @@ declare const styles: {
   readonly "infoRow": string;
   readonly "manaRow": string;
   readonly "manaSymbol": string;
+  readonly "modalBackgroundImage": string;
   readonly "oracleText": string;
   readonly "rarityBadge": string;
   readonly "setName": string;

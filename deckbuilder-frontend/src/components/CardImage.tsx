@@ -80,13 +80,13 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
             src={frontSrc}
             alt={frontName}
             className={styles.imageHalf}
-            draggable={false}
+            draggable={true}
           />
           <img
             src={backSrc}
             alt={backName}
             className={styles.imageHalf}
-            draggable={false}
+            draggable={true}
           />
         </div>
       ) : (
@@ -94,7 +94,7 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
           src={view === "back" && multi ? backSrc : frontSrc}
           alt={view === "back" && multi ? backName : frontName}
           className={styles.image}
-          draggable={false}
+          draggable={true}
         />
       )}
 
@@ -125,11 +125,6 @@ export function CardImage({ card, className, onActivate }: CardImageProps) {
         </div>
       )}
 
-      {multi && view !== "both" && (
-        <span className={styles.faceBadge} aria-hidden>
-          {view === "back" ? "B" : "A"}
-        </span>
-      )}
     </div>
   );
 }

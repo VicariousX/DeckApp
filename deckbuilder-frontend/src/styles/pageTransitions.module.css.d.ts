@@ -1,6 +1,8 @@
 declare const styles: {
-  readonly page: string;
-  readonly pageExit: string;
-  readonly landingEnter: string;
+  readonly "landingEnter": string;
+  readonly "page": string;
+  readonly "pageEnter": string;
+  readonly "pageExit": string;
 };
-export default styles;
+export = styles;
+

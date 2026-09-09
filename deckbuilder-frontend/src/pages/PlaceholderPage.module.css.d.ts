@@ -1,8 +1,9 @@
 declare const styles: {
-  readonly wrap: string;
-  readonly badge: string;
-  readonly title: string;
-  readonly body: string;
-  readonly homeLink: string;
+  readonly "badge": string;
+  readonly "body": string;
+  readonly "homeLink": string;
+  readonly "title": string;
+  readonly "wrap": string;
 };
-export default styles;
+export = styles;
+
