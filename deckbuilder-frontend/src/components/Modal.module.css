@@ -7,8 +7,7 @@
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding-top: var(--space-xxl);
+  align-items: center;
   animation: fadeIn var(--motion-medium) var(--motion-ease);
   z-index: 1000;
 }
