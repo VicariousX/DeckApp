@@ -1,0 +1,108 @@
+.page {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.25rem var(--space-xl) 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.topBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.backLink {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: 0.35rem 0;
+  transition: color var(--hover-transition);
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.status {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.statusError {
+  color: var(--color-error);
+  font-size: 0.95rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  grid-template-areas:
+    "visual info"
+    "art art";
+  gap: 1.5rem 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "visual"
+      "info"
+      "art";
+  }
+
+  .visual {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
+
+.visual {
+  grid-area: visual;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.imageFrame {
+  width: 100%;
+}
+
+.info {
+  grid-area: info;
+  min-width: 0;
+}
+
+.artCol {
+  grid-area: art;
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  color: var(--color-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-soft)
+  );
+}

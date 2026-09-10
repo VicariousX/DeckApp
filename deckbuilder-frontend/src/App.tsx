@@ -4,20 +4,22 @@ import { LandingPage } from "./pages/LandingPage";
 import { SearchPage } from "./pages/SearchPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicDecksPage } from "./pages/PublicDecksPage";
+import { MyDecksPage } from "./pages/MyDecksPage";
+import { CardPage } from "./pages/CardPage";
 import "./index.css";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Full-bleed landing — no chrome */}
         <Route path="/" element={<LandingPage />} />
 
-        {/* App chrome for feature pages */}
         <Route element={<AppShell />}>
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/card/:id" element={<CardPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/decks" element={<PublicDecksPage />} />
+          <Route path="/my-decks" element={<MyDecksPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,11 +1,11 @@
-/* Ambient hero atmosphere behind the app */
+/* Ambient hero atmosphere behind the app — fully theme-token driven */
 
 body {
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212, 175, 55, 0.14), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(80, 60, 20, 0.12), transparent 50%),
-    linear-gradient(180deg, #121218 0%, var(--color-bg) 40%, #0a0a0d 100%);
+    radial-gradient(ellipse 90% 55% at 50% -10%, var(--color-accent-glow), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, var(--color-accent-glow), transparent 50%),
+    linear-gradient(180deg, var(--color-surface-alt) 0%, var(--color-bg) 40%, var(--color-bg) 100%);
   background-attachment: fixed;
 }
 

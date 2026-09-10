@@ -10,8 +10,8 @@
   justify-content: space-between;
   gap: var(--space-lg);
   padding: 0.85rem var(--space-xl);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(20, 20, 24, 0.72);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   position: sticky;
@@ -58,19 +58,19 @@
 
 .navLink:hover {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 
 .navLinkActive {
-  color: #1a1508;
-  background: linear-gradient(135deg, #e0c04a, #c9a227);
-  box-shadow: 0 2px 12px rgba(212, 175, 55, 0.35);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
+  box-shadow: 0 2px 12px var(--color-accent-glow);
   font-weight: 650;
 }
 
 .navLinkActive:hover {
-  color: #1a1508;
-  background: linear-gradient(135deg, #e8cb55, #d4af37);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
 }
 
 .main {
@@ -78,4 +78,136 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.accountChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.7rem 0.25rem 0.3rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 14rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-highlight) 55%, transparent);
+  transition:
+    background var(--hover-transition),
+    border-color var(--hover-transition),
+    box-shadow var(--hover-transition);
+}
+
+.accountChip:hover {
+  background: color-mix(in srgb, var(--color-surface-highlight) 85%, transparent);
+  border-color: var(--color-accent-glow);
+}
+
+.accountChipActive {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent-glow);
+  background: var(--color-accent-glow);
+}
+
+.accountChipAvatar {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 750;
+  color: var(--color-on-accent);
+  background: linear-gradient(145deg, var(--color-accent), var(--color-accent-soft));
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.accountChipImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.accountChipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decksMenu {
+  position: relative;
+}
+
+.decksTrigger {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chevron {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.decksDropdown {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  left: 0;
+  min-width: 11rem;
+  padding: 0.4rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 96%, black);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Invisible bridge so the pointer can move from trigger → menu without leaving the menu root */
+.decksDropdown::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -0.45rem;
+  height: 0.45rem;
+}
+
+.decksItem {
+  display: block;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.decksItem:hover {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.decksItemActive {
+  color: var(--color-accent);
+  background: var(--color-accent-glow);
 }

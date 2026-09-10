@@ -41,7 +41,7 @@ a {
 
 /* Selection */
 ::selection {
-  background: rgba(212, 175, 55, 0.35);
+  background: var(--color-accent-glow);
   color: var(--color-text);
 }
 

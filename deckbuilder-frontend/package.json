@@ -12,6 +12,7 @@
     "download:symbols": "node scripts/download-symbols.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-query-devtools": "^5.102.8",
     "react": "^19.2.8",

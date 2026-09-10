@@ -1,7 +1,7 @@
-/* Premium Theme \u2014 UI Layer Only */
+/* Premium Theme — UI Layer Only */
 /* Gold accents, refined surfaces, elevated component feel */
 
-:root {
+html[data-theme="premium"] {
   /* --- Premium Background --- */
   --color-bg: #0e0e11;
 
@@ -24,6 +24,7 @@
   --color-accent: #d4af37;
   --color-accent-soft: #c4a030;
   --color-accent-glow: rgba(212, 175, 55, 0.32);
+  --color-on-accent: #1a1508;
 
   /* --- Premium Shadows --- */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -41,7 +42,7 @@
 }
 
 /* Buttons, inputs, interactive elements */
-:root .premium-focus {
+html[data-theme="premium"] .premium-focus {
   outline: none;
   box-shadow: var(--focus-ring);
 }

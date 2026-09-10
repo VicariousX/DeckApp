@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 import { getFaces, isMultiCard } from "../utils/scryfall";
@@ -40,7 +41,7 @@ function ResultCard({
       <div className={styles.cardName}>
         {faces[0].name}
         {isMultiCard(card) && (
-          <span className={styles.cardNameMuted}> \u00b7 DFC</span>
+          <span className={styles.cardNameMuted}> · DFC</span>
         )}
       </div>
     </div>
@@ -73,6 +74,15 @@ export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
       {selectedCard && (
         <Modal onClose={() => setSelectedCard(null)}>
           <CardDetail card={selectedCard} />
+          <div className={styles.modalActions}>
+            <Link
+              to={`/card/${selectedCard.id}`}
+              className={styles.cardPageLink}
+              onClick={() => setSelectedCard(null)}
+            >
+              Open full card page →
+            </Link>
+          </div>
         </Modal>
       )}
     </>

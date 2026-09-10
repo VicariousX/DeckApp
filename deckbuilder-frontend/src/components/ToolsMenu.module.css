@@ -11,8 +11,8 @@
   width: 2.35rem;
   height: 2.35rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(28, 28, 34, 0.72);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
   backdrop-filter: blur(12px);
   cursor: pointer;
   color: var(--color-text-muted);
@@ -26,9 +26,9 @@
 .trigger:hover,
 .triggerOpen {
   color: var(--color-text);
-  border-color: rgba(212, 175, 55, 0.4);
-  background: rgba(36, 36, 42, 0.92);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.12);
+  border-color: var(--color-accent-glow);
+  background: color-mix(in srgb, var(--color-surface-highlight) 92%, transparent);
+  box-shadow: 0 0 0 1px var(--color-accent-glow);
 }
 
 .dots {
@@ -52,8 +52,8 @@
   min-width: 220px;
   padding: 0.75rem;
   border-radius: var(--radius-lg);
-  background: rgba(22, 22, 28, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
   animation: menuIn var(--motion-fast) var(--motion-ease);

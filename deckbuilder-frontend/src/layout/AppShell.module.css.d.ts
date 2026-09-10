@@ -1,12 +1,23 @@
 declare const styles: {
-  readonly "brand": string;
-  readonly "brandAccent": string;
-  readonly "header": string;
-  readonly "main": string;
-  readonly "nav": string;
-  readonly "navLink": string;
-  readonly "navLinkActive": string;
-  readonly "shell": string;
+  readonly shell: string;
+  readonly header: string;
+  readonly brand: string;
+  readonly brandAccent: string;
+  readonly nav: string;
+  readonly navLink: string;
+  readonly navLinkActive: string;
+  readonly main: string;
+  readonly accountChip: string;
+  readonly accountChipActive: string;
+  readonly accountChipAvatar: string;
+  readonly accountChipImg: string;
+  readonly accountChipName: string;
+  readonly decksMenu: string;
+  readonly decksTrigger: string;
+  readonly chevron: string;
+  readonly chevronOpen: string;
+  readonly decksDropdown: string;
+  readonly decksItem: string;
+  readonly decksItemActive: string;
 };
-export = styles;
-
+export default styles;

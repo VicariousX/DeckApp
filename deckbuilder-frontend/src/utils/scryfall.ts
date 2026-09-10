@@ -1,3 +1,4 @@
+import type { DeckAppCard } from "../types/deckAppCard";
 import type { ScryfallCard, ScryfallCardFace } from "../types/scryfallCard";
 
 export function getFaces(card: ScryfallCard): ScryfallCardFace[] {
@@ -12,8 +13,8 @@ export function getFaces(card: ScryfallCard): ScryfallCardFace[] {
       mana_cost: card.mana_cost ?? "",
       oracle_text: card.oracle_text ?? "",
       artist: card.artist ?? "",
-      image_uris: card.image_uris ?? null
-    }
+      image_uris: card.image_uris ?? null,
+    },
   ];
 }
 
@@ -68,4 +69,25 @@ export function getOracleText(card: ScryfallCard): string {
       return `${header}\n${text}`;
     })
     .join("\n\n");
+}
+
+/* -------------------------------------------------------------------------- */
+/* DeckAppCard helpers (resolved images already applied)                      */
+/* -------------------------------------------------------------------------- */
+
+export function isDeckAppCard(card: ScryfallCard | DeckAppCard): card is DeckAppCard {
+  return Array.isArray((card as DeckAppCard).faces);
+}
+
+export function getDeckAppFaceImage(card: DeckAppCard, faceIndex = 0): string {
+  const face = card.faces[faceIndex] ?? card.faces[0];
+  return face?.image_url ?? "";
+}
+
+export function getDeckAppImage(card: DeckAppCard): string {
+  return getDeckAppFaceImage(card, 0);
+}
+
+export function isMultiDeckAppCard(card: DeckAppCard): boolean {
+  return card.faces.length > 1;
 }
