@@ -40,13 +40,23 @@ import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
 type GroupMode = "type" | "tag" | "none";
+type PanelTab = "deck" | "stats" | "tokens" | "tags";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
-  { id: "main", label: "Main" },
-  { id: "side", label: "Side" },
-  { id: "maybe", label: "Maybe" },
+  { id: "main", label: "Mainboard" },
+  { id: "side", label: "Sideboard" },
+  { id: "maybe", label: "Maybeboard" },
   { id: "commander", label: "Commander" },
 ];
+
+const PANEL_TABS: { id: PanelTab; label: string }[] = [
+  { id: "deck", label: "Deck" },
+  { id: "stats", label: "Stats" },
+  { id: "tokens", label: "Tokens" },
+  { id: "tags", label: "Tags" },
+];
+
+type CardGroup = { key: string; label: string; cards: DeckCard[] };
 
 function sortCards(cards: DeckCard[]): DeckCard[] {
   return [...cards].sort((a, b) => {
@@ -54,6 +64,60 @@ function sortCards(cards: DeckCard[]): DeckCard[] {
     if (so !== 0) return so;
     return a.name.localeCompare(b.name);
   });
+}
+
+function buildGroups(
+  cards: DeckCard[],
+  groupMode: GroupMode,
+  tags: DeckTag[]
+): CardGroup[] {
+  const sorted = sortCards(cards);
+  if (groupMode === "none") {
+    return [{ key: "all", label: "All cards", cards: sorted }];
+  }
+  if (groupMode === "type") {
+    const map = new Map<string, DeckCard[]>();
+    for (const c of sorted) {
+      const g = primaryTypeGroup(c.type_line);
+      const list = map.get(g) ?? [];
+      list.push(c);
+      map.set(g, list);
+    }
+    return sortTypeGroups([...map.keys()]).map((k) => ({
+      key: k,
+      label: k,
+      cards: sortCards(map.get(k) ?? []),
+    }));
+  }
+  const byTag = new Map<string, DeckCard[]>();
+  const untagged: DeckCard[] = [];
+  for (const c of sorted) {
+    const ids = c.tag_ids ?? [];
+    if (ids.length === 0) {
+      untagged.push(c);
+      continue;
+    }
+    for (const tid of ids) {
+      const list = byTag.get(tid) ?? [];
+      list.push(c);
+      byTag.set(tid, list);
+    }
+  }
+  const sections = tags
+    .filter((t) => byTag.has(t.id))
+    .map((t) => ({
+      key: t.id,
+      label: t.name,
+      cards: sortCards(byTag.get(t.id) ?? []),
+    }));
+  if (untagged.length) {
+    sections.push({
+      key: "untagged",
+      label: "Untagged",
+      cards: sortCards(untagged),
+    });
+  }
+  return sections;
 }
 
 export function DeckBuilderPage() {
@@ -75,10 +139,12 @@ export function DeckBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [groupMode, setGroupMode] = useState<GroupMode>("type");
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => getDeckViewMode());
-  const [activeBoard, setActiveBoard] = useState<DeckBoard>("main");
+  const [panel, setPanel] = useState<PanelTab>("deck");
+  const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -188,61 +254,26 @@ export function DeckBuilderPage() {
     [detail]
   );
 
-  const boardCards = useMemo(() => {
-    if (!detail) return [] as DeckCard[];
-    return sortCards(detail.cards.filter((c) => c.board === activeBoard));
-  }, [detail, activeBoard]);
-
-  const groups = useMemo(() => {
-    if (!detail) return [] as { key: string; label: string; cards: DeckCard[] }[];
-    const cards = boardCards;
-    if (groupMode === "none") {
-      return [{ key: "all", label: "All cards", cards }];
-    }
-    if (groupMode === "type") {
-      const map = new Map<string, DeckCard[]>();
-      for (const c of cards) {
-        const g = primaryTypeGroup(c.type_line);
-        const list = map.get(g) ?? [];
-        list.push(c);
-        map.set(g, list);
-      }
-      return sortTypeGroups([...map.keys()]).map((k) => ({
-        key: k,
-        label: k,
-        cards: sortCards(map.get(k) ?? []),
-      }));
-    }
-    const byTag = new Map<string, DeckCard[]>();
-    const untagged: DeckCard[] = [];
-    for (const c of cards) {
-      const ids = c.tag_ids ?? [];
-      if (ids.length === 0) {
-        untagged.push(c);
-        continue;
-      }
-      for (const tid of ids) {
-        const list = byTag.get(tid) ?? [];
-        list.push(c);
-        byTag.set(tid, list);
-      }
-    }
-    const sections = detail.tags
-      .filter((t) => byTag.has(t.id))
-      .map((t) => ({
-        key: t.id,
-        label: t.name,
-        cards: sortCards(byTag.get(t.id) ?? []),
-      }));
-    if (untagged.length) {
-      sections.push({
-        key: "untagged",
-        label: "Untagged",
-        cards: sortCards(untagged),
-      });
-    }
-    return sections;
-  }, [detail, groupMode, boardCards]);
+  /** All boards with their cards + type/tag groups — shown together on Deck panel */
+  const boardSections = useMemo(() => {
+    if (!detail) return [] as {
+      id: DeckBoard;
+      label: string;
+      cards: DeckCard[];
+      groups: CardGroup[];
+      count: number;
+    }[];
+    return BOARDS.map((b) => {
+      const cards = sortCards(detail.cards.filter((c) => c.board === b.id));
+      return {
+        id: b.id,
+        label: b.label,
+        cards,
+        groups: buildGroups(cards, groupMode, detail.tags),
+        count: cards.reduce((n, c) => n + c.quantity, 0),
+      };
+    });
+  }, [detail, groupMode]);
 
   function patchCard(cardId: string, patch: Partial<DeckCard> | null) {
     setDetail((prev) => {
@@ -281,7 +312,7 @@ export function DeckBuilderPage() {
       mana_cost: card.mana_cost,
       cmc: card.cmc,
       quantity: 1,
-      board: activeBoard,
+      board: addTargetBoard,
     });
     setAddBusy(false);
     if (addErr || !saved) {
@@ -579,8 +610,12 @@ export function DeckBuilderPage() {
                   {totalCards} card{totalCards === 1 ? "" : "s"} ·{" "}
                   {detail.cards.length} unique
                 </span>
-                <span>
-                  {activeBoard}: {boardCounts[activeBoard]}
+                <span className={styles.boardMeta}>
+                  {BOARDS.map((b) => (
+                    <span key={b.id}>
+                      {b.label.replace("board", "")} {boardCounts[b.id]}
+                    </span>
+                  ))}
                 </span>
               </p>
               {detail.deck.description && (
@@ -589,35 +624,29 @@ export function DeckBuilderPage() {
             </div>
           </header>
 
-          <div className={styles.boardTabs} role="tablist" aria-label="Board">
-            {BOARDS.map((b) => (
+          <div className={styles.boardTabs} role="tablist" aria-label="Panel">
+            {PANEL_TABS.map((t) => (
               <button
-                key={b.id}
+                key={t.id}
                 type="button"
                 role="tab"
-                aria-selected={activeBoard === b.id}
+                aria-selected={panel === t.id}
                 className={
-                  activeBoard === b.id
+                  panel === t.id
                     ? `${styles.boardTab} ${styles.boardTabActive}`
                     : styles.boardTab
                 }
-                onClick={() => setActiveBoard(b.id)}
-                onDragOver={(e) => {
-                  if (!isOwner || !dragId) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                }}
-                onDrop={(e) => void onBoardTabDrop(e, b.id)}
+                onClick={() => setPanel(t.id)}
               >
-                {b.label}
-                <span className={styles.boardTabCount}>
-                  {boardCounts[b.id]}
-                </span>
+                {t.label}
+                {t.id === "tags" && detail.tags.length > 0 && (
+                  <span className={styles.boardTabCount}>{detail.tags.length}</span>
+                )}
               </button>
             ))}
           </div>
 
-          {isOwner && (
+          {panel === "deck" && isOwner && (
             <section className={styles.addSection}>
               <h2 className={styles.sectionLabel}>Add card</h2>
               <div className={styles.addRow} ref={wrapRef}>
@@ -652,6 +681,20 @@ export function DeckBuilderPage() {
                     </ul>
                   )}
                 </div>
+                <select
+                  className={styles.boardSelect}
+                  value={addTargetBoard}
+                  aria-label="Add to board"
+                  onChange={(e) =>
+                    setAddTargetBoard(e.target.value as DeckBoard)
+                  }
+                >
+                  {BOARDS.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   className={styles.primaryBtn}
@@ -664,349 +707,365 @@ export function DeckBuilderPage() {
             </section>
           )}
 
-          <div className={styles.toolbar}>
-            <div className={styles.groupToggle} role="group" aria-label="Group by">
-              {(
-                [
-                  ["type", "Type"],
-                  ["tag", "Tags"],
-                  ["none", "List"],
-                ] as const
-              ).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={
-                    groupMode === mode
-                      ? `${styles.groupBtn} ${styles.groupBtnActive}`
-                      : styles.groupBtn
-                  }
-                  onClick={() => setGroupMode(mode)}
-                >
-                  {label}
-                </button>
-              ))}
+          {panel === "deck" && (
+            <div className={styles.toolbar}>
+              <div className={styles.groupToggle} role="group" aria-label="Group by">
+                {(
+                  [
+                    ["type", "Type"],
+                    ["tag", "Tags"],
+                    ["none", "List"],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={
+                      groupMode === mode
+                        ? `${styles.groupBtn} ${styles.groupBtnActive}`
+                        : styles.groupBtn
+                    }
+                    onClick={() => setGroupMode(mode)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div
+                className={styles.groupToggle}
+                role="group"
+                aria-label="Deck view"
+              >
+                {(
+                  [
+                    ["text", "Text"],
+                    ["image", "Images"],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={
+                      viewMode === mode
+                        ? `${styles.groupBtn} ${styles.groupBtnActive}`
+                        : styles.groupBtn
+                    }
+                    onClick={() => changeViewMode(mode)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div
-              className={styles.groupToggle}
-              role="group"
-              aria-label="Deck view"
-            >
-              {(
-                [
-                  ["text", "Text"],
-                  ["image", "Images"],
-                ] as const
-              ).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={
-                    viewMode === mode
-                      ? `${styles.groupBtn} ${styles.groupBtnActive}`
-                      : styles.groupBtn
-                  }
-                  onClick={() => changeViewMode(mode)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
-          {isOwner && (
+          {panel === "tags" && (
             <section className={styles.tagsPanel}>
               <h2 className={styles.sectionLabel}>Deck tags</h2>
-              <form className={styles.tagForm} onSubmit={onCreateTag}>
-                <input
-                  className={styles.input}
-                  placeholder="New tag name"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  maxLength={40}
-                />
-                <button type="submit" className={styles.secondaryBtn}>
-                  Add tag
-                </button>
-              </form>
+              <p className={styles.hint}>
+                Create tags here, then pin them to individual cards from the deck
+                list with <strong>Add tag</strong>.
+              </p>
+              {isOwner && (
+                <form className={styles.tagForm} onSubmit={onCreateTag}>
+                  <input
+                    className={styles.input}
+                    placeholder="New tag name"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    maxLength={40}
+                  />
+                  <button type="submit" className={styles.secondaryBtn}>
+                    Create tag
+                  </button>
+                </form>
+              )}
               <div className={styles.tagChips}>
                 {detail.tags.map((t) => (
                   <span key={t.id} className={styles.tagChip}>
                     {t.name}
-                    <button
-                      type="button"
-                      className={styles.tagRemove}
-                      onClick={() => void onDeleteTag(t)}
-                      aria-label={`Delete ${t.name}`}
-                    >
-                      ×
-                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className={styles.tagRemove}
+                        onClick={() => void onDeleteTag(t)}
+                        aria-label={`Delete ${t.name}`}
+                      >
+                        ×
+                      </button>
+                    )}
                   </span>
                 ))}
                 {detail.tags.length === 0 && (
-                  <span className={styles.hint}>
-                    Tags are deck-specific. Create one, then assign it on cards.
-                  </span>
+                  <span className={styles.hint}>No tags yet.</span>
                 )}
               </div>
             </section>
           )}
 
-          {viewMode === "image" ? (
-            <div className={styles.stacksRow}>
-              {groups.map((g) => {
-                const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                const columnDrop =
-                  dragId &&
-                  dragOverId === `col:${g.key}`;
-                return (
-                  <section
-                    key={g.key}
-                    className={`${styles.stackColumn}${
-                      columnDrop ? ` ${styles.stackColumnDrop}` : ""
-                    }`}
-                    onDragOver={(e) => {
-                      if (!isOwner || !dragId) return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                      if (dragOverId !== `col:${g.key}`) {
-                        setDragOverId(`col:${g.key}`);
-                      }
-                    }}
-                    onDragLeave={() => {
-                      if (dragOverId === `col:${g.key}`) setDragOverId(null);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      // Dropping on empty column space: reorder to end of that group
-                      const sourceId = dragId || e.dataTransfer.getData("text/plain");
-                      setDragId(null);
-                      setDragOverId(null);
-                      if (!sourceId || !detail || !isOwner) return;
-                      const source = detail.cards.find((c) => c.id === sourceId);
-                      if (!source || source.board !== activeBoard) return;
-                      // Reorder: place at end of this group's current order
-                      const ordered = boardCards.map((c) => c.id);
-                      const from = ordered.indexOf(sourceId);
-                      if (from < 0) return;
-                      ordered.splice(from, 1);
-                      const groupIds = new Set(g.cards.map((c) => c.id));
-                      // Find last index in ordered that is still in this group (after removal)
-                      let insertAt = ordered.length;
-                      for (let i = ordered.length - 1; i >= 0; i--) {
-                        if (groupIds.has(ordered[i]) && ordered[i] !== sourceId) {
-                          insertAt = i + 1;
-                          break;
-                        }
-                      }
-                      // If group empty or source was only member, append
-                      if (g.cards.length === 0 || (g.cards.length === 1 && g.cards[0].id === sourceId)) {
-                        ordered.push(sourceId);
-                      } else {
-                        ordered.splice(insertAt, 0, sourceId);
-                      }
-                      setDetail((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          cards: prev.cards.map((c) => {
-                            if (c.board !== activeBoard) return c;
-                            const idx = ordered.indexOf(c.id);
-                            return idx >= 0 ? { ...c, sort_order: idx } : c;
-                          }),
-                        };
-                      });
-                      void reorderBoardCards(ordered).then(({ error: err }) => {
-                        if (err) {
-                          setError(err);
-                          void loadDeck({ silent: true });
-                        }
-                      });
-                    }}
-                  >
-                    <div className={styles.stackHeader}>
-                      <h3 className={styles.stackTitle}>{g.label}</h3>
-                      <span className={styles.stackCount}>{count}</span>
-                    </div>
-                    <div className={styles.stackCards}>
-                      {g.cards.map((c) => {
-                        const src = imageUrls[c.id];
-                        const dragging = dragId === c.id;
-                        const over = dragOverId === c.id;
+          {panel === "stats" && (
+            <section className={styles.placeholderPanel}>
+              <h2 className={styles.sectionLabel}>Deck stats</h2>
+              <p className={styles.hint}>
+                Mana curve, color distribution, and type counts will live here.
+              </p>
+              <ul className={styles.statsList}>
+                {BOARDS.map((b) => (
+                  <li key={b.id}>
+                    <strong>{b.label}</strong>: {boardCounts[b.id]} cards
+                  </li>
+                ))}
+                <li>
+                  <strong>Total</strong>: {totalCards} cards (
+                  {detail.cards.length} unique)
+                </li>
+                <li>
+                  <strong>Tags</strong>: {detail.tags.length}
+                </li>
+              </ul>
+            </section>
+          )}
+
+          {panel === "tokens" && (
+            <section className={styles.placeholderPanel}>
+              <h2 className={styles.sectionLabel}>Tokens</h2>
+              <p className={styles.hint}>
+                Token selection and tracking for this deck is coming soon.
+              </p>
+            </section>
+          )}
+
+          {panel === "deck" && viewMode === "image" && (
+            <div className={styles.boardZones}>
+              {boardSections.map((board) => (
+                <div
+                  key={board.id}
+                  className={styles.boardZone}
+                  onDragOver={(e) => {
+                    if (!isOwner || !dragId) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                >
+                  <header className={styles.boardZoneHeader}>
+                    <h2 className={styles.boardZoneTitle}>{board.label}</h2>
+                    <span className={styles.boardZoneCount}>{board.count}</span>
+                  </header>
+                  {board.cards.length === 0 ? (
+                    <p className={styles.boardZoneEmpty}>Empty — drop cards here</p>
+                  ) : (
+                    <div className={styles.stacksRow}>
+                      {board.groups.map((g) => {
+                        const count = g.cards.reduce((n, c) => n + c.quantity, 0);
                         return (
-                          <div
-                            key={c.id}
-                            className={`${styles.stackCard}${
-                              dragging ? ` ${styles.stackCardDragging}` : ""
-                            }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
-                            draggable={isOwner}
-                            onDragStart={(e) => onTileDragStart(e, c)}
-                            onDragOver={(e) => onTileDragOver(e, c)}
-                            onDragLeave={() => onTileDragLeave(c)}
-                            onDrop={(e) => void onTileDrop(e, c)}
-                            onDragEnd={onTileDragEnd}
-                          >
-                            <Link
-                              to={`/card/${c.scryfall_id}`}
-                              className={styles.stackCardLink}
-                              title={c.name}
-                              draggable={false}
-                              onClick={(e) => {
-                                if (dragId) e.preventDefault();
-                              }}
-                            >
-                              {src ? (
-                                <img
-                                  src={src}
-                                  alt={c.name}
-                                  className={styles.stackCardImg}
-                                  loading="lazy"
-                                  draggable={false}
-                                />
-                              ) : (
-                                <div className={styles.stackCardPlaceholder}>
-                                  {c.name}
-                                </div>
-                              )}
-                            </Link>
-                            {c.quantity > 1 && (
-                              <span className={styles.stackQty}>×{c.quantity}</span>
-                            )}
-                            {isOwner && (
-                              <div className={styles.stackCardControls}>
-                                <button
-                                  type="button"
-                                  className={styles.stackQtyBtn}
-                                  onClick={() => void onQty(c, -1)}
-                                  aria-label={`Decrease ${c.name}`}
-                                >
-                                  −
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.stackQtyBtn}
-                                  onClick={() => void onQty(c, 1)}
-                                  aria-label={`Increase ${c.name}`}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            )}
+                          <section key={`${board.id}-${g.key}`} className={styles.stackColumn}>
+                            <div className={styles.stackHeader}>
+                              <h3 className={styles.stackTitle}>{g.label}</h3>
+                              <span className={styles.stackCount}>{count}</span>
+                            </div>
+                            <div className={styles.stackCards}>
+                              {g.cards.map((c) => {
+                                const src = imageUrls[c.id];
+                                const dragging = dragId === c.id;
+                                const over = dragOverId === c.id;
+                                return (
+                                  <div
+                                    key={c.id}
+                                    className={`${styles.stackCard}${
+                                      dragging ? ` ${styles.stackCardDragging}` : ""
+                                    }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                    draggable={isOwner}
+                                    onDragStart={(e) => onTileDragStart(e, c)}
+                                    onDragOver={(e) => onTileDragOver(e, c)}
+                                    onDragLeave={() => onTileDragLeave(c)}
+                                    onDrop={(e) => void onTileDrop(e, c)}
+                                    onDragEnd={onTileDragEnd}
+                                  >
+                                    <Link
+                                      to={`/card/${c.scryfall_id}`}
+                                      className={styles.stackCardLink}
+                                      title={c.name}
+                                      draggable={false}
+                                      onClick={(e) => {
+                                        if (dragId) e.preventDefault();
+                                      }}
+                                    >
+                                      {src ? (
+                                        <img
+                                          src={src}
+                                          alt={c.name}
+                                          className={styles.stackCardImg}
+                                          loading="lazy"
+                                          draggable={false}
+                                        />
+                                      ) : (
+                                        <div className={styles.stackCardPlaceholder}>
+                                          {c.name}
+                                        </div>
+                                      )}
+                                    </Link>
+                                    {c.quantity > 1 && (
+                                      <span className={styles.stackQty}>×{c.quantity}</span>
+                                    )}
+                                    {isOwner && (
+                                      <div className={styles.stackCardControls}>
+                                        <button
+                                          type="button"
+                                          className={styles.stackQtyBtn}
+                                          onClick={() => void onQty(c, -1)}
+                                          aria-label={`Decrease ${c.name}`}
+                                        >
+                                          −
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={styles.stackQtyBtn}
+                                          onClick={() => void onQty(c, 1)}
+                                          aria-label={`Increase ${c.name}`}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {panel === "deck" && viewMode === "text" && (
+            <div className={styles.boardZones}>
+              {boardSections.map((board) => (
+                <section
+                  key={board.id}
+                  className={styles.boardZone}
+                  onDragOver={(e) => {
+                    if (!isOwner || !dragId) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                >
+                  <header className={styles.boardZoneHeader}>
+                    <h2 className={styles.boardZoneTitle}>{board.label}</h2>
+                    <span className={styles.boardZoneCount}>{board.count}</span>
+                  </header>
+                  {board.cards.length === 0 ? (
+                    <p className={styles.boardZoneEmpty}>No cards on this board.</p>
+                  ) : (
+                    <div className={styles.groups}>
+                      {board.groups.map((g) => {
+                        const count = g.cards.reduce((n, c) => n + c.quantity, 0);
+                        return (
+                          <div key={`${board.id}-${g.key}`} className={styles.group}>
+                            <h3 className={styles.groupTitle}>
+                              {g.label}
+                              <span className={styles.groupCount}>{count}</span>
+                            </h3>
+                            <ul className={styles.cardList}>
+                              {g.cards.map((c) => (
+                                <li key={c.id} className={styles.cardRow}>
+                                  <div className={styles.cardMain}>
+                                    <QtyControl
+                                      quantity={c.quantity}
+                                      disabled={!isOwner}
+                                      onDelta={(d) => void onQty(c, d)}
+                                      onCommit={(raw) => void onQtyCommit(c, raw)}
+                                    />
+                                    <Link
+                                      to={`/card/${c.scryfall_id}`}
+                                      className={styles.cardName}
+                                      onMouseEnter={(e) => onNameEnter(c, e)}
+                                      onMouseMove={onNameMove}
+                                      onMouseLeave={onNameLeave}
+                                    >
+                                      {c.name}
+                                    </Link>
+                                    <ManaCost cost={c.mana_cost} size={15} />
+                                    <span className={styles.cardType}>{c.type_line}</span>
+                                  </div>
+                                  {isOwner && (
+                                    <div className={styles.cardActions}>
+                                      {(c.tag_ids ?? []).length > 0 && (
+                                        <div className={styles.cardTagRow}>
+                                          {(c.tag_ids ?? []).map((tid) => {
+                                            const t = detail.tags.find((x) => x.id === tid);
+                                            if (!t) return null;
+                                            return (
+                                              <button
+                                                key={tid}
+                                                type="button"
+                                                className={`${styles.miniTag} ${styles.miniTagOn}`}
+                                                title="Remove tag"
+                                                onClick={() => void toggleTag(c, t)}
+                                              >
+                                                {t.name} ×
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                      <CardTagPicker
+                                        card={c}
+                                        tags={detail.tags}
+                                        open={tagMenuCardId === c.id}
+                                        onOpenChange={(open) =>
+                                          setTagMenuCardId(open ? c.id : null)
+                                        }
+                                        onToggle={(tag) => void toggleTag(c, tag)}
+                                      />
+                                      <select
+                                        className={styles.boardSelect}
+                                        value={c.board}
+                                        aria-label={`Board for ${c.name}`}
+                                        onChange={(e) =>
+                                          void moveCardToBoard(
+                                            c,
+                                            e.target.value as DeckBoard
+                                          )
+                                        }
+                                      >
+                                        {BOARDS.map((b) => (
+                                          <option key={b.id} value={b.id}>
+                                            {b.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        type="button"
+                                        className={styles.removeBtn}
+                                        onClick={() => void onRemove(c)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         );
                       })}
                     </div>
-                  </section>
-                );
-              })}
-              {boardCards.length === 0 && (
+                  )}
+                </section>
+              ))}
+              {detail.cards.length === 0 && (
                 <p className={styles.empty}>
-                  {detail.cards.length === 0
-                    ? "No cards yet. Use the search above to add some."
-                    : `No cards on the ${activeBoard} board.`}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className={styles.groups}>
-              {groups.map((g) => {
-                const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                return (
-                  <section key={g.key} className={styles.group}>
-                    <h3 className={styles.groupTitle}>
-                      {g.label}
-                      <span className={styles.groupCount}>{count}</span>
-                    </h3>
-                    <ul className={styles.cardList}>
-                      {g.cards.map((c) => (
-                        <li key={c.id} className={styles.cardRow}>
-                          <div className={styles.cardMain}>
-                            <QtyControl
-                              quantity={c.quantity}
-                              disabled={!isOwner}
-                              onDelta={(d) => void onQty(c, d)}
-                              onCommit={(raw) => void onQtyCommit(c, raw)}
-                            />
-                            <Link
-                              to={`/card/${c.scryfall_id}`}
-                              className={styles.cardName}
-                              onMouseEnter={(e) => onNameEnter(c, e)}
-                              onMouseMove={onNameMove}
-                              onMouseLeave={onNameLeave}
-                            >
-                              {c.name}
-                            </Link>
-                            <ManaCost cost={c.mana_cost} size={15} />
-                            <span className={styles.cardType}>
-                              {c.type_line}
-                            </span>
-                          </div>
-                          {isOwner && (
-                            <div className={styles.cardActions}>
-                              {detail.tags.length > 0 && (
-                                <div className={styles.cardTagRow}>
-                                  {detail.tags.map((t) => {
-                                    const on = (c.tag_ids ?? []).includes(t.id);
-                                    return (
-                                      <button
-                                        key={t.id}
-                                        type="button"
-                                        className={
-                                          on
-                                            ? `${styles.miniTag} ${styles.miniTagOn}`
-                                            : styles.miniTag
-                                        }
-                                        onClick={() => void toggleTag(c, t)}
-                                      >
-                                        {t.name}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              <select
-                                className={styles.boardSelect}
-                                value={c.board}
-                                aria-label={`Board for ${c.name}`}
-                                onChange={(e) =>
-                                  void moveCardToBoard(
-                                    c,
-                                    e.target.value as DeckBoard
-                                  )
-                                }
-                              >
-                                {BOARDS.map((b) => (
-                                  <option key={b.id} value={b.id}>
-                                    {b.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                className={styles.removeBtn}
-                                onClick={() => void onRemove(c)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-              {boardCards.length === 0 && (
-                <p className={styles.empty}>
-                  {detail.cards.length === 0
-                    ? "No cards yet. Use the search above to add some."
-                    : `No cards on the ${activeBoard} board.`}
+                  No cards yet. Use the search above to add some.
                 </p>
               )}
             </div>
           )}
-        </>
-      )}
 
       <CardHoverPreview
         card={hoverCard}
@@ -1077,6 +1136,86 @@ function QtyControl({
       >
         +
       </button>
+    </div>
+  );
+}
+
+function CardTagPicker({
+  card,
+  tags,
+  open,
+  onOpenChange,
+  onToggle,
+}: {
+  card: DeckCard;
+  tags: DeckTag[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onToggle: (tag: DeckTag) => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const assigned = new Set(card.tag_ids ?? []);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!wrapRef.current?.contains(e.target as Node)) onOpenChange(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onOpenChange(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onOpenChange]);
+
+  if (tags.length === 0) {
+    return (
+      <span className={styles.hint} title="Create tags in the Tags panel">
+        No tags
+      </span>
+    );
+  }
+
+  return (
+    <div className={styles.tagPicker} ref={wrapRef}>
+      <button
+        type="button"
+        className={styles.tagPickerBtn}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => onOpenChange(!open)}
+      >
+        Add tag
+      </button>
+      {open && (
+        <ul className={styles.tagPickerMenu} role="listbox">
+          {tags.map((t) => {
+            const on = assigned.has(t.id);
+            return (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  className={
+                    on
+                      ? `${styles.tagPickerItem} ${styles.tagPickerItemOn}`
+                      : styles.tagPickerItem
+                  }
+                  onClick={() => onToggle(t)}
+                >
+                  <span>{t.name}</span>
+                  {on && <span aria-hidden>✓</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

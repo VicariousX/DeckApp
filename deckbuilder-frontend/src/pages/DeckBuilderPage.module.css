@@ -802,3 +802,148 @@
     height: 224px;
   }
 }
+
+/* --- Multi-board zones --- */
+
+.boardZones {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.boardZone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+}
+
+.boardZoneHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.15rem 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+
+.boardZoneTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.boardZoneCount {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.boardZoneEmpty {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.boardMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.placeholderPanel {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.statsList {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* --- Tag picker on card rows --- */
+
+.tagPicker {
+  position: relative;
+}
+
+.tagPickerBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tagPickerBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tagPickerMenu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  min-width: 10rem;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 96%, black);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.tagPickerItem {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tagPickerItem:hover {
+  background: var(--color-accent-glow);
+}
+
+.tagPickerItemOn {
+  color: var(--color-accent);
+  font-weight: 650;
+}
