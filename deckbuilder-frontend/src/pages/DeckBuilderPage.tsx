@@ -27,6 +27,7 @@ import {
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
 import { CardHoverPreview } from "../components/CardHoverPreview";
+import { DeckCardModal } from "../components/DeckCardModal";
 import {
   addCardToDeck,
   createDeckTag,
@@ -149,6 +150,8 @@ export function DeckBuilderPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
+  const [modalCard, setModalCard] = useState<DeckCard | null>(null);
+  const dragMovedRef = useRef(false);
   /** Images + List mode: freeform columns per board */
   const [listLayouts, setListLayouts] = useState<
     Partial<Record<DeckBoard, ListColumnLayout>>
@@ -547,9 +550,19 @@ export function DeckBuilderPage() {
 
   function onTileDragStart(e: DragEvent, card: DeckCard) {
     if (!isOwner) return;
+    dragMovedRef.current = false;
     setDragId(card.id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", card.id);
+  }
+
+  function onTileDrag() {
+    dragMovedRef.current = true;
+  }
+
+  function openCardModal(card: DeckCard) {
+    if (dragMovedRef.current || dragId) return;
+    setModalCard(card);
   }
 
   function onTileDragOver(e: DragEvent, overCard: DeckCard) {
@@ -632,6 +645,10 @@ export function DeckBuilderPage() {
   function onTileDragEnd() {
     setDragId(null);
     setDragOverId(null);
+    // Keep dragMoved true until after click handlers settle
+    window.setTimeout(() => {
+      dragMovedRef.current = false;
+    }, 0);
   }
 
   async function onBoardTabDrop(e: DragEvent, board: DeckBoard) {
@@ -933,7 +950,7 @@ export function DeckBuilderPage() {
                         <span className={styles.boardZoneCount}>{board.count}</span>
                       </header>
                       <div className={styles.commanderSlotCards}>
-                        {board.cards.slice(0, 3).map((c) => {
+                        {board.cards.slice(0, 3).map((c, cardIdx) => {
                           const src = imageUrls[c.id];
                           const dragging = dragId === c.id;
                           return (
@@ -942,21 +959,19 @@ export function DeckBuilderPage() {
                               className={`${styles.commanderCard}${
                                 dragging ? ` ${styles.stackCardDragging}` : ""
                               }`}
+                              style={{ zIndex: cardIdx + 1 }}
                               draggable={isOwner}
                               onDragStart={(e) => onTileDragStart(e, c)}
+                              onDrag={() => onTileDrag()}
                               onDragOver={(e) => onTileDragOver(e, c)}
                               onDragLeave={() => onTileDragLeave(c)}
                               onDrop={(e) => void onTileDrop(e, c)}
                               onDragEnd={onTileDragEnd}
+                              onClick={() => openCardModal(c)}
                             >
-                              <Link
-                                to={`/card/${c.scryfall_id}`}
+                              <div
                                 className={styles.stackCardLink}
                                 title={c.name}
-                                draggable={false}
-                                onClick={(e) => {
-                                  if (dragId) e.preventDefault();
-                                }}
                               >
                                 {src ? (
                                   <img
@@ -971,7 +986,7 @@ export function DeckBuilderPage() {
                                     {c.name}
                                   </div>
                                 )}
-                              </Link>
+                              </div>
                               {c.quantity > 1 && (
                                 <span className={styles.stackQty}>×{c.quantity}</span>
                               )}
@@ -980,7 +995,10 @@ export function DeckBuilderPage() {
                                   <button
                                     type="button"
                                     className={styles.stackQtyBtn}
-                                    onClick={() => void onQty(c, -1)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void onQty(c, -1);
+                                    }}
                                     aria-label={`Decrease ${c.name}`}
                                   >
                                     −
@@ -988,7 +1006,10 @@ export function DeckBuilderPage() {
                                   <button
                                     type="button"
                                     className={styles.stackQtyBtn}
-                                    onClick={() => void onQty(c, 1)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void onQty(c, 1);
+                                    }}
                                     aria-label={`Increase ${c.name}`}
                                   >
                                     +
@@ -1093,7 +1114,7 @@ export function DeckBuilderPage() {
                                 </span>
                               </div>
                               <div className={styles.stackCards}>
-                                {colCards.map((c) => {
+                                {colCards.map((c, cardIdx) => {
                                   const src = imageUrls[c.id];
                                   const dragging = dragId === c.id;
                                   const over = dragOverId === c.id;
@@ -1103,21 +1124,19 @@ export function DeckBuilderPage() {
                                       className={`${styles.stackCard}${
                                         dragging ? ` ${styles.stackCardDragging}` : ""
                                       }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      style={{ zIndex: cardIdx + 1 }}
                                       draggable={isOwner}
                                       onDragStart={(e) => onTileDragStart(e, c)}
+                                      onDrag={() => onTileDrag()}
                                       onDragOver={(e) => onTileDragOver(e, c)}
                                       onDragLeave={() => onTileDragLeave(c)}
                                       onDrop={(e) => void onTileDrop(e, c)}
                                       onDragEnd={onTileDragEnd}
+                                      onClick={() => openCardModal(c)}
                                     >
-                                      <Link
-                                        to={`/card/${c.scryfall_id}`}
+                                      <div
                                         className={styles.stackCardLink}
                                         title={c.name}
-                                        draggable={false}
-                                        onClick={(e) => {
-                                          if (dragId) e.preventDefault();
-                                        }}
                                       >
                                         {src ? (
                                           <img
@@ -1132,7 +1151,7 @@ export function DeckBuilderPage() {
                                             {c.name}
                                           </div>
                                         )}
-                                      </Link>
+                                      </div>
                                       {c.quantity > 1 && (
                                         <span className={styles.stackQty}>
                                           ×{c.quantity}
@@ -1143,7 +1162,10 @@ export function DeckBuilderPage() {
                                           <button
                                             type="button"
                                             className={styles.stackQtyBtn}
-                                            onClick={() => void onQty(c, -1)}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void onQty(c, -1);
+                                            }}
                                             aria-label={`Decrease ${c.name}`}
                                           >
                                             −
@@ -1151,7 +1173,10 @@ export function DeckBuilderPage() {
                                           <button
                                             type="button"
                                             className={styles.stackQtyBtn}
-                                            onClick={() => void onQty(c, 1)}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void onQty(c, 1);
+                                            }}
                                             aria-label={`Increase ${c.name}`}
                                           >
                                             +
@@ -1203,7 +1228,7 @@ export function DeckBuilderPage() {
                                 <span className={styles.stackCount}>{count}</span>
                               </div>
                               <div className={styles.stackCards}>
-                                {g.cards.map((c) => {
+                                {g.cards.map((c, cardIdx) => {
                                   const src = imageUrls[c.id];
                                   const dragging = dragId === c.id;
                                   const over = dragOverId === c.id;
@@ -1213,21 +1238,19 @@ export function DeckBuilderPage() {
                                       className={`${styles.stackCard}${
                                         dragging ? ` ${styles.stackCardDragging}` : ""
                                       }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      style={{ zIndex: cardIdx + 1 }}
                                       draggable={isOwner}
                                       onDragStart={(e) => onTileDragStart(e, c)}
+                                      onDrag={() => onTileDrag()}
                                       onDragOver={(e) => onTileDragOver(e, c)}
                                       onDragLeave={() => onTileDragLeave(c)}
                                       onDrop={(e) => void onTileDrop(e, c)}
                                       onDragEnd={onTileDragEnd}
+                                      onClick={() => openCardModal(c)}
                                     >
-                                      <Link
-                                        to={`/card/${c.scryfall_id}`}
+                                      <div
                                         className={styles.stackCardLink}
                                         title={c.name}
-                                        draggable={false}
-                                        onClick={(e) => {
-                                          if (dragId) e.preventDefault();
-                                        }}
                                       >
                                         {src ? (
                                           <img
@@ -1242,7 +1265,7 @@ export function DeckBuilderPage() {
                                             {c.name}
                                           </div>
                                         )}
-                                      </Link>
+                                      </div>
                                       {c.quantity > 1 && (
                                         <span className={styles.stackQty}>
                                           ×{c.quantity}
@@ -1253,7 +1276,10 @@ export function DeckBuilderPage() {
                                           <button
                                             type="button"
                                             className={styles.stackQtyBtn}
-                                            onClick={() => void onQty(c, -1)}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void onQty(c, -1);
+                                            }}
                                             aria-label={`Decrease ${c.name}`}
                                           >
                                             −
@@ -1261,7 +1287,10 @@ export function DeckBuilderPage() {
                                           <button
                                             type="button"
                                             className={styles.stackQtyBtn}
-                                            onClick={() => void onQty(c, 1)}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void onQty(c, 1);
+                                            }}
                                             aria-label={`Increase ${c.name}`}
                                           >
                                             +
@@ -1322,15 +1351,16 @@ export function DeckBuilderPage() {
                                       onDelta={(d) => void onQty(c, d)}
                                       onCommit={(raw) => void onQtyCommit(c, raw)}
                                     />
-                                    <Link
-                                      to={`/card/${c.scryfall_id}`}
+                                    <button
+                                      type="button"
                                       className={styles.cardName}
                                       onMouseEnter={(e) => onNameEnter(c, e)}
                                       onMouseMove={onNameMove}
                                       onMouseLeave={onNameLeave}
+                                      onClick={() => openCardModal(c)}
                                     >
                                       {c.name}
-                                    </Link>
+                                    </button>
                                     <ManaCost cost={c.mana_cost} size={15} />
                                     <span className={styles.cardType}>{c.type_line}</span>
                                   </div>
@@ -1408,6 +1438,29 @@ export function DeckBuilderPage() {
             </div>
           )}
         </>
+      )}
+
+      {modalCard && (
+        <DeckCardModal
+          card={
+            detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard
+          }
+          imageUrl={imageUrls[modalCard.id]}
+          isOwner={isOwner}
+          onClose={() => setModalCard(null)}
+          onQty={(d) => {
+            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+            void onQty(live, d);
+          }}
+          onBoard={(b) => {
+            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+            void moveCardToBoard(live, b);
+          }}
+          onRemove={() => {
+            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+            void onRemove(live);
+          }}
+        />
       )}
 
       <CardHoverPreview

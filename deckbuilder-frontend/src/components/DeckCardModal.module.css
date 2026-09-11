@@ -1,0 +1,155 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  max-width: 720px;
+}
+
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.visual {
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  background: var(--color-surface, #1a1a1e);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.imagePlaceholder {
+  aspect-ratio: 5 / 7;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.status,
+.error {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--color-error-text, #ffb4b4);
+}
+
+.fallbackName {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  color: var(--color-text);
+}
+
+.fallbackType,
+.fallbackMeta {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+}
+
+.qtyRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.qtyBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.qtyBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.qtyValue {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 750;
+  color: var(--color-accent);
+}
+
+.boardSelect {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-alt, var(--color-surface)) 90%, transparent);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 650;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+
+.removeBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.4rem 0.5rem;
+}
+
+.removeBtn:hover {
+  color: var(--color-error-text, #ffb4b4);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+}
+
+.cardPageLink {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.cardPageLink:hover {
+  text-decoration: underline;
+}

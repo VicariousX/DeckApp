@@ -408,9 +408,16 @@
 }
 
 .cardName {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
   font-weight: 650;
   color: var(--color-text);
   text-decoration: none;
+  cursor: pointer;
+  text-align: left;
 }
 
 .cardName:hover {
@@ -609,8 +616,9 @@
   display: flex;
   flex-direction: column;
   /* overlap: each card after the first is pulled up */
-  --stack-peek: 28px;
+  --stack-peek: 36px;
   --stack-width: 146px;
+  --stack-card-h: 204px;
 }
 
 .stackCard {
@@ -618,49 +626,50 @@
   width: var(--stack-width);
   border-radius: 10px;
   /* negative margin creates the cascade */
-  margin-top: calc(var(--stack-peek) - 204px);
+  margin-top: calc(var(--stack-peek) - var(--stack-card-h));
   transition:
-    margin-top 0.18s ease,
-    transform 0.15s ease,
-    z-index 0s,
-    box-shadow 0.15s ease,
-    filter 0.15s ease;
-  z-index: 1;
+    margin-top 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
   cursor: grab;
+  touch-action: none;
   /* soft bottom fade for depth */
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.35),
     0 0 0 1px color-mix(in srgb, white 8%, transparent);
+  /* later cards get higher z-index via inline style so peeks are clickable */
 }
 
 .stackCard:first-child {
   margin-top: 0;
 }
 
-/* Expand peek on column hover so names/art are more readable */
+/* Expand peek on column hover so more of each card is targetable */
 .stackColumn:hover .stackCard {
-  margin-top: calc(42px - 204px);
+  margin-top: calc(52px - var(--stack-card-h));
 }
 
 .stackColumn:hover .stackCard:first-child {
   margin-top: 0;
 }
 
-/* Hovered card lifts and shows full art */
+/* Hovered card lifts above siblings */
 .stackCard:hover,
 .stackCard:focus-within {
-  z-index: 50;
-  transform: translateY(-6px) scale(1.04);
+  z-index: 80 !important;
+  transform: translateY(-4px) scale(1.03);
   box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.55),
     0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent);
-  filter: brightness(1.05);
+  filter: brightness(1.04);
 }
 
 .stackCardDragging {
-  opacity: 0.4;
-  transform: scale(0.96);
-  z-index: 0 !important;
+  opacity: 0.45;
+  transform: scale(0.97);
+  z-index: 90 !important;
+  transition: none;
 }
 
 .stackCardDropTarget {
@@ -788,18 +797,13 @@
   .stackCards {
     --stack-width: 160px;
   }
-  .stackCard {
-    margin-top: calc(var(--stack-peek) - 224px);
-  }
-  .stackColumn:hover .stackCard {
-    margin-top: calc(44px - 224px);
-  }
-  .stackColumn:hover .stackCard:first-child {
-    margin-top: 0;
+  .stackCards {
+    --stack-width: 160px;
+    --stack-card-h: 224px;
   }
   .stackCardImg,
   .stackCardPlaceholder {
-    height: 224px;
+    height: var(--stack-card-h);
   }
 }
 
