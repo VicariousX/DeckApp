@@ -1,0 +1,159 @@
+.page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem var(--space-xl) 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 750;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+}
+
+.createCard {
+  padding: 1.1rem 1.15rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.createTitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.createRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.input,
+.select {
+  flex: 1 1 10rem;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-alt) 90%, transparent);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.primaryBtn {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.65rem 1.15rem;
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--color-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-soft)
+  );
+}
+
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error-text, #ffb4b4);
+  font-size: 0.9rem;
+}
+
+.status,
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deckItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+}
+
+.deckLink {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.deckName {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.deckMeta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.deleteBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteBtn:hover {
+  color: var(--color-error-text, #ffb4b4);
+  border-color: var(--color-error-border, rgba(232, 93, 93, 0.35));
+}

@@ -56,3 +56,12 @@ img {
   display: block;
   max-width: 100%;
 }
+
+/* Global motion tokens (CSS modules may scope :root unpredictably) */
+:root {
+  --hover-transition: 0.15s ease;
+  --transition-medium: 0.2s ease;
+  --motion-medium: 0.25s;
+  --motion-ease: ease;
+  --motion-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}

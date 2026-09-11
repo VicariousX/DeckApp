@@ -11,5 +11,11 @@ declare const styles: {
   readonly artCol: string;
   readonly badgeRow: string;
   readonly badge: string;
+  readonly relatedSection: string;
+  readonly relatedCard: string;
+  readonly relatedTitle: string;
+  readonly relatedBody: string;
+  readonly relatedLink: string;
+  readonly relatedSoon: string;
 };
 export default styles;

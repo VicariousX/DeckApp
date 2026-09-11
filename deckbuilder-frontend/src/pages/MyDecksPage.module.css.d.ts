@@ -1,0 +1,22 @@
+declare const styles: {
+  readonly page: string;
+  readonly header: string;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly createCard: string;
+  readonly createTitle: string;
+  readonly createRow: string;
+  readonly input: string;
+  readonly select: string;
+  readonly primaryBtn: string;
+  readonly error: string;
+  readonly status: string;
+  readonly empty: string;
+  readonly list: string;
+  readonly deckItem: string;
+  readonly deckLink: string;
+  readonly deckName: string;
+  readonly deckMeta: string;
+  readonly deleteBtn: string;
+};
+export default styles;

@@ -316,7 +316,7 @@ export function LoginPage() {
           <p className={`${styles.message} ${styles.messageOk}`}>{info}</p>
         )}
 
-        <div style={{ marginTop: "1.1rem" }}>
+        <div className={styles.footerLink}>
           <Link to="/" className={styles.homeLink}>
             ← Back to home
           </Link>

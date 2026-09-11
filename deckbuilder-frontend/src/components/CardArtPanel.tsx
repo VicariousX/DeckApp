@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { useArtPreferences } from "../auth/ArtPreferencesProvider";
+import { syncUserCardFromArt } from "../services/userCardService";
 import { fetchPrintings } from "../lib/scryfallApi";
 import {
   applyUserCardArt,
@@ -25,6 +27,7 @@ type Props = {
 
 export function CardArtPanel({ card, onResolvedChange }: Props) {
   const { user } = useAuth();
+  const { applyArtPreference, reload: reloadArtPrefs } = useArtPreferences();
   const [printings, setPrintings] = useState<ScryfallCard[]>([]);
   const [art, setArt] = useState<UserCardArt | null>(null);
   const [loadingPrints, setLoadingPrints] = useState(false);
@@ -41,8 +44,12 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   // Emit resolved card whenever base card or art changes
   useEffect(() => {
     const preferredMap = new Map<string, ScryfallCard>();
-    for (const p of printings) preferredMap.set(p.id, p);
-    if (!preferredMap.has(card.id)) preferredMap.set(card.id, card);
+    for (const p of printings) {
+      preferredMap.set(p.id.toLowerCase(), p);
+      preferredMap.set(p.id, p);
+    }
+    preferredMap.set(card.id.toLowerCase(), card);
+    preferredMap.set(card.id, card);
 
     const base = mapScryfallToDeckApp(card);
     const resolved = applyUserCardArt(base, art, {
@@ -81,6 +88,15 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     };
   }, [oracleId, user, card.id]);
 
+  function findPrinting(id: string | null | undefined): ScryfallCard | null {
+    if (!id) return null;
+    const lower = id.toLowerCase();
+    return (
+      printings.find((p) => p.id.toLowerCase() === lower) ??
+      (card.id.toLowerCase() === lower ? card : null)
+    );
+  }
+
   async function selectPrinting(printing: ScryfallCard) {
     if (!user) return;
     setBusy(true);
@@ -90,13 +106,21 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
       oracle_id: oracleId,
       preferred_scryfall_id: printing.id,
     });
-    setBusy(false);
     if (err) {
+      setBusy(false);
       setError(err);
       return;
     }
     setArt(row);
-    setMessage(`Preferred art set to ${printing.set_name} (#${printing.collector_number}).`);
+    // Seed in-memory prefs + preferred printing immediately (no race with reload)
+    applyArtPreference(oracleId, row, printing);
+    // Persist local cache first, then soft-reload so other tabs stay consistent
+    await syncUserCardFromArt(user.id, oracleId, row, printing);
+    void reloadArtPrefs();
+    setBusy(false);
+    setMessage(
+      `Preferred art set to ${printing.set_name} (#${printing.collector_number}).`
+    );
   }
 
   async function clearPreferred() {
@@ -107,12 +131,16 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
       oracle_id: oracleId,
       preferred_scryfall_id: null,
     });
-    setBusy(false);
     if (err) {
+      setBusy(false);
       setError(err);
       return;
     }
     setArt(row);
+    applyArtPreference(oracleId, row, null);
+    await syncUserCardFromArt(user.id, oracleId, row, card);
+    void reloadArtPrefs();
+    setBusy(false);
     setMessage("Preferred printing cleared.");
   }
 
@@ -137,6 +165,9 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     }
     const { art: row } = await fetchUserCardArt(user.id, oracleId);
     setArt(row);
+    applyArtPreference(oracleId, row, null);
+    await syncUserCardFromArt(user.id, oracleId, row, findPrinting(row?.preferred_scryfall_id) ?? card);
+    void reloadArtPrefs();
     setBusy(false);
     setMessage(`Custom ${side} image uploaded.`);
   }
@@ -157,6 +188,10 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     }
     const { art: row } = await fetchUserCardArt(user.id, oracleId);
     setArt(row);
+    const preferred = findPrinting(row?.preferred_scryfall_id);
+    applyArtPreference(oracleId, row, preferred);
+    await syncUserCardFromArt(user.id, oracleId, row, preferred ?? card);
+    void reloadArtPrefs();
     setBusy(false);
     setMessage(`Custom ${side} image removed.`);
   }

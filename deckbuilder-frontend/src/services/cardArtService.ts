@@ -39,7 +39,13 @@ export async function fetchUserCardArtMap(
 
   const map = new Map<string, UserCardArt>();
   for (const row of (data ?? []) as UserCardArt[]) {
-    map.set(row.oracle_id, row);
+    map.set(String(row.oracle_id).toLowerCase(), {
+      ...row,
+      oracle_id: String(row.oracle_id).toLowerCase(),
+      preferred_scryfall_id: row.preferred_scryfall_id
+        ? String(row.preferred_scryfall_id).toLowerCase()
+        : null,
+    });
   }
   return { map, error: null };
 }

@@ -44,12 +44,39 @@
   font-weight: 500;
 }
 
+.cardPageMiniLink {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--color-accent);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  transition: opacity var(--hover-transition);
+}
+
+.cardPageMiniLink:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 .modalActions {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border);
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.modalActionsHint {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
 }
 
 .cardPageLink {
@@ -68,6 +95,7 @@
   );
   box-shadow: 0 2px 12px var(--color-accent-glow);
   transition: filter var(--hover-transition);
+  white-space: nowrap;
 }
 
 .cardPageLink:hover {

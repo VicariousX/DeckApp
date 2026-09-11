@@ -15,6 +15,7 @@ import "./ui/backgrounds/bg-hero.module.css";
 
 import App from "./App.tsx";
 import { AuthProvider } from "./auth/AuthProvider";
+import { ArtPreferencesProvider } from "./auth/ArtPreferencesProvider";
 import { ThemeProvider } from "./theme/ThemeProvider";
 
 const queryClient = new QueryClient();
@@ -23,7 +24,9 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <App />
+          <ArtPreferencesProvider>
+            <App />
+          </ArtPreferencesProvider>
         </AuthProvider>
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />

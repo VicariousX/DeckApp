@@ -4,7 +4,9 @@ declare const styles: {
   readonly cardWrapperExpanded: string;
   readonly cardName: string;
   readonly cardNameMuted: string;
+  readonly cardPageMiniLink: string;
   readonly modalActions: string;
+  readonly modalActionsHint: string;
   readonly cardPageLink: string;
 };
 export default styles;

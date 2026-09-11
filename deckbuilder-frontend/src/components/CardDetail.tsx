@@ -1,43 +1,46 @@
 import type { ScryfallCard } from "../types/scryfallCard";
 import {
+  getFaceImage,
   getFaces,
-  getOracleText
+  getOracleText,
 } from "../utils/scryfall";
 
 import {
   parseManaCost,
   renderManaSymbol,
-  renderTextWithSymbols
+  renderTextWithSymbols,
 } from "../utils/symbols";
 
 import styles from "./CardDetail.module.css";
 
-export function CardDetail({ card }: { card: ScryfallCard }) {
+type Props = {
+  card: ScryfallCard;
+  /**
+   * When true (custom upload or non-default preferred printing), hide
+   * printing-specific flavor text and artist credit.
+   */
+  hidePrintingMeta?: boolean;
+};
+
+export function CardDetail({ card, hidePrintingMeta = false }: Props) {
   const faces = getFaces(card);
   const oracleText = getOracleText(card);
+  const bgUrl =
+    faces[0]?.image_uris?.art_crop ||
+    faces[0]?.image_uris?.normal ||
+    faces[0]?.image_uris?.large ||
+    getFaceImage(card, 0);
 
   return (
     <div className={styles.detailContainer}>
-
-      {/* --- Background Image --- */}
       <div
         className={styles.modalBackgroundImage}
-        style={{
-          backgroundImage: `url(${faces[0].image_uris?.art_crop ?? ""})`,
-        }}
+        style={bgUrl ? { backgroundImage: `url(${bgUrl})` } : undefined}
       />
 
-      
-
-      
-
-      {/* --- Mana Cost Row --- */}
       {faces[0].mana_cost && (
         <div className={styles.manaRow}>
-          {/* --- Card Name --- */}
-          <div className={styles.cardName}>
-            {faces[0].name}
-          </div>
+          <div className={styles.cardName}>{faces[0].name}</div>
           &nbsp; - &nbsp;
           {parseManaCost(faces[0].mana_cost).map((symbol, i) => (
             <span key={i} className={styles.manaSymbol}>
@@ -47,38 +50,32 @@ export function CardDetail({ card }: { card: ScryfallCard }) {
         </div>
       )}
 
-      {/* --- Type Line --- */}
       {faces[0].type_line && (
-        <div className={styles.typeLine}>
-          {/* --- Type --- */}
-          {faces[0].type_line}
-        </div>
+        <div className={styles.typeLine}>{faces[0].type_line}</div>
       )}
 
-      {/* --- Oracle Text (with official Scryfall symbol SVGs) --- */}
       {oracleText && (
         <div className={styles.oracleText}>
           {renderTextWithSymbols(oracleText, 16)}
         </div>
       )}
 
-      {/* --- Flavor Text --- */}
-      {card.flavor_text && (
-        <div className={styles.flavorText}>
-          {card.flavor_text}
-        </div>
+      {!hidePrintingMeta && card.flavor_text && (
+        <div className={styles.flavorText}>{card.flavor_text}</div>
       )}
 
       <div className={styles.divider} />
 
-      {/* --- Set & Rarity Row --- */}
       <div className={styles.infoRow}>
-        <div className={styles.setName}>{card.set_name}</div>
-        <div className={styles.rarityBadge}>{card.rarity}</div>
+        <div className={styles.setName}>
+          {hidePrintingMeta ? "Alternate art" : card.set_name}
+        </div>
+        {!hidePrintingMeta && (
+          <div className={styles.rarityBadge}>{card.rarity}</div>
+        )}
       </div>
 
-      {/* --- Artist Line --- */}
-      {faces[0].artist && (
+      {!hidePrintingMeta && faces[0].artist && (
         <div className={styles.artistLine}>
           Illustrated by {faces[0].artist}
         </div>

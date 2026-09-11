@@ -46,6 +46,7 @@ declare const styles: {
   readonly miniTagOn: string;
   readonly removeBtn: string;
   readonly hoverPreview: string;
+  readonly hoverPreviewLoading: string;
   readonly qtyInput: string;
   readonly qtyControl: string;
 };

@@ -5,6 +5,7 @@ import { SearchPage } from "./pages/SearchPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicDecksPage } from "./pages/PublicDecksPage";
 import { MyDecksPage } from "./pages/MyDecksPage";
+import { DeckBuilderPage } from "./pages/DeckBuilderPage";
 import { CardPage } from "./pages/CardPage";
 import "./index.css";
 
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/decks" element={<PublicDecksPage />} />
           <Route path="/my-decks" element={<MyDecksPage />} />
+          <Route path="/deck/:id" element={<DeckBuilderPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

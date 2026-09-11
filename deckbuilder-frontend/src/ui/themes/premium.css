@@ -47,29 +47,29 @@ html[data-theme="premium"] .premium-focus {
   box-shadow: var(--focus-ring);
 }
 
-.premium-card {
+html[data-theme="premium"] .premium-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
 
-.premium-card-elevated {
+html[data-theme="premium"] .premium-card-elevated {
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
 
-.premium-accent {
+html[data-theme="premium"] .premium-accent {
   color: var(--color-accent);
 }
 
-.premium-underline {
+html[data-theme="premium"] .premium-underline {
   border-bottom: 2px solid var(--color-accent);
 }
 
-.premium-hover-glow:hover {
+html[data-theme="premium"] .premium-hover-glow:hover {
   box-shadow: var(--shadow-glow);
   transition: var(--hover-transition);
 }

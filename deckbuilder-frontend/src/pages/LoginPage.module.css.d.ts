@@ -19,6 +19,7 @@ declare const styles: {
   readonly sessionBox: string;
   readonly sessionEmail: string;
   readonly homeLink: string;
+  readonly footerLink: string;
   readonly sectionTitle: string;
   readonly sectionHint: string;
   readonly linkBtn: string;
@@ -39,5 +40,7 @@ declare const styles: {
   readonly themeToggle: string;
   readonly themeOption: string;
   readonly themeOptionActive: string;
+  readonly themeOptionPremium: string;
+  readonly themeOptionArcane: string;
 };
 export default styles;

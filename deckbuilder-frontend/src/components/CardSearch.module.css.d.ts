@@ -1,13 +1,16 @@
 declare const styles: {
-  readonly "hero": string;
-  readonly "heroTitle": string;
-  readonly "placeholderCard": string;
-  readonly "placeholderRow": string;
-  readonly "searchBar": string;
-  readonly "searchContainer": string;
-  readonly "searchInput": string;
-  readonly "searchStatus": string;
-  readonly "searchStatusError": string;
+  readonly searchContainer: string;
+  readonly searchBar: string;
+  readonly inputWrap: string;
+  readonly searchInput: string;
+  readonly spinner: string;
+  readonly suggestList: string;
+  readonly suggestItem: string;
+  readonly suggestItemActive: string;
+  readonly searchHint: string;
+  readonly searchStatus: string;
+  readonly searchStatusError: string;
+  readonly placeholderRow: string;
+  readonly placeholderCard: string;
 };
-export = styles;
-
+export default styles;

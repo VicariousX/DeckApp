@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 import { getFaces, isMultiCard } from "../utils/scryfall";
+import { useDisplayCards } from "../hooks/useUserCardArt";
 import type { CardFaceView } from "./CardImage";
 
 import styles from "./CardResult.module.css";
@@ -16,13 +17,15 @@ type CardResultProps = {
 };
 
 function ResultCard({
-  card,
+  display,
+  originalId,
   onSelect,
 }: {
-  card: ScryfallCard;
+  display: ScryfallCard;
+  originalId: string;
   onSelect: (card: ScryfallCard) => void;
 }) {
-  const faces = getFaces(card);
+  const faces = getFaces(display);
   const [view, setView] = useState<CardFaceView>("front");
   const expanded = view === "both";
 
@@ -33,23 +36,36 @@ function ResultCard({
       }`}
     >
       <CardImage
-        card={card}
+        card={display}
         onActivate={onSelect}
         onViewChange={setView}
       />
 
       <div className={styles.cardName}>
         {faces[0].name}
-        {isMultiCard(card) && (
+        {isMultiCard(display) && (
           <span className={styles.cardNameMuted}> · DFC</span>
         )}
       </div>
+
+      <Link
+        to={`/card/${originalId}`}
+        className={styles.cardPageMiniLink}
+        onClick={(e) => e.stopPropagation()}
+      >
+        Card page
+      </Link>
     </div>
   );
 }
 
 export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
-  const [selectedCard, setSelectedCard] = useState<ScryfallCard | null>(null);
+  const { pairs } = useDisplayCards(cards);
+  const [selected, setSelected] = useState<{
+    display: ScryfallCard;
+    originalId: string;
+    hidePrintingMeta: boolean;
+  } | null>(null);
 
   if (cards.length === 0) {
     return null;
@@ -62,25 +78,40 @@ export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
   return (
     <>
       <div className={styles.resultsGrid} style={gridStyle}>
-        {cards.map((card) => (
+        {pairs.map(({ original, display, resolved }) => (
           <ResultCard
-            key={card.id}
-            card={card}
-            onSelect={setSelectedCard}
+            key={original.id}
+            display={display}
+            originalId={original.id}
+            onSelect={() =>
+              setSelected({
+                display,
+                originalId: original.id,
+                hidePrintingMeta:
+                  resolved.has_custom_art || resolved.has_preferred_printing,
+              })
+            }
           />
         ))}
       </div>
 
-      {selectedCard && (
-        <Modal onClose={() => setSelectedCard(null)}>
-          <CardDetail card={selectedCard} />
+      {selected && (
+        <Modal onClose={() => setSelected(null)}>
+          <CardDetail
+            card={selected.display}
+            hidePrintingMeta={selected.hidePrintingMeta}
+          />
           <div className={styles.modalActions}>
+            <p className={styles.modalActionsHint}>
+              Art preferences, decks, and collections live on the full card
+              page.
+            </p>
             <Link
-              to={`/card/${selectedCard.id}`}
+              to={`/card/${selected.originalId}`}
               className={styles.cardPageLink}
-              onClick={() => setSelectedCard(null)}
+              onClick={() => setSelected(null)}
             >
-              Open full card page →
+              Open card page →
             </Link>
           </div>
         </Modal>

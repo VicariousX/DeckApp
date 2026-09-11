@@ -188,7 +188,7 @@ export function AccountPanel() {
                 <div className={styles.themeToggle} role="group" aria-label="App theme">
                   <button
                     type="button"
-                    className={`${styles.themeOption} ${
+                    className={`${styles.themeOption} ${styles.themeOptionPremium} ${
                       theme === "premium" ? styles.themeOptionActive : ""
                     }`}
                     onClick={() => setTheme("premium" as AppTheme)}
@@ -197,7 +197,7 @@ export function AccountPanel() {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.themeOption} ${
+                    className={`${styles.themeOption} ${styles.themeOptionArcane} ${
                       theme === "arcane" ? styles.themeOptionActive : ""
                     }`}
                     onClick={() => setTheme("arcane" as AppTheme)}
@@ -246,7 +246,7 @@ export function AccountPanel() {
           <p className={`${styles.message} ${styles.messageOk}`}>{info}</p>
         )}
 
-        <div style={{ marginTop: "1.25rem" }}>
+        <div className={styles.footerLink}>
           <Link to="/" className={styles.homeLink}>
             ← Back to home
           </Link>

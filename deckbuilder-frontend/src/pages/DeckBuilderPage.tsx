@@ -6,18 +6,14 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
-  type MouseEvent,
 } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { fetchAutocomplete, fetchCardById, fetchNamedCard } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
-import {
-  applyUserCardArt,
-  mapScryfallToDeckApp,
-} from "../lib/cards/mapScryfallToDeckApp";
-import { getCardArtPublicBase } from "../services/cardArtService";
-import { useUserCardArt } from "../hooks/useUserCardArt";
+import { ensureUserCardFromScryfall } from "../services/userCardService";
+import { useDeckCardHover } from "../hooks/useDeckCardHover";
+import { CardHoverPreview } from "../components/CardHoverPreview";
 import {
   addCardToDeck,
   createDeckTag,
@@ -40,7 +36,15 @@ function sortCards(cards: DeckCard[]): DeckCard[] {
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
-  const { artByOracleId } = useUserCardArt();
+  const {
+    hoverCard,
+    hoverSrc,
+    hoverPos,
+    onNameEnter,
+    onNameMove,
+    onNameLeave,
+    warmCache,
+  } = useDeckCardHover();
 
   const [detail, setDetail] = useState<DeckDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -56,13 +60,6 @@ export function DeckBuilderPage() {
 
   const [newTagName, setNewTagName] = useState("");
 
-  // Hover preview
-  const [hoverCard, setHoverCard] = useState<DeckCard | null>(null);
-  const [hoverSrc, setHoverSrc] = useState<string | null>(null);
-  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
-  const hoverCache = useRef<Map<string, string>>(new Map());
-  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const loadDeck = useCallback(async (opts?: { silent?: boolean }) => {
     if (!id) return;
     if (!opts?.silent) setInitialLoading(true);
@@ -77,7 +74,7 @@ export function DeckBuilderPage() {
   }, [loadDeck]);
 
   useEffect(() => {
-    function onDoc(e: MouseEvent) {
+    function onDoc(e: globalThis.MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) setSuggestOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
@@ -101,42 +98,11 @@ export function DeckBuilderPage() {
     };
   }, [query]);
 
-  // Resolve hover art (preferred / custom when available)
+
   useEffect(() => {
-    if (!hoverCard) {
-      setHoverSrc(null);
-      return;
-    }
-    const cacheKey = hoverCard.scryfall_id;
-    const cached = hoverCache.current.get(cacheKey);
-    if (cached) {
-      setHoverSrc(cached);
-      return;
-    }
-    let cancelled = false;
-    async function resolve() {
-      const { card } = await fetchCardById(hoverCard!.scryfall_id);
-      if (cancelled || !card) return;
-      const base = mapScryfallToDeckApp(card);
-      const art = artByOracleId.get(base.oracle_id);
-      const resolved = applyUserCardArt(base, art, {
-        publicStorageBase: getCardArtPublicBase(),
-      });
-      const url =
-        resolved.faces[0]?.image_url ||
-        card.image_uris?.normal ||
-        card.card_faces?.[0]?.image_uris?.normal ||
-        "";
-      if (url) {
-        hoverCache.current.set(cacheKey, url);
-        if (!cancelled) setHoverSrc(url);
-      }
-    }
-    void resolve();
-    return () => {
-      cancelled = true;
-    };
-  }, [hoverCard, artByOracleId]);
+    if (detail?.cards?.length) warmCache(detail.cards);
+  }, [detail, warmCache]);
+
 
   const isOwner = Boolean(user && detail && detail.deck.user_id === user.id);
 
@@ -238,6 +204,10 @@ export function DeckBuilderPage() {
     }
     setQuery("");
     setSuggestOpen(false);
+    // Cache local user_card row (background)
+    if (user) {
+      void ensureUserCardFromScryfall(user.id, card);
+    }
     // Optimistic merge — no full-page reload
     setDetail((prev) => {
       if (!prev) return prev;
@@ -357,23 +327,6 @@ export function DeckBuilderPage() {
       setError(err);
       patchCard(card.id, { tag_ids: card.tag_ids });
     }
-  }
-
-  function onNameEnter(card: DeckCard, e: MouseEvent) {
-    if (hoverLeaveTimer.current) clearTimeout(hoverLeaveTimer.current);
-    setHoverCard(card);
-    setHoverPos({ x: e.clientX, y: e.clientY });
-  }
-
-  function onNameMove(e: MouseEvent) {
-    setHoverPos({ x: e.clientX, y: e.clientY });
-  }
-
-  function onNameLeave() {
-    hoverLeaveTimer.current = setTimeout(() => {
-      setHoverCard(null);
-      setHoverSrc(null);
-    }, 80);
   }
 
   if (!authLoading && !user) {
@@ -600,17 +553,12 @@ export function DeckBuilderPage() {
         </>
       )}
 
-      {hoverCard && hoverSrc && (
-        <div
-          className={styles.hoverPreview}
-          style={{
-            left: Math.min(hoverPos.x + 16, window.innerWidth - 200),
-            top: Math.min(hoverPos.y + 12, window.innerHeight - 300),
-          }}
-        >
-          <img src={hoverSrc} alt={hoverCard.name} />
-        </div>
-      )}
+      <CardHoverPreview
+        card={hoverCard}
+        src={hoverSrc}
+        x={hoverPos.x}
+        y={hoverPos.y}
+      />
     </div>
   );
 }

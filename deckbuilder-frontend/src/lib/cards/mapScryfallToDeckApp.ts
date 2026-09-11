@@ -26,7 +26,7 @@ function faceFromScryfall(
  * Normalize a Scryfall card into the DeckApp model (no user overrides yet).
  */
 export function mapScryfallToDeckApp(card: ScryfallCard): DeckAppCard {
-  const oracleId = card.oracle_id ?? card.id;
+  const oracleId = (card.oracle_id ?? card.id).toLowerCase();
   const multi =
     Array.isArray(card.card_faces) && card.card_faces.length > 0
       ? card.card_faces
@@ -101,24 +101,28 @@ export function applyUserCardArt(
   let hasCustom = false;
 
   // Preferred printing (metadata + default images from that printing)
-  if (
-    art.preferred_scryfall_id &&
-    art.preferred_scryfall_id !== base.scryfall_id &&
-    options.preferredPrintings?.has(art.preferred_scryfall_id)
-  ) {
-    const preferred = options.preferredPrintings.get(
-      art.preferred_scryfall_id
-    )!;
+  // Normalize IDs — Supabase/Scryfall UUIDs may differ by case across maps
+  const prefId = art.preferred_scryfall_id
+    ? String(art.preferred_scryfall_id).toLowerCase()
+    : null;
+  const baseId = String(base.scryfall_id).toLowerCase();
+  const preferredMap = options.preferredPrintings;
+  const preferredCard =
+    prefId && preferredMap
+      ? preferredMap.get(prefId) ||
+        preferredMap.get(art.preferred_scryfall_id!) ||
+        [...preferredMap.entries()].find(
+          ([k]) => k.toLowerCase() === prefId
+        )?.[1]
+      : undefined;
+
+  if (prefId && prefId !== baseId && preferredCard) {
     result = {
-      ...mapScryfallToDeckApp(preferred),
-      // Keep oracle_id from preference key / base
-      oracle_id: base.oracle_id || preferred.oracle_id || preferred.id,
+      ...mapScryfallToDeckApp(preferredCard),
+      oracle_id: base.oracle_id || preferredCard.oracle_id || preferredCard.id,
     };
     hasPreferred = true;
-  } else if (
-    art.preferred_scryfall_id &&
-    art.preferred_scryfall_id !== base.scryfall_id
-  ) {
+  } else if (prefId && prefId !== baseId) {
     // Preference recorded but printing payload not loaded yet
     hasPreferred = true;
   }
@@ -173,7 +177,7 @@ export function mapScryfallListWithArt(
 ): DeckAppCard[] {
   return cards.map((c) => {
     const base = mapScryfallToDeckApp(c);
-    const art = artByOracleId.get(base.oracle_id);
+    const art = artByOracleId.get(base.oracle_id.toLowerCase()) ?? artByOracleId.get(base.oracle_id);
     return applyUserCardArt(base, art, options);
   });
 }

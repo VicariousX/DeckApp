@@ -48,29 +48,29 @@ html[data-theme="arcane"] .arcane-focus {
   box-shadow: var(--focus-ring);
 }
 
-.arcane-card {
+html[data-theme="arcane"] .arcane-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
 
-.arcane-card-elevated {
+html[data-theme="arcane"] .arcane-card-elevated {
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
 
-.arcane-accent {
+html[data-theme="arcane"] .arcane-accent {
   color: var(--color-accent);
 }
 
-.arcane-underline {
+html[data-theme="arcane"] .arcane-underline {
   border-bottom: 2px solid var(--color-accent);
 }
 
-.arcane-hover-glow:hover {
+html[data-theme="arcane"] .arcane-hover-glow:hover {
   box-shadow: var(--shadow-glow);
   transition: var(--hover-transition);
 }

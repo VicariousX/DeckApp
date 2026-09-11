@@ -31,7 +31,10 @@ function readStoredTheme(): AppTheme {
 }
 
 function applyTheme(theme: AppTheme) {
-  document.documentElement.dataset.theme = theme;
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  root.classList.remove("theme-premium", "theme-arcane");
+  root.classList.add(`theme-${theme}`);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
