@@ -30,6 +30,8 @@ export type DeckCard = {
   cmc: number | null;
   quantity: number;
   board: DeckBoard;
+  /** Display order within a board (lower first). */
+  sort_order: number;
   notes: string | null;
   created_at: string;
   updated_at: string;

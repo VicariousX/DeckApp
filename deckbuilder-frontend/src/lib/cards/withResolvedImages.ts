@@ -14,8 +14,12 @@ export function withResolvedImages(
     return base;
   }
 
-  const frontUrl = resolved.faces[0]?.image_url;
-  const backUrl = resolved.faces[1]?.image_url;
+  const frontUrl = resolved.faces[0]?.image_url || "";
+  const backUrl = resolved.faces[1]?.image_url || "";
+  // Preference recorded but preferred printing not loaded yet — keep base art
+  if (!frontUrl && !resolved.has_custom_art) {
+    return base;
+  }
 
   const next: ScryfallCard = {
     ...base,

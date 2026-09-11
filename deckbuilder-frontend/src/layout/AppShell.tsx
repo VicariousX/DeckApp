@@ -6,6 +6,7 @@ import {
   getDisplayName,
   getInitials,
 } from "../auth/userDisplay";
+import { getLastViewedDeck } from "../lib/deckPreferences";
 import styles from "./AppShell.module.css";
 
 export function AppShell() {
@@ -14,13 +15,18 @@ export function AppShell() {
   const avatar = getAvatarUrl(user);
   const location = useLocation();
   const [decksOpen, setDecksOpen] = useState(false);
+  const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
   const decksRef = useRef<HTMLDivElement>(null);
 
   const decksActive =
-    location.pathname === "/decks" || location.pathname === "/my-decks";
+    location.pathname === "/decks" ||
+    location.pathname === "/my-decks" ||
+    location.pathname.startsWith("/deck/");
 
   useEffect(() => {
     setDecksOpen(false);
+    // Refresh last-viewed when route changes (deck builder writes localStorage)
+    setLastDeck(getLastViewedDeck());
   }, [location.pathname]);
 
   useEffect(() => {
@@ -102,6 +108,22 @@ export function AppShell() {
                   role="menu"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
+                  {lastDeck && (
+                    <NavLink
+                      to={`/deck/${lastDeck.id}`}
+                      role="menuitem"
+                      className={({ isActive }) =>
+                        isActive
+                          ? `${styles.decksItem} ${styles.decksItemActive}`
+                          : styles.decksItem
+                      }
+                      onClick={() => setDecksOpen(false)}
+                      title={lastDeck.name}
+                    >
+                      <span className={styles.decksItemLabel}>Last viewed</span>
+                      <span className={styles.decksItemSub}>{lastDeck.name}</span>
+                    </NavLink>
+                  )}
                   <NavLink
                     to="/my-decks"
                     role="menuitem"

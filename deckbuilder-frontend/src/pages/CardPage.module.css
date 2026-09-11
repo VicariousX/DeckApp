@@ -17,16 +17,27 @@
 }
 
 .backLink {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
   font-size: 0.9rem;
   font-weight: 650;
   color: var(--color-text-muted);
   text-decoration: none;
   padding: 0.35rem 0;
+  cursor: pointer;
   transition: color var(--hover-transition);
 }
 
 .backLink:hover {
   color: var(--color-accent);
+}
+
+.imageFrame {
+  width: 100%;
+  cursor: zoom-in;
+  border-radius: var(--radius-md);
 }
 
 .status {

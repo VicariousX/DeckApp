@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 1.25rem var(--space-xl) 3rem;
   display: flex;
@@ -190,6 +190,7 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
+  justify-content: space-between;
 }
 
 .groupToggle {
@@ -220,6 +221,81 @@
     var(--color-accent),
     var(--color-accent-soft)
   );
+}
+
+.boardTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  border: 1px solid var(--color-border);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.boardTab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 650;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition:
+    background var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.boardTab:hover {
+  color: var(--color-text);
+}
+
+.boardTabActive {
+  color: var(--color-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-soft)
+  );
+}
+
+.boardTabCount {
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.85;
+  min-width: 1.1rem;
+  text-align: center;
+}
+
+.boardSelect {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: color-mix(
+    in srgb,
+    var(--color-surface-alt, var(--color-surface)) 90%,
+    transparent
+  );
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.25rem 0.45rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  max-width: 6.5rem;
+}
+
+.boardSelect:hover,
+.boardSelect:focus {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  outline: none;
 }
 
 .tagChips {
@@ -462,4 +538,122 @@
   place-items: center;
   color: var(--color-text-muted);
   font-size: 1.25rem;
+}
+
+/* --- Image view --- */
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 0.65rem;
+}
+
+.imageTile {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition:
+    box-shadow var(--hover-transition),
+    border-color var(--hover-transition),
+    transform var(--hover-transition);
+}
+
+.imageTile:hover {
+  border-color: var(--color-accent-glow);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  transform: translateY(-1px);
+}
+
+.imageTileDragging {
+  opacity: 0.45;
+  transform: scale(0.97);
+}
+
+.imageTileDropTarget {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-glow);
+}
+
+.imageTileLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.imageTileImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+}
+
+.imageTilePlaceholder {
+  aspect-ratio: 5 / 7;
+  display: grid;
+  place-items: center;
+  padding: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: center;
+  color: var(--color-text-muted);
+  line-height: 1.25;
+}
+
+.imageQty {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: var(--color-on-accent);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-soft)
+  );
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.imageTileControls {
+  display: flex;
+  border-top: 1px solid var(--color-border);
+}
+
+.imageQtyBtn {
+  flex: 1;
+  appearance: none;
+  border: none;
+  background: color-mix(in srgb, var(--color-surface-alt, var(--color-surface)) 90%, transparent);
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.3rem 0;
+  cursor: pointer;
+  transition: background var(--hover-transition);
+}
+
+.imageQtyBtn:hover {
+  background: var(--color-accent-glow);
+  color: var(--color-accent);
+}
+
+.imageQtyBtn + .imageQtyBtn {
+  border-left: 1px solid var(--color-border);
+}
+
+@media (min-width: 900px) {
+  .imageGrid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  }
 }

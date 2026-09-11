@@ -3,6 +3,7 @@ import type {
   AddDeckCardInput,
   CreateDeckInput,
   Deck,
+  DeckBoard,
   DeckCard,
   DeckDetail,
   DeckTag,
@@ -77,12 +78,23 @@ export async function fetchDeckDetail(
   if (deckErr) return { detail: null, error: deckErr.message };
   if (!deck) return { detail: null, error: "Deck not found." };
 
-  const { data: cards, error: cardsErr } = await supabase
+  let cardsQuery = await supabase
     .from("deck_cards")
     .select("*")
     .eq("deck_id", deckId)
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
+  // Fallback if sort_order migration not applied yet
+  if (cardsQuery.error && /sort_order/i.test(cardsQuery.error.message)) {
+    cardsQuery = await supabase
+      .from("deck_cards")
+      .select("*")
+      .eq("deck_id", deckId)
+      .order("name", { ascending: true });
+  }
+
+  const { data: cards, error: cardsErr } = cardsQuery;
   if (cardsErr) return { detail: null, error: cardsErr.message };
 
   const { data: tags, error: tagsErr } = await supabase
@@ -113,6 +125,7 @@ export async function fetchDeckDetail(
 
   const enriched: DeckCard[] = ((cards ?? []) as DeckCard[]).map((c) => ({
     ...c,
+    sort_order: typeof c.sort_order === "number" ? c.sort_order : 0,
     tag_ids: tagsByCard.get(c.id) ?? [],
   }));
 
@@ -150,8 +163,27 @@ export async function addCardToDeck(
       .select("*")
       .single();
     if (error) return { card: null, error: error.message };
-    return { card: { ...(data as DeckCard), tag_ids: [] }, error: null };
+    return {
+      card: {
+        ...(data as DeckCard),
+        sort_order: (data as DeckCard).sort_order ?? 0,
+        tag_ids: [],
+      },
+      error: null,
+    };
   }
+
+  // Append to end of board order
+  const { data: maxRow } = await supabase
+    .from("deck_cards")
+    .select("sort_order")
+    .eq("deck_id", deckId)
+    .eq("board", board)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextSort =
+    typeof maxRow?.sort_order === "number" ? maxRow.sort_order + 1 : 0;
 
   const { data, error } = await supabase
     .from("deck_cards")
@@ -165,12 +197,145 @@ export async function addCardToDeck(
       cmc: input.cmc ?? null,
       quantity,
       board,
+      sort_order: nextSort,
     })
     .select("*")
     .single();
 
   if (error) return { card: null, error: error.message };
-  return { card: { ...(data as DeckCard), tag_ids: [] }, error: null };
+  return {
+    card: {
+      ...(data as DeckCard),
+      sort_order: (data as DeckCard).sort_order ?? nextSort,
+      tag_ids: [],
+    },
+    error: null,
+  };
+}
+
+/** Move a card to another board (merges quantity if same printing already there). */
+export async function setCardBoard(
+  card: DeckCard,
+  board: DeckBoard
+): Promise<{ card: DeckCard | null; removedId: string | null; error: string | null }> {
+  if (card.board === board) {
+    return { card, removedId: null, error: null };
+  }
+
+  const { data: existing } = await supabase
+    .from("deck_cards")
+    .select("*")
+    .eq("deck_id", card.deck_id)
+    .eq("scryfall_id", card.scryfall_id)
+    .eq("board", board)
+    .maybeSingle();
+
+  if (existing && existing.id !== card.id) {
+    // Merge into existing row on target board, delete source
+    const { data, error } = await supabase
+      .from("deck_cards")
+      .update({
+        quantity: (existing.quantity as number) + card.quantity,
+      })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) return { card: null, removedId: null, error: error.message };
+    const { error: delErr } = await supabase
+      .from("deck_cards")
+      .delete()
+      .eq("id", card.id);
+    if (delErr) return { card: null, removedId: null, error: delErr.message };
+    return {
+      card: {
+        ...(data as DeckCard),
+        sort_order: (data as DeckCard).sort_order ?? 0,
+        tag_ids: card.tag_ids ?? [],
+      },
+      removedId: card.id,
+      error: null,
+    };
+  }
+
+  // Append to end of target board
+  const { data: maxRow } = await supabase
+    .from("deck_cards")
+    .select("sort_order")
+    .eq("deck_id", card.deck_id)
+    .eq("board", board)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextSort =
+    typeof maxRow?.sort_order === "number" ? maxRow.sort_order + 1 : 0;
+
+  const { data, error } = await supabase
+    .from("deck_cards")
+    .update({ board, sort_order: nextSort })
+    .eq("id", card.id)
+    .select("*")
+    .single();
+  if (error) return { card: null, removedId: null, error: error.message };
+  return {
+    card: {
+      ...(data as DeckCard),
+      sort_order: nextSort,
+      tag_ids: card.tag_ids ?? [],
+    },
+    removedId: null,
+    error: null,
+  };
+}
+
+/** Persist a new sort order for cards on a board (ids in desired order). */
+export async function reorderBoardCards(
+  orderedIds: string[]
+): Promise<{ error: string | null }> {
+  // Sequential updates keep RLS simple; boards are rarely huge
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("deck_cards")
+      .update({ sort_order: i })
+      .eq("id", orderedIds[i]);
+    if (error) return { error: error.message };
+  }
+  return { error: null };
+}
+
+/**
+ * Stack dragged onto target when they share the same scryfall printing.
+ * Merges quantity into target and deletes the dragged row.
+ */
+export async function stackDeckCards(
+  target: DeckCard,
+  dragged: DeckCard
+): Promise<{ card: DeckCard | null; error: string | null }> {
+  if (target.id === dragged.id) {
+    return { card: target, error: null };
+  }
+  if (target.scryfall_id !== dragged.scryfall_id || target.board !== dragged.board) {
+    return { card: null, error: "Can only stack identical printings on the same board." };
+  }
+  const { data, error } = await supabase
+    .from("deck_cards")
+    .update({ quantity: target.quantity + dragged.quantity })
+    .eq("id", target.id)
+    .select("*")
+    .single();
+  if (error) return { card: null, error: error.message };
+  const { error: delErr } = await supabase
+    .from("deck_cards")
+    .delete()
+    .eq("id", dragged.id);
+  if (delErr) return { card: null, error: delErr.message };
+  return {
+    card: {
+      ...(data as DeckCard),
+      sort_order: (data as DeckCard).sort_order ?? target.sort_order,
+      tag_ids: target.tag_ids ?? [],
+    },
+    error: null,
+  };
 }
 
 export async function setCardQuantity(

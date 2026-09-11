@@ -82,12 +82,14 @@ export function CardImage({
       {view === "both" && multi ? (
         <div className={styles.both}>
           <img
+            key={`f-${frontSrc}`}
             src={frontSrc}
             alt={frontName}
             className={styles.imageHalf}
             draggable={true}
           />
           <img
+            key={`b-${backSrc}`}
             src={backSrc}
             alt={backName}
             className={styles.imageHalf}
@@ -96,6 +98,7 @@ export function CardImage({
         </div>
       ) : (
         <img
+          key={view === "back" && multi ? backSrc : frontSrc}
           src={view === "back" && multi ? backSrc : frontSrc}
           alt={view === "back" && multi ? backName : frontName}
           className={styles.image}

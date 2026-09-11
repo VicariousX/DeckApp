@@ -50,20 +50,36 @@ export async function fetchUserCardArtMap(
   return { map, error: null };
 }
 
+function normOracle(id: string): string {
+  return String(id).toLowerCase();
+}
+
 /** Load preference for a single oracle card. */
 export async function fetchUserCardArt(
   userId: string,
   oracleId: string
 ): Promise<{ art: UserCardArt | null; error: string | null }> {
+  const oid = normOracle(oracleId);
   const { data, error } = await supabase
     .from("user_card_art")
     .select("*")
     .eq("user_id", userId)
-    .eq("oracle_id", oracleId)
+    .eq("oracle_id", oid)
     .maybeSingle();
 
   if (error) return { art: null, error: error.message };
-  return { art: (data as UserCardArt) ?? null, error: null };
+  if (!data) return { art: null, error: null };
+  const row = data as UserCardArt;
+  return {
+    art: {
+      ...row,
+      oracle_id: normOracle(row.oracle_id),
+      preferred_scryfall_id: row.preferred_scryfall_id
+        ? normOracle(String(row.preferred_scryfall_id))
+        : null,
+    },
+    error: null,
+  };
 }
 
 /**
@@ -74,15 +90,19 @@ export async function upsertUserCardArt(
   userId: string,
   patch: UserCardArtUpsert
 ): Promise<{ art: UserCardArt | null; error: string | null }> {
+  const oid = normOracle(patch.oracle_id);
   // When only some fields are intended to change, merge with existing row
-  const { art: existing } = await fetchUserCardArt(userId, patch.oracle_id);
+  const { art: existing } = await fetchUserCardArt(userId, oid);
+  const preferred =
+    patch.preferred_scryfall_id !== undefined
+      ? patch.preferred_scryfall_id
+        ? normOracle(String(patch.preferred_scryfall_id))
+        : null
+      : (existing?.preferred_scryfall_id ?? null);
   const merged = {
     user_id: userId,
-    oracle_id: patch.oracle_id,
-    preferred_scryfall_id:
-      patch.preferred_scryfall_id !== undefined
-        ? patch.preferred_scryfall_id
-        : (existing?.preferred_scryfall_id ?? null),
+    oracle_id: oid,
+    preferred_scryfall_id: preferred,
     custom_front_path:
       patch.custom_front_path !== undefined
         ? patch.custom_front_path
@@ -102,7 +122,18 @@ export async function upsertUserCardArt(
     .maybeSingle();
 
   if (error) return { art: null, error: error.message };
-  return { art: (data as UserCardArt) ?? null, error: null };
+  if (!data) return { art: null, error: null };
+  const row = data as UserCardArt;
+  return {
+    art: {
+      ...row,
+      oracle_id: normOracle(row.oracle_id),
+      preferred_scryfall_id: row.preferred_scryfall_id
+        ? normOracle(String(row.preferred_scryfall_id))
+        : null,
+    },
+    error: null,
+  };
 }
 
 export async function deleteUserCardArt(
@@ -154,7 +185,8 @@ export async function uploadCustomCardImage(
   }
 
   const ext = extensionForMime(file.type);
-  const path = `${userId}/${oracleId}/${side}.${ext}`;
+  const oid = normOracle(oracleId);
+  const path = `${userId}/${oid}/${side}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
@@ -169,7 +201,7 @@ export async function uploadCustomCardImage(
   }
 
   const patch: UserCardArtUpsert = {
-    oracle_id: oracleId,
+    oracle_id: oid,
     ...(side === "front"
       ? { custom_front_path: path }
       : { custom_back_path: path }),
@@ -196,7 +228,8 @@ export async function removeCustomCardImage(
   oracleId: string,
   side: CardFaceSide
 ): Promise<{ error: string | null }> {
-  const { art } = await fetchUserCardArt(userId, oracleId);
+  const oid = normOracle(oracleId);
+  const { art } = await fetchUserCardArt(userId, oid);
   const path =
     side === "front" ? art?.custom_front_path : art?.custom_back_path;
 
@@ -205,7 +238,7 @@ export async function removeCustomCardImage(
   }
 
   const patch: UserCardArtUpsert = {
-    oracle_id: oracleId,
+    oracle_id: oid,
     ...(side === "front"
       ? { custom_front_path: null }
       : { custom_back_path: null }),

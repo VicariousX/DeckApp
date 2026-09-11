@@ -41,8 +41,10 @@ app.get("/api/scryfall", async (req: Request, res: Response) => {
 
 // Single card by Scryfall id (UUID)
 app.get("/api/scryfall/card/:id", async (req: Request, res: Response) => {
-  const id = req.params.id;
-  if (!id) {
+  // Express may type params as string | string[]; normalize to a single string
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id || typeof id !== "string") {
     return res.status(400).json({ error: "Missing card id" });
   }
   try {

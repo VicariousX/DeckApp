@@ -62,25 +62,21 @@ export function useDisplayCards(cards: ScryfallCard[]): {
 
   useEffect(() => {
     if (!isLoggedIn || cards.length === 0 || artByOracleId.size === 0) {
-      setExtraPrintings(new Map());
       return;
     }
     const needed = new Set<string>();
     for (const card of cards) {
       const oracleId = (card.oracle_id ?? card.id).toLowerCase();
       const art = artByOracleId.get(oracleId);
-      if (
-        art?.preferred_scryfall_id &&
-        art.preferred_scryfall_id.toLowerCase() !== card.id.toLowerCase() &&
-        !preferredPrintings.has(art.preferred_scryfall_id.toLowerCase())
-      ) {
-        needed.add(art.preferred_scryfall_id.toLowerCase());
-      }
+      if (!art?.preferred_scryfall_id) continue;
+      const prefId = String(art.preferred_scryfall_id).toLowerCase();
+      if (prefId === String(card.id).toLowerCase()) continue;
+      if (preferredPrintings.has(prefId)) continue;
+      needed.add(prefId);
     }
-    if (needed.size === 0) {
-      setExtraPrintings(new Map());
-      return;
-    }
+    // Also skip ids already in extraPrintings (checked inside setState merge)
+    if (needed.size === 0) return;
+
     let cancelled = false;
     async function load() {
       setPrefsLoading(true);
@@ -92,7 +88,11 @@ export function useDisplayCards(cards: ScryfallCard[]): {
         })
       );
       if (!cancelled) {
-        setExtraPrintings(map);
+        setExtraPrintings((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of map) next.set(k, v);
+          return next;
+        });
         setPrefsLoading(false);
       }
     }

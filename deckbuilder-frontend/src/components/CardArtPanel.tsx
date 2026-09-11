@@ -37,7 +37,8 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
-  const oracleId = card.oracle_id ?? card.id;
+  // Always lowercase — Postgres uuid + our in-memory maps are keyed lowercased
+  const oracleId = (card.oracle_id ?? card.id).toLowerCase();
   const isMulti =
     Array.isArray(card.card_faces) && card.card_faces.length > 1;
 
@@ -210,7 +211,9 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     );
   }
 
-  const preferredId = art?.preferred_scryfall_id ?? null;
+  const preferredId = art?.preferred_scryfall_id
+    ? String(art.preferred_scryfall_id).toLowerCase()
+    : null;
 
   return (
     <section className={styles.panel}>
@@ -251,7 +254,9 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
             {printings.map((p) => {
               const thumb = getFaceImage(p, 0);
               const faces = getFaces(p);
-              const selected = preferredId === p.id;
+              const selected =
+                preferredId !== null &&
+                preferredId === String(p.id).toLowerCase();
               return (
                 <button
                   key={p.id}
