@@ -1066,6 +1066,8 @@ export function DeckBuilderPage() {
               )}
             </div>
           )}
+        </>
+      )}
 
       <CardHoverPreview
         card={hoverCard}
