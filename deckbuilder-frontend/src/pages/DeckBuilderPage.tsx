@@ -16,9 +16,13 @@ import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
   getDeckViewMode,
+  getListColumnLayout,
+  newListColumnId,
   setDeckViewMode,
   setLastViewedDeck,
+  setListColumnLayout,
   type DeckViewMode,
+  type ListColumnLayout,
 } from "../lib/deckPreferences";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
@@ -43,10 +47,10 @@ type GroupMode = "type" | "tag" | "none";
 type PanelTab = "deck" | "stats" | "tokens" | "tags";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
+  { id: "commander", label: "Commander" },
   { id: "main", label: "Mainboard" },
   { id: "side", label: "Sideboard" },
   { id: "maybe", label: "Maybeboard" },
-  { id: "commander", label: "Commander" },
 ];
 
 const PANEL_TABS: { id: PanelTab; label: string }[] = [
@@ -145,6 +149,10 @@ export function DeckBuilderPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
+  /** Images + List mode: freeform columns per board */
+  const [listLayouts, setListLayouts] = useState<
+    Partial<Record<DeckBoard, ListColumnLayout>>
+  >({});
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -204,6 +212,16 @@ export function DeckBuilderPage() {
       setLastViewedDeck({ id: detail.deck.id, name: detail.deck.name });
     }
   }, [detail?.deck]);
+
+  // Load freeform list-column layouts for this deck
+  useEffect(() => {
+    if (!detail?.deck?.id) return;
+    const next: Partial<Record<DeckBoard, ListColumnLayout>> = {};
+    for (const b of BOARDS) {
+      next[b.id] = getListColumnLayout(detail.deck.id, b.id);
+    }
+    setListLayouts(next);
+  }, [detail?.deck?.id]);
 
   // Resolve preferred/custom art URLs for image view
   useEffect(() => {
@@ -473,6 +491,57 @@ export function DeckBuilderPage() {
         ];
       }
       return { ...prev, cards: sortCards(cards) };
+    });
+  }
+
+
+  function persistListLayout(board: DeckBoard, layout: ListColumnLayout) {
+    if (!detail?.deck?.id) return;
+    setListLayouts((prev) => ({ ...prev, [board]: layout }));
+    setListColumnLayout(detail.deck.id, board, layout);
+  }
+
+  function renameListColumn(board: DeckBoard, colId: string, name: string) {
+    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
+    persistListLayout(board, {
+      ...layout,
+      columns: layout.columns.map((c) =>
+        c.id === colId ? { ...c, name } : c
+      ),
+    });
+  }
+
+  function addListColumn(board: DeckBoard) {
+    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
+    const id = newListColumnId();
+    persistListLayout(board, {
+      ...layout,
+      columns: [...layout.columns, { id, name: "New column" }],
+    });
+  }
+
+  function placeCardInListColumn(board: DeckBoard, cardId: string, colId: string) {
+    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
+    persistListLayout(board, {
+      ...layout,
+      placement: { ...layout.placement, [cardId]: colId },
+    });
+  }
+
+  function cardsForListColumn(
+    boardCards: DeckCard[],
+    board: DeckBoard,
+    colId: string,
+    isFirst: boolean
+  ): DeckCard[] {
+    const layout = listLayouts[board];
+    const placement = layout?.placement ?? {};
+    const colIds = new Set((layout?.columns ?? []).map((c) => c.id));
+    return boardCards.filter((c) => {
+      const p = placement[c.id];
+      if (p && colIds.has(p)) return p === colId;
+      // Unassigned → first column
+      return isFirst;
     });
   }
 
@@ -836,109 +905,381 @@ export function DeckBuilderPage() {
           )}
 
           {panel === "deck" && viewMode === "image" && (
-            <div className={styles.boardZones}>
-              {boardSections.map((board) => (
-                <div
-                  key={board.id}
-                  className={styles.boardZone}
-                  onDragOver={(e) => {
-                    if (!isOwner || !dragId) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }}
-                  onDrop={(e) => void onBoardTabDrop(e, board.id)}
-                >
-                  <header className={styles.boardZoneHeader}>
-                    <h2 className={styles.boardZoneTitle}>{board.label}</h2>
-                    <span className={styles.boardZoneCount}>{board.count}</span>
-                  </header>
-                  {board.cards.length === 0 ? (
-                    <p className={styles.boardZoneEmpty}>Empty — drop cards here</p>
-                  ) : (
-                    <div className={styles.stacksRow}>
-                      {board.groups.map((g) => {
-                        const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                        return (
-                          <section key={`${board.id}-${g.key}`} className={styles.stackColumn}>
-                            <div className={styles.stackHeader}>
-                              <h3 className={styles.stackTitle}>{g.label}</h3>
-                              <span className={styles.stackCount}>{count}</span>
-                            </div>
-                            <div className={styles.stackCards}>
-                              {g.cards.map((c) => {
-                                const src = imageUrls[c.id];
-                                const dragging = dragId === c.id;
-                                const over = dragOverId === c.id;
-                                return (
-                                  <div
-                                    key={c.id}
-                                    className={`${styles.stackCard}${
-                                      dragging ? ` ${styles.stackCardDragging}` : ""
-                                    }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
-                                    draggable={isOwner}
-                                    onDragStart={(e) => onTileDragStart(e, c)}
-                                    onDragOver={(e) => onTileDragOver(e, c)}
-                                    onDragLeave={() => onTileDragLeave(c)}
-                                    onDrop={(e) => void onTileDrop(e, c)}
-                                    onDragEnd={onTileDragEnd}
+            <div className={styles.imageBoardLayout}>
+              {boardSections.map((board) => {
+                const isCommander = board.id === "commander";
+                const useListCols = groupMode === "none";
+                const layout =
+                  listLayouts[board.id] ??
+                  (detail
+                    ? getListColumnLayout(detail.deck.id, board.id)
+                    : { columns: [{ id: "col-default", name: "Cards" }], placement: {} });
+
+                if (isCommander) {
+                  return (
+                    <div
+                      key={board.id}
+                      data-board={board.id}
+                      className={styles.commanderSlot}
+                      onDragOver={(e) => {
+                        if (!isOwner || !dragId) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                    >
+                      <header className={styles.commanderSlotHeader}>
+                        <h2 className={styles.commanderSlotTitle}>Commander</h2>
+                        <span className={styles.boardZoneCount}>{board.count}</span>
+                      </header>
+                      <div className={styles.commanderSlotCards}>
+                        {board.cards.slice(0, 3).map((c) => {
+                          const src = imageUrls[c.id];
+                          const dragging = dragId === c.id;
+                          return (
+                            <div
+                              key={c.id}
+                              className={`${styles.commanderCard}${
+                                dragging ? ` ${styles.stackCardDragging}` : ""
+                              }`}
+                              draggable={isOwner}
+                              onDragStart={(e) => onTileDragStart(e, c)}
+                              onDragOver={(e) => onTileDragOver(e, c)}
+                              onDragLeave={() => onTileDragLeave(c)}
+                              onDrop={(e) => void onTileDrop(e, c)}
+                              onDragEnd={onTileDragEnd}
+                            >
+                              <Link
+                                to={`/card/${c.scryfall_id}`}
+                                className={styles.stackCardLink}
+                                title={c.name}
+                                draggable={false}
+                                onClick={(e) => {
+                                  if (dragId) e.preventDefault();
+                                }}
+                              >
+                                {src ? (
+                                  <img
+                                    src={src}
+                                    alt={c.name}
+                                    className={styles.commanderCardImg}
+                                    loading="lazy"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <div className={styles.stackCardPlaceholder}>
+                                    {c.name}
+                                  </div>
+                                )}
+                              </Link>
+                              {c.quantity > 1 && (
+                                <span className={styles.stackQty}>×{c.quantity}</span>
+                              )}
+                              {isOwner && (
+                                <div className={styles.stackCardControls}>
+                                  <button
+                                    type="button"
+                                    className={styles.stackQtyBtn}
+                                    onClick={() => void onQty(c, -1)}
+                                    aria-label={`Decrease ${c.name}`}
                                   >
-                                    <Link
-                                      to={`/card/${c.scryfall_id}`}
-                                      className={styles.stackCardLink}
-                                      title={c.name}
-                                      draggable={false}
-                                      onClick={(e) => {
-                                        if (dragId) e.preventDefault();
-                                      }}
+                                    −
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.stackQtyBtn}
+                                    onClick={() => void onQty(c, 1)}
+                                    aria-label={`Increase ${c.name}`}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {board.cards.length === 0 && (
+                          <p className={styles.boardZoneEmpty}>Drop commander here</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // List mode: freeform named columns
+                if (useListCols) {
+                  return (
+                    <div
+                      key={board.id}
+                      data-board={board.id}
+                      className={styles.boardZone}
+                      onDragOver={(e) => {
+                        if (!isOwner || !dragId) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                    >
+                      <header className={styles.boardZoneHeader}>
+                        <h2 className={styles.boardZoneTitle}>{board.label}</h2>
+                        <span className={styles.boardZoneCount}>{board.count}</span>
+                        {isOwner && (
+                          <button
+                            type="button"
+                            className={styles.addColumnBtn}
+                            onClick={() => addListColumn(board.id)}
+                          >
+                            + Column
+                          </button>
+                        )}
+                      </header>
+                      <div className={styles.stacksRow}>
+                        {layout.columns.map((col, colIdx) => {
+                          const colCards = cardsForListColumn(
+                            board.cards,
+                            board.id,
+                            col.id,
+                            colIdx === 0
+                          );
+                          return (
+                            <section
+                              key={col.id}
+                              className={styles.stackColumn}
+                              onDragOver={(e) => {
+                                if (!isOwner || !dragId) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = "move";
+                                setDragOverId(`listcol:${board.id}:${col.id}`);
+                              }}
+                              onDragLeave={() => {
+                                if (dragOverId === `listcol:${board.id}:${col.id}`) {
+                                  setDragOverId(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const sourceId =
+                                  dragId || e.dataTransfer.getData("text/plain");
+                                setDragId(null);
+                                setDragOverId(null);
+                                if (!sourceId || !detail || !isOwner) return;
+                                const source = detail.cards.find((c) => c.id === sourceId);
+                                if (!source) return;
+                                if (source.board !== board.id) {
+                                  void moveCardToBoard(source, board.id).then(() => {
+                                    placeCardInListColumn(board.id, sourceId, col.id);
+                                  });
+                                  return;
+                                }
+                                placeCardInListColumn(board.id, sourceId, col.id);
+                              }}
+                            >
+                              <div className={styles.stackHeader}>
+                                {isOwner ? (
+                                  <input
+                                    className={styles.columnNameInput}
+                                    value={col.name}
+                                    aria-label="Column name"
+                                    onChange={(e) =>
+                                      renameListColumn(board.id, col.id, e.target.value)
+                                    }
+                                  />
+                                ) : (
+                                  <h3 className={styles.stackTitle}>{col.name}</h3>
+                                )}
+                                <span className={styles.stackCount}>
+                                  {colCards.reduce((n, c) => n + c.quantity, 0)}
+                                </span>
+                              </div>
+                              <div className={styles.stackCards}>
+                                {colCards.map((c) => {
+                                  const src = imageUrls[c.id];
+                                  const dragging = dragId === c.id;
+                                  const over = dragOverId === c.id;
+                                  return (
+                                    <div
+                                      key={c.id}
+                                      className={`${styles.stackCard}${
+                                        dragging ? ` ${styles.stackCardDragging}` : ""
+                                      }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      draggable={isOwner}
+                                      onDragStart={(e) => onTileDragStart(e, c)}
+                                      onDragOver={(e) => onTileDragOver(e, c)}
+                                      onDragLeave={() => onTileDragLeave(c)}
+                                      onDrop={(e) => void onTileDrop(e, c)}
+                                      onDragEnd={onTileDragEnd}
                                     >
-                                      {src ? (
-                                        <img
-                                          src={src}
-                                          alt={c.name}
-                                          className={styles.stackCardImg}
-                                          loading="lazy"
-                                          draggable={false}
-                                        />
-                                      ) : (
-                                        <div className={styles.stackCardPlaceholder}>
-                                          {c.name}
+                                      <Link
+                                        to={`/card/${c.scryfall_id}`}
+                                        className={styles.stackCardLink}
+                                        title={c.name}
+                                        draggable={false}
+                                        onClick={(e) => {
+                                          if (dragId) e.preventDefault();
+                                        }}
+                                      >
+                                        {src ? (
+                                          <img
+                                            src={src}
+                                            alt={c.name}
+                                            className={styles.stackCardImg}
+                                            loading="lazy"
+                                            draggable={false}
+                                          />
+                                        ) : (
+                                          <div className={styles.stackCardPlaceholder}>
+                                            {c.name}
+                                          </div>
+                                        )}
+                                      </Link>
+                                      {c.quantity > 1 && (
+                                        <span className={styles.stackQty}>
+                                          ×{c.quantity}
+                                        </span>
+                                      )}
+                                      {isOwner && (
+                                        <div className={styles.stackCardControls}>
+                                          <button
+                                            type="button"
+                                            className={styles.stackQtyBtn}
+                                            onClick={() => void onQty(c, -1)}
+                                            aria-label={`Decrease ${c.name}`}
+                                          >
+                                            −
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={styles.stackQtyBtn}
+                                            onClick={() => void onQty(c, 1)}
+                                            aria-label={`Increase ${c.name}`}
+                                          >
+                                            +
+                                          </button>
                                         </div>
                                       )}
-                                    </Link>
-                                    {c.quantity > 1 && (
-                                      <span className={styles.stackQty}>×{c.quantity}</span>
-                                    )}
-                                    {isOwner && (
-                                      <div className={styles.stackCardControls}>
-                                        <button
-                                          type="button"
-                                          className={styles.stackQtyBtn}
-                                          onClick={() => void onQty(c, -1)}
-                                          aria-label={`Decrease ${c.name}`}
-                                        >
-                                          −
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className={styles.stackQtyBtn}
-                                          onClick={() => void onQty(c, 1)}
-                                          aria-label={`Increase ${c.name}`}
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </section>
-                        );
-                      })}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </section>
+                          );
+                        })}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                }
+
+                // Type / Tags grouping — normal stacks
+                return (
+                  <div
+                    key={board.id}
+                    data-board={board.id}
+                    className={styles.boardZone}
+                    onDragOver={(e) => {
+                      if (!isOwner || !dragId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                  >
+                    <header className={styles.boardZoneHeader}>
+                      <h2 className={styles.boardZoneTitle}>{board.label}</h2>
+                      <span className={styles.boardZoneCount}>{board.count}</span>
+                    </header>
+                    {board.cards.length === 0 ? (
+                      <p className={styles.boardZoneEmpty}>Empty — drop cards here</p>
+                    ) : (
+                      <div className={styles.stacksRow}>
+                        {board.groups.map((g) => {
+                          const count = g.cards.reduce((n, c) => n + c.quantity, 0);
+                          return (
+                            <section
+                              key={`${board.id}-${g.key}`}
+                              className={styles.stackColumn}
+                            >
+                              <div className={styles.stackHeader}>
+                                <h3 className={styles.stackTitle}>{g.label}</h3>
+                                <span className={styles.stackCount}>{count}</span>
+                              </div>
+                              <div className={styles.stackCards}>
+                                {g.cards.map((c) => {
+                                  const src = imageUrls[c.id];
+                                  const dragging = dragId === c.id;
+                                  const over = dragOverId === c.id;
+                                  return (
+                                    <div
+                                      key={c.id}
+                                      className={`${styles.stackCard}${
+                                        dragging ? ` ${styles.stackCardDragging}` : ""
+                                      }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      draggable={isOwner}
+                                      onDragStart={(e) => onTileDragStart(e, c)}
+                                      onDragOver={(e) => onTileDragOver(e, c)}
+                                      onDragLeave={() => onTileDragLeave(c)}
+                                      onDrop={(e) => void onTileDrop(e, c)}
+                                      onDragEnd={onTileDragEnd}
+                                    >
+                                      <Link
+                                        to={`/card/${c.scryfall_id}`}
+                                        className={styles.stackCardLink}
+                                        title={c.name}
+                                        draggable={false}
+                                        onClick={(e) => {
+                                          if (dragId) e.preventDefault();
+                                        }}
+                                      >
+                                        {src ? (
+                                          <img
+                                            src={src}
+                                            alt={c.name}
+                                            className={styles.stackCardImg}
+                                            loading="lazy"
+                                            draggable={false}
+                                          />
+                                        ) : (
+                                          <div className={styles.stackCardPlaceholder}>
+                                            {c.name}
+                                          </div>
+                                        )}
+                                      </Link>
+                                      {c.quantity > 1 && (
+                                        <span className={styles.stackQty}>
+                                          ×{c.quantity}
+                                        </span>
+                                      )}
+                                      {isOwner && (
+                                        <div className={styles.stackCardControls}>
+                                          <button
+                                            type="button"
+                                            className={styles.stackQtyBtn}
+                                            onClick={() => void onQty(c, -1)}
+                                            aria-label={`Decrease ${c.name}`}
+                                          >
+                                            −
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={styles.stackQtyBtn}
+                                            onClick={() => void onQty(c, 1)}
+                                            aria-label={`Increase ${c.name}`}
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </section>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
