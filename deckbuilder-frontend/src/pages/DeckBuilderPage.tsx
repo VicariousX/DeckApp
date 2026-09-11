@@ -550,7 +550,11 @@ export function DeckBuilderPage() {
   }
 
   return (
-    <div className={`${transitions.page} ${styles.page}`}>
+    <div
+      className={`${transitions.page} ${styles.page}${
+        viewMode === "image" ? ` ${styles.pageStacks}` : ""
+      }`}
+    >
       <div className={styles.topBar}>
         <Link to="/my-decks" className={styles.backLink}>
           ← My decks
@@ -748,18 +752,83 @@ export function DeckBuilderPage() {
             </section>
           )}
 
-          <div className={styles.groups}>
-            {groups.map((g) => {
-              const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-              return (
-                <section key={g.key} className={styles.group}>
-                  <h3 className={styles.groupTitle}>
-                    {g.label}
-                    <span className={styles.groupCount}>{count}</span>
-                  </h3>
-
-                  {viewMode === "image" ? (
-                    <div className={styles.imageGrid}>
+          {viewMode === "image" ? (
+            <div className={styles.stacksRow}>
+              {groups.map((g) => {
+                const count = g.cards.reduce((n, c) => n + c.quantity, 0);
+                const columnDrop =
+                  dragId &&
+                  dragOverId === `col:${g.key}`;
+                return (
+                  <section
+                    key={g.key}
+                    className={`${styles.stackColumn}${
+                      columnDrop ? ` ${styles.stackColumnDrop}` : ""
+                    }`}
+                    onDragOver={(e) => {
+                      if (!isOwner || !dragId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverId !== `col:${g.key}`) {
+                        setDragOverId(`col:${g.key}`);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverId === `col:${g.key}`) setDragOverId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      // Dropping on empty column space: reorder to end of that group
+                      const sourceId = dragId || e.dataTransfer.getData("text/plain");
+                      setDragId(null);
+                      setDragOverId(null);
+                      if (!sourceId || !detail || !isOwner) return;
+                      const source = detail.cards.find((c) => c.id === sourceId);
+                      if (!source || source.board !== activeBoard) return;
+                      // Reorder: place at end of this group's current order
+                      const ordered = boardCards.map((c) => c.id);
+                      const from = ordered.indexOf(sourceId);
+                      if (from < 0) return;
+                      ordered.splice(from, 1);
+                      const groupIds = new Set(g.cards.map((c) => c.id));
+                      // Find last index in ordered that is still in this group (after removal)
+                      let insertAt = ordered.length;
+                      for (let i = ordered.length - 1; i >= 0; i--) {
+                        if (groupIds.has(ordered[i]) && ordered[i] !== sourceId) {
+                          insertAt = i + 1;
+                          break;
+                        }
+                      }
+                      // If group empty or source was only member, append
+                      if (g.cards.length === 0 || (g.cards.length === 1 && g.cards[0].id === sourceId)) {
+                        ordered.push(sourceId);
+                      } else {
+                        ordered.splice(insertAt, 0, sourceId);
+                      }
+                      setDetail((prev) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          cards: prev.cards.map((c) => {
+                            if (c.board !== activeBoard) return c;
+                            const idx = ordered.indexOf(c.id);
+                            return idx >= 0 ? { ...c, sort_order: idx } : c;
+                          }),
+                        };
+                      });
+                      void reorderBoardCards(ordered).then(({ error: err }) => {
+                        if (err) {
+                          setError(err);
+                          void loadDeck({ silent: true });
+                        }
+                      });
+                    }}
+                  >
+                    <div className={styles.stackHeader}>
+                      <h3 className={styles.stackTitle}>{g.label}</h3>
+                      <span className={styles.stackCount}>{count}</span>
+                    </div>
+                    <div className={styles.stackCards}>
                       {g.cards.map((c) => {
                         const src = imageUrls[c.id];
                         const dragging = dragId === c.id;
@@ -767,9 +836,9 @@ export function DeckBuilderPage() {
                         return (
                           <div
                             key={c.id}
-                            className={`${styles.imageTile} ${
-                              dragging ? styles.imageTileDragging : ""
-                            } ${over ? styles.imageTileDropTarget : ""}`}
+                            className={`${styles.stackCard}${
+                              dragging ? ` ${styles.stackCardDragging}` : ""
+                            }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
                             draggable={isOwner}
                             onDragStart={(e) => onTileDragStart(e, c)}
                             onDragOver={(e) => onTileDragOver(e, c)}
@@ -779,11 +848,10 @@ export function DeckBuilderPage() {
                           >
                             <Link
                               to={`/card/${c.scryfall_id}`}
-                              className={styles.imageTileLink}
+                              className={styles.stackCardLink}
                               title={c.name}
                               draggable={false}
                               onClick={(e) => {
-                                // Avoid navigating while ending a drag
                                 if (dragId) e.preventDefault();
                               }}
                             >
@@ -791,26 +859,24 @@ export function DeckBuilderPage() {
                                 <img
                                   src={src}
                                   alt={c.name}
-                                  className={styles.imageTileImg}
+                                  className={styles.stackCardImg}
                                   loading="lazy"
                                   draggable={false}
                                 />
                               ) : (
-                                <div className={styles.imageTilePlaceholder}>
+                                <div className={styles.stackCardPlaceholder}>
                                   {c.name}
                                 </div>
                               )}
-                              {c.quantity > 1 && (
-                                <span className={styles.imageQty}>
-                                  ×{c.quantity}
-                                </span>
-                              )}
                             </Link>
+                            {c.quantity > 1 && (
+                              <span className={styles.stackQty}>×{c.quantity}</span>
+                            )}
                             {isOwner && (
-                              <div className={styles.imageTileControls}>
+                              <div className={styles.stackCardControls}>
                                 <button
                                   type="button"
-                                  className={styles.imageQtyBtn}
+                                  className={styles.stackQtyBtn}
                                   onClick={() => void onQty(c, -1)}
                                   aria-label={`Decrease ${c.name}`}
                                 >
@@ -818,7 +884,7 @@ export function DeckBuilderPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className={styles.imageQtyBtn}
+                                  className={styles.stackQtyBtn}
                                   onClick={() => void onQty(c, 1)}
                                   aria-label={`Increase ${c.name}`}
                                 >
@@ -830,7 +896,27 @@ export function DeckBuilderPage() {
                         );
                       })}
                     </div>
-                  ) : (
+                  </section>
+                );
+              })}
+              {boardCards.length === 0 && (
+                <p className={styles.empty}>
+                  {detail.cards.length === 0
+                    ? "No cards yet. Use the search above to add some."
+                    : `No cards on the ${activeBoard} board.`}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className={styles.groups}>
+              {groups.map((g) => {
+                const count = g.cards.reduce((n, c) => n + c.quantity, 0);
+                return (
+                  <section key={g.key} className={styles.group}>
+                    <h3 className={styles.groupTitle}>
+                      {g.label}
+                      <span className={styles.groupCount}>{count}</span>
+                    </h3>
                     <ul className={styles.cardList}>
                       {g.cards.map((c) => (
                         <li key={c.id} className={styles.cardRow}>
@@ -907,18 +993,18 @@ export function DeckBuilderPage() {
                         </li>
                       ))}
                     </ul>
-                  )}
-                </section>
-              );
-            })}
-            {boardCards.length === 0 && (
-              <p className={styles.empty}>
-                {detail.cards.length === 0
-                  ? "No cards yet. Use the search above to add some."
-                  : `No cards on the ${activeBoard} board.`}
-              </p>
-            )}
-          </div>
+                  </section>
+                );
+              })}
+              {boardCards.length === 0 && (
+                <p className={styles.empty}>
+                  {detail.cards.length === 0
+                    ? "No cards yet. Use the search above to add some."
+                    : `No cards on the ${activeBoard} board.`}
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
 
