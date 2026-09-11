@@ -7,12 +7,14 @@ import {
   type DragEvent,
   type FormEvent,
   type KeyboardEvent,
+  type MouseEvent,
 } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
-import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchCardById, fetchNamedCard } from "../lib/scryfallApi";
+import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
   getDeckViewMode,
@@ -152,6 +154,10 @@ export function DeckBuilderPage() {
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<DeckCard | null>(null);
   const dragMovedRef = useRef(false);
+  /** stack face flip: card id → front|back */
+  const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
+  /** cached back-face image URLs for multi-face cards */
+  const [backUrls, setBackUrls] = useState<Record<string, string>>({});
   /** Images + List mode: freeform columns per board */
   const [listLayouts, setListLayouts] = useState<
     Partial<Record<DeckBoard, ListColumnLayout>>
@@ -529,6 +535,69 @@ export function DeckBuilderPage() {
       ...layout,
       placement: { ...layout.placement, [cardId]: colId },
     });
+  }
+
+  function removeListColumn(board: DeckBoard, colId: string) {
+    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
+    if (layout.columns.length <= 1) return;
+    const remaining = layout.columns.filter((c) => c.id !== colId);
+    const fallback = remaining[0].id;
+    const placement = { ...layout.placement };
+    for (const [cardId, cid] of Object.entries(placement)) {
+      if (cid === colId) placement[cardId] = fallback;
+    }
+    persistListLayout(board, { columns: remaining, placement });
+  }
+
+  function createColumnAndPlace(board: DeckBoard, cardId: string) {
+    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
+    const id = newListColumnId();
+    persistListLayout(board, {
+      columns: [...layout.columns, { id, name: "New column" }],
+      placement: { ...layout.placement, [cardId]: id },
+    });
+  }
+
+  function looksMultiFace(card: DeckCard): boolean {
+    if (backUrls[card.id]) return true;
+    if (card.name.includes(" // ")) return true;
+    const tl = (card.type_line ?? "").toLowerCase();
+    return (
+      tl.includes("transform") ||
+      tl.includes("modal dfc") ||
+      tl.includes("meld") ||
+      tl.includes("prototype")
+    );
+  }
+
+  async function toggleStackFace(card: DeckCard, e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const current = faceView[card.id] ?? "front";
+    if (current === "front") {
+      let back = backUrls[card.id];
+      if (!back) {
+        const { card: sf } = await fetchCardById(card.scryfall_id);
+        if (sf && isMultiCard(sf)) {
+          back = getFaceImage(sf, 1) || "";
+          if (back) {
+            setBackUrls((prev) => ({ ...prev, [card.id]: back! }));
+          }
+        }
+      }
+      if (back) {
+        setFaceView((prev) => ({ ...prev, [card.id]: "back" }));
+      }
+    } else {
+      setFaceView((prev) => ({ ...prev, [card.id]: "front" }));
+    }
+  }
+
+  function stackImageSrc(card: DeckCard): string | undefined {
+    if ((faceView[card.id] ?? "front") === "back" && backUrls[card.id]) {
+      return backUrls[card.id];
+    }
+    return imageUrls[card.id];
   }
 
   function cardsForListColumn(
@@ -951,7 +1020,8 @@ export function DeckBuilderPage() {
                       </header>
                       <div className={styles.commanderSlotCards}>
                         {board.cards.slice(0, 3).map((c, cardIdx) => {
-                          const src = imageUrls[c.id];
+                          const src = stackImageSrc(c);
+                                  const multi = looksMultiFace(c);
                           const dragging = dragId === c.id;
                           return (
                             <div
@@ -989,6 +1059,17 @@ export function DeckBuilderPage() {
                               </div>
                               {c.quantity > 1 && (
                                 <span className={styles.stackQty}>×{c.quantity}</span>
+                              )}
+                              {looksMultiFace(c) && (
+                                <button
+                                  type="button"
+                                  className={styles.stackFlipBtn}
+                                  title="Flip card"
+                                  aria-label={`Flip ${c.name}`}
+                                  onClick={(e) => void toggleStackFace(c, e)}
+                                >
+                                  Flip
+                                </button>
                               )}
                               {isOwner && (
                                 <div className={styles.stackCardControls}>
@@ -1054,7 +1135,7 @@ export function DeckBuilderPage() {
                           </button>
                         )}
                       </header>
-                      <div className={styles.stacksRow}>
+                                            <div className={styles.stacksRow}>
                         {layout.columns.map((col, colIdx) => {
                           const colCards = cardsForListColumn(
                             board.cards,
@@ -1062,10 +1143,15 @@ export function DeckBuilderPage() {
                             col.id,
                             colIdx === 0
                           );
+                          const colDrop =
+                            dragId &&
+                            dragOverId === `listcol:${board.id}:${col.id}`;
                           return (
                             <section
                               key={col.id}
-                              className={styles.stackColumn}
+                              className={`${styles.stackColumn}${
+                                colDrop ? ` ${styles.stackColumnDropActive}` : ""
+                              }`}
                               onDragOver={(e) => {
                                 if (!isOwner || !dragId) return;
                                 e.preventDefault();
@@ -1112,12 +1198,26 @@ export function DeckBuilderPage() {
                                 <span className={styles.stackCount}>
                                   {colCards.reduce((n, c) => n + c.quantity, 0)}
                                 </span>
+                                {isOwner &&
+                                  colCards.length === 0 &&
+                                  layout.columns.length > 1 && (
+                                    <button
+                                      type="button"
+                                      className={styles.removeColumnBtn}
+                                      title="Remove empty column"
+                                      aria-label={`Remove column ${col.name}`}
+                                      onClick={() => removeListColumn(board.id, col.id)}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
                               </div>
                               <div className={styles.stackCards}>
                                 {colCards.map((c, cardIdx) => {
-                                  const src = imageUrls[c.id];
+                                  const src = stackImageSrc(c);
                                   const dragging = dragId === c.id;
                                   const over = dragOverId === c.id;
+                                  const multi = looksMultiFace(c);
                                   return (
                                     <div
                                       key={c.id}
@@ -1157,6 +1257,17 @@ export function DeckBuilderPage() {
                                           ×{c.quantity}
                                         </span>
                                       )}
+                                      {multi && (
+                                        <button
+                                          type="button"
+                                          className={styles.stackFlipBtn}
+                                          title="Flip card"
+                                          aria-label={`Flip ${c.name}`}
+                                          onClick={(e) => void toggleStackFace(c, e)}
+                                        >
+                                          Flip
+                                        </button>
+                                      )}
                                       {isOwner && (
                                         <div className={styles.stackCardControls}>
                                           <button
@@ -1190,6 +1301,49 @@ export function DeckBuilderPage() {
                             </section>
                           );
                         })}
+                        {isOwner && (
+                          <div
+                            className={`${styles.newColumnDrop}${
+                              dragId &&
+                              dragOverId === `listcol-new:${board.id}`
+                                ? ` ${styles.newColumnDropActive}`
+                                : ""
+                            }${dragId ? ` ${styles.newColumnDropVisible}` : ""}`}
+                            onDragOver={(e) => {
+                              if (!dragId) return;
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "copy";
+                              setDragOverId(`listcol-new:${board.id}`);
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverId === `listcol-new:${board.id}`) {
+                                setDragOverId(null);
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const sourceId =
+                                dragId || e.dataTransfer.getData("text/plain");
+                              setDragId(null);
+                              setDragOverId(null);
+                              if (!sourceId || !detail || !isOwner) return;
+                              const source = detail.cards.find((c) => c.id === sourceId);
+                              if (!source) return;
+                              if (source.board !== board.id) {
+                                void moveCardToBoard(source, board.id).then(() => {
+                                  createColumnAndPlace(board.id, sourceId);
+                                });
+                                return;
+                              }
+                              createColumnAndPlace(board.id, sourceId);
+                            }}
+                          >
+                            <span className={styles.newColumnDropLabel}>
+                              {dragId ? "Drop to create column" : "+"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1229,7 +1383,8 @@ export function DeckBuilderPage() {
                               </div>
                               <div className={styles.stackCards}>
                                 {g.cards.map((c, cardIdx) => {
-                                  const src = imageUrls[c.id];
+                                  const src = stackImageSrc(c);
+                                  const multi = looksMultiFace(c);
                                   const dragging = dragId === c.id;
                                   const over = dragOverId === c.id;
                                   return (
@@ -1270,6 +1425,17 @@ export function DeckBuilderPage() {
                                         <span className={styles.stackQty}>
                                           ×{c.quantity}
                                         </span>
+                                      )}
+                                      {multi && (
+                                        <button
+                                          type="button"
+                                          className={styles.stackFlipBtn}
+                                          title="Flip card"
+                                          aria-label={`Flip ${c.name}`}
+                                          onClick={(e) => void toggleStackFace(c, e)}
+                                        >
+                                          Flip
+                                        </button>
                                       )}
                                       {isOwner && (
                                         <div className={styles.stackCardControls}>

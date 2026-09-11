@@ -4,6 +4,7 @@ import { fetchCardById } from "../lib/scryfallApi";
 import type { DeckBoard, DeckCard } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { CardDetail } from "./CardDetail";
+import { CardImage } from "./CardImage";
 import { Modal } from "./Modal";
 import styles from "./DeckCardModal.module.css";
 
@@ -58,27 +59,32 @@ export function DeckCardModal({
     };
   }, [card.scryfall_id]);
 
-  const img =
-    imageUrl ||
-    scryfall?.image_uris?.normal ||
-    scryfall?.card_faces?.[0]?.image_uris?.normal ||
-    "";
-
   return (
     <Modal onClose={onClose}>
       <div className={styles.layout}>
         <div className={styles.visual}>
-          {img ? (
-            <img src={img} alt={card.name} className={styles.image} />
-          ) : (
-            <div className={styles.imagePlaceholder}>{card.name}</div>
+          {loading && (
+            <div className={styles.imagePlaceholder}>Loading…</div>
+          )}
+          {!loading && scryfall && (
+            <CardImage
+              card={scryfall}
+              overrideFrontSrc={imageUrl}
+              bothLayout="stack"
+            />
+          )}
+          {!loading && !scryfall && (
+            imageUrl ? (
+              <img src={imageUrl} alt={card.name} className={styles.image} />
+            ) : (
+              <div className={styles.imagePlaceholder}>{card.name}</div>
+            )
           )}
         </div>
         <div className={styles.body}>
-          {loading && <p className={styles.status}>Loading details…</p>}
           {error && <p className={styles.error}>{error}</p>}
           {!loading && scryfall && (
-            <CardDetail card={scryfall} hidePrintingMeta={false} />
+            <CardDetail card={scryfall} hidePrintingMeta={Boolean(imageUrl)} />
           )}
           {!loading && !scryfall && !error && (
             <div className={styles.fallback}>

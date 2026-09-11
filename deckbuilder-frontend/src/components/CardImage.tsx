@@ -16,6 +16,14 @@ type CardImageProps = {
   className?: string;
   onActivate?: (card: ScryfallCard) => void;
   onViewChange?: (view: CardFaceView) => void;
+  /** Preferred / custom art for the front face (e.g. user choice). */
+  overrideFrontSrc?: string;
+  /**
+   * How to lay out “both” faces.
+   * - row: side-by-side (search results)
+   * - stack: front above back (deck builder modal)
+   */
+  bothLayout?: "row" | "stack";
 };
 
 export function CardImage({
@@ -23,6 +31,8 @@ export function CardImage({
   className,
   onActivate,
   onViewChange,
+  overrideFrontSrc,
+  bothLayout = "row",
 }: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
@@ -32,7 +42,7 @@ export function CardImage({
     onViewChange?.(view);
   }, [view, onViewChange]);
 
-  const frontSrc = getFaceImage(card, 0);
+  const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
   const backSrc = multi ? getFaceImage(card, 1) : "";
 
   const frontName = faces[0]?.name ?? card.name;
@@ -57,10 +67,14 @@ export function CardImage({
     styles.frame,
     multi ? styles.frameMulti : "",
     view === "both" ? styles.frameBoth : "",
+    view === "both" && bothLayout === "stack" ? styles.frameBothStack : "",
     className ?? "",
   ]
     .filter(Boolean)
     .join(" ");
+
+  const bothClass =
+    bothLayout === "stack" ? `${styles.both} ${styles.bothStack}` : styles.both;
 
   return (
     <div
@@ -80,7 +94,7 @@ export function CardImage({
       }
     >
       {view === "both" && multi ? (
-        <div className={styles.both}>
+        <div className={bothClass}>
           <img
             key={`f-${frontSrc}`}
             src={frontSrc}

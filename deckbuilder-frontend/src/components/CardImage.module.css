@@ -122,3 +122,12 @@
 .frame:focus-within .faceBadge {
   opacity: 1;
 }
+
+.frameBothStack {
+  max-width: 220px;
+}
+
+.bothStack {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
