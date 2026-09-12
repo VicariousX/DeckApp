@@ -342,3 +342,53 @@
   color: #f87171;
   margin: 0 0 0.75rem;
 }
+
+.addSection {
+  margin-bottom: 0.85rem;
+}
+
+.addRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.inputWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  background: var(--color-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.suggestItem {
+  width: 100%;
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestItem:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}

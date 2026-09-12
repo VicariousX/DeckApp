@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
+  addOracleToDrawer,
   createDrawer,
   deleteDrawer,
   fetchDrawerCards,
@@ -12,6 +13,8 @@ import {
 } from "../services/drawerService";
 import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "../components/ManaCost";
+import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
+import { ensureUserCardFromScryfall } from "../services/userCardService";
 import {
   CARD_SORT_OPTIONS,
   sortCardsBy,
@@ -43,6 +46,12 @@ export function DrawersPage() {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
   });
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadDrawers = useCallback(async () => {
     if (!user) return;
@@ -141,6 +150,72 @@ export function DrawersPage() {
         d.id === selectedId
           ? { ...d, card_count: Math.max(0, (d.card_count ?? 1) - 1) }
           : d
+      )
+    );
+  }
+
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (!wrapRef.current?.contains(e.target as Node)) setSuggestOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = query.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const { names } = await fetchAutocomplete(q);
+      setSuggestions(names.slice(0, 10));
+      setSuggestOpen(names.length > 0);
+    }, 200);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    setQuery("");
+    setSuggestions([]);
+    setSuggestOpen(false);
+  }, [selectedId]);
+
+  async function addByName(name: string) {
+    if (!user || !selectedId || !name.trim()) return;
+    setAddBusy(true);
+    setError(null);
+    const { card, error: fetchErr } = await fetchNamedCard(name.trim());
+    if (fetchErr || !card) {
+      setError(fetchErr ?? "Card not found.");
+      setAddBusy(false);
+      return;
+    }
+    const { card: uc, error: uErr } = await ensureUserCardFromScryfall(user.id, card);
+    if (uErr || !uc) {
+      setError(uErr ?? "Could not save card.");
+      setAddBusy(false);
+      return;
+    }
+    const { error: aErr } = await addOracleToDrawer(selectedId, uc.oracle_id);
+    setAddBusy(false);
+    if (aErr) {
+      setError(aErr);
+      return;
+    }
+    setQuery("");
+    setSuggestOpen(false);
+    const { cards: list, error: cErr } = await fetchDrawerCards(selectedId, user.id);
+    if (cErr) setError(cErr);
+    setCards(list);
+    setDrawers((prev) =>
+      prev.map((d) =>
+        d.id === selectedId ? { ...d, card_count: list.length } : d
       )
     );
   }
@@ -308,6 +383,55 @@ export function DrawersPage() {
                     </div>
                   </>
                 )}
+              </div>
+
+
+              <div className={styles.addSection}>
+                <div className={styles.addRow} ref={wrapRef}>
+                  <div className={styles.inputWrap}>
+                    <input
+                      className={styles.input}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void addByName(query.trim());
+                        }
+                      }}
+                      onFocus={() => {
+                        if (suggestions.length > 0) setSuggestOpen(true);
+                      }}
+                      placeholder="Quick add card…"
+                      autoComplete="off"
+                      disabled={addBusy}
+                    />
+                    {suggestOpen && suggestions.length > 0 && (
+                      <ul className={styles.suggestList}>
+                        {suggestions.map((n) => (
+                          <li key={n}>
+                            <button
+                              type="button"
+                              className={styles.suggestItem}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => void addByName(n)}
+                            >
+                              {n}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    disabled={addBusy || !query.trim()}
+                    onClick={() => void addByName(query.trim())}
+                  >
+                    {addBusy ? "Adding…" : "Add"}
+                  </button>
+                </div>
               </div>
 
               {cardsLoading && <p className={styles.muted}>Loading cards…</p>}
