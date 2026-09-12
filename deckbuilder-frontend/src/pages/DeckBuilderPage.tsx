@@ -76,6 +76,12 @@ function sortCards(cards: DeckCard[]): DeckCard[] {
   });
 }
 
+/** Image-view qty controls only for basic lands (repeatable). */
+function isBasicLand(card: DeckCard): boolean {
+  const tl = card.type_line ?? "";
+  return /\bBasic\b/i.test(tl) && /\bLand\b/i.test(tl);
+}
+
 function buildGroups(
   cards: DeckCard[],
   groupMode: GroupMode,
@@ -1079,7 +1085,7 @@ export function DeckBuilderPage() {
                                   Flip
                                 </button>
                               )}
-                              {isOwner && (
+                              {isOwner && isBasicLand(c) && (
                                 <div className={styles.stackCardControls}>
                                   <button
                                     type="button"
@@ -1276,7 +1282,7 @@ export function DeckBuilderPage() {
                                           Flip
                                         </button>
                                       )}
-                                      {isOwner && (
+                                      {isOwner && isBasicLand(c) && (
                                         <div className={styles.stackCardControls}>
                                           <button
                                             type="button"
@@ -1445,7 +1451,7 @@ export function DeckBuilderPage() {
                                           Flip
                                         </button>
                                       )}
-                                      {isOwner && (
+                                      {isOwner && isBasicLand(c) && (
                                         <div className={styles.stackCardControls}>
                                           <button
                                             type="button"
