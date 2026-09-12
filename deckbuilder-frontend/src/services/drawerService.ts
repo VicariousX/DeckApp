@@ -136,6 +136,9 @@ export async function fetchDrawerCards(
       name: uc?.name ?? "Unknown card",
       type_line: uc?.type_line ?? "",
       mana_cost: uc?.mana_cost ?? null,
+      cmc: uc?.cmc ?? null,
+      color_identity: uc?.color_identity ?? [],
+      oracle_text: uc?.oracle_text ?? null,
       image_url: uc?.image_url ?? null,
       scryfall_id: uc?.scryfall_id ?? uc?.preferred_scryfall_id ?? null,
     };

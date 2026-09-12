@@ -23,6 +23,9 @@ export type DrawerCardView = DrawerCard & {
   name: string;
   type_line: string;
   mana_cost: string | null;
+  cmc: number | null;
+  color_identity: string[];
+  oracle_text: string | null;
   image_url: string | null;
   scryfall_id: string | null;
 };

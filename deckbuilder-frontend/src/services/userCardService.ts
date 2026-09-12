@@ -21,6 +21,8 @@ export type UserCard = {
   image_url: string | null;
   preferred_scryfall_id: string | null;
   has_custom_art: boolean;
+  color_identity: string[];
+  oracle_text: string | null;
   scryfall_updated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -37,6 +39,23 @@ function scryfallImage(card: ScryfallCard): string {
 
 function oracleIdOf(card: ScryfallCard): string {
   return (card.oracle_id ?? card.id).toLowerCase();
+}
+
+function oracleTextOf(card: ScryfallCard): string | null {
+  if (card.oracle_text) return card.oracle_text;
+  const faces = card.card_faces;
+  if (faces?.length) {
+    return faces
+      .map((f) => f.oracle_text ?? "")
+      .filter(Boolean)
+      .join("\n");
+  }
+  return null;
+}
+
+function colorIdentityOf(card: ScryfallCard): string[] {
+  const id = card.color_identity ?? card.colors ?? [];
+  return id.map((c) => c.toUpperCase());
 }
 
 /**
@@ -64,6 +83,8 @@ export async function ensureUserCardFromScryfall(
       type_line: card.type_line ?? "",
       mana_cost: card.mana_cost ?? null,
       cmc: card.cmc ?? null,
+      color_identity: colorIdentityOf(card),
+      oracle_text: oracleTextOf(card),
     };
     if (!(existing as UserCard).image_url && image_url) {
       patch.image_url = image_url;
@@ -91,6 +112,8 @@ export async function ensureUserCardFromScryfall(
       type_line: card.type_line ?? "",
       mana_cost: card.mana_cost ?? null,
       cmc: card.cmc ?? null,
+      color_identity: colorIdentityOf(card),
+      oracle_text: oracleTextOf(card),
       set_code: card.set ?? null,
       set_name: card.set_name ?? null,
       rarity: card.rarity ?? null,

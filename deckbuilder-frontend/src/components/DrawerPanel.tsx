@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -8,6 +8,18 @@ import {
 } from "../services/drawerService";
 import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "./ManaCost";
+import {
+  CARD_SORT_OPTIONS,
+  sortCardsBy,
+  type CardSortKey,
+} from "../lib/cards/cardSort";
+import {
+  getDrawerSortKey,
+  getDrawerViewMode,
+  setDrawerSortKey,
+  setDrawerViewMode,
+  type DrawerViewMode,
+} from "../lib/deckPreferences";
 import styles from "./DrawerPanel.module.css";
 
 type Props = {
@@ -22,7 +34,11 @@ export function DrawerPanel({ onAddCard }: Props) {
   const [cards, setCards] = useState<DrawerCardView[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingCards, setLoadingCards] = useState(false);
-  const [showImages, setShowImages] = useState(false);
+  const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
+  const [sortKey, setSortKey] = useState<CardSortKey>(() => {
+    const k = getDrawerSortKey();
+    return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
+  });
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -67,14 +83,30 @@ export function DrawerPanel({ onAddCard }: Props) {
 
   if (!user) return null;
 
+  const sortedCards = useMemo(
+    () => sortCardsBy(cards, sortKey),
+    [cards, sortKey]
+  );
+
   const q = filter.trim().toLowerCase();
-  const visible = q
-    ? cards.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.type_line.toLowerCase().includes(q)
-      )
-    : cards;
+  const visible = useMemo(() => {
+    if (!q) return sortedCards;
+    return sortedCards.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.type_line.toLowerCase().includes(q)
+    );
+  }, [sortedCards, q]);
+
+  function onViewMode(mode: DrawerViewMode) {
+    setViewMode(mode);
+    setDrawerViewMode(mode);
+  }
+
+  function onSortKeyChange(key: CardSortKey) {
+    setSortKey(key);
+    setDrawerSortKey(key);
+  }
 
   return (
     <div className={styles.wrap}>
@@ -132,14 +164,36 @@ export function DrawerPanel({ onAddCard }: Props) {
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter…"
             />
-            <label className={styles.imgToggle}>
-              <input
-                type="checkbox"
-                checked={showImages}
-                onChange={(e) => setShowImages(e.target.checked)}
-              />
-              Images
-            </label>
+            <select
+              className={styles.sortSelect}
+              value={sortKey}
+              onChange={(e) => onSortKeyChange(e.target.value as CardSortKey)}
+              aria-label="Sort cards"
+            >
+              {CARD_SORT_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <div className={styles.viewToggle} role="group" aria-label="View mode">
+              <button
+                type="button"
+                className={`${styles.viewBtn}${viewMode === "text" ? ` ${styles.viewBtnActive}` : ""}`}
+                onClick={() => onViewMode("text")}
+                aria-pressed={viewMode === "text"}
+              >
+                Text
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewBtn}${viewMode === "image" ? ` ${styles.viewBtnActive}` : ""}`}
+                onClick={() => onViewMode("image")}
+                aria-pressed={viewMode === "image"}
+              >
+                Img
+              </button>
+            </div>
           </div>
 
           <div className={styles.cardList}>
@@ -149,7 +203,7 @@ export function DrawerPanel({ onAddCard }: Props) {
             )}
             {visible.map((c) => (
               <div key={c.id} className={styles.cardRow}>
-                {showImages && (
+                {viewMode === "image" && (
                   <div className={styles.thumb}>
                     {c.image_url ? (
                       <img src={c.image_url} alt="" />

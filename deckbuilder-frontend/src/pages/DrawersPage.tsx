@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -12,6 +12,18 @@ import {
 } from "../services/drawerService";
 import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "../components/ManaCost";
+import {
+  CARD_SORT_OPTIONS,
+  sortCardsBy,
+  type CardSortKey,
+} from "../lib/cards/cardSort";
+import {
+  getDrawerSortKey,
+  getDrawerViewMode,
+  setDrawerSortKey,
+  setDrawerViewMode,
+  type DrawerViewMode,
+} from "../lib/deckPreferences";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
 
@@ -26,7 +38,11 @@ export function DrawersPage() {
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [showImages, setShowImages] = useState(false);
+  const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
+  const [sortKey, setSortKey] = useState<CardSortKey>(() => {
+    const k = getDrawerSortKey();
+    return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
+  });
 
   const loadDrawers = useCallback(async () => {
     if (!user) return;
@@ -129,6 +145,21 @@ export function DrawersPage() {
     );
   }
 
+  const sortedCards = useMemo(
+    () => sortCardsBy(cards, sortKey),
+    [cards, sortKey]
+  );
+
+  function onViewMode(mode: DrawerViewMode) {
+    setViewMode(mode);
+    setDrawerViewMode(mode);
+  }
+
+  function onSortKey(key: CardSortKey) {
+    setSortKey(key);
+    setDrawerSortKey(key);
+  }
+
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
   }
@@ -144,14 +175,40 @@ export function DrawersPage() {
             Saved card groups you can pull into any deck.
           </p>
         </div>
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={showImages}
-            onChange={(e) => setShowImages(e.target.checked)}
-          />
-          Show images
-        </label>
+        <div className={styles.headerTools}>
+          <label className={styles.sortLabel}>
+            Sort
+            <select
+              className={styles.sortSelect}
+              value={sortKey}
+              onChange={(e) => onSortKey(e.target.value as CardSortKey)}
+            >
+              {CARD_SORT_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className={styles.viewToggle} role="group" aria-label="Drawer view mode">
+            <button
+              type="button"
+              className={`${styles.viewBtn}${viewMode === "text" ? ` ${styles.viewBtnActive}` : ""}`}
+              onClick={() => onViewMode("text")}
+              aria-pressed={viewMode === "text"}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewBtn}${viewMode === "image" ? ` ${styles.viewBtnActive}` : ""}`}
+              onClick={() => onViewMode("image")}
+              aria-pressed={viewMode === "image"}
+            >
+              Images
+            </button>
+          </div>
+        </div>
       </header>
 
       {error && (
@@ -254,20 +311,20 @@ export function DrawersPage() {
               </div>
 
               {cardsLoading && <p className={styles.muted}>Loading cards…</p>}
-              {!cardsLoading && cards.length === 0 && (
+              {!cardsLoading && sortedCards.length === 0 && (
                 <p className={styles.muted}>
                   This drawer is empty. Add cards from search, a card page, or the
                   deck builder.
                 </p>
               )}
 
-              {!cardsLoading && cards.length > 0 && (
+              {!cardsLoading && sortedCards.length > 0 && (
                 <ul
                   className={
-                    showImages ? styles.cardGrid : styles.cardList
+                    viewMode === "image" ? styles.cardGrid : styles.cardList
                   }
                 >
-                  {cards.map((c) => (
+                  {sortedCards.map((c) => (
                     <li key={c.id} className={styles.cardRow}>
                       {showImages && (
                         <div className={styles.thumb}>

@@ -118,14 +118,41 @@
   font-size: 0.82rem;
 }
 
-.imgToggle {
+.sortSelect {
+  max-width: 7.5rem;
+  padding: 0.25rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.72rem;
+}
+
+.viewToggle {
   display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-bg);
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.viewBtn {
+  padding: 0.22rem 0.4rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
   color: var(--color-text-muted);
-  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 650;
   cursor: pointer;
+}
+
+.viewBtnActive {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 .cardList {

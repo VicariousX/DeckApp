@@ -130,3 +130,41 @@ export function setListColumnLayout(
 export function newListColumnId(): string {
   return `col-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
+
+const DRAWER_VIEW_KEY = "deckapp.drawerViewMode";
+const DRAWER_SORT_KEY = "deckapp.drawerSortKey";
+
+export type DrawerViewMode = "text" | "image";
+
+export function getDrawerViewMode(): DrawerViewMode {
+  try {
+    const v = localStorage.getItem(DRAWER_VIEW_KEY);
+    return v === "image" ? "image" : "text";
+  } catch {
+    return "text";
+  }
+}
+
+export function setDrawerViewMode(mode: DrawerViewMode): void {
+  try {
+    localStorage.setItem(DRAWER_VIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getDrawerSortKey(): string {
+  try {
+    return localStorage.getItem(DRAWER_SORT_KEY) ?? "name";
+  } catch {
+    return "name";
+  }
+}
+
+export function setDrawerSortKey(key: string): void {
+  try {
+    localStorage.setItem(DRAWER_SORT_KEY, key);
+  } catch {
+    /* ignore */
+  }
+}
