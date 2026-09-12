@@ -1271,3 +1271,26 @@
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+
+/* dnd-kit overlay */
+.dndOverlay {
+  width: 146px;
+  border-radius: 10px;
+  box-shadow:
+    0 18px 32px rgba(0, 0, 0, 0.65),
+    0 6px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 2px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  transform: rotate(2deg) scale(1.04);
+  cursor: grabbing;
+  pointer-events: none;
+}
+
+.dndOverlayImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 10px;
+}

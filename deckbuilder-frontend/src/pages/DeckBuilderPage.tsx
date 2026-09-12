@@ -34,6 +34,18 @@ import { useDeckCardHover } from "../hooks/useDeckCardHover";
 import { CardHoverPreview } from "../components/CardHoverPreview";
 import { DeckCardModal } from "../components/DeckCardModal";
 import {
+  ImageDndProvider,
+  DraggableStackCard,
+  DroppableRegion,
+  cardDragId,
+  listColDropId,
+  listColNewDropId,
+  boardDropId,
+  groupDropId,
+  stopDndPropagation,
+  type DropTarget,
+} from "../components/ImageDeckDnd";
+import {
   addCardToDeck,
   createDeckTag,
   deleteDeckTag,
@@ -643,8 +655,111 @@ export function DeckBuilderPage() {
     dragMovedRef.current = true;
   }
 
+
+  function handleImageDrop(sourceCardId: string, target: DropTarget) {
+    if (!detail || !isOwner) return;
+    const source = detail.cards.find((c) => c.id === sourceCardId);
+    if (!source) return;
+
+    if (target.kind === "card") {
+      const dest = detail.cards.find((c) => c.id === target.cardId);
+      if (!dest) return;
+      // Cross-board: move first
+      if (source.board !== dest.board) {
+        void moveCardToBoard(source, dest.board);
+        return;
+      }
+      // Same printing → stack; else reorder before target
+      if (source.scryfall_id === dest.scryfall_id) {
+        void (async () => {
+          const { card: saved, error: err } = await stackDeckCards(dest, source);
+          if (err || !saved) {
+            setError(err ?? "Could not stack cards.");
+            return;
+          }
+          setDetail((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              cards: sortCards(
+                prev.cards
+                  .filter((c) => c.id !== source.id)
+                  .map((c) =>
+                    c.id === saved.id ? { ...c, quantity: saved.quantity } : c
+                  )
+              ),
+            };
+          });
+        })();
+        return;
+      }
+      const boardList = sortCards(
+        detail.cards.filter((c) => c.board === dest.board)
+      );
+      const without = boardList.filter((c) => c.id !== source.id);
+      const targetIdx = without.findIndex((c) => c.id === dest.id);
+      const insertAt = targetIdx < 0 ? without.length : targetIdx;
+      const nextOrder = [
+        ...without.slice(0, insertAt),
+        source,
+        ...without.slice(insertAt),
+      ];
+      const orderedIds = nextOrder.map((c) => c.id);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+        return {
+          ...prev,
+          cards: prev.cards.map((c) =>
+            orderMap.has(c.id) ? { ...c, sort_order: orderMap.get(c.id)! } : c
+          ),
+        };
+      });
+      void reorderBoardCards(orderedIds).then(({ error: err }) => {
+        if (err) {
+          setError(err);
+          void loadDeck({ silent: true });
+        }
+      });
+      return;
+    }
+
+    if (target.kind === "board") {
+      if (source.board !== target.board) {
+        void moveCardToBoard(source, target.board);
+      }
+      return;
+    }
+
+    if (target.kind === "listcol") {
+      const place = () => placeCardInListColumn(target.board, source.id, target.colId);
+      if (source.board !== target.board) {
+        void moveCardToBoard(source, target.board).then(place);
+      } else {
+        place();
+      }
+      return;
+    }
+
+    if (target.kind === "listcol-new") {
+      const create = () => createColumnAndPlace(target.board, source.id);
+      if (source.board !== target.board) {
+        void moveCardToBoard(source, target.board).then(create);
+      } else {
+        create();
+      }
+      return;
+    }
+
+    if (target.kind === "group") {
+      if (source.board !== target.board) {
+        void moveCardToBoard(source, target.board);
+      }
+      return;
+    }
+  }
+
   function openCardModal(card: DeckCard) {
-    if (dragMovedRef.current || dragId) return;
     setModalCard(card);
   }
 
@@ -1005,6 +1120,25 @@ export function DeckBuilderPage() {
           )}
 
           {panel === "deck" && viewMode === "image" && (
+            <ImageDndProvider
+              enabled={isOwner}
+              onDropCard={handleImageDrop}
+              renderOverlay={(cardId) => {
+                const c = detail.cards.find((x) => x.id === cardId);
+                if (!c) return null;
+                const src = stackImageSrc(c);
+                return src ? (
+                  <img
+                    src={src}
+                    alt={c.name}
+                    className={styles.dndOverlayImg}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className={styles.stackCardPlaceholder}>{c.name}</div>
+                );
+              }}
+            >
             <div className={styles.imageBoardLayout}>
               {boardSections.map((board) => {
                 const isCommander = board.id === "commander";
@@ -1017,16 +1151,13 @@ export function DeckBuilderPage() {
 
                 if (isCommander) {
                   return (
-                    <div
+                    <DroppableRegion
                       key={board.id}
-                      data-board={board.id}
+                      id={boardDropId(board.id)}
+                      dataBoard={board.id}
                       className={styles.commanderSlot}
-                      onDragOver={(e) => {
-                        if (!isOwner || !dragId) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                      activeClassName={styles.stackColumnDropActive}
+                      disabled={!isOwner}
                     >
                       <header className={styles.commanderSlotHeader}>
                         <h2 className={styles.commanderSlotTitle}>Commander</h2>
@@ -1036,21 +1167,13 @@ export function DeckBuilderPage() {
                         {board.cards.slice(0, 3).map((c, cardIdx) => {
                           const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
-                          const dragging = dragId === c.id;
                           return (
-                            <div
+                            <DraggableStackCard
                               key={c.id}
-                              className={`${styles.commanderCard}${
-                                dragging ? ` ${styles.stackCardDragging}` : ""
-                              }`}
+                              card={c}
+                              disabled={!isOwner}
+                              className={styles.commanderCard}
                               style={{ zIndex: cardIdx + 1 }}
-                              draggable={isOwner}
-                              onDragStart={(e) => onTileDragStart(e, c)}
-                              onDrag={() => onTileDrag()}
-                              onDragOver={(e) => onTileDragOver(e, c)}
-                              onDragLeave={() => onTileDragLeave(c)}
-                              onDrop={(e) => void onTileDrop(e, c)}
-                              onDragEnd={onTileDragEnd}
                               onClick={() => openCardModal(c)}
                             >
                               <div
@@ -1092,6 +1215,7 @@ export function DeckBuilderPage() {
                                     className={styles.stackQtyBtn}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      stopDndPropagation(e);
                                       void onQty(c, -1);
                                     }}
                                     aria-label={`Decrease ${c.name}`}
@@ -1103,6 +1227,7 @@ export function DeckBuilderPage() {
                                     className={styles.stackQtyBtn}
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      stopDndPropagation(e);
                                       void onQty(c, 1);
                                     }}
                                     aria-label={`Increase ${c.name}`}
@@ -1111,30 +1236,27 @@ export function DeckBuilderPage() {
                                   </button>
                                 </div>
                               )}
-                            </div>
+                            </DraggableStackCard>
                           );
                         })}
                         {board.cards.length === 0 && (
                           <p className={styles.boardZoneEmpty}>Drop commander here</p>
                         )}
                       </div>
-                    </div>
+                    </DroppableRegion>
                   );
                 }
 
                 // List mode: freeform named columns
                 if (useListCols) {
                   return (
-                    <div
+                    <DroppableRegion
                       key={board.id}
-                      data-board={board.id}
+                      id={boardDropId(board.id)}
+                      dataBoard={board.id}
                       className={styles.boardZone}
-                      onDragOver={(e) => {
-                        if (!isOwner || !dragId) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                      activeClassName={styles.stackColumnDropActive}
+                      disabled={!isOwner}
                     >
                       <header className={styles.boardZoneHeader}>
                         <h2 className={styles.boardZoneTitle}>{board.label}</h2>
@@ -1157,44 +1279,13 @@ export function DeckBuilderPage() {
                             col.id,
                             colIdx === 0
                           );
-                          const colDrop =
-                            dragId &&
-                            dragOverId === `listcol:${board.id}:${col.id}`;
                           return (
-                            <section
+                            <DroppableRegion
                               key={col.id}
-                              className={`${styles.stackColumn}${
-                                colDrop ? ` ${styles.stackColumnDropActive}` : ""
-                              }`}
-                              onDragOver={(e) => {
-                                if (!isOwner || !dragId) return;
-                                e.preventDefault();
-                                e.dataTransfer.dropEffect = "move";
-                                setDragOverId(`listcol:${board.id}:${col.id}`);
-                              }}
-                              onDragLeave={() => {
-                                if (dragOverId === `listcol:${board.id}:${col.id}`) {
-                                  setDragOverId(null);
-                                }
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const sourceId =
-                                  dragId || e.dataTransfer.getData("text/plain");
-                                setDragId(null);
-                                setDragOverId(null);
-                                if (!sourceId || !detail || !isOwner) return;
-                                const source = detail.cards.find((c) => c.id === sourceId);
-                                if (!source) return;
-                                if (source.board !== board.id) {
-                                  void moveCardToBoard(source, board.id).then(() => {
-                                    placeCardInListColumn(board.id, sourceId, col.id);
-                                  });
-                                  return;
-                                }
-                                placeCardInListColumn(board.id, sourceId, col.id);
-                              }}
+                              id={listColDropId(board.id, col.id)}
+                              className={styles.stackColumn}
+                              activeClassName={styles.stackColumnDropActive}
+                              disabled={!isOwner}
                             >
                               <div className={styles.stackHeader}>
                                 {isOwner ? (
@@ -1229,23 +1320,14 @@ export function DeckBuilderPage() {
                               <div className={styles.stackCards}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
-                                  const dragging = dragId === c.id;
-                                  const over = dragOverId === c.id;
                                   const multi = looksMultiFace(c);
                                   return (
-                                    <div
+                                    <DraggableStackCard
                                       key={c.id}
-                                      className={`${styles.stackCard}${
-                                        dragging ? ` ${styles.stackCardDragging}` : ""
-                                      }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      card={c}
+                                      disabled={!isOwner}
+                                      className={styles.stackCard}
                                       style={{ zIndex: cardIdx + 1 }}
-                                      draggable={isOwner}
-                                      onDragStart={(e) => onTileDragStart(e, c)}
-                                      onDrag={() => onTileDrag()}
-                                      onDragOver={(e) => onTileDragOver(e, c)}
-                                      onDragLeave={() => onTileDragLeave(c)}
-                                      onDrop={(e) => void onTileDrop(e, c)}
-                                      onDragEnd={onTileDragEnd}
                                       onClick={() => openCardModal(c)}
                                     >
                                       <div
@@ -1289,6 +1371,7 @@ export function DeckBuilderPage() {
                                             className={styles.stackQtyBtn}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              stopDndPropagation(e);
                                               void onQty(c, -1);
                                             }}
                                             aria-label={`Decrease ${c.name}`}
@@ -1300,6 +1383,7 @@ export function DeckBuilderPage() {
                                             className={styles.stackQtyBtn}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              stopDndPropagation(e);
                                               void onQty(c, 1);
                                             }}
                                             aria-label={`Increase ${c.name}`}
@@ -1308,73 +1392,38 @@ export function DeckBuilderPage() {
                                           </button>
                                         </div>
                                       )}
-                                    </div>
+                                    </DraggableStackCard>
                                   );
                                 })}
                               </div>
-                            </section>
+                            </DroppableRegion>
                           );
                         })}
                         {isOwner && (
-                          <div
-                            className={`${styles.newColumnDrop}${
-                              dragId &&
-                              dragOverId === `listcol-new:${board.id}`
-                                ? ` ${styles.newColumnDropActive}`
-                                : ""
-                            }${dragId ? ` ${styles.newColumnDropVisible}` : ""}`}
-                            onDragOver={(e) => {
-                              if (!dragId) return;
-                              e.preventDefault();
-                              e.dataTransfer.dropEffect = "copy";
-                              setDragOverId(`listcol-new:${board.id}`);
-                            }}
-                            onDragLeave={() => {
-                              if (dragOverId === `listcol-new:${board.id}`) {
-                                setDragOverId(null);
-                              }
-                            }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const sourceId =
-                                dragId || e.dataTransfer.getData("text/plain");
-                              setDragId(null);
-                              setDragOverId(null);
-                              if (!sourceId || !detail || !isOwner) return;
-                              const source = detail.cards.find((c) => c.id === sourceId);
-                              if (!source) return;
-                              if (source.board !== board.id) {
-                                void moveCardToBoard(source, board.id).then(() => {
-                                  createColumnAndPlace(board.id, sourceId);
-                                });
-                                return;
-                              }
-                              createColumnAndPlace(board.id, sourceId);
-                            }}
+                          <DroppableRegion
+                            id={listColNewDropId(board.id)}
+                            className={`${styles.newColumnDrop} ${styles.newColumnDropVisible}`}
+                            activeClassName={styles.newColumnDropActive}
                           >
                             <span className={styles.newColumnDropLabel}>
-                              {dragId ? "Drop to create column" : "+"}
+                              Drop to create column
                             </span>
-                          </div>
+                          </DroppableRegion>
                         )}
                       </div>
-                    </div>
+                    </DroppableRegion>
                   );
                 }
 
                 // Type / Tags grouping — normal stacks
                 return (
-                  <div
+                  <DroppableRegion
                     key={board.id}
-                    data-board={board.id}
+                    id={boardDropId(board.id)}
+                    dataBoard={board.id}
                     className={styles.boardZone}
-                    onDragOver={(e) => {
-                      if (!isOwner || !dragId) return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                    }}
-                    onDrop={(e) => void onBoardTabDrop(e, board.id)}
+                    activeClassName={styles.stackColumnDropActive}
+                    disabled={!isOwner}
                   >
                     <header className={styles.boardZoneHeader}>
                       <h2 className={styles.boardZoneTitle}>{board.label}</h2>
@@ -1399,22 +1448,13 @@ export function DeckBuilderPage() {
                                 {g.cards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
-                                  const dragging = dragId === c.id;
-                                  const over = dragOverId === c.id;
                                   return (
-                                    <div
+                                    <DraggableStackCard
                                       key={c.id}
-                                      className={`${styles.stackCard}${
-                                        dragging ? ` ${styles.stackCardDragging}` : ""
-                                      }${over ? ` ${styles.stackCardDropTarget}` : ""}`}
+                                      card={c}
+                                      disabled={!isOwner}
+                                      className={styles.stackCard}
                                       style={{ zIndex: cardIdx + 1 }}
-                                      draggable={isOwner}
-                                      onDragStart={(e) => onTileDragStart(e, c)}
-                                      onDrag={() => onTileDrag()}
-                                      onDragOver={(e) => onTileDragOver(e, c)}
-                                      onDragLeave={() => onTileDragLeave(c)}
-                                      onDrop={(e) => void onTileDrop(e, c)}
-                                      onDragEnd={onTileDragEnd}
                                       onClick={() => openCardModal(c)}
                                     >
                                       <div
@@ -1458,6 +1498,7 @@ export function DeckBuilderPage() {
                                             className={styles.stackQtyBtn}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              stopDndPropagation(e);
                                               void onQty(c, -1);
                                             }}
                                             aria-label={`Decrease ${c.name}`}
@@ -1469,6 +1510,7 @@ export function DeckBuilderPage() {
                                             className={styles.stackQtyBtn}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              stopDndPropagation(e);
                                               void onQty(c, 1);
                                             }}
                                             aria-label={`Increase ${c.name}`}
@@ -1477,7 +1519,7 @@ export function DeckBuilderPage() {
                                           </button>
                                         </div>
                                       )}
-                                    </div>
+                                    </DraggableStackCard>
                                   );
                                 })}
                               </div>
@@ -1486,10 +1528,11 @@ export function DeckBuilderPage() {
                         })}
                       </div>
                     )}
-                  </div>
+                  </DroppableRegion>
                 );
               })}
             </div>
+            </ImageDndProvider>
           )}
 
           {panel === "deck" && viewMode === "text" && (
