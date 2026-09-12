@@ -30,6 +30,8 @@ type Props = {
   /** Union of commander color identity; used when filter is enabled. */
   commanderColorIdentity?: string[];
   applyBoardLabel?: string;
+  /** oracle_id (lower) → quantity already in the active deck (all boards). */
+  deckQtyByOracle?: Record<string, number>;
 };
 
 export function DrawerPanel({
@@ -37,6 +39,7 @@ export function DrawerPanel({
   onApplyDrawer,
   commanderColorIdentity = [],
   applyBoardLabel = "Mainboard",
+  deckQtyByOracle = {},
 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
