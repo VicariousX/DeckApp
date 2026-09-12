@@ -4,6 +4,7 @@ import cors from "cors";
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: "1mb" }));
 
 const PORT = 3001;
 const HOST = "127.0.0.1";
@@ -102,18 +103,19 @@ app.post("/api/scryfall/collection", async (req: Request, res: Response) => {
   try {
     const identifiers = req.body?.identifiers;
     if (!Array.isArray(identifiers) || identifiers.length === 0) {
-      res.status(400).json({ error: "identifiers array required" });
+      res.status(400).json({
+        error: "identifiers array required",
+        details: "POST JSON body must be { identifiers: [{ name: string }, ...] }",
+      });
       return;
     }
     // Scryfall limit: 75 per request
     const slice = identifiers.slice(0, 75);
-    const url = "https://api.scryfall.com/cards/collection";
-    const upstream = await fetch(url, {
+    const upstream = await fetch("https://api.scryfall.com/cards/collection", {
       method: "POST",
       headers: {
+        ...SCRYFALL_HEADERS,
         "Content-Type": "application/json",
-        Accept: "application/json",
-        "User-Agent": "DeckApp/1.0",
       },
       body: JSON.stringify({ identifiers: slice }),
     });
