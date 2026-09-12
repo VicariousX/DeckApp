@@ -10,6 +10,7 @@ import styles from "./CardResult.module.css";
 import { Modal } from "./Modal";
 import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
+import { DrawerPicker } from "./DrawerPicker";
 
 type CardResultProps = {
   cards: ScryfallCard[];
@@ -102,9 +103,14 @@ export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
             hidePrintingMeta={selected.hidePrintingMeta}
           />
           <div className={styles.modalActions}>
+            {(selected.display.oracle_id || selected.display.id) && (
+              <DrawerPicker
+                oracleId={(selected.display.oracle_id ?? selected.display.id).toLowerCase()}
+                scryfallCard={selected.display}
+              />
+            )}
             <p className={styles.modalActionsHint}>
-              Art preferences, decks, and collections live on the full card
-              page.
+              Art preferences and full details live on the card page.
             </p>
             <Link
               to={`/card/${selected.originalId}`}

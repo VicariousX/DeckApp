@@ -4,6 +4,7 @@ import { CardArtPanel } from "../components/CardArtPanel";
 import { CardDetail } from "../components/CardDetail";
 import { CardImage } from "../components/CardImage";
 import { CardLightbox } from "../components/CardLightbox";
+import { DrawerPicker } from "../components/DrawerPicker";
 import { CardNameSwitcher } from "../components/CardNameSwitcher";
 import { fetchCardById } from "../lib/scryfallApi";
 import { mapScryfallToDeckApp } from "../lib/cards/mapScryfallToDeckApp";
@@ -133,12 +134,19 @@ export function CardPage() {
               </Link>
             </div>
             <div className={styles.relatedCard}>
-              <h2 className={styles.relatedTitle}>Drawers & collections</h2>
+              <h2 className={styles.relatedTitle}>Drawers</h2>
               <p className={styles.relatedBody}>
-                Collection binders and drawers that hold this card will list
-                here in a later update.
+                Save this card into a reusable group you can pull into any deck.
               </p>
-              <span className={styles.relatedSoon}>Coming soon</span>
+              {card && (card.oracle_id || card.id) && (
+                <DrawerPicker
+                  oracleId={(card.oracle_id ?? card.id).toLowerCase()}
+                  scryfallCard={card}
+                />
+              )}
+              <Link to="/drawers" className={styles.relatedLink}>
+                Manage drawers →
+              </Link>
             </div>
           </section>
         </>

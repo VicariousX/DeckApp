@@ -7,6 +7,7 @@ import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
 import { Modal } from "./Modal";
 import styles from "./DeckCardModal.module.css";
+import { DrawerPicker } from "./DrawerPicker";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "commander", label: "Commander" },
@@ -181,6 +182,15 @@ export function DeckCardModal({
               </div>
             )}
           </div>
+
+          {isOwner && card.oracle_id && (
+            <div className={styles.drawerRow}>
+              <DrawerPicker
+                oracleId={card.oracle_id}
+                scryfallCard={scryfall}
+              />
+            </div>
+          )}
 
           <div className={styles.footer}>
             <Link

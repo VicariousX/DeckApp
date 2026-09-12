@@ -78,6 +78,19 @@ export function AppShell() {
             Search
           </NavLink>
 
+          {user && (
+            <NavLink
+              to="/drawers"
+              className={({ isActive }) =>
+                isActive
+                  ? `${styles.navLink} ${styles.navLinkActive}`
+                  : styles.navLink
+              }
+            >
+              Drawers
+            </NavLink>
+          )}
+
           {user ? (
             <div className={styles.decksMenu} ref={decksRef}>
               <button

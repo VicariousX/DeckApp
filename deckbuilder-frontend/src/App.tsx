@@ -7,6 +7,7 @@ import { PublicDecksPage } from "./pages/PublicDecksPage";
 import { MyDecksPage } from "./pages/MyDecksPage";
 import { DeckBuilderPage } from "./pages/DeckBuilderPage";
 import { CardPage } from "./pages/CardPage";
+import { DrawersPage } from "./pages/DrawersPage";
 import "./index.css";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/decks" element={<PublicDecksPage />} />
           <Route path="/my-decks" element={<MyDecksPage />} />
+          <Route path="/drawers" element={<DrawersPage />} />
           <Route path="/deck/:id" element={<DeckBuilderPage />} />
         </Route>
       </Routes>

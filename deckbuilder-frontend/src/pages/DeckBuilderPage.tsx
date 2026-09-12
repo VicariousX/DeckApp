@@ -45,6 +45,8 @@ import {
   type DropTarget,
 } from "../components/ImageDeckDnd";
 import { StackCards } from "../components/StackCards";
+import { DrawerPanel } from "../components/DrawerPanel";
+import type { DrawerCardView } from "../types/drawer";
 import {
   addCardToDeck,
   createDeckTag,
@@ -863,6 +865,56 @@ export function DeckBuilderPage() {
   function openCardModal(card: DeckCard) {
     setModalCard(card);
   }
+
+  async function onAddFromDrawer(dc: DrawerCardView) {
+    if (!detail || !isOwner || !user) return;
+    const scryfallId = dc.scryfall_id;
+    if (!scryfallId) {
+      setError("This drawer card is missing a Scryfall id. Open the card page first.");
+      return;
+    }
+    const { card: sc, error: sErr } = await fetchCardById(scryfallId);
+    if (sErr || !sc) {
+      setError(sErr ?? "Could not load card from Scryfall.");
+      return;
+    }
+    void ensureUserCardFromScryfall(user.id, sc);
+    const oracleId = (sc.oracle_id ?? sc.id).toLowerCase();
+    const { card: added, error: aErr } = await addCardToDeck(detail.deck.id, {
+      oracle_id: oracleId,
+      scryfall_id: sc.id,
+      name: sc.name,
+      type_line: sc.type_line ?? "",
+      mana_cost: sc.mana_cost,
+      cmc: sc.cmc,
+      quantity: 1,
+      board: "main",
+    });
+    if (aErr || !added) {
+      setError(aErr ?? "Could not add card.");
+      return;
+    }
+    setDetail((prev) => {
+      if (!prev) return prev;
+      const existing = prev.cards.find(
+        (c) => c.id === added.id || (c.scryfall_id === added.scryfall_id && c.board === added.board)
+      );
+      if (existing && existing.id === added.id) {
+        return {
+          ...prev,
+          cards: prev.cards.map((c) =>
+            c.id === existing.id ? { ...c, quantity: added.quantity } : c
+          ),
+        };
+      }
+      // Replaced/merged into existing id
+      const withoutDup = prev.cards.filter(
+        (c) => !(c.scryfall_id === added.scryfall_id && c.board === added.board)
+      );
+      return { ...prev, cards: sortCards([...withoutDup, added]) };
+    });
+  }
+
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
