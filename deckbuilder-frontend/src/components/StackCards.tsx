@@ -22,10 +22,41 @@ type Props = {
   children: ReactNode;
 };
 
+type CardRect = {
+  idx: number;
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+  midY: number;
+};
+
+function readCardRects(container: HTMLElement): CardRect[] {
+  const nodes = container.querySelectorAll<HTMLElement>("[data-stack-idx]");
+  const out: CardRect[] = [];
+  nodes.forEach((node) => {
+    const raw = node.getAttribute("data-stack-idx");
+    if (raw == null) return;
+    const idx = Number(raw);
+    if (!Number.isFinite(idx)) return;
+    const r = node.getBoundingClientRect();
+    out.push({
+      idx,
+      top: r.top,
+      bottom: r.bottom,
+      left: r.left,
+      right: r.right,
+      midY: (r.top + r.bottom) / 2,
+    });
+  });
+  out.sort((a, b) => a.idx - b.idx);
+  return out;
+}
+
 /**
- * Stack container: hover index from pointer position.
- * Once a card is revealed, its full bounding box keeps focus so the pointer
- * can move over the entire exposed card without the reveal collapsing.
+ * Stack container: reveal is driven by which card the pointer is over using
+ * live visual bounding boxes (so shifted "front" cards remain reachable).
+ * Gaps between cards never clear the reveal — they hand off to the nearest card.
  */
 export function StackCards({ count, className, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,6 +64,7 @@ export function StackCards({ count, className, children }: Props) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const setHover = useCallback((idx: number | null) => {
+    if (hoverIdxRef.current === idx) return;
     hoverIdxRef.current = idx;
     setHoverIdx(idx);
   }, []);
@@ -56,35 +88,38 @@ export function StackCards({ count, className, children }: Props) {
         return;
       }
 
-      const current = hoverIdxRef.current;
-
-      // While a card is revealed it is not translated — its full box stays put.
-      // Keep focus as long as the pointer remains over that card.
-      if (current != null) {
-        const cardEl = el.querySelector(
-          `[data-stack-idx="${current}"]`
-        ) as HTMLElement | null;
-        if (cardEl) {
-          const cr = cardEl.getBoundingClientRect();
-          if (
-            clientY >= cr.top &&
-            clientY <= cr.bottom &&
-            clientX >= cr.left &&
-            clientX <= cr.right
-          ) {
-            return; // still over the full revealed card
-          }
-        }
+      const cards = readCardRects(el);
+      if (cards.length === 0) {
+        setHover(null);
+        return;
       }
 
-      // Collapsed geometry: each card owns a peek-tall strip from the top.
-      const cs = getComputedStyle(el);
-      const peek = parseFloat(cs.getPropertyValue("--stack-peek")) || 36;
-      const y = clientY - rect.top;
-      let idx = Math.floor(y / peek);
-      if (idx < 0) idx = 0;
-      if (idx > count - 1) idx = count - 1;
-      setHover(idx);
+      // 1) Direct hit on a card's current visual box (includes translateY)
+      const hits = cards.filter(
+        (c) =>
+          clientY >= c.top &&
+          clientY <= c.bottom &&
+          clientX >= c.left &&
+          clientX <= c.right
+      );
+      if (hits.length > 0) {
+        // Prefer the topmost painted card (highest index) when boxes overlap
+        hits.sort((a, b) => b.idx - a.idx);
+        setHover(hits[0].idx);
+        return;
+      }
+
+      // 2) In a gap inside the stack — hand off to nearest card by Y, never collapse
+      let best = cards[0];
+      let bestDist = Math.abs(clientY - best.midY);
+      for (let i = 1; i < cards.length; i++) {
+        const d = Math.abs(clientY - cards[i].midY);
+        if (d < bestDist) {
+          best = cards[i];
+          bestDist = d;
+        }
+      }
+      setHover(best.idx);
     },
     [count, setHover]
   );
