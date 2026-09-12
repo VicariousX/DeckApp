@@ -201,3 +201,17 @@ export function sortCardsBy<T extends SortableCard>(
   if (key === "manual" || cards.length < 2) return [...cards];
   return [...cards].sort((a, b) => compareCards(a, b, key));
 }
+
+/** True if card identity is a subset of deck identity (Commander rules). */
+export function fitsColorIdentity(
+  cardIdentity: string[] | null | undefined,
+  deckIdentity: string[] | null | undefined
+): boolean {
+  const card = normalizeColorIdentity(cardIdentity);
+  const deck = normalizeColorIdentity(deckIdentity);
+  // Colorless / lands with empty identity always legal
+  if (card.length === 0) return true;
+  // No deck identity established → allow all
+  if (deck.length === 0) return true;
+  return card.every((c) => deck.includes(c));
+}

@@ -10,6 +10,7 @@ import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "./ManaCost";
 import {
   CARD_SORT_OPTIONS,
+  fitsColorIdentity,
   sortCardsBy,
   type CardSortKey,
 } from "../lib/cards/cardSort";
@@ -24,9 +25,19 @@ import styles from "./DrawerPanel.module.css";
 
 type Props = {
   onAddCard: (card: DrawerCardView) => void;
+  /** Apply filtered drawer cards into the deck (bulk). */
+  onApplyDrawer?: (cards: DrawerCardView[]) => Promise<void> | void;
+  /** Union of commander color identity; used when filter is enabled. */
+  commanderColorIdentity?: string[];
+  applyBoardLabel?: string;
 };
 
-export function DrawerPanel({ onAddCard }: Props) {
+export function DrawerPanel({
+  onAddCard,
+  onApplyDrawer,
+  commanderColorIdentity = [],
+  applyBoardLabel = "Mainboard",
+}: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
@@ -41,6 +52,9 @@ export function DrawerPanel({ onAddCard }: Props) {
   });
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [respectIdentity, setRespectIdentity] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState<string | null>(null);
 
   const loadList = useCallback(async () => {
     if (!user) return;
@@ -106,6 +120,45 @@ export function DrawerPanel({ onAddCard }: Props) {
   function onSortKeyChange(key: CardSortKey) {
     setSortKey(key);
     setDrawerSortKey(key);
+  }
+
+  const hasCommanderIdentity = commanderColorIdentity.length > 0;
+
+  const { eligible, excluded } = useMemo(() => {
+    if (!respectIdentity || !hasCommanderIdentity) {
+      return { eligible: visible, excluded: [] as DrawerCardView[] };
+    }
+    const ok: DrawerCardView[] = [];
+    const no: DrawerCardView[] = [];
+    for (const c of visible) {
+      if (fitsColorIdentity(c.color_identity, commanderColorIdentity)) ok.push(c);
+      else no.push(c);
+    }
+    return { eligible: ok, excluded: no };
+  }, [visible, respectIdentity, hasCommanderIdentity, commanderColorIdentity]);
+
+  async function handleApply() {
+    if (!onApplyDrawer || eligible.length === 0) return;
+    const msg =
+      excluded.length > 0
+        ? `Add ${eligible.length} card(s) to ${applyBoardLabel}?\n${excluded.length} excluded by color identity.`
+        : `Add ${eligible.length} card(s) to ${applyBoardLabel}?`;
+    if (!confirm(msg)) return;
+    setApplying(true);
+    setApplyResult(null);
+    setError(null);
+    try {
+      await onApplyDrawer(eligible);
+      setApplyResult(
+        excluded.length > 0
+          ? `Added ${eligible.length}, skipped ${excluded.length}`
+          : `Added ${eligible.length} card(s)`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Apply failed.");
+    } finally {
+      setApplying(false);
+    }
   }
 
   return (
@@ -196,13 +249,53 @@ export function DrawerPanel({ onAddCard }: Props) {
             </div>
           </div>
 
+          {onApplyDrawer && (
+            <div className={styles.applyBar}>
+              {hasCommanderIdentity && (
+                <label className={styles.applyCheck}>
+                  <input
+                    type="checkbox"
+                    checked={respectIdentity}
+                    onChange={(e) => setRespectIdentity(e.target.checked)}
+                  />
+                  Color identity
+                </label>
+              )}
+              <button
+                type="button"
+                className={styles.applyBtn}
+                disabled={applying || loadingCards || eligible.length === 0}
+                onClick={() => void handleApply()}
+                title={
+                  excluded.length > 0
+                    ? `${eligible.length} will be added, ${excluded.length} excluded`
+                    : `Add ${eligible.length} cards to ${applyBoardLabel}`
+                }
+              >
+                {applying
+                  ? "Applying…"
+                  : `Apply (${eligible.length}${excluded.length ? ` · −${excluded.length}` : ""})`}
+              </button>
+            </div>
+          )}
+          {applyResult && <p className={styles.applyResult}>{applyResult}</p>}
+
           <div className={styles.cardList}>
             {loadingCards && <p className={styles.muted}>Loading cards…</p>}
             {!loadingCards && visible.length === 0 && (
               <p className={styles.muted}>No cards in this drawer.</p>
             )}
-            {visible.map((c) => (
-              <div key={c.id} className={styles.cardRow}>
+            {visible.map((c) => {
+              const blocked =
+                respectIdentity &&
+                hasCommanderIdentity &&
+                !fitsColorIdentity(c.color_identity, commanderColorIdentity);
+              return (
+              <div
+                key={c.id}
+                className={`${styles.cardRow}${blocked ? ` ${styles.cardRowBlocked}` : ""}`}
+                title={blocked ? "Outside commander color identity" : undefined}
+              >
                 {viewMode === "image" && (
                   <div className={styles.thumb}>
                     {c.image_url ? (
@@ -225,12 +318,14 @@ export function DrawerPanel({ onAddCard }: Props) {
                   type="button"
                   className={styles.addBtn}
                   onClick={() => onAddCard(c)}
-                  title={`Add ${c.name}`}
+                  title={blocked ? "Outside color identity" : `Add ${c.name}`}
+                  disabled={blocked}
                 >
                   +
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

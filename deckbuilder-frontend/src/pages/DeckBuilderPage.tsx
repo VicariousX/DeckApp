@@ -51,6 +51,11 @@ import { TextExportMenu } from "../components/TextExportMenu";
 import type { ExportSection } from "../lib/cards/exportCardList";
 import type { DrawerCardView } from "../types/drawer";
 import {
+  colorIdentityFromManaCost,
+  normalizeColorIdentity,
+  type ColorLetter,
+} from "../lib/cards/cardSort";
+import {
   addCardToDeck,
   createDeckTag,
   deleteDeckTag,
@@ -364,6 +369,19 @@ export function DeckBuilderPage() {
       };
     });
   }, [detail, groupMode]);
+
+  /** Best-effort commander identity from commander-board cards (mana cost until full CI cached). */
+  const commanderColorIdentity = useMemo((): ColorLetter[] => {
+    if (!detail) return [];
+    const commanders = detail.cards.filter((c) => c.board === "commander");
+    const set = new Set<ColorLetter>();
+    for (const c of commanders) {
+      for (const letter of colorIdentityFromManaCost(c.mana_cost)) {
+        set.add(letter);
+      }
+    }
+    return normalizeColorIdentity([...set]);
+  }, [detail]);
 
   const exportSections = useMemo((): ExportSection[] => {
     if (!detail) return [];
@@ -970,6 +988,38 @@ export function DeckBuilderPage() {
     });
   }
 
+  async function onApplyDrawer(cards: DrawerCardView[]) {
+    if (!detail || !isOwner || !user || cards.length === 0) return;
+    setError(null);
+    for (const dc of cards) {
+      const scryfallId = dc.scryfall_id;
+      if (!scryfallId) continue;
+      const { card: sc, error: sErr } = await fetchCardById(scryfallId);
+      if (sErr || !sc) continue;
+      void ensureUserCardFromScryfall(user.id, sc);
+      const oracleId = (sc.oracle_id ?? sc.id).toLowerCase();
+      const { card: added, error: aErr } = await addCardToDeck(detail.deck.id, {
+        oracle_id: oracleId,
+        scryfall_id: sc.id,
+        name: sc.name,
+        type_line: sc.type_line ?? "",
+        mana_cost: sc.mana_cost,
+        cmc: sc.cmc,
+        quantity: 1,
+        board: "main",
+      });
+      if (aErr || !added) continue;
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const withoutDup = prev.cards.filter(
+          (c) =>
+            !(c.scryfall_id === added.scryfall_id && c.board === added.board)
+        );
+        return { ...prev, cards: sortCards([...withoutDup, added]) };
+      });
+    }
+    void loadDeck({ silent: true });
+  }
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
@@ -1022,6 +1072,14 @@ export function DeckBuilderPage() {
                 sections={exportSections}
                 fileBaseName={detail.deck.name}
               />
+              {isOwner && (
+                <DrawerPanel
+                  onAddCard={(c) => void onAddFromDrawer(c)}
+                  onApplyDrawer={onApplyDrawer}
+                  commanderColorIdentity={commanderColorIdentity}
+                  applyBoardLabel="Mainboard"
+                />
+              )}
             </div>
           </header>
 
