@@ -326,7 +326,7 @@ export function DrawersPage() {
                 >
                   {sortedCards.map((c) => (
                     <li key={c.id} className={styles.cardRow}>
-                      {showImages && (
+                      {viewMode === "image" && (
                         <div className={styles.thumb}>
                           {c.image_url ? (
                             <img src={c.image_url} alt={c.name} />
