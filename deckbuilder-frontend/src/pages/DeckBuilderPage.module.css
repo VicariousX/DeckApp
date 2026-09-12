@@ -1300,3 +1300,10 @@
   gap: 0.5rem;
   margin-left: auto;
 }
+
+.headerActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}

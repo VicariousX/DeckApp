@@ -16,6 +16,7 @@ import { ManaCost } from "../components/ManaCost";
 import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
+import { TextExportMenu } from "../components/TextExportMenu";
 import {
   CARD_SORT_OPTIONS,
   sortCardsBy,
@@ -282,6 +283,19 @@ export function DrawersPage() {
           </p>
         </div>
         <div className={styles.headerTools}>
+          {selected && (
+            <TextExportMenu
+              label="Export"
+              fileBaseName={selected.name}
+              sections={[
+                {
+                  title: selected.name,
+                  items: sortedCards.map((c) => ({ name: c.name, quantity: 1 })),
+                },
+              ]}
+              options={{ includeHeaders: false }}
+            />
+          )}
           <label className={styles.sortLabel}>
             Sort
             <select

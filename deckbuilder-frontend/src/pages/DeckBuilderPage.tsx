@@ -47,6 +47,8 @@ import {
 import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
+import { TextExportMenu } from "../components/TextExportMenu";
+import type { ExportSection } from "../lib/cards/exportCardList";
 import type { DrawerCardView } from "../types/drawer";
 import {
   addCardToDeck,
@@ -362,6 +364,23 @@ export function DeckBuilderPage() {
       };
     });
   }, [detail, groupMode]);
+
+  const exportSections = useMemo((): ExportSection[] => {
+    if (!detail) return [];
+    const labels: Record<string, string> = {
+      commander: "Commander",
+      main: "Mainboard",
+      side: "Sideboard",
+      maybe: "Maybeboard",
+    };
+    const order = ["commander", "main", "side", "maybe"] as const;
+    return order.map((board) => ({
+      title: labels[board],
+      items: detail.cards
+        .filter((c) => c.board === board)
+        .map((c) => ({ name: c.name, quantity: c.quantity })),
+    }));
+  }, [detail]);
 
   function patchCard(cardId: string, patch: Partial<DeckCard> | null) {
     setDetail((prev) => {
@@ -997,6 +1016,12 @@ export function DeckBuilderPage() {
               {detail.deck.description && (
                 <p className={styles.desc}>{detail.deck.description}</p>
               )}
+            </div>
+            <div className={styles.headerActions}>
+              <TextExportMenu
+                sections={exportSections}
+                fileBaseName={detail.deck.name}
+              />
             </div>
           </header>
 

@@ -1,0 +1,91 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: min(360px, 92vw);
+  padding: 0.65rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  background: var(--color-surface);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
+}
+
+.meta {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.preview {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.5rem 0.55rem;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.primaryBtn {
+  padding: 0.35rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ghostBtn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.status {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-accent);
+}
