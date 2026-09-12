@@ -667,7 +667,8 @@ export function DeckBuilderPage() {
   function reorderWithinBoard(
     board: DeckBoard,
     sourceId: string,
-    beforeCardId: string | null
+    /** Place source in front of this card (after it in sort order / higher z-index). */
+    inFrontOfCardId: string | null
   ) {
     let orderedIds: string[] = [];
     setDetail((prev) => {
@@ -682,9 +683,10 @@ export function DeckBuilderPage() {
       if (!source) return prev;
       const without = boardList.filter((c) => c.id !== sourceId);
       let insertAt = without.length;
-      if (beforeCardId) {
-        const idx = without.findIndex((c) => c.id === beforeCardId);
-        if (idx >= 0) insertAt = idx;
+      if (inFrontOfCardId) {
+        const idx = without.findIndex((c) => c.id === inFrontOfCardId);
+        // After target → in front visually (later index = higher z-index)
+        if (idx >= 0) insertAt = idx + 1;
       }
       const nextOrder = [
         ...without.slice(0, insertAt),

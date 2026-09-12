@@ -623,6 +623,7 @@
   flex-direction: column;
   /* overlap: each card after the first is pulled up */
   --stack-peek: 36px;
+  --stack-reveal: 52px;
   --stack-width: 146px;
   --stack-card-h: 204px;
   min-height: 180px;
@@ -663,15 +664,21 @@
   margin-top: 0;
 }
 
-/* Hovered card lifts — solid, no blur/brightness wash */
+/* Hover: keep natural z-order; push cards in front downward to reveal this card */
 .stackCard:hover,
 .stackCard:focus-within {
-  z-index: 80 !important;
-  transform: translateY(-6px) scale(1.02);
   box-shadow:
-    0 14px 26px rgba(0, 0, 0, 0.55),
-    0 4px 8px rgba(0, 0, 0, 0.35),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 50%, transparent);
+}
+
+/* Following siblings sit "in front" (higher z-index) — shift them down on hover */
+.stackCard:hover ~ .stackCard,
+.stackCard:focus-within ~ .stackCard {
+  transform: translateY(var(--stack-reveal, 52px));
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.12s ease;
 }
 
 .stackCardDragging {
