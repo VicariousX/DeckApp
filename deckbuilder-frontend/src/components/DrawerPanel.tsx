@@ -131,7 +131,8 @@ export function DrawerPanel({
     const ok: DrawerCardView[] = [];
     const no: DrawerCardView[] = [];
     for (const c of visible) {
-      if (fitsColorIdentity(c.color_identity, commanderColorIdentity)) ok.push(c);
+      const ident = c.effective_color_identity ?? c.color_identity;
+      if (fitsColorIdentity(ident, commanderColorIdentity)) ok.push(c);
       else no.push(c);
     }
     return { eligible: ok, excluded: no };
@@ -286,10 +287,12 @@ export function DrawerPanel({
               <p className={styles.muted}>No cards in this drawer.</p>
             )}
             {visible.map((c) => {
+              const ident = c.effective_color_identity ?? c.color_identity;
               const blocked =
                 respectIdentity &&
                 hasCommanderIdentity &&
-                !fitsColorIdentity(c.color_identity, commanderColorIdentity);
+                !fitsColorIdentity(ident, commanderColorIdentity);
+              const inDeck = deckQtyByOracle[c.oracle_id.toLowerCase()] ?? 0;
               return (
               <div
                 key={c.id}
@@ -306,7 +309,14 @@ export function DrawerPanel({
                   </div>
                 )}
                 <div className={styles.meta}>
-                  <span className={styles.name}>{c.name}</span>
+                  <span className={styles.name}>
+                    {c.name}
+                    {inDeck > 0 && (
+                      <span className={styles.inDeck} title="In this deck">
+                        {" "}×{inDeck}
+                      </span>
+                    )}
+                  </span>
                   <span className={styles.type}>{c.type_line}</span>
                 </div>
                 {c.mana_cost && (

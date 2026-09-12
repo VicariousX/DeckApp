@@ -371,6 +371,17 @@ export function DeckBuilderPage() {
   }, [detail, groupMode]);
 
   /** Best-effort commander identity from commander-board cards (mana cost until full CI cached). */
+  const deckQtyByOracle = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!detail) return map;
+    for (const c of detail.cards) {
+      const key = (c.oracle_id ?? "").toLowerCase();
+      if (!key) continue;
+      map[key] = (map[key] ?? 0) + c.quantity;
+    }
+    return map;
+  }, [detail]);
+
   const commanderColorIdentity = useMemo((): ColorLetter[] => {
     if (!detail) return [];
     const commanders = detail.cards.filter((c) => c.board === "commander");
@@ -1078,6 +1089,7 @@ export function DeckBuilderPage() {
                   onApplyDrawer={onApplyDrawer}
                   commanderColorIdentity={commanderColorIdentity}
                   applyBoardLabel="Mainboard"
+                  deckQtyByOracle={deckQtyByOracle}
                 />
               )}
             </div>

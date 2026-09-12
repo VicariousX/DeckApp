@@ -1,0 +1,82 @@
+.wrap {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.hint {
+  font-weight: 500;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.pips {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.pip {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pipOn {
+  color: #111;
+  border-color: transparent;
+}
+
+.pipW.pipOn { background: #f9e2b2; }
+.pipU.pipOn { background: #b3c7e6; }
+.pipB.pipOn { background: #a89bb8; }
+.pipR.pipOn { background: #e6a08e; }
+.pipG.pipOn { background: #a3c9a8; }
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.saveBtn {
+  padding: 0.3rem 0.55rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clearBtn {
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.status {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

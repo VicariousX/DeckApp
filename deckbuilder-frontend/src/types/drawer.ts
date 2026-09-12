@@ -25,6 +25,9 @@ export type DrawerCardView = DrawerCard & {
   mana_cost: string | null;
   cmc: number | null;
   color_identity: string[];
+  imposed_color_identity: string[] | null;
+  /** Effective identity for filters (imposed ?? printed). */
+  effective_color_identity: string[];
   oracle_text: string | null;
   image_url: string | null;
   scryfall_id: string | null;

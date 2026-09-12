@@ -298,3 +298,9 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.inDeck {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}

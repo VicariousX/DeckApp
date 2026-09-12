@@ -22,6 +22,8 @@ export type UserCard = {
   preferred_scryfall_id: string | null;
   has_custom_art: boolean;
   color_identity: string[];
+  /** User override for drawer/filter identity (e.g. Yavimaya → G). */
+  imposed_color_identity: string[] | null;
   oracle_text: string | null;
   scryfall_updated_at: string | null;
   created_at: string;
@@ -247,4 +249,38 @@ export async function fetchUserCardsMap(
     });
   }
   return { map, error: null };
+}
+
+
+/** Effective color identity: imposed override wins when set. */
+export function effectiveUserColorIdentity(card: {
+  color_identity?: string[] | null;
+  imposed_color_identity?: string[] | null;
+  mana_cost?: string | null;
+}): string[] {
+  if (card.imposed_color_identity && card.imposed_color_identity.length > 0) {
+    return card.imposed_color_identity.map((c) => c.toUpperCase());
+  }
+  if (card.color_identity && card.color_identity.length > 0) {
+    return card.color_identity.map((c) => c.toUpperCase());
+  }
+  return [];
+}
+
+/** Set or clear user-imposed color identity for drawer filtering. */
+export async function setImposedColorIdentity(
+  userId: string,
+  oracleId: string,
+  identity: string[] | null
+): Promise<{ error: string | null }> {
+  const value =
+    identity && identity.length > 0
+      ? identity.map((c) => c.toUpperCase())
+      : null;
+  const { error } = await supabase
+    .from("user_cards")
+    .update({ imposed_color_identity: value })
+    .eq("user_id", userId)
+    .eq("oracle_id", oracleId.toLowerCase());
+  return { error: error?.message ?? null };
 }

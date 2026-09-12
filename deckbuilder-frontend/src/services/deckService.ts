@@ -146,12 +146,13 @@ export async function addCardToDeck(
   const board = input.board ?? "main";
   const quantity = input.quantity ?? 1;
 
-  // Upsert quantity if same printing already on same board
+  // Upsert quantity if same DeckApp identity (oracle) already on same board
+  const oracleId = (input.oracle_id ?? "").toLowerCase();
   const { data: existing } = await supabase
     .from("deck_cards")
     .select("*")
     .eq("deck_id", deckId)
-    .eq("scryfall_id", input.scryfall_id)
+    .eq("oracle_id", oracleId)
     .eq("board", board)
     .maybeSingle();
 
@@ -189,7 +190,7 @@ export async function addCardToDeck(
     .from("deck_cards")
     .insert({
       deck_id: deckId,
-      oracle_id: input.oracle_id,
+      oracle_id: oracleId,
       scryfall_id: input.scryfall_id,
       name: input.name,
       type_line: input.type_line ?? "",
@@ -213,7 +214,7 @@ export async function addCardToDeck(
   };
 }
 
-/** Move a card to another board (merges quantity if same printing already there). */
+/** Move a card to another board (merges quantity if same oracle already there). */
 export async function setCardBoard(
   card: DeckCard,
   board: DeckBoard
@@ -226,7 +227,7 @@ export async function setCardBoard(
     .from("deck_cards")
     .select("*")
     .eq("deck_id", card.deck_id)
-    .eq("scryfall_id", card.scryfall_id)
+    .eq("oracle_id", card.oracle_id)
     .eq("board", board)
     .maybeSingle();
 
@@ -303,7 +304,7 @@ export async function reorderBoardCards(
 }
 
 /**
- * Stack dragged onto target when they share the same scryfall printing.
+ * Stack dragged onto target when they share the same oracle identity on a board.
  * Merges quantity into target and deletes the dragged row.
  */
 export async function stackDeckCards(
@@ -313,8 +314,11 @@ export async function stackDeckCards(
   if (target.id === dragged.id) {
     return { card: target, error: null };
   }
-  if (target.scryfall_id !== dragged.scryfall_id || target.board !== dragged.board) {
-    return { card: null, error: "Can only stack identical printings on the same board." };
+  if (
+    target.oracle_id.toLowerCase() !== dragged.oracle_id.toLowerCase() ||
+    target.board !== dragged.board
+  ) {
+    return { card: null, error: "Can only stack the same card (oracle) on the same board." };
   }
   const { data, error } = await supabase
     .from("deck_cards")
