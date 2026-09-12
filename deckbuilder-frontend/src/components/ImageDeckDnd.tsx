@@ -1,24 +1,28 @@
 import {
   DndContext,
-  DragOverlay,
   MeasuringStrategy,
   PointerSensor,
+  pointerWithin,
+  closestCenter,
   useSensor,
   useSensors,
-  closestCorners,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { getEventCoordinates } from "@dnd-kit/utilities";
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   type CSSProperties,
   type ReactNode,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import type { DeckBoard, DeckCard } from "../types/deck";
 import styles from "../pages/DeckBuilderPage.module.css";
 
@@ -86,6 +90,17 @@ export function parseDropId(id: string | null | undefined): DropTarget | null {
   return null;
 }
 
+/** Prefer cards under the pointer; fall back to columns/boards; then closest center. */
+const deckCollision: CollisionDetection = (args) => {
+  const pointerHits = pointerWithin(args);
+  if (pointerHits.length > 0) {
+    const cards = pointerHits.filter((h) => String(h.id).startsWith("card:"));
+    if (cards.length > 0) return cards;
+    return pointerHits;
+  }
+  return closestCenter(args);
+};
+
 type ImageDndProviderProps = {
   enabled: boolean;
   onDragCardStart?: (cardId: string) => void;
@@ -111,6 +126,9 @@ export function ImageDndProvider({
 }: ImageDndProviderProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  // Viewport-fixed overlay position (client coordinates) — immune to page scroll
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+  const [grabOffset, setGrabOffset] = useState({ x: 0, y: 0 });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -118,9 +136,47 @@ export function ImageDndProvider({
     })
   );
 
+  // Track pointer in viewport coords for the entire drag
+  useEffect(() => {
+    if (!activeId) return;
+
+    function onMove(e: PointerEvent) {
+      setPointer({ x: e.clientX, y: e.clientY });
+    }
+    function onUp() {
+      setPointer(null);
+    }
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerup", onUp, { passive: true });
+    window.addEventListener("pointercancel", onUp, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [activeId]);
+
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
     if (!id.startsWith("card:")) return;
+
+    const coords = e.activatorEvent
+      ? getEventCoordinates(e.activatorEvent)
+      : null;
+    const rect = e.active.rect.current.initial;
+
+    if (coords && rect) {
+      setGrabOffset({
+        x: coords.x - rect.left,
+        y: coords.y - rect.top,
+      });
+      setPointer({ x: coords.x, y: coords.y });
+    } else if (coords) {
+      setGrabOffset({ x: 40, y: 40 });
+      setPointer({ x: coords.x, y: coords.y });
+    }
+
     setActiveId(id.slice(5));
     onDragCardStart?.(id.slice(5));
   }
@@ -134,6 +190,7 @@ export function ImageDndProvider({
     const over = e.over ? String(e.over.id) : null;
     setActiveId(null);
     setOverId(null);
+    setPointer(null);
     onDragCardEnd?.();
     if (!active.startsWith("card:") || !over) return;
     const sourceId = active.slice(5);
@@ -146,6 +203,7 @@ export function ImageDndProvider({
   function handleDragCancel() {
     setActiveId(null);
     setOverId(null);
+    setPointer(null);
     onDragCardEnd?.();
   }
 
@@ -153,11 +211,30 @@ export function ImageDndProvider({
     return <>{children}</>;
   }
 
+  const overlay =
+    activeId && renderOverlay && pointer
+      ? createPortal(
+          <div
+            className={styles.dndOverlay}
+            style={{
+              position: "fixed",
+              left: pointer.x - grabOffset.x,
+              top: pointer.y - grabOffset.y,
+              zIndex: 10000,
+              pointerEvents: "none",
+              margin: 0,
+            }}
+          >
+            {renderOverlay(activeId)}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
-      // Re-measure droppables while dragging so scroll/layout shifts stay accurate
+      collisionDetection={deckCollision}
       measuring={{
         droppable: { strategy: MeasuringStrategy.Always },
       }}
@@ -169,11 +246,7 @@ export function ImageDndProvider({
       <ImageDndOverContext.Provider value={overId}>
         {children}
       </ImageDndOverContext.Provider>
-      <DragOverlay dropAnimation={null} zIndex={10000}>
-        {activeId && renderOverlay ? (
-          <div className={styles.dndOverlay}>{renderOverlay(activeId)}</div>
-        ) : null}
-      </DragOverlay>
+      {overlay}
     </DndContext>
   );
 }
@@ -195,7 +268,6 @@ export function DraggableStackCard({
   children,
   onClick,
 }: DraggableCardProps) {
-  // Source node stays in place; only the DragOverlay moves under the cursor.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: cardDragId(card.id),
     data: { type: "card", cardId: card.id, board: card.board },
@@ -204,7 +276,7 @@ export function DraggableStackCard({
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: cardDragId(card.id),
-    data: { type: "card", cardId: card.id },
+    data: { type: "card", cardId: card.id, board: card.board },
     disabled: Boolean(disabled),
   });
 
@@ -215,9 +287,7 @@ export function DraggableStackCard({
 
   const dragStyle: CSSProperties = {
     ...style,
-    // Do NOT apply dnd-kit transform here — that fights DragOverlay and
-    // causes cursor misalignment once the page has been scrolled.
-    opacity: isDragging ? 0.3 : undefined,
+    opacity: isDragging ? 0.25 : undefined,
     cursor: disabled ? undefined : isDragging ? "grabbing" : "grab",
     zIndex: isDragging ? 1 : style?.zIndex,
     touchAction: "none",
@@ -276,7 +346,6 @@ export function DroppableRegion({
   );
 }
 
-/** Stop control clicks from bubbling into the draggable listeners. */
 export function stopDndPropagation(e: ReactMouseEvent) {
   e.stopPropagation();
 }

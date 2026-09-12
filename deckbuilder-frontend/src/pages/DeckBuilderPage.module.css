@@ -625,6 +625,8 @@
   --stack-peek: 36px;
   --stack-width: 146px;
   --stack-card-h: 204px;
+  min-height: 180px;
+  padding-bottom: 1.5rem;
 }
 
 .stackCard {
@@ -1162,6 +1164,11 @@
 
 .stackColumn {
   flex: 0 0 auto;
+  min-height: 220px;
+  min-width: calc(var(--stack-width, 146px) + 12px);
+  padding: 0.25rem;
+  box-sizing: border-box;
+  border-radius: 12px;
 }
 
 .stackColumnDropActive {
@@ -1276,11 +1283,9 @@
     0 18px 32px rgba(0, 0, 0, 0.65),
     0 6px 12px rgba(0, 0, 0, 0.4),
     0 0 0 2px color-mix(in srgb, var(--color-accent) 55%, transparent);
-  /* Mild tilt only — avoid large transforms that fight cursor tracking */
-  transform: rotate(1deg);
   cursor: grabbing;
   pointer-events: none;
-  will-change: transform;
+  /* position/left/top set inline from pointer client coords */
 }
 
 .dndOverlayImg {

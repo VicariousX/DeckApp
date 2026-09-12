@@ -640,6 +640,86 @@ export function DeckBuilderPage() {
   }
 
 
+  /** Resolve which list-column a card currently sits in (list mode). */
+  function listColumnOf(board: DeckBoard, cardId: string): string | null {
+    const layout =
+      listLayouts[board] ??
+      (detail ? getListColumnLayout(detail.deck.id, board) : null);
+    if (!layout) return null;
+    const placed = layout.placement[cardId];
+    if (placed && layout.columns.some((c) => c.id === placed)) return placed;
+    return layout.columns[0]?.id ?? null;
+  }
+
+  async function ensureBoardThen(
+    source: DeckCard,
+    board: DeckBoard,
+    next: () => void
+  ) {
+    if (source.board === board) {
+      next();
+      return;
+    }
+    await moveCardToBoard(source, board);
+    next();
+  }
+
+  function reorderWithinBoard(
+    board: DeckBoard,
+    sourceId: string,
+    beforeCardId: string | null
+  ) {
+    let orderedIds: string[] = [];
+    setDetail((prev) => {
+      if (!prev) return prev;
+      // Include source even if board field is briefly stale after a move
+      const boardList = sortCards(
+        prev.cards.filter(
+          (c) => c.board === board || c.id === sourceId
+        )
+      );
+      const source = boardList.find((c) => c.id === sourceId);
+      if (!source) return prev;
+      const without = boardList.filter((c) => c.id !== sourceId);
+      let insertAt = without.length;
+      if (beforeCardId) {
+        const idx = without.findIndex((c) => c.id === beforeCardId);
+        if (idx >= 0) insertAt = idx;
+      }
+      const nextOrder = [
+        ...without.slice(0, insertAt),
+        { ...source, board },
+        ...without.slice(insertAt),
+      ];
+      orderedIds = nextOrder.map((c) => c.id);
+      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+      return {
+        ...prev,
+        cards: prev.cards.map((c) => {
+          if (c.id === sourceId) {
+            return {
+              ...c,
+              board,
+              sort_order: orderMap.get(c.id) ?? c.sort_order,
+            };
+          }
+          if (orderMap.has(c.id)) {
+            return { ...c, sort_order: orderMap.get(c.id)! };
+          }
+          return c;
+        }),
+      };
+    });
+    if (orderedIds.length) {
+      void reorderBoardCards(orderedIds).then(({ error: err }) => {
+        if (err) {
+          setError(err);
+          void loadDeck({ silent: true });
+        }
+      });
+    }
+  }
+
   function handleImageDrop(sourceCardId: string, target: DropTarget) {
     if (!detail || !isOwner) return;
     const source = detail.cards.find((c) => c.id === sourceCardId);
@@ -648,18 +728,27 @@ export function DeckBuilderPage() {
     if (target.kind === "card") {
       const dest = detail.cards.find((c) => c.id === target.cardId);
       if (!dest) return;
-      // Cross-board: move first
-      if (source.board !== dest.board) {
-        void moveCardToBoard(source, dest.board);
-        return;
-      }
-      // Same printing → stack; else reorder before target
-      if (source.scryfall_id === dest.scryfall_id) {
+
+      // Same printing → stack (after ensuring same board)
+      if (source.scryfall_id === dest.scryfall_id && source.id !== dest.id) {
         void (async () => {
-          const { card: saved, error: err } = await stackDeckCards(dest, source);
+          if (source.board !== dest.board) {
+            await moveCardToBoard(source, dest.board);
+          }
+          // Refresh source after possible board move
+          const live =
+            // state may lag; stackDeckCards uses ids from args
+            source;
+          const { card: saved, error: err } = await stackDeckCards(dest, live);
           if (err || !saved) {
             setError(err ?? "Could not stack cards.");
+            void loadDeck({ silent: true });
             return;
+          }
+          // Keep list-column assignment with the destination card
+          if (groupMode === "none") {
+            const col = listColumnOf(dest.board, dest.id);
+            if (col) placeCardInListColumn(dest.board, saved.id, col);
           }
           setDetail((prev) => {
             if (!prev) return prev;
@@ -677,34 +766,17 @@ export function DeckBuilderPage() {
         })();
         return;
       }
-      const boardList = sortCards(
-        detail.cards.filter((c) => c.board === dest.board)
-      );
-      const without = boardList.filter((c) => c.id !== source.id);
-      const targetIdx = without.findIndex((c) => c.id === dest.id);
-      const insertAt = targetIdx < 0 ? without.length : targetIdx;
-      const nextOrder = [
-        ...without.slice(0, insertAt),
-        source,
-        ...without.slice(insertAt),
-      ];
-      const orderedIds = nextOrder.map((c) => c.id);
-      setDetail((prev) => {
-        if (!prev) return prev;
-        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
-        return {
-          ...prev,
-          cards: prev.cards.map((c) =>
-            orderMap.has(c.id) ? { ...c, sort_order: orderMap.get(c.id)! } : c
-          ),
-        };
-      });
-      void reorderBoardCards(orderedIds).then(({ error: err }) => {
-        if (err) {
-          setError(err);
-          void loadDeck({ silent: true });
-        }
-      });
+
+      void (async () => {
+        await ensureBoardThen(source, dest.board, () => {
+          // List mode: move into dest's column, then reorder before dest
+          if (groupMode === "none") {
+            const col = listColumnOf(dest.board, dest.id);
+            if (col) placeCardInListColumn(dest.board, source.id, col);
+          }
+          reorderWithinBoard(dest.board, source.id, dest.id);
+        });
+      })();
       return;
     }
 
@@ -716,22 +788,64 @@ export function DeckBuilderPage() {
     }
 
     if (target.kind === "listcol") {
-      const place = () => placeCardInListColumn(target.board, source.id, target.colId);
-      if (source.board !== target.board) {
-        void moveCardToBoard(source, target.board).then(place);
-      } else {
-        place();
-      }
+      void (async () => {
+        await ensureBoardThen(source, target.board, () => {
+          placeCardInListColumn(target.board, source.id, target.colId);
+          // Drop on column body → append to end of that column's visual stack
+          const layout =
+            listLayouts[target.board] ??
+            getListColumnLayout(detail.deck.id, target.board);
+          const colCards = cardsForListColumn(
+            sortCards(detail.cards.filter((c) => c.board === target.board)),
+            target.board,
+            target.colId,
+            layout.columns[0]?.id === target.colId
+          ).filter((c) => c.id !== source.id);
+          const beforeId = null; // end of board order among these is approximate
+          // Put after last card currently in the column
+          if (colCards.length > 0) {
+            const last = colCards[colCards.length - 1];
+            // Insert after last: reorder so source is right after last
+            const boardList = sortCards(
+              detail.cards.filter((c) => c.board === target.board)
+            );
+            const without = boardList.filter((c) => c.id !== source.id);
+            const lastIdx = without.findIndex((c) => c.id === last.id);
+            const insertAt = lastIdx < 0 ? without.length : lastIdx + 1;
+            const src = boardList.find((c) => c.id === source.id) ?? source;
+            const nextOrder = [
+              ...without.slice(0, insertAt),
+              src,
+              ...without.slice(insertAt),
+            ];
+            const orderedIds = nextOrder.map((c) => c.id);
+            setDetail((prev) => {
+              if (!prev) return prev;
+              const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+              return {
+                ...prev,
+                cards: prev.cards.map((c) =>
+                  orderMap.has(c.id)
+                    ? { ...c, sort_order: orderMap.get(c.id)! }
+                    : c
+                ),
+              };
+            });
+            void reorderBoardCards(orderedIds);
+          } else {
+            void beforeId;
+          }
+        });
+      })();
       return;
     }
 
     if (target.kind === "listcol-new") {
-      const create = () => createColumnAndPlace(target.board, source.id);
-      if (source.board !== target.board) {
-        void moveCardToBoard(source, target.board).then(create);
-      } else {
-        create();
-      }
+      void (async () => {
+        await ensureBoardThen(source, target.board, () => {
+          createColumnAndPlace(target.board, source.id);
+        });
+      })();
       return;
     }
 
