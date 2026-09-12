@@ -1,6 +1,7 @@
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   useSensor,
   useSensors,
@@ -10,7 +11,6 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import {
   createContext,
   useContext,
@@ -55,7 +55,10 @@ export function parseDropId(id: string | null | undefined): DropTarget | null {
     return { kind: "card", cardId: id.slice(5) };
   }
   if (id.startsWith("listcol-new:")) {
-    return { kind: "listcol-new", board: id.slice("listcol-new:".length) as DeckBoard };
+    return {
+      kind: "listcol-new",
+      board: id.slice("listcol-new:".length) as DeckBoard,
+    };
   }
   if (id.startsWith("listcol:")) {
     const rest = id.slice("listcol:".length);
@@ -89,9 +92,14 @@ type ImageDndProviderProps = {
   onDragCardEnd?: () => void;
   onDropCard: (sourceCardId: string, target: DropTarget) => void;
   children: ReactNode;
-  /** Card currently being dragged (for overlay content). */
   renderOverlay?: (cardId: string) => ReactNode;
 };
+
+const ImageDndOverContext = createContext<string | null>(null);
+
+export function useImageDndOverId() {
+  return useContext(ImageDndOverContext);
+}
 
 export function ImageDndProvider({
   enabled,
@@ -149,6 +157,10 @@ export function ImageDndProvider({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
+      // Re-measure droppables while dragging so scroll/layout shifts stay accurate
+      measuring={{
+        droppable: { strategy: MeasuringStrategy.Always },
+      }}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -157,20 +169,13 @@ export function ImageDndProvider({
       <ImageDndOverContext.Provider value={overId}>
         {children}
       </ImageDndOverContext.Provider>
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} zIndex={10000}>
         {activeId && renderOverlay ? (
           <div className={styles.dndOverlay}>{renderOverlay(activeId)}</div>
         ) : null}
       </DragOverlay>
     </DndContext>
   );
-}
-
-
-const ImageDndOverContext = createContext<string | null>(null);
-
-export function useImageDndOverId() {
-  return useContext(ImageDndOverContext);
 }
 
 type DraggableCardProps = {
@@ -190,12 +195,12 @@ export function DraggableStackCard({
   children,
   onClick,
 }: DraggableCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: cardDragId(card.id),
-      data: { type: "card", cardId: card.id, board: card.board },
-      disabled: Boolean(disabled),
-    });
+  // Source node stays in place; only the DragOverlay moves under the cursor.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: cardDragId(card.id),
+    data: { type: "card", cardId: card.id, board: card.board },
+    disabled: Boolean(disabled),
+  });
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: cardDragId(card.id),
@@ -210,16 +215,20 @@ export function DraggableStackCard({
 
   const dragStyle: CSSProperties = {
     ...style,
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.35 : undefined,
+    // Do NOT apply dnd-kit transform here — that fights DragOverlay and
+    // causes cursor misalignment once the page has been scrolled.
+    opacity: isDragging ? 0.3 : undefined,
     cursor: disabled ? undefined : isDragging ? "grabbing" : "grab",
-    zIndex: isDragging ? 90 : style?.zIndex,
+    zIndex: isDragging ? 1 : style?.zIndex,
+    touchAction: "none",
   };
 
   return (
     <div
       ref={setRefs}
-      className={`${className ?? ""}${isOver && !isDragging ? ` ${styles.stackCardDropTarget}` : ""}`}
+      className={`${className ?? ""}${
+        isOver && !isDragging ? ` ${styles.stackCardDropTarget}` : ""
+      }${isDragging ? ` ${styles.stackCardDragging}` : ""}`}
       style={dragStyle}
       onClick={onClick}
       {...listeners}
@@ -258,14 +267,16 @@ export function DroppableRegion({
     <div
       ref={setNodeRef}
       data-board={dataBoard}
-      className={`${className ?? ""}${active && activeClassName ? ` ${activeClassName}` : ""}`}
+      className={`${className ?? ""}${
+        active && activeClassName ? ` ${activeClassName}` : ""
+      }`}
     >
       {children}
     </div>
   );
 }
 
-/** Stop dnd-kit from treating control clicks as drags. */
+/** Stop control clicks from bubbling into the draggable listeners. */
 export function stopDndPropagation(e: ReactMouseEvent) {
   e.stopPropagation();
 }

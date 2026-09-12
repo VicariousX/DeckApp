@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -170,11 +169,8 @@ export function DeckBuilderPage() {
   const [panel, setPanel] = useState<PanelTab>("deck");
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<DeckCard | null>(null);
-  const dragMovedRef = useRef(false);
   /** stack face flip: card id → front|back */
   const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
   /** cached back-face image URLs for multi-face cards */
@@ -643,18 +639,6 @@ export function DeckBuilderPage() {
     });
   }
 
-  function onTileDragStart(e: DragEvent, card: DeckCard) {
-    if (!isOwner) return;
-    dragMovedRef.current = false;
-    setDragId(card.id);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", card.id);
-  }
-
-  function onTileDrag() {
-    dragMovedRef.current = true;
-  }
-
 
   function handleImageDrop(sourceCardId: string, target: DropTarget) {
     if (!detail || !isOwner) return;
@@ -761,103 +745,6 @@ export function DeckBuilderPage() {
 
   function openCardModal(card: DeckCard) {
     setModalCard(card);
-  }
-
-  function onTileDragOver(e: DragEvent, overCard: DeckCard) {
-    if (!isOwner || !dragId || dragId === overCard.id) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverId(overCard.id);
-  }
-
-  function onTileDragLeave(overCard: DeckCard) {
-    if (dragOverId === overCard.id) setDragOverId(null);
-  }
-
-  async function onTileDrop(e: DragEvent, target: DeckCard) {
-    e.preventDefault();
-    setDragOverId(null);
-    const sourceId = dragId || e.dataTransfer.getData("text/plain");
-    setDragId(null);
-    if (!isOwner || !sourceId || sourceId === target.id || !detail) return;
-    const dragged = detail.cards.find((c) => c.id === sourceId);
-    if (!dragged || dragged.board !== target.board) return;
-
-    // Same printing → stack
-    if (dragged.scryfall_id === target.scryfall_id) {
-      const { card: saved, error: err } = await stackDeckCards(target, dragged);
-      if (err || !saved) {
-        setError(err ?? "Could not stack cards.");
-        return;
-      }
-      setDetail((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          cards: sortCards(
-            prev.cards
-              .filter((c) => c.id !== dragged.id)
-              .map((c) =>
-                c.id === saved.id
-                  ? { ...c, quantity: saved.quantity }
-                  : c
-              )
-          ),
-        };
-      });
-      return;
-    }
-
-    // Reorder within board: place dragged before target
-    const boardList = sortCards(
-      detail.cards.filter((c) => c.board === target.board)
-    );
-    const without = boardList.filter((c) => c.id !== dragged.id);
-    const targetIdx = without.findIndex((c) => c.id === target.id);
-    const insertAt = targetIdx < 0 ? without.length : targetIdx;
-    const nextOrder = [
-      ...without.slice(0, insertAt),
-      dragged,
-      ...without.slice(insertAt),
-    ];
-    const orderedIds = nextOrder.map((c) => c.id);
-    setDetail((prev) => {
-      if (!prev) return prev;
-      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
-      return {
-        ...prev,
-        cards: prev.cards.map((c) =>
-          orderMap.has(c.id)
-            ? { ...c, sort_order: orderMap.get(c.id)! }
-            : c
-        ),
-      };
-    });
-    const { error: err } = await reorderBoardCards(orderedIds);
-    if (err) {
-      setError(err);
-      void loadDeck({ silent: true });
-    }
-  }
-
-  function onTileDragEnd() {
-    setDragId(null);
-    setDragOverId(null);
-    // Keep dragMoved true until after click handlers settle
-    window.setTimeout(() => {
-      dragMovedRef.current = false;
-    }, 0);
-  }
-
-  async function onBoardTabDrop(e: DragEvent, board: DeckBoard) {
-    e.preventDefault();
-    const sourceId = dragId || e.dataTransfer.getData("text/plain");
-    setDragId(null);
-    setDragOverId(null);
-    if (!isOwner || !sourceId || !detail) return;
-    const card = detail.cards.find((c) => c.id === sourceId);
-    if (!card || card.board === board) return;
-    await moveCardToBoard(card, board);
   }
 
   if (!authLoading && !user) {
@@ -1541,12 +1428,6 @@ export function DeckBuilderPage() {
                 <section
                   key={board.id}
                   className={styles.boardZone}
-                  onDragOver={(e) => {
-                    if (!isOwner || !dragId) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }}
-                  onDrop={(e) => void onBoardTabDrop(e, board.id)}
                 >
                   <header className={styles.boardZoneHeader}>
                     <h2 className={styles.boardZoneTitle}>{board.label}</h2>
