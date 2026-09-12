@@ -17,12 +17,15 @@ import { fetchAutocomplete, fetchCardById, fetchNamedCard } from "../lib/scryfal
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
+  getDeckGroupMode,
   getDeckViewMode,
   getListColumnLayout,
   newListColumnId,
+  setDeckGroupMode,
   setDeckViewMode,
   setLastViewedDeck,
   setListColumnLayout,
+  type DeckGroupMode,
   type DeckViewMode,
   type ListColumnLayout,
 } from "../lib/deckPreferences";
@@ -144,7 +147,7 @@ export function DeckBuilderPage() {
   const [detail, setDetail] = useState<DeckDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [groupMode, setGroupMode] = useState<GroupMode>("type");
+  const [groupMode, setGroupMode] = useState<GroupMode>(() => getDeckGroupMode());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => getDeckViewMode());
   const [panel, setPanel] = useState<PanelTab>("deck");
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
@@ -258,6 +261,11 @@ export function DeckBuilderPage() {
   function changeViewMode(mode: DeckViewMode) {
     setViewMode(mode);
     setDeckViewMode(mode);
+  }
+
+  function changeGroupMode(mode: GroupMode) {
+    setGroupMode(mode);
+    setDeckGroupMode(mode as DeckGroupMode);
   }
 
 
@@ -880,7 +888,7 @@ export function DeckBuilderPage() {
                         ? `${styles.groupBtn} ${styles.groupBtnActive}`
                         : styles.groupBtn
                     }
-                    onClick={() => setGroupMode(mode)}
+                    onClick={() => changeGroupMode(mode)}
                   >
                     {label}
                   </button>
@@ -1613,6 +1621,7 @@ export function DeckBuilderPage() {
           }
           imageUrl={imageUrls[modalCard.id]}
           isOwner={isOwner}
+          tags={detail?.tags ?? []}
           onClose={() => setModalCard(null)}
           onQty={(d) => {
             const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
@@ -1625,6 +1634,10 @@ export function DeckBuilderPage() {
           onRemove={() => {
             const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
             void onRemove(live);
+          }}
+          onToggleTag={(tag) => {
+            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+            void toggleTag(live, tag);
           }}
         />
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCardById } from "../lib/scryfallApi";
-import type { DeckBoard, DeckCard } from "../types/deck";
+import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
@@ -19,20 +19,24 @@ type Props = {
   card: DeckCard;
   imageUrl?: string;
   isOwner: boolean;
+  tags: DeckTag[];
   onClose: () => void;
   onQty: (delta: number) => void;
   onBoard: (board: DeckBoard) => void;
   onRemove: () => void;
+  onToggleTag: (tag: DeckTag) => void;
 };
 
 export function DeckCardModal({
   card,
   imageUrl,
   isOwner,
+  tags,
   onClose,
   onQty,
   onBoard,
   onRemove,
+  onToggleTag,
 }: Props) {
   const [scryfall, setScryfall] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +62,8 @@ export function DeckCardModal({
       cancelled = true;
     };
   }, [card.scryfall_id]);
+
+  const assigned = new Set(card.tag_ids ?? []);
 
   return (
     <Modal onClose={onClose}>
@@ -143,6 +149,38 @@ export function DeckCardModal({
               </button>
             </div>
           )}
+
+          <div className={styles.tagSection}>
+            <div className={styles.tagSectionLabel}>Tags</div>
+            {tags.length === 0 ? (
+              <p className={styles.tagHint}>
+                No deck tags yet. Create some in the Tags panel.
+              </p>
+            ) : (
+              <div className={styles.tagList}>
+                {tags.map((t) => {
+                  const on = assigned.has(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      disabled={!isOwner}
+                      className={
+                        on
+                          ? `${styles.tagChip} ${styles.tagChipOn}`
+                          : styles.tagChip
+                      }
+                      onClick={() => isOwner && onToggleTag(t)}
+                      aria-pressed={on}
+                    >
+                      {t.name}
+                      {on && <span aria-hidden>×</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className={styles.footer}>
             <Link
