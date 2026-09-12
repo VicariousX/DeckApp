@@ -15,6 +15,7 @@ import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "../components/ManaCost";
 import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
+import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import {
   CARD_SORT_OPTIONS,
   sortCardsBy,
@@ -218,6 +219,36 @@ export function DrawersPage() {
         d.id === selectedId ? { ...d, card_count: list.length } : d
       )
     );
+  }
+
+
+  async function onBulkImport(entries: BulkResolvedEntry[]) {
+    if (!user || !selectedId) return;
+    setError(null);
+    let added = 0;
+    for (const e of entries) {
+      const { card: uc, error: uErr } = await ensureUserCardFromScryfall(
+        user.id,
+        e.card
+      );
+      if (uErr || !uc) continue;
+      const { error: aErr } = await addOracleToDrawer(selectedId, uc.oracle_id);
+      if (!aErr) added += 1;
+    }
+    const { cards: list, error: cErr } = await fetchDrawerCards(
+      selectedId,
+      user.id
+    );
+    if (cErr) setError(cErr);
+    setCards(list);
+    setDrawers((prev) =>
+      prev.map((d) =>
+        d.id === selectedId ? { ...d, card_count: list.length } : d
+      )
+    );
+    if (added === 0 && entries.length > 0) {
+      setError("Could not add cards to drawer.");
+    }
   }
 
   const sortedCards = useMemo(
@@ -432,6 +463,11 @@ export function DrawersPage() {
                     {addBusy ? "Adding…" : "Add"}
                   </button>
                 </div>
+                <BulkCardImport
+                  title="Bulk import"
+                  respectQuantity={false}
+                  onImport={onBulkImport}
+                />
               </div>
 
               {cardsLoading && <p className={styles.muted}>Loading cards…</p>}

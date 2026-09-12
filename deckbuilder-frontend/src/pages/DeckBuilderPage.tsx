@@ -46,6 +46,7 @@ import {
 } from "../components/ImageDeckDnd";
 import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
+import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import type { DrawerCardView } from "../types/drawer";
 import {
   addCardToDeck,
@@ -300,6 +301,41 @@ export function DeckBuilderPage() {
     }
     return counts;
   }, [detail]);
+
+
+  async function onBulkImport(entries: BulkResolvedEntry[]) {
+    if (!id || !isOwner || !user) return;
+    setError(null);
+    setAddBusy(true);
+    for (const e of entries) {
+      const sc = e.card;
+      void ensureUserCardFromScryfall(user.id, sc);
+      const oracleId = (sc.oracle_id ?? sc.id).toLowerCase();
+      const { card: saved, error: addErr } = await addCardToDeck(id, {
+        oracle_id: oracleId,
+        scryfall_id: sc.id,
+        name: sc.name,
+        type_line: sc.type_line ?? "",
+        mana_cost: sc.mana_cost,
+        cmc: sc.cmc,
+        quantity: e.quantity,
+        board: addTargetBoard,
+      });
+      if (addErr || !saved) {
+        setError(addErr ?? `Could not add ${sc.name}.`);
+        continue;
+      }
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const withoutDup = prev.cards.filter(
+          (c) => !(c.scryfall_id === saved.scryfall_id && c.board === saved.board)
+        );
+        return { ...prev, cards: sortCards([...withoutDup, saved]) };
+      });
+    }
+    setAddBusy(false);
+    void loadDeck({ silent: true });
+  }
 
   const totalCards = useMemo(
     () => (detail?.cards ?? []).reduce((n, c) => n + c.quantity, 0),
@@ -1044,6 +1080,11 @@ export function DeckBuilderPage() {
                   {addBusy ? "Adding…" : "Add"}
                 </button>
               </div>
+              <BulkCardImport
+                title="Bulk import"
+                respectQuantity={true}
+                onImport={onBulkImport}
+              />
             </section>
           )}
 

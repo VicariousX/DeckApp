@@ -97,6 +97,34 @@ app.get("/api/scryfall/named", async (req: Request, res: Response) => {
 });
 
 // All printings for an oracle id (art picker)
+
+app.post("/api/scryfall/collection", async (req: Request, res: Response) => {
+  try {
+    const identifiers = req.body?.identifiers;
+    if (!Array.isArray(identifiers) || identifiers.length === 0) {
+      res.status(400).json({ error: "identifiers array required" });
+      return;
+    }
+    // Scryfall limit: 75 per request
+    const slice = identifiers.slice(0, 75);
+    const url = "https://api.scryfall.com/cards/collection";
+    const upstream = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": "DeckApp/1.0",
+      },
+      body: JSON.stringify({ identifiers: slice }),
+    });
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (error) {
+    console.error("Scryfall collection failed:", error);
+    res.status(502).json({ error: "Scryfall collection request failed" });
+  }
+});
+
 app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
   const oracleId = req.query.oracle_id as string | undefined;
   if (!oracleId) {
