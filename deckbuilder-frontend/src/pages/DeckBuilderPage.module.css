@@ -623,7 +623,7 @@
   flex-direction: column;
   /* overlap: each card after the first is pulled up */
   --stack-peek: 36px;
-  --stack-reveal: 52px;
+  --stack-reveal: var(--stack-card-h);
   --stack-width: 146px;
   --stack-card-h: 204px;
   min-height: 180px;
@@ -655,33 +655,17 @@
   margin-top: 0;
 }
 
-/* Expand peek on column hover so more of each card is targetable */
-.stackColumn:hover .stackCard {
-  margin-top: calc(52px - var(--stack-card-h));
-}
+/* Keep stack geometry stable on column hover (avoid sticky layout shifts) */
 
-.stackColumn:hover .stackCard:first-child {
-  margin-top: 0;
-}
-
-/* Hover: keep natural z-order; push cards in front downward to reveal this card */
-.stackCard:hover,
-.stackCard:focus-within {
+/* Revealed card accent (hover index from StackCards) */
+.stackCardRevealed {
   box-shadow:
     0 6px 16px rgba(0, 0, 0, 0.5),
     0 0 0 1px color-mix(in srgb, var(--color-accent) 50%, transparent);
 }
 
-/* Following siblings sit "in front" (higher z-index) — shift them down on hover */
-.stackCard:hover ~ .stackCard,
-.stackCard:focus-within ~ .stackCard {
-  transform: translateY(var(--stack-reveal, 52px));
-  transition:
-    transform 0.14s ease,
-    box-shadow 0.12s ease;
-}
-
 .stackCardDragging {
+
   /* Source stays put; DragOverlay is the moving card */
   opacity: 0.3;
   transition: none;

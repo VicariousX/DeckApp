@@ -44,6 +44,7 @@ import {
   stopDndPropagation,
   type DropTarget,
 } from "../components/ImageDeckDnd";
+import { StackCards } from "../components/StackCards";
 import {
   addCardToDeck,
   createDeckTag,
@@ -1320,7 +1321,7 @@ export function DeckBuilderPage() {
                                     </button>
                                   )}
                               </div>
-                              <div className={styles.stackCards}>
+                              <StackCards count={colCards.length}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
@@ -1331,6 +1332,7 @@ export function DeckBuilderPage() {
                                       disabled={!isOwner}
                                       className={styles.stackCard}
                                       style={{ zIndex: cardIdx + 1 }}
+                                      stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
                                     >
                                       <div
@@ -1398,7 +1400,7 @@ export function DeckBuilderPage() {
                                     </DraggableStackCard>
                                   );
                                 })}
-                              </div>
+                              </StackCards>
                             </DroppableRegion>
                           );
                         })}
@@ -1447,7 +1449,7 @@ export function DeckBuilderPage() {
                                 <h3 className={styles.stackTitle}>{g.label}</h3>
                                 <span className={styles.stackCount}>{count}</span>
                               </div>
-                              <div className={styles.stackCards}>
+                              <StackCards count={g.cards.length}>
                                 {g.cards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
@@ -1458,6 +1460,7 @@ export function DeckBuilderPage() {
                                       disabled={!isOwner}
                                       className={styles.stackCard}
                                       style={{ zIndex: cardIdx + 1 }}
+                                      stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
                                     >
                                       <div
@@ -1525,7 +1528,7 @@ export function DeckBuilderPage() {
                                     </DraggableStackCard>
                                   );
                                 })}
-                              </div>
+                              </StackCards>
                             </section>
                           );
                         })}

@@ -25,6 +25,7 @@ import {
 import { createPortal } from "react-dom";
 import type { DeckBoard, DeckCard } from "../types/deck";
 import styles from "../pages/DeckBuilderPage.module.css";
+import { useStackHoverIndex } from "./StackCards";
 
 export type DropTarget =
   | { kind: "card"; cardId: string }
@@ -258,6 +259,8 @@ type DraggableCardProps = {
   style?: CSSProperties;
   children: ReactNode;
   onClick?: () => void;
+  /** Index within its StackCards (0 = back of stack). */
+  stackIndex?: number;
 };
 
 export function DraggableStackCard({
@@ -267,7 +270,9 @@ export function DraggableStackCard({
   style,
   children,
   onClick,
+  stackIndex,
 }: DraggableCardProps) {
+  const hoverIdx = useStackHoverIndex();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: cardDragId(card.id),
     data: { type: "card", cardId: card.id, board: card.board },
@@ -285,20 +290,39 @@ export function DraggableStackCard({
     setDropRef(node);
   }
 
+  // Cards in front of the hovered card shift down by a full card height
+  const revealShift =
+    !isDragging &&
+    hoverIdx != null &&
+    stackIndex != null &&
+    stackIndex > hoverIdx;
+
+  const isRevealed =
+    hoverIdx != null && stackIndex != null && stackIndex === hoverIdx;
+
   const dragStyle: CSSProperties = {
     ...style,
     opacity: isDragging ? 0.25 : undefined,
     cursor: disabled ? undefined : isDragging ? "grabbing" : "grab",
     zIndex: isDragging ? 1 : style?.zIndex,
     touchAction: "none",
+    transform: revealShift
+      ? "translateY(var(--stack-reveal))"
+      : style?.transform,
+    transition: isDragging
+      ? "none"
+      : "transform 0.12s ease-out, box-shadow 0.12s ease",
   };
 
   return (
     <div
       ref={setRefs}
+      data-stack-idx={stackIndex}
       className={`${className ?? ""}${
         isOver && !isDragging ? ` ${styles.stackCardDropTarget}` : ""
-      }${isDragging ? ` ${styles.stackCardDragging}` : ""}`}
+      }${isDragging ? ` ${styles.stackCardDragging}` : ""}${
+        isRevealed ? ` ${styles.stackCardRevealed}` : ""
+      }`}
       style={dragStyle}
       onClick={onClick}
       {...listeners}
