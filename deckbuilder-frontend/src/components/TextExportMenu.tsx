@@ -24,7 +24,7 @@ export function TextExportMenu({
   label = "Export",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
+  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
   const [status, setStatus] = useState<string | null>(null);
 
   const text = useMemo(
@@ -83,6 +83,7 @@ export function TextExportMenu({
             <button
               type="button"
               className={styles.closeBtn}
+              data-no-drag
               aria-label="Close"
               onClick={() => setOpen(false)}
             >
@@ -93,6 +94,21 @@ export function TextExportMenu({
             {total} card{total === 1 ? "" : "s"} · plain text
           </p>
           <pre className={styles.preview}>{text}</pre>
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeE}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("e")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeS}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("s")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeSe}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("se")}
+          />
           <div className={styles.actions}>
             <button type="button" className={styles.primaryBtn} onClick={() => void onCopy()}>
               Copy

@@ -24,6 +24,8 @@
 }
 
 .panel {
+  position: relative;
+
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -204,4 +206,30 @@
 .closeBtn:hover {
   color: var(--color-text);
   background: color-mix(in srgb, var(--color-border) 40%, transparent);
+}
+
+.resizeHandle {
+  position: absolute;
+  z-index: 2;
+}
+.resizeE {
+  top: 12px;
+  right: 0;
+  width: 6px;
+  bottom: 12px;
+  cursor: ew-resize;
+}
+.resizeS {
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+.resizeSe {
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
 }

@@ -31,7 +31,7 @@ export function BulkCardImport({
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
+  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +127,7 @@ export function BulkCardImport({
             <button
               type="button"
               className={styles.closeBtn}
+              data-no-drag
               aria-label="Close"
               onClick={() => setOpen(false)}
             >
@@ -209,6 +210,21 @@ export function BulkCardImport({
             </div>
           )}
 
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeE}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("e")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeS}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("s")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeSe}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("se")}
+          />
           <div className={styles.actions}>
             {!preview ? (
               <button

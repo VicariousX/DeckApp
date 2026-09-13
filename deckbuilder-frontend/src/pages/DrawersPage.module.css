@@ -451,3 +451,12 @@ button.thumb {
   font-size: 0.8rem;
   text-align: center;
 }
+
+.tierInput {
+  -moz-appearance: textfield;
+}
+.tierInput::-webkit-outer-spin-button,
+.tierInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

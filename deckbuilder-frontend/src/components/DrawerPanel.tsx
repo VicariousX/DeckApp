@@ -100,7 +100,8 @@ export function DrawerPanel({
 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
+  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
+    useDraggablePanel(open);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cards, setCards] = useState<DrawerCardView[]>([]);
@@ -120,6 +121,8 @@ export function DrawerPanel({
   const [maxTier, setMaxTier] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [respectIdentity, setRespectIdentity] = useState(true);
+  const [respectUseful, setRespectUseful] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<string | null>(null);
   const [hover, setHover] = useState<{
@@ -214,12 +217,14 @@ export function DrawerPanel({
         !respectIdentity ||
         !hasCommanderIdentity ||
         fitsColorIdentity(identityOf(c), commanderColorIdentity);
-      const usefulOk = isUsefulInDeck(c.useful_in, commanderColorIdentity);
+      const usefulOk =
+        !respectUseful ||
+        isUsefulInDeck(c.useful_in, commanderColorIdentity);
       if (printedOk && usefulOk) ok.push(c);
       else no.push(c);
     }
     return { eligible: ok, excluded: no };
-  }, [visible, respectIdentity, hasCommanderIdentity, commanderColorIdentity]);
+  }, [visible, respectIdentity, respectUseful, hasCommanderIdentity, commanderColorIdentity]);
 
   async function handleApply() {
     if (!onApplyDrawer || eligible.length === 0) return;
@@ -299,12 +304,12 @@ export function DrawerPanel({
           <div
             className={styles.panelHeader}
             onPointerDown={onHandlePointerDown}
-            style={{ cursor: "grab" }}
           >
             <span className={styles.panelTitle}>Drawers</span>
             <Link
               to="/drawers"
               className={styles.manageLink}
+              data-no-drag
               onClick={() => setOpen(false)}
             >
               Manage
@@ -312,6 +317,7 @@ export function DrawerPanel({
             <button
               type="button"
               className={styles.closeBtn}
+              data-no-drag
               onClick={() => setOpen(false)}
               aria-label="Close drawers"
             >
@@ -379,6 +385,19 @@ export function DrawerPanel({
             </div>
           </div>
 
+          <div className={styles.collapseSection}>
+            <button
+              type="button"
+              className={styles.collapseBtn}
+              data-no-drag
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
+              <span>Filters</span>
+              <span className={styles.chevron}>{filtersOpen ? "▾" : "▸"}</span>
+            </button>
+            {filtersOpen && (
+              <div className={styles.collapseBody}>
           <div className={styles.filterBlock}>
             <span className={styles.filterLabel}>Color identity</span>
             <div className={styles.idFilters} role="group" aria-label="Color identity filters">
@@ -488,19 +507,35 @@ export function DrawerPanel({
               )}
             </div>
           </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.toggleRow} data-no-drag>
+            <button
+              type="button"
+              className={`${styles.toggle}${respectIdentity ? ` ${styles.toggleOn}` : ""}`}
+              aria-pressed={respectIdentity}
+              onClick={() => setRespectIdentity((v) => !v)}
+              title="When on, exclude cards outside commander color identity"
+            >
+              <span className={styles.toggleKnob} />
+              <span className={styles.toggleLabel}>Color ID</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggle}${respectUseful ? ` ${styles.toggleOn}` : ""}`}
+              aria-pressed={respectUseful}
+              onClick={() => setRespectUseful((v) => !v)}
+              title="When on, honor Useful-in tags on cards"
+            >
+              <span className={styles.toggleKnob} />
+              <span className={styles.toggleLabel}>Useful in</span>
+            </button>
+          </div>
 
           {onApplyDrawer && (
-            <div className={styles.applyBar}>
-              {hasCommanderIdentity && (
-                <label className={styles.applyCheck}>
-                  <input
-                    type="checkbox"
-                    checked={respectIdentity}
-                    onChange={(e) => setRespectIdentity(e.target.checked)}
-                  />
-                  Color identity
-                </label>
-              )}
+            <div className={styles.applyBar} data-no-drag>
               <button
                 type="button"
                 className={styles.applyBtn}
@@ -527,10 +562,9 @@ export function DrawerPanel({
                 !respectIdentity ||
                 !hasCommanderIdentity ||
                 fitsColorIdentity(identityOf(c), commanderColorIdentity);
-              const usefulOk = isUsefulInDeck(
-                c.useful_in,
-                commanderColorIdentity
-              );
+              const usefulOk =
+                !respectUseful ||
+                isUsefulInDeck(c.useful_in, commanderColorIdentity);
               const blocked = !printedOk || !usefulOk;
               const inDeck = deckQtyByOracle[c.oracle_id.toLowerCase()] ?? 0;
               return (
@@ -632,6 +666,21 @@ export function DrawerPanel({
               );
             })}
           </div>
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeE}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("e")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeS}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("s")}
+          />
+          <div
+            className={`${styles.resizeHandle} ${styles.resizeSe}`}
+            data-no-drag
+            onPointerDown={onResizePointerDown("se")}
+          />
         </div>
       )}
 
