@@ -415,3 +415,33 @@
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
 }
+
+.filterBlock {
+  padding: 0.25rem 0.65rem 0.15rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+.filterLabel {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.clearFilters {
+  padding: 0.15rem 0.4rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.panelHeader {
+  touch-action: none;
+  user-select: none;
+}

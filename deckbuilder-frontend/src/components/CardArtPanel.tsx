@@ -34,6 +34,8 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Collapsed by default; printings/art load only when expanded. */
+  const [expanded, setExpanded] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +63,7 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   }, [card, art, printings, onResolvedChange]);
 
   useEffect(() => {
+    if (!expanded) return;
     let cancelled = false;
     async function load() {
       setLoadingPrints(true);
@@ -87,7 +90,7 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [oracleId, user, card.id]);
+  }, [expanded, oracleId, user, card.id]);
 
   function findPrinting(id: string | null | undefined): ScryfallCard | null {
     if (!id) return null;
@@ -199,14 +202,26 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
 
   if (!user) {
     return (
-      <section className={styles.panel}>
-        <h2 className={styles.title}>Your card art</h2>
-        <p className={styles.hint}>
-          <Link to="/login" className={styles.link}>
-            Sign in
-          </Link>{" "}
-          to choose preferred printings or upload custom art for this card.
-        </p>
+      <section className={styles.collapsible}>
+        <button
+          type="button"
+          className={styles.collapseHeader}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <span>Art &amp; printings</span>
+          <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
+        </button>
+        {expanded && (
+          <div className={styles.panel}>
+            <p className={styles.hint}>
+              <Link to="/login" className={styles.link}>
+                Sign in
+              </Link>{" "}
+              to choose preferred printings or upload custom art for this card.
+            </p>
+          </div>
+        )}
       </section>
     );
   }
@@ -216,9 +231,19 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     : null;
 
   return (
-    <section className={styles.panel}>
+    <section className={styles.collapsible}>
+      <button
+        type="button"
+        className={styles.collapseHeader}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span>Art &amp; printings</span>
+        <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && (
+    <div className={styles.panel}>
       <div className={styles.header}>
-        <h2 className={styles.title}>Your card art</h2>
         <p className={styles.hint}>
           Pick a Scryfall printing or upload your own image. Custom art is used
           on this site and in future deck exports.
@@ -377,6 +402,8 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
           </div>
         </div>
       </div>
+    </div>
+      )}
     </section>
   );
 }

@@ -164,3 +164,14 @@
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+.dragHandle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: -0.25rem 0 0.4rem;
+  padding: 0.2rem 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  color: var(--color-text-muted);
+}

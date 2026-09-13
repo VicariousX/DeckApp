@@ -24,18 +24,8 @@ import {
   setDrawerViewMode,
   type DrawerViewMode,
 } from "../lib/deckPreferences";
+import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import styles from "./DrawerPanel.module.css";
-
-export type IdentityFilter =
-  | "all"
-  | "mono"
-  | "multi"
-  | "colorless"
-  | "W"
-  | "U"
-  | "B"
-  | "R"
-  | "G";
 
 type Props = {
   onAddCard: (card: DrawerCardView) => void;
@@ -53,17 +43,51 @@ function identityOf(c: DrawerCardView): string[] {
   );
 }
 
-function matchesIdentityFilter(
+function matchesColorFilters(
   c: DrawerCardView,
-  filter: IdentityFilter
+  selected: Set<string>
 ): boolean {
-  if (filter === "all") return true;
+  if (selected.size === 0) return true;
   const id = identityOf(c);
-  if (filter === "colorless") return id.length === 0;
-  if (filter === "mono") return id.length === 1;
-  if (filter === "multi") return id.length >= 2;
-  // specific color: card includes that color
-  return id.includes(filter);
+  const modes = [...selected].filter((s) =>
+    ["colorless", "mono", "multi", "wubrg"].includes(s)
+  );
+  const colors = [...selected].filter((s) =>
+    ["W", "U", "B", "R", "G"].includes(s)
+  );
+
+  // Color letters: AND — card must include every selected color
+  for (const col of colors) {
+    if (!id.includes(col)) return false;
+  }
+
+  // Modes: if any selected, card must satisfy ALL selected modes
+  for (const m of modes) {
+    if (m === "colorless" && id.length !== 0) return false;
+    if (m === "mono" && id.length !== 1) return false;
+    if (m === "multi" && id.length < 2) return false;
+    if (m === "wubrg" && id.length !== 5) return false;
+  }
+  return true;
+}
+
+function matchesUsefulFilters(
+  c: DrawerCardView,
+  selected: Set<string>
+): boolean {
+  if (selected.size === 0) return true;
+  const tags = new Set(
+    (c.useful_in ?? []).map((t) =>
+      ["W", "U", "B", "R", "G"].includes(t.toUpperCase())
+        ? t.toUpperCase()
+        : t.toLowerCase()
+    )
+  );
+  // AND: card must have every selected useful-in tag
+  for (const s of selected) {
+    if (!tags.has(s)) return false;
+  }
+  return true;
 }
 
 export function DrawerPanel({
@@ -76,6 +100,7 @@ export function DrawerPanel({
 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cards, setCards] = useState<DrawerCardView[]>([]);
@@ -89,7 +114,8 @@ export function DrawerPanel({
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
   });
   const [filter, setFilter] = useState("");
-  const [identityFilter, setIdentityFilter] = useState<IdentityFilter>("all");
+  const [colorFilters, setColorFilters] = useState<Set<string>>(() => new Set());
+  const [usefulFilters, setUsefulFilters] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [respectIdentity, setRespectIdentity] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -158,11 +184,10 @@ export function DrawerPanel({
           c.type_line.toLowerCase().includes(q)
       );
     }
-    if (identityFilter !== "all") {
-      list = list.filter((c) => matchesIdentityFilter(c, identityFilter));
-    }
+    list = list.filter((c) => matchesColorFilters(c, colorFilters));
+    list = list.filter((c) => matchesUsefulFilters(c, usefulFilters));
     return list;
-  }, [sortedCards, q, identityFilter]);
+  }, [sortedCards, q, colorFilters, usefulFilters]);
 
   function onViewMode(mode: DrawerViewMode) {
     setViewMode(mode);
@@ -217,11 +242,35 @@ export function DrawerPanel({
 
   if (!user) return null;
 
-  const FILTERS: { id: IdentityFilter; label: string }[] = [
-    { id: "all", label: "All" },
+  function toggleInSet(
+    setter: (fn: (prev: Set<string>) => Set<string>) => void,
+    id: string
+  ) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const COLOR_FILTERS: { id: string; label: string }[] = [
     { id: "colorless", label: "Colorless" },
     { id: "mono", label: "Mono" },
     { id: "multi", label: "Multi" },
+    { id: "wubrg", label: "WUBRG" },
+    { id: "W", label: "W" },
+    { id: "U", label: "U" },
+    { id: "B", label: "B" },
+    { id: "R", label: "R" },
+    { id: "G", label: "G" },
+  ];
+
+  const USEFUL_FILTERS: { id: string; label: string }[] = [
+    { id: "colorless", label: "Colorless" },
+    { id: "mono", label: "Mono" },
+    { id: "multi", label: "Multi" },
+    { id: "wubrg", label: "WUBRG" },
     { id: "W", label: "W" },
     { id: "U", label: "U" },
     { id: "B", label: "B" },
@@ -241,8 +290,12 @@ export function DrawerPanel({
       </button>
 
       {open && (
-        <div className={styles.panel}>
-          <div className={styles.panelHeader}>
+        <div className={styles.panel} ref={panelRef} style={panelStyle}>
+          <div
+            className={styles.panelHeader}
+            onPointerDown={onHandlePointerDown}
+            style={{ cursor: "grab" }}
+          >
             <span className={styles.panelTitle}>Drawers</span>
             <Link
               to="/drawers"
@@ -321,19 +374,58 @@ export function DrawerPanel({
             </div>
           </div>
 
-          <div className={styles.idFilters} role="group" aria-label="Identity filter">
-            {FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={`${styles.idChip}${
-                  identityFilter === f.id ? ` ${styles.idChipOn}` : ""
-                }`}
-                onClick={() => setIdentityFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className={styles.filterBlock}>
+            <span className={styles.filterLabel}>Color identity</span>
+            <div className={styles.idFilters} role="group" aria-label="Color identity filters">
+              {COLOR_FILTERS.map((f) => (
+                <button
+                  key={`ci-${f.id}`}
+                  type="button"
+                  className={`${styles.idChip}${
+                    colorFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                  }`}
+                  onClick={() => toggleInSet(setColorFilters, f.id)}
+                >
+                  {f.label}
+                </button>
+              ))}
+              {colorFilters.size > 0 && (
+                <button
+                  type="button"
+                  className={styles.clearFilters}
+                  onClick={() => setColorFilters(new Set())}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.filterBlock}>
+            <span className={styles.filterLabel}>Useful in</span>
+            <div className={styles.idFilters} role="group" aria-label="Useful in filters">
+              {USEFUL_FILTERS.map((f) => (
+                <button
+                  key={`ui-${f.id}`}
+                  type="button"
+                  className={`${styles.idChip}${
+                    usefulFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                  }`}
+                  onClick={() => toggleInSet(setUsefulFilters, f.id)}
+                >
+                  {f.label}
+                </button>
+              ))}
+              {usefulFilters.size > 0 && (
+                <button
+                  type="button"
+                  className={styles.clearFilters}
+                  onClick={() => setUsefulFilters(new Set())}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {onApplyDrawer && (

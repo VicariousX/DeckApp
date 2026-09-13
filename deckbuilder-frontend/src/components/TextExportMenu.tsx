@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import {
   copyTextToClipboard,
   downloadTextFile,
@@ -23,6 +24,7 @@ export function TextExportMenu({
   label = "Export",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
   const [status, setStatus] = useState<string | null>(null);
 
   const text = useMemo(
@@ -70,7 +72,13 @@ export function TextExportMenu({
         {label}
       </button>
       {open && (
-        <div className={styles.panel}>
+        <div className={styles.panel} ref={panelRef} style={panelStyle}>
+          <div
+            className={styles.dragHandle}
+            onPointerDown={onHandlePointerDown}
+          >
+            Export
+          </div>
           <p className={styles.meta}>
             {total} card{total === 1 ? "" : "s"} · plain text
           </p>

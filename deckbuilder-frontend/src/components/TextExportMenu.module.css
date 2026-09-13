@@ -92,3 +92,14 @@
   font-size: 0.75rem;
   color: var(--color-accent);
 }
+
+.dragHandle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: -0.15rem 0 0.35rem;
+  padding: 0.15rem 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  color: var(--color-text-muted);
+}

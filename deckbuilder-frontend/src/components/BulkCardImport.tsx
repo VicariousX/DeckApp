@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import {
   mergeParsedEntries,
   parseCardList,
@@ -30,6 +31,7 @@ export function BulkCardImport({
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const { panelRef, panelStyle, onHandlePointerDown } = useDraggablePanel(open);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +116,13 @@ export function BulkCardImport({
       </button>
 
       {open && (
-        <div className={styles.panel}>
+        <div className={styles.panel} ref={panelRef} style={panelStyle}>
+          <div
+            className={styles.dragHandle}
+            onPointerDown={onHandlePointerDown}
+          >
+            Bulk import
+          </div>
           <p className={styles.hint}>
             One card per line. Supports <code>1x Name</code>, <code>1 Name</code>,
             and plain names. Set codes in parentheses are ignored.
