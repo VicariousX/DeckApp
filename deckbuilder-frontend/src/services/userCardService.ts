@@ -22,8 +22,10 @@ export type UserCard = {
   preferred_scryfall_id: string | null;
   has_custom_art: boolean;
   color_identity: string[];
-  /** User override for drawer/filter identity (e.g. Yavimaya → G). */
+  /** @deprecated Prefer useful_in for drawer fit tags. */
   imposed_color_identity: string[] | null;
+  /** Additive "useful in" tags for drawer filtering (not a color_identity replacement). */
+  useful_in: string[];
   oracle_text: string | null;
   scryfall_updated_at: string | null;
   created_at: string;
@@ -279,6 +281,21 @@ export async function setImposedColorIdentity(
   const { error } = await supabase
     .from("user_cards")
     .update({ imposed_color_identity: value })
+    .eq("user_id", userId)
+    .eq("oracle_id", oracleId.toLowerCase());
+  return { error: error?.message ?? null };
+}
+
+
+/** Persist "Useful in" tags for drawer filtering. */
+export async function setUsefulInTags(
+  userId: string,
+  oracleId: string,
+  tags: string[]
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("user_cards")
+    .update({ useful_in: tags })
     .eq("user_id", userId)
     .eq("oracle_id", oracleId.toLowerCase());
   return { error: error?.message ?? null };

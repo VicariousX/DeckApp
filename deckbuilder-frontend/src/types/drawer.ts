@@ -26,7 +26,8 @@ export type DrawerCardView = DrawerCard & {
   cmc: number | null;
   color_identity: string[];
   imposed_color_identity: string[] | null;
-  /** Effective identity for filters (imposed ?? printed). */
+  useful_in: string[];
+  /** Printed color identity (not overridden by useful_in). */
   effective_color_identity: string[];
   oracle_text: string | null;
   image_url: string | null;

@@ -16,6 +16,7 @@ import {
   sortCardsBy,
   type CardSortKey,
 } from "../lib/cards/cardSort";
+import { isUsefulInDeck } from "../lib/cards/usefulIn";
 import {
   getDrawerSortKey,
   getDrawerViewMode,
@@ -176,13 +177,15 @@ export function DrawerPanel({
   const hasCommanderIdentity = commanderColorIdentity.length > 0;
 
   const { eligible, excluded } = useMemo(() => {
-    if (!respectIdentity || !hasCommanderIdentity) {
-      return { eligible: visible, excluded: [] as DrawerCardView[] };
-    }
     const ok: DrawerCardView[] = [];
     const no: DrawerCardView[] = [];
     for (const c of visible) {
-      if (fitsColorIdentity(identityOf(c), commanderColorIdentity)) ok.push(c);
+      const printedOk =
+        !respectIdentity ||
+        !hasCommanderIdentity ||
+        fitsColorIdentity(identityOf(c), commanderColorIdentity);
+      const usefulOk = isUsefulInDeck(c.useful_in, commanderColorIdentity);
+      if (printedOk && usefulOk) ok.push(c);
       else no.push(c);
     }
     return { eligible: ok, excluded: no };
@@ -367,10 +370,15 @@ export function DrawerPanel({
               <p className={styles.muted}>No cards in this drawer.</p>
             )}
             {visible.map((c) => {
-              const blocked =
-                respectIdentity &&
-                hasCommanderIdentity &&
-                !fitsColorIdentity(identityOf(c), commanderColorIdentity);
+              const printedOk =
+                !respectIdentity ||
+                !hasCommanderIdentity ||
+                fitsColorIdentity(identityOf(c), commanderColorIdentity);
+              const usefulOk = isUsefulInDeck(
+                c.useful_in,
+                commanderColorIdentity
+              );
+              const blocked = !printedOk || !usefulOk;
               const inDeck = deckQtyByOracle[c.oracle_id.toLowerCase()] ?? 0;
               return (
                 <div
@@ -379,7 +387,11 @@ export function DrawerPanel({
                     blocked ? ` ${styles.cardRowBlocked}` : ""
                   }`}
                   title={
-                    blocked ? "Outside commander color identity" : undefined
+                    blocked
+                      ? !printedOk
+                        ? "Outside commander color identity"
+                        : "Not marked useful for this deck identity"
+                      : undefined
                   }
                 >
                   {viewMode === "image" && (

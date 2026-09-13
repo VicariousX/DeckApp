@@ -382,17 +382,51 @@ export function DeckBuilderPage() {
     return map;
   }, [detail]);
 
-  const commanderColorIdentity = useMemo((): ColorLetter[] => {
-    if (!detail) return [];
-    const commanders = detail.cards.filter((c) => c.board === "commander");
-    const set = new Set<ColorLetter>();
-    for (const c of commanders) {
-      for (const letter of colorIdentityFromManaCost(c.mana_cost)) {
-        set.add(letter);
-      }
+  /** Union of commander color identities (partners, Kenrith-style 5c, etc.). */
+  const [commanderColorIdentity, setCommanderColorIdentity] = useState<
+    ColorLetter[]
+  >([]);
+
+  const commanderKey =
+    detail?.cards
+      .filter((c) => c.board === "commander")
+      .map((c) => c.scryfall_id)
+      .join(",") ?? "";
+
+  useEffect(() => {
+    if (!detail || !commanderKey) {
+      setCommanderColorIdentity([]);
+      return;
     }
-    return normalizeColorIdentity([...set]);
-  }, [detail]);
+    const commanders = detail.cards.filter((c) => c.board === "commander");
+    let cancelled = false;
+    void (async () => {
+      const set = new Set<ColorLetter>();
+      await Promise.all(
+        commanders.map(async (cmd) => {
+          const { card: sc } = await fetchCardById(cmd.scryfall_id);
+          if (sc?.color_identity?.length) {
+            for (const letter of sc.color_identity) {
+              const u = letter.toUpperCase();
+              if (u === "W" || u === "U" || u === "B" || u === "R" || u === "G") {
+                set.add(u);
+              }
+            }
+            return;
+          }
+          for (const letter of colorIdentityFromManaCost(cmd.mana_cost)) {
+            set.add(letter);
+          }
+        })
+      );
+      if (!cancelled) {
+        setCommanderColorIdentity(normalizeColorIdentity([...set]));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commanderKey, detail]);
 
   const exportSections = useMemo((): ExportSection[] => {
     if (!detail) return [];

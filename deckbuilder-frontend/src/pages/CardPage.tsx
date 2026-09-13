@@ -5,7 +5,7 @@ import { CardDetail } from "../components/CardDetail";
 import { CardImage } from "../components/CardImage";
 import { CardLightbox } from "../components/CardLightbox";
 import { DrawerPicker } from "../components/DrawerPicker";
-import { ColorIdentityOverride } from "../components/ColorIdentityOverride";
+import { UsefulInPicker } from "../components/UsefulInPicker";
 import { useAuth } from "../auth/AuthProvider";
 import { supabase } from "../lib/supabaseClient";
 import { CardNameSwitcher } from "../components/CardNameSwitcher";
@@ -29,7 +29,7 @@ export function CardPage() {
   const [error, setError] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const { user } = useAuth();
-  const [imposedIdentity, setImposedIdentity] = useState<string[] | null>(null);
+  const [usefulIn, setUsefulIn] = useState<string[]>([]);
 
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function CardPage() {
 
   useEffect(() => {
     if (!user || !card) {
-      setImposedIdentity(null);
+      setUsefulIn([]);
       return;
     }
     const oracleId = (card.oracle_id ?? card.id).toLowerCase();
@@ -68,14 +68,13 @@ export function CardPage() {
     void (async () => {
       const { data } = await supabase
         .from("user_cards")
-        .select("imposed_color_identity")
+        .select("useful_in")
         .eq("user_id", user.id)
         .eq("oracle_id", oracleId)
         .maybeSingle();
       if (cancelled) return;
-      const imp = (data as { imposed_color_identity?: string[] | null } | null)
-        ?.imposed_color_identity;
-      setImposedIdentity(imp && imp.length ? imp : null);
+      const u = (data as { useful_in?: string[] | null } | null)?.useful_in;
+      setUsefulIn(u && u.length ? u : []);
     })();
     return () => {
       cancelled = true;
@@ -174,11 +173,11 @@ export function CardPage() {
                     oracleId={(card.oracle_id ?? card.id).toLowerCase()}
                     scryfallCard={card}
                   />
-                  <ColorIdentityOverride
+                  <UsefulInPicker
                     oracleId={(card.oracle_id ?? card.id).toLowerCase()}
-                    printedIdentity={card.color_identity ?? []}
-                    imposedIdentity={imposedIdentity}
-                    onChange={setImposedIdentity}
+                    scryfallCard={card}
+                    value={usefulIn}
+                    onChange={setUsefulIn}
                   />
                 </>
               )}
