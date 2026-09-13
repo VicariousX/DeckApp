@@ -9,9 +9,11 @@
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 650;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .toggleBtn:hover,
@@ -22,8 +24,10 @@
 
 .panel {
   position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  z-index: 50;
   width: min(340px, 92vw);
   max-height: min(70vh, 560px);
   display: flex;

@@ -11,7 +11,7 @@
   gap: 0.4rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 700;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.45rem;
 }
 
 .hint {
@@ -20,33 +20,50 @@
   color: var(--color-text-muted);
 }
 
-.pips {
+.tags {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.3rem;
 }
 
-.pip {
-  width: 1.75rem;
-  height: 1.75rem;
+.tag {
+  padding: 0.28rem 0.55rem;
   border-radius: 999px;
-  border: 2px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-bg);
   color: var(--color-text-muted);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.pipOn {
-  color: #111;
-  border-color: transparent;
+.tag:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
-.pipW.pipOn { background: #f9e2b2; }
-.pipU.pipOn { background: #b3c7e6; }
-.pipB.pipOn { background: #a89bb8; }
-.pipR.pipOn { background: #e6a08e; }
-.pipG.pipOn { background: #a3c9a8; }
+.tagOn {
+  border-color: transparent;
+  color: #111;
+}
+
+.pipW.tagOn { background: #f9e2b2; }
+.pipU.tagOn { background: #b3c7e6; }
+.pipB.tagOn { background: #a89bb8; color: #f5f5f5; }
+.pipR.tagOn { background: #e6a08e; }
+.pipG.tagOn { background: #a3c9a8; }
+
+.tagOn:not(.pipW):not(.pipU):not(.pipB):not(.pipR):not(.pipG) {
+  background: color-mix(in srgb, var(--color-accent) 35%, var(--color-surface));
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.previewLine {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
 
 .actions {
   display: flex;
@@ -78,34 +95,5 @@
 .status {
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-.quickRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-bottom: 0.4rem;
-}
-
-.quickBtn {
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-  font-size: 0.68rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.quickOn {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.previewLine {
-  margin: 0.35rem 0 0;
-  font-size: 0.72rem;
   color: var(--color-text-muted);
 }

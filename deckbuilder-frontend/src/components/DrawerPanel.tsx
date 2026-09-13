@@ -216,9 +216,9 @@ export function DrawerPanel({
 
   const FILTERS: { id: IdentityFilter; label: string }[] = [
     { id: "all", label: "All" },
+    { id: "colorless", label: "Colorless" },
     { id: "mono", label: "Mono" },
     { id: "multi", label: "Multi" },
-    { id: "colorless", label: "C" },
     { id: "W", label: "W" },
     { id: "U", label: "U" },
     { id: "B", label: "B" },

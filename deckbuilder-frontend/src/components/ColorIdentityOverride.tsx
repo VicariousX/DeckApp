@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { setImposedColorIdentity } from "../services/userCardService";
 import styles from "./ColorIdentityOverride.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G"] as const;
+type Color = (typeof COLORS)[number];
+type Mode = "printed" | "colorless" | "mono" | "multi";
 
 type Props = {
   oracleId: string;
@@ -12,9 +14,16 @@ type Props = {
   onChange?: (imposed: string[] | null) => void;
 };
 
+function modeFromImposed(imposed: string[] | null | undefined): Mode {
+  if (imposed === null || imposed === undefined) return "printed";
+  if (imposed.length === 0) return "colorless";
+  if (imposed.length === 1) return "mono";
+  return "multi";
+}
+
 /**
- * User-imposed color identity for drawer filters.
- * null = use printed; [] = force colorless; 1 color = mono; 2+ = multi.
+ * Identity override using tags: W U B R G · Colorless · Mono · Multi.
+ * Combinations: Mono+G, Multi+G+U, Colorless, or clear back to printed.
  */
 export function ColorIdentityOverride({
   oracleId,
@@ -23,52 +32,71 @@ export function ColorIdentityOverride({
   onChange,
 }: Props) {
   const { user } = useAuth();
+  const [mode, setMode] = useState<Mode>(() => modeFromImposed(imposedIdentity));
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set((imposedIdentity ?? []).map((c) => c.toUpperCase()))
-  );
-  const [forceColorless, setForceColorless] = useState(
-    () => imposedIdentity !== null && imposedIdentity.length === 0
   );
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const imp = imposedIdentity;
-    if (imp === null) {
-      setSelected(new Set());
-      setForceColorless(false);
-    } else if (imp.length === 0) {
-      setSelected(new Set());
-      setForceColorless(true);
-    } else {
-      setSelected(new Set(imp.map((c) => c.toUpperCase())));
-      setForceColorless(false);
-    }
+    setMode(modeFromImposed(imposedIdentity));
+    setSelected(new Set((imposedIdentity ?? []).map((c) => c.toUpperCase())));
   }, [oracleId, imposedIdentity]);
+
+  const summary = useMemo(() => {
+    if (mode === "printed") return "Printed identity";
+    if (mode === "colorless") return "Colorless";
+    const cols = COLORS.filter((c) => selected.has(c));
+    if (mode === "mono") {
+      return cols[0] ? `Mono ${cols[0]}` : "Mono (pick a color)";
+    }
+    if (cols.length < 2) return "Multi (pick 2+ colors)";
+    return `Multi ${cols.join("")}`;
+  }, [mode, selected]);
 
   if (!user) return null;
 
-  function toggle(c: string) {
-    setForceColorless(false);
+  function pickMode(next: Mode) {
+    setStatus(null);
+    if (next === "colorless") {
+      setMode("colorless");
+      setSelected(new Set());
+      return;
+    }
+    if (next === "mono") {
+      setMode("mono");
+      // Keep at most one color
+      const first = COLORS.find((c) => selected.has(c));
+      setSelected(first ? new Set([first]) : new Set());
+      return;
+    }
+    if (next === "multi") {
+      setMode("multi");
+      return;
+    }
+    setMode("printed");
+    setSelected(new Set());
+  }
+
+  function toggleColor(c: Color) {
+    setStatus(null);
+    if (mode === "colorless" || mode === "printed") {
+      setMode("mono");
+      setSelected(new Set([c]));
+      return;
+    }
+    if (mode === "mono") {
+      setSelected(new Set([c]));
+      return;
+    }
+    // multi
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(c)) next.delete(c);
       else next.add(c);
       return next;
     });
-    setStatus(null);
-  }
-
-  function setMono(c: string) {
-    setForceColorless(false);
-    setSelected(new Set([c]));
-    setStatus(null);
-  }
-
-  function setColorless() {
-    setForceColorless(true);
-    setSelected(new Set());
-    setStatus(null);
   }
 
   async function persist(value: string[] | null, label: string) {
@@ -85,81 +113,89 @@ export function ColorIdentityOverride({
   }
 
   async function save() {
-    if (forceColorless) {
-      await persist([], "Override: Colorless");
-      return;
-    }
-    const arr = COLORS.filter((c) => selected.has(c));
-    if (arr.length === 0) {
+    if (mode === "printed") {
       await persist(null, "Using printed identity");
       return;
     }
-    const kind = arr.length === 1 ? "Mono" : "Multi";
-    await persist([...arr], `Override: ${kind} ${arr.join("")}`);
+    if (mode === "colorless") {
+      await persist([], "Override: Colorless");
+      return;
+    }
+    const cols = COLORS.filter((c) => selected.has(c));
+    if (mode === "mono") {
+      if (cols.length !== 1) {
+        setStatus("Mono requires exactly one color.");
+        return;
+      }
+      await persist([cols[0]], `Override: Mono ${cols[0]}`);
+      return;
+    }
+    if (cols.length < 2) {
+      setStatus("Multi requires at least two colors.");
+      return;
+    }
+    await persist(cols, `Override: Multi ${cols.join("")}`);
   }
 
   async function clear() {
+    setMode("printed");
     setSelected(new Set());
-    setForceColorless(false);
     await persist(null, "Using printed identity");
   }
 
   const printed =
     printedIdentity.length > 0 ? printedIdentity.join("") : "Colorless";
-  const preview =
-    forceColorless
-      ? "Colorless"
-      : selected.size === 0
-        ? "Printed"
-        : selected.size === 1
-          ? `Mono ${[...selected].join("")}`
-          : `Multi ${COLORS.filter((c) => selected.has(c)).join("")}`;
 
   return (
     <div className={styles.wrap}>
       <div className={styles.label}>
-        Color identity override
+        Identity override
         <span className={styles.hint}>Printed: {printed}</span>
       </div>
-      <div className={styles.quickRow}>
+
+      <div className={styles.tags} role="group" aria-label="Identity mode">
         <button
           type="button"
-          className={`${styles.quickBtn}${forceColorless ? ` ${styles.quickOn}` : ""}`}
-          onClick={setColorless}
+          className={`${styles.tag}${mode === "colorless" ? ` ${styles.tagOn}` : ""}`}
+          onClick={() => pickMode("colorless")}
         >
           Colorless
         </button>
-        {COLORS.map((c) => (
-          <button
-            key={`mono-${c}`}
-            type="button"
-            className={`${styles.quickBtn} ${styles[`pip${c}`]}`}
-            onClick={() => setMono(c)}
-            title={`Mono ${c}`}
-          >
-            Mono {c}
-          </button>
-        ))}
-      </div>
-      <div className={styles.pips} role="group" aria-label="Imposed color identity">
+        <button
+          type="button"
+          className={`${styles.tag}${mode === "mono" ? ` ${styles.tagOn}` : ""}`}
+          onClick={() => pickMode("mono")}
+        >
+          Mono
+        </button>
+        <button
+          type="button"
+          className={`${styles.tag}${mode === "multi" ? ` ${styles.tagOn}` : ""}`}
+          onClick={() => pickMode("multi")}
+        >
+          Multi
+        </button>
         {COLORS.map((c) => (
           <button
             key={c}
             type="button"
-            className={`${styles.pip} ${styles[`pip${c}`]}${
-              selected.has(c) && !forceColorless ? ` ${styles.pipOn}` : ""
+            className={`${styles.tag} ${styles[`pip${c}`]}${
+              selected.has(c) && mode !== "colorless" && mode !== "printed"
+                ? ` ${styles.tagOn}`
+                : ""
             }`}
-            aria-pressed={selected.has(c) && !forceColorless}
-            onClick={() => toggle(c)}
+            aria-pressed={selected.has(c)}
+            onClick={() => toggleColor(c)}
           >
             {c}
           </button>
         ))}
       </div>
+
       <p className={styles.previewLine}>
-        Will save as: <strong>{preview}</strong>
-        {selected.size >= 2 ? " (multicolor)" : ""}
+        {summary}
       </p>
+
       <div className={styles.actions}>
         <button
           type="button"
@@ -167,7 +203,7 @@ export function ColorIdentityOverride({
           disabled={busy}
           onClick={() => void save()}
         >
-          Save override
+          Save
         </button>
         <button
           type="button"
@@ -175,7 +211,7 @@ export function ColorIdentityOverride({
           disabled={busy}
           onClick={() => void clear()}
         >
-          Clear
+          Use printed
         </button>
       </div>
       {status && <p className={styles.status}>{status}</p>}

@@ -1,9 +1,12 @@
 .wrap {
-  margin: 0.5rem 0 0.75rem;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .trigger {
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-surface);
@@ -11,6 +14,8 @@
   font-size: 0.82rem;
   font-weight: 650;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .trigger:hover {
@@ -19,11 +24,16 @@
 }
 
 .panel {
-  margin-top: 0.5rem;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: min(360px, 92vw);
   padding: 0.75rem;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  background: color-mix(in srgb, var(--color-bg) 70%, var(--color-surface));
+  background: var(--color-surface);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
 }
 
 .hint {
