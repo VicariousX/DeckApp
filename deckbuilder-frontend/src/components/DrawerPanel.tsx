@@ -116,6 +116,8 @@ export function DrawerPanel({
   const [filter, setFilter] = useState("");
   const [colorFilters, setColorFilters] = useState<Set<string>>(() => new Set());
   const [usefulFilters, setUsefulFilters] = useState<Set<string>>(() => new Set());
+  /** Include cards with tier <= maxTier (1 = highest). null = no limit. */
+  const [maxTier, setMaxTier] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [respectIdentity, setRespectIdentity] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -186,8 +188,11 @@ export function DrawerPanel({
     }
     list = list.filter((c) => matchesColorFilters(c, colorFilters));
     list = list.filter((c) => matchesUsefulFilters(c, usefulFilters));
+    if (maxTier != null) {
+      list = list.filter((c) => (c.tier ?? 1) <= maxTier);
+    }
     return list;
-  }, [sortedCards, q, colorFilters, usefulFilters]);
+  }, [sortedCards, q, colorFilters, usefulFilters, maxTier]);
 
   function onViewMode(mode: DrawerViewMode) {
     setViewMode(mode);
@@ -428,6 +433,62 @@ export function DrawerPanel({
             </div>
           </div>
 
+          <div className={styles.filterBlock}>
+            <span className={styles.filterLabel}>Tier (1 = best)</span>
+            <div className={styles.tierFilterRow}>
+              <button
+                type="button"
+                className={styles.qtyBtn}
+                disabled={maxTier == null || maxTier <= 1}
+                onClick={() =>
+                  setMaxTier((v) => (v == null ? 1 : Math.max(1, v - 1)))
+                }
+              >
+                −
+              </button>
+              <input
+                className={styles.tierInput}
+                type="number"
+                min={1}
+                placeholder="Any"
+                value={maxTier ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw) {
+                    setMaxTier(null);
+                    return;
+                  }
+                  const n = parseInt(raw, 10);
+                  setMaxTier(Number.isFinite(n) && n >= 1 ? n : null);
+                }}
+                title="Only include tier 1 through this number"
+              />
+              <button
+                type="button"
+                className={styles.qtyBtn}
+                onClick={() =>
+                  setMaxTier((v) => (v == null ? 1 : v + 1))
+                }
+              >
+                +
+              </button>
+              <span className={styles.tierHint}>
+                {maxTier == null
+                  ? "All tiers"
+                  : `Tiers 1–${maxTier}`}
+              </span>
+              {maxTier != null && (
+                <button
+                  type="button"
+                  className={styles.clearFilters}
+                  onClick={() => setMaxTier(null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
           {onApplyDrawer && (
             <div className={styles.applyBar}>
               {hasCommanderIdentity && (
@@ -530,6 +591,9 @@ export function DrawerPanel({
                           ×{inDeck}
                         </span>
                       )}
+                      <span className={styles.tierBadge} title="Drawer tier">
+                        T{c.tier ?? 1}
+                      </span>
                     </span>
                     <span className={styles.type}>{c.type_line}</span>
                   </div>

@@ -117,11 +117,21 @@ export function BulkCardImport({
 
       {open && (
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
-          <div
-            className={styles.dragHandle}
-            onPointerDown={onHandlePointerDown}
-          >
-            Bulk import
+          <div className={styles.panelTop}>
+            <div
+              className={styles.dragHandle}
+              onPointerDown={onHandlePointerDown}
+            >
+              Bulk import
+            </div>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            >
+              ×
+            </button>
           </div>
           <p className={styles.hint}>
             One card per line. Supports <code>1x Name</code>, <code>1 Name</code>,

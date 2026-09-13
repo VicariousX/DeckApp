@@ -175,3 +175,33 @@
   touch-action: none;
   color: var(--color-text-muted);
 }
+
+.panelTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: -0.25rem 0 0.35rem;
+}
+
+.dragHandle {
+  flex: 1;
+  margin: 0;
+}
+
+.closeBtn {
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-border) 40%, transparent);
+}

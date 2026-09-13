@@ -132,6 +132,7 @@ export async function fetchDrawerCards(
     const uc = byOracle.get(normOracle(r.oracle_id));
     return {
       ...r,
+      tier: typeof r.tier === "number" && r.tier >= 1 ? r.tier : 1,
       oracle_id: normOracle(r.oracle_id),
       name: uc?.name ?? "Unknown card",
       type_line: uc?.type_line ?? "",
@@ -237,4 +238,17 @@ export async function toggleDrawerMembershipByOracle(
 ): Promise<{ error: string | null }> {
   if (currentlyIn) return removeOracleFromDrawer(drawerId, oracleId);
   return addOracleToDrawer(drawerId, oracleId);
+}
+
+
+export async function setDrawerCardTier(
+  drawerCardId: string,
+  tier: number
+): Promise<{ error: string | null }> {
+  const t = Math.max(1, Math.floor(tier) || 1);
+  const { error } = await supabase
+    .from("drawer_cards")
+    .update({ tier: t })
+    .eq("id", drawerCardId);
+  return { error: error?.message ?? null };
 }

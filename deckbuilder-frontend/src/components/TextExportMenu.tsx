@@ -73,11 +73,21 @@ export function TextExportMenu({
       </button>
       {open && (
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
-          <div
-            className={styles.dragHandle}
-            onPointerDown={onHandlePointerDown}
-          >
-            Export
+          <div className={styles.panelTop}>
+            <div
+              className={styles.dragHandle}
+              onPointerDown={onHandlePointerDown}
+            >
+              Export
+            </div>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            >
+              ×
+            </button>
           </div>
           <p className={styles.meta}>
             {total} card{total === 1 ? "" : "s"} · plain text

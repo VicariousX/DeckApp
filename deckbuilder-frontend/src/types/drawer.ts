@@ -15,6 +15,8 @@ export type DrawerCard = {
   drawer_id: string;
   oracle_id: string;
   sort_order: number;
+  /** 1 = highest priority within the drawer */
+  tier: number;
   created_at: string;
 };
 

@@ -11,6 +11,7 @@ import {
   removeOracleFromDrawer,
   renameDrawer,
   seedDefaultDrawers,
+  setDrawerCardTier,
 } from "../services/drawerService";
 import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "../components/ManaCost";
@@ -252,6 +253,15 @@ export function DrawersPage() {
     if (added === 0 && entries.length > 0) {
       setError("Could not add cards to drawer.");
     }
+  }
+
+  async function onTier(cardId: string, next: number) {
+    const tier = Math.max(1, Math.floor(next) || 1);
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, tier } : c))
+    );
+    const { error: err } = await setDrawerCardTier(cardId, tier);
+    if (err) setError(err);
   }
 
   const sortedCards = useMemo(
@@ -534,6 +544,33 @@ export function DrawersPage() {
                           <ManaCost cost={c.mana_cost} size={14} />
                         </span>
                       )}
+                      <div className={styles.tierControl} title="Tier (1 = best)">
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          disabled={(c.tier ?? 1) <= 1}
+                          onClick={() => void onTier(c.id, (c.tier ?? 1) - 1)}
+                        >
+                          −
+                        </button>
+                        <input
+                          className={styles.tierInput}
+                          type="number"
+                          min={1}
+                          value={c.tier ?? 1}
+                          onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            if (Number.isFinite(n)) void onTier(c.id, n);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          onClick={() => void onTier(c.id, (c.tier ?? 1) + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
                       <button
                         type="button"
                         className={styles.removeBtn}

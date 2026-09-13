@@ -445,3 +445,34 @@
   touch-action: none;
   user-select: none;
 }
+
+.tierFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+
+.tierInput {
+  width: 3.2rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.tierHint {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.tierBadge {
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
