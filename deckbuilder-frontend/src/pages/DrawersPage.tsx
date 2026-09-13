@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -52,6 +53,7 @@ export function DrawersPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -501,13 +503,21 @@ export function DrawersPage() {
                   {sortedCards.map((c) => (
                     <li key={c.id} className={styles.cardRow}>
                       {viewMode === "image" && (
-                        <div className={styles.thumb}>
+                        <button
+                          type="button"
+                          className={styles.thumb}
+                          onClick={() => {
+                            if (c.image_url)
+                              setLightbox({ src: c.image_url, name: c.name });
+                          }}
+                          style={{ cursor: c.image_url ? "zoom-in" : "default" }}
+                        >
                           {c.image_url ? (
                             <img src={c.image_url} alt={c.name} />
                           ) : (
                             <span className={styles.thumbFallback}>{c.name}</span>
                           )}
-                        </div>
+                        </button>
                       )}
                       <div className={styles.cardMeta}>
                         {c.scryfall_id ? (
@@ -540,6 +550,18 @@ export function DrawersPage() {
           )}
         </section>
       </div>
+      {lightbox &&
+        createPortal(
+          <div
+            className={styles.lightbox}
+            role="dialog"
+            aria-label={lightbox.name}
+            onClick={() => setLightbox(null)}
+          >
+            <img src={lightbox.src} alt={lightbox.name} />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

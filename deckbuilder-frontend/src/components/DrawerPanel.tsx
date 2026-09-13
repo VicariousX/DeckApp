@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -11,6 +12,7 @@ import { ManaCost } from "./ManaCost";
 import {
   CARD_SORT_OPTIONS,
   fitsColorIdentity,
+  normalizeColorIdentity,
   sortCardsBy,
   type CardSortKey,
 } from "../lib/cards/cardSort";
@@ -23,19 +25,49 @@ import {
 } from "../lib/deckPreferences";
 import styles from "./DrawerPanel.module.css";
 
+export type IdentityFilter =
+  | "all"
+  | "mono"
+  | "multi"
+  | "colorless"
+  | "W"
+  | "U"
+  | "B"
+  | "R"
+  | "G";
+
 type Props = {
   onAddCard: (card: DrawerCardView) => void;
-  /** Apply filtered drawer cards into the deck (bulk). */
+  /** Adjust quantity in deck by delta (-1 or +1). */
+  onAdjustCard?: (card: DrawerCardView, delta: number) => void;
   onApplyDrawer?: (cards: DrawerCardView[]) => Promise<void> | void;
-  /** Union of commander color identity; used when filter is enabled. */
   commanderColorIdentity?: string[];
   applyBoardLabel?: string;
-  /** oracle_id (lower) → quantity already in the active deck (all boards). */
   deckQtyByOracle?: Record<string, number>;
 };
 
+function identityOf(c: DrawerCardView): string[] {
+  return normalizeColorIdentity(
+    c.effective_color_identity ?? c.color_identity ?? []
+  );
+}
+
+function matchesIdentityFilter(
+  c: DrawerCardView,
+  filter: IdentityFilter
+): boolean {
+  if (filter === "all") return true;
+  const id = identityOf(c);
+  if (filter === "colorless") return id.length === 0;
+  if (filter === "mono") return id.length === 1;
+  if (filter === "multi") return id.length >= 2;
+  // specific color: card includes that color
+  return id.includes(filter);
+}
+
 export function DrawerPanel({
   onAddCard,
+  onAdjustCard,
   onApplyDrawer,
   commanderColorIdentity = [],
   applyBoardLabel = "Mainboard",
@@ -48,16 +80,28 @@ export function DrawerPanel({
   const [cards, setCards] = useState<DrawerCardView[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingCards, setLoadingCards] = useState(false);
-  const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
+  const [viewMode, setViewMode] = useState<DrawerViewMode>(() =>
+    getDrawerViewMode()
+  );
   const [sortKey, setSortKey] = useState<CardSortKey>(() => {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
   });
   const [filter, setFilter] = useState("");
+  const [identityFilter, setIdentityFilter] = useState<IdentityFilter>("all");
   const [error, setError] = useState<string | null>(null);
   const [respectIdentity, setRespectIdentity] = useState(true);
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<string | null>(null);
+  const [hover, setHover] = useState<{
+    src: string;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(
+    null
+  );
 
   const loadList = useCallback(async () => {
     if (!user) return;
@@ -98,8 +142,6 @@ export function DrawerPanel({
     };
   }, [user, activeId, open]);
 
-  if (!user) return null;
-
   const sortedCards = useMemo(
     () => sortCardsBy(cards, sortKey),
     [cards, sortKey]
@@ -107,13 +149,19 @@ export function DrawerPanel({
 
   const q = filter.trim().toLowerCase();
   const visible = useMemo(() => {
-    if (!q) return sortedCards;
-    return sortedCards.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.type_line.toLowerCase().includes(q)
-    );
-  }, [sortedCards, q]);
+    let list = sortedCards;
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.type_line.toLowerCase().includes(q)
+      );
+    }
+    if (identityFilter !== "all") {
+      list = list.filter((c) => matchesIdentityFilter(c, identityFilter));
+    }
+    return list;
+  }, [sortedCards, q, identityFilter]);
 
   function onViewMode(mode: DrawerViewMode) {
     setViewMode(mode);
@@ -134,8 +182,7 @@ export function DrawerPanel({
     const ok: DrawerCardView[] = [];
     const no: DrawerCardView[] = [];
     for (const c of visible) {
-      const ident = c.effective_color_identity ?? c.color_identity;
-      if (fitsColorIdentity(ident, commanderColorIdentity)) ok.push(c);
+      if (fitsColorIdentity(identityOf(c), commanderColorIdentity)) ok.push(c);
       else no.push(c);
     }
     return { eligible: ok, excluded: no };
@@ -165,6 +212,20 @@ export function DrawerPanel({
     }
   }
 
+  if (!user) return null;
+
+  const FILTERS: { id: IdentityFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "mono", label: "Mono" },
+    { id: "multi", label: "Multi" },
+    { id: "colorless", label: "C" },
+    { id: "W", label: "W" },
+    { id: "U", label: "U" },
+    { id: "B", label: "B" },
+    { id: "R", label: "R" },
+    { id: "G", label: "G" },
+  ];
+
   return (
     <div className={styles.wrap}>
       <button
@@ -180,7 +241,11 @@ export function DrawerPanel({
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <span className={styles.panelTitle}>Drawers</span>
-            <Link to="/drawers" className={styles.manageLink} onClick={() => setOpen(false)}>
+            <Link
+              to="/drawers"
+              className={styles.manageLink}
+              onClick={() => setOpen(false)}
+            >
               Manage
             </Link>
             <button
@@ -253,6 +318,21 @@ export function DrawerPanel({
             </div>
           </div>
 
+          <div className={styles.idFilters} role="group" aria-label="Identity filter">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className={`${styles.idChip}${
+                  identityFilter === f.id ? ` ${styles.idChipOn}` : ""
+                }`}
+                onClick={() => setIdentityFilter(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {onApplyDrawer && (
             <div className={styles.applyBar}>
               {hasCommanderIdentity && (
@@ -270,15 +350,12 @@ export function DrawerPanel({
                 className={styles.applyBtn}
                 disabled={applying || loadingCards || eligible.length === 0}
                 onClick={() => void handleApply()}
-                title={
-                  excluded.length > 0
-                    ? `${eligible.length} will be added, ${excluded.length} excluded`
-                    : `Add ${eligible.length} cards to ${applyBoardLabel}`
-                }
               >
                 {applying
                   ? "Applying…"
-                  : `Apply (${eligible.length}${excluded.length ? ` · −${excluded.length}` : ""})`}
+                  : `Apply (${eligible.length}${
+                      excluded.length ? ` · −${excluded.length}` : ""
+                    })`}
               </button>
             </div>
           )}
@@ -290,58 +367,129 @@ export function DrawerPanel({
               <p className={styles.muted}>No cards in this drawer.</p>
             )}
             {visible.map((c) => {
-              const ident = c.effective_color_identity ?? c.color_identity;
               const blocked =
                 respectIdentity &&
                 hasCommanderIdentity &&
-                !fitsColorIdentity(ident, commanderColorIdentity);
+                !fitsColorIdentity(identityOf(c), commanderColorIdentity);
               const inDeck = deckQtyByOracle[c.oracle_id.toLowerCase()] ?? 0;
               return (
-              <div
-                key={c.id}
-                className={`${styles.cardRow}${blocked ? ` ${styles.cardRowBlocked}` : ""}`}
-                title={blocked ? "Outside commander color identity" : undefined}
-              >
-                {viewMode === "image" && (
-                  <div className={styles.thumb}>
-                    {c.image_url ? (
-                      <img src={c.image_url} alt="" />
-                    ) : (
-                      <span />
-                    )}
-                  </div>
-                )}
-                <div className={styles.meta}>
-                  <span className={styles.name}>
-                    {c.name}
-                    {inDeck > 0 && (
-                      <span className={styles.inDeck} title="In this deck">
-                        {" "}×{inDeck}
-                      </span>
-                    )}
-                  </span>
-                  <span className={styles.type}>{c.type_line}</span>
-                </div>
-                {c.mana_cost && (
-                  <span className={styles.mana}>
-                    <ManaCost cost={c.mana_cost} size={12} />
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className={styles.addBtn}
-                  onClick={() => onAddCard(c)}
-                  title={blocked ? "Outside color identity" : `Add ${c.name}`}
-                  disabled={blocked}
+                <div
+                  key={c.id}
+                  className={`${styles.cardRow}${
+                    blocked ? ` ${styles.cardRowBlocked}` : ""
+                  }`}
+                  title={
+                    blocked ? "Outside commander color identity" : undefined
+                  }
                 >
-                  +
-                </button>
-              </div>
+                  {viewMode === "image" && (
+                    <button
+                      type="button"
+                      className={styles.thumbBtn}
+                      onClick={() => {
+                        if (c.image_url)
+                          setLightbox({ src: c.image_url, name: c.name });
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!c.image_url) return;
+                        setHover({
+                          src: c.image_url,
+                          name: c.name,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
+                      onMouseMove={(e) => {
+                        if (!c.image_url) return;
+                        setHover({
+                          src: c.image_url,
+                          name: c.name,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
+                      }}
+                      onMouseLeave={() => setHover(null)}
+                    >
+                      {c.image_url ? (
+                        <img src={c.image_url} alt="" />
+                      ) : (
+                        <span />
+                      )}
+                    </button>
+                  )}
+                  <div className={styles.meta}>
+                    <span className={styles.name}>
+                      {c.name}
+                      {inDeck > 0 && (
+                        <span className={styles.inDeck} title="In this deck">
+                          {" "}
+                          ×{inDeck}
+                        </span>
+                      )}
+                    </span>
+                    <span className={styles.type}>{c.type_line}</span>
+                  </div>
+                  {c.mana_cost && (
+                    <span className={styles.mana}>
+                      <ManaCost cost={c.mana_cost} size={12} />
+                    </span>
+                  )}
+                  <div className={styles.qtyBtns}>
+                    {onAdjustCard && (
+                      <button
+                        type="button"
+                        className={styles.qtyBtn}
+                        disabled={blocked || inDeck <= 0}
+                        onClick={() => onAdjustCard(c, -1)}
+                        title="Remove one from deck"
+                      >
+                        −
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.addBtn}
+                      onClick={() => onAddCard(c)}
+                      title={
+                        blocked
+                          ? "Outside color identity"
+                          : `Add ${c.name}`
+                      }
+                      disabled={blocked}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {hover &&
+        createPortal(
+          <div
+            className={styles.hoverPreview}
+            style={{ left: hover.x, top: hover.y }}
+          >
+            <img src={hover.src} alt={hover.name} />
+          </div>,
+          document.body
+        )}
+
+      {lightbox &&
+        createPortal(
+          <div
+            className={styles.lightbox}
+            role="dialog"
+            aria-label={lightbox.name}
+            onClick={() => setLightbox(null)}
+          >
+            <img src={lightbox.src} alt={lightbox.name} />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

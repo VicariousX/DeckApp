@@ -80,3 +80,32 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+.quickRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.quickBtn {
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.quickOn {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.previewLine {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}

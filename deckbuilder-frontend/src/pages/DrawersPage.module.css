@@ -392,3 +392,27 @@
 .suggestItem:hover {
   background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.75);
+  cursor: zoom-out;
+  padding: 1.5rem;
+}
+
+.lightbox img {
+  max-width: min(90vw, 420px);
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+button.thumb {
+  border: none;
+  padding: 0;
+  font: inherit;
+}

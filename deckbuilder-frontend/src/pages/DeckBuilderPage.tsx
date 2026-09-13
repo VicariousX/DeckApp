@@ -999,6 +999,26 @@ export function DeckBuilderPage() {
     });
   }
 
+  async function onAdjustFromDrawer(dc: DrawerCardView, delta: number) {
+    if (!detail || !isOwner || !user) return;
+    const oracle = dc.oracle_id.toLowerCase();
+    // Prefer mainboard row; fall back to any board
+    const onMain = detail.cards.find(
+      (c) => c.oracle_id.toLowerCase() === oracle && c.board === "main"
+    );
+    const any = detail.cards.find(
+      (c) => c.oracle_id.toLowerCase() === oracle
+    );
+    const target = onMain ?? any;
+    if (delta < 0) {
+      if (!target) return;
+      await onQty(target, delta);
+      return;
+    }
+    // delta > 0 → same as add
+    void onAddFromDrawer(dc);
+  }
+
   async function onApplyDrawer(cards: DrawerCardView[]) {
     if (!detail || !isOwner || !user || cards.length === 0) return;
     setError(null);
@@ -1078,21 +1098,7 @@ export function DeckBuilderPage() {
                 <p className={styles.desc}>{detail.deck.description}</p>
               )}
             </div>
-            <div className={styles.headerActions}>
-              <TextExportMenu
-                sections={exportSections}
-                fileBaseName={detail.deck.name}
-              />
-              {isOwner && (
-                <DrawerPanel
-                  onAddCard={(c) => void onAddFromDrawer(c)}
-                  onApplyDrawer={onApplyDrawer}
-                  commanderColorIdentity={commanderColorIdentity}
-                  applyBoardLabel="Mainboard"
-                  deckQtyByOracle={deckQtyByOracle}
-                />
-              )}
-            </div>
+            <div className={styles.headerActions} />
           </header>
 
           <div className={styles.boardTabs} role="tablist" aria-label="Panel">
@@ -1175,11 +1181,27 @@ export function DeckBuilderPage() {
                   {addBusy ? "Adding…" : "Add"}
                 </button>
               </div>
-              <BulkCardImport
-                title="Bulk import"
-                respectQuantity={true}
-                onImport={onBulkImport}
-              />
+              <div className={styles.toolRow}>
+                <BulkCardImport
+                  title="Bulk import"
+                  respectQuantity={true}
+                  onImport={onBulkImport}
+                />
+                {isOwner && (
+                  <DrawerPanel
+                    onAddCard={(c) => void onAddFromDrawer(c)}
+                    onAdjustCard={(c, d) => void onAdjustFromDrawer(c, d)}
+                    onApplyDrawer={onApplyDrawer}
+                    commanderColorIdentity={commanderColorIdentity}
+                    applyBoardLabel="Mainboard"
+                    deckQtyByOracle={deckQtyByOracle}
+                  />
+                )}
+                <TextExportMenu
+                  sections={exportSections}
+                  fileBaseName={detail.deck.name}
+                />
+              </div>
             </section>
           )}
 

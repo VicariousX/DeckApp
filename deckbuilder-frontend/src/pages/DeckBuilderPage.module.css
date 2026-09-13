@@ -1307,3 +1307,11 @@
   gap: 0.5rem;
   flex-shrink: 0;
 }
+
+.toolRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}

@@ -258,7 +258,7 @@ export function effectiveUserColorIdentity(card: {
   imposed_color_identity?: string[] | null;
   mana_cost?: string | null;
 }): string[] {
-  if (card.imposed_color_identity && card.imposed_color_identity.length > 0) {
+  if (card.imposed_color_identity !== null && card.imposed_color_identity !== undefined) {
     return card.imposed_color_identity.map((c) => c.toUpperCase());
   }
   if (card.color_identity && card.color_identity.length > 0) {
@@ -273,10 +273,9 @@ export async function setImposedColorIdentity(
   oracleId: string,
   identity: string[] | null
 ): Promise<{ error: string | null }> {
+  // null = clear (use printed); [] = force colorless; non-empty = override colors
   const value =
-    identity && identity.length > 0
-      ? identity.map((c) => c.toUpperCase())
-      : null;
+    identity === null ? null : identity.map((c) => c.toUpperCase());
   const { error } = await supabase
     .from("user_cards")
     .update({ imposed_color_identity: value })

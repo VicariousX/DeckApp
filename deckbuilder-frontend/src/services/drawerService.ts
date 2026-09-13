@@ -140,9 +140,10 @@ export async function fetchDrawerCards(
       color_identity: uc?.color_identity ?? [],
       imposed_color_identity: uc?.imposed_color_identity ?? null,
       effective_color_identity:
-        (uc?.imposed_color_identity && uc.imposed_color_identity.length > 0
+        uc?.imposed_color_identity !== null &&
+        uc?.imposed_color_identity !== undefined
           ? uc.imposed_color_identity
-          : uc?.color_identity) ?? [],
+          : (uc?.color_identity ?? []),
       oracle_text: uc?.oracle_text ?? null,
       image_url: uc?.image_url ?? null,
       scryfall_id: uc?.scryfall_id ?? uc?.preferred_scryfall_id ?? null,
