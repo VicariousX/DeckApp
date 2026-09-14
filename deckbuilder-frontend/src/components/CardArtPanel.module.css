@@ -323,3 +323,9 @@
   padding: 0.35rem 0.5rem 0.55rem;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
 }
+
+.innerBodyFlat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}

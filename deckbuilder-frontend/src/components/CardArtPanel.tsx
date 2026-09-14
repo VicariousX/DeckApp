@@ -25,12 +25,15 @@ type Props = {
   onResolvedChange?: (resolved: DeckAppCard) => void;
   /** Skip outer shell; show inner collapsible upload/print blocks. */
   embedded?: boolean;
+  /** When embedded, force which sub-section is shown (controlled by parent tabs). */
+  forceSub?: "upload" | "prints";
 };
 
 export function CardArtPanel({
   card,
   onResolvedChange,
   embedded = false,
+  forceSub,
 }: Props) {
   const { user } = useAuth();
   const { applyArtPreference, reload: reloadArtPrefs } = useArtPreferences();
@@ -126,7 +129,7 @@ export function CardArtPanel({
     void reloadArtPrefs();
     setBusy(false);
     setMessage(
-      `Preferred art set to ${printing.set_name} (#${printing.collector_number}).`
+      `Preferred printing set to ${printing.set_name} (#${printing.collector_number}) — applies to front and back when available.`
     );
   }
 
@@ -416,13 +419,177 @@ export function CardArtPanel({
     </div>
   );
 
+  const statusMsg =
+    message || error ? (
+      <p className={error ? styles.errorMsg : styles.okMsg}>
+        {error ?? message}
+      </p>
+    ) : null;
+
+  // Controlled sub-tab mode (modal): show a single pane without nested headers
+  if (embedded && forceSub) {
+    const openUpload = forceSub === "upload";
+    const openPrints = forceSub === "prints";
+    return (
+      <div className={styles.embedded}>
+        {statusMsg}
+        {openUpload && (
+          <div className={styles.innerBodyFlat}>
+            <div className={styles.uploadRow}>
+              <div className={styles.uploadBlock}>
+                <span className={styles.uploadLabel}>Front</span>
+                {art?.custom_front_path ? (
+                  <div className={styles.customPreview}>
+                    <img
+                      src={`${getCardArtPublicBase()}/${art.custom_front_path}`}
+                      alt="Custom front"
+                      className={styles.customImg}
+                    />
+                    <button
+                      type="button"
+                      className={styles.textBtn}
+                      disabled={busy}
+                      onClick={() => void onRemoveCustom("front")}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <p className={styles.hint}>No custom front</p>
+                )}
+                <input
+                  ref={frontInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className={styles.fileInput}
+                  onChange={(e) => {
+                    void onUpload("front", e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy}
+                  onClick={() => frontInputRef.current?.click()}
+                >
+                  Upload front
+                </button>
+              </div>
+              <div className={styles.uploadBlock}>
+                <span className={styles.uploadLabel}>
+                  Back{!isMulti ? " (optional)" : ""}
+                </span>
+                {art?.custom_back_path ? (
+                  <div className={styles.customPreview}>
+                    <img
+                      src={`${getCardArtPublicBase()}/${art.custom_back_path}`}
+                      alt="Custom back"
+                      className={styles.customImg}
+                    />
+                    <button
+                      type="button"
+                      className={styles.textBtn}
+                      disabled={busy}
+                      onClick={() => void onRemoveCustom("back")}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <p className={styles.hint}>No custom back</p>
+                )}
+                <input
+                  ref={backInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className={styles.fileInput}
+                  onChange={(e) => {
+                    void onUpload("back", e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={busy}
+                  onClick={() => backInputRef.current?.click()}
+                >
+                  Upload back
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {openPrints && (
+          <div className={styles.innerBodyFlat}>
+            <div className={styles.sectionHead}>
+              {preferredId ? (
+                <button
+                  type="button"
+                  className={styles.textBtn}
+                  disabled={busy}
+                  onClick={() => void clearPreferred()}
+                >
+                  Clear preference
+                </button>
+              ) : (
+                <span className={styles.hint}>
+                  Preferred printing applies to front and back when available
+                </span>
+              )}
+            </div>
+            {loadingPrints ? (
+              <p className={styles.hint}>Loading printings…</p>
+            ) : printings.length === 0 ? (
+              <p className={styles.hint}>No alternate printings found.</p>
+            ) : (
+              <div className={styles.printGrid}>
+                {printings.map((p) => {
+                  const thumb = getFaceImage(p, 0);
+                  const faces = getFaces(p);
+                  const selected =
+                    preferredId !== null &&
+                    preferredId === String(p.id).toLowerCase();
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={
+                        selected
+                          ? `${styles.printCard} ${styles.printCardSelected}`
+                          : styles.printCard
+                      }
+                      disabled={busy}
+                      onClick={() => void selectPrinting(p)}
+                      title={`${p.set_name} · #${p.collector_number}`}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt="" className={styles.printThumb} />
+                      ) : (
+                        <span className={styles.printFallback}>
+                          {faces[0]?.name ?? p.name}
+                        </span>
+                      )}
+                      <span className={styles.printMeta}>
+                        {p.set?.toUpperCase() ?? p.set_name}
+                        {" · "}
+                        {p.collector_number}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const content = (
     <>
-      {(message || error) && (
-        <p className={error ? styles.errorMsg : styles.okMsg}>
-          {error ?? message}
-        </p>
-      )}
+      {statusMsg}
       {uploadBlock}
       {printsBlock}
     </>

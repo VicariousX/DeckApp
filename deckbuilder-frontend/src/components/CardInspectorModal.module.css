@@ -43,24 +43,17 @@
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (max-width: 640px) {
   .layout {
     grid-template-columns: 1fr;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  .layout::-webkit-scrollbar {
-    display: none;
   }
 }
 
 .visual {
   min-width: 0;
-  position: sticky;
-  top: 0;
 }
 
 .visual :global(img) {
@@ -97,57 +90,132 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.body::-webkit-scrollbar {
-  display: none;
-}
-
-.section {
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
-  background: color-mix(in srgb, var(--color-bg) 35%, transparent);
   overflow: hidden;
 }
 
-.sectionPriority {
-  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
-}
-
-.sectionHead {
-  width: 100%;
+.tabRail {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: left;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  flex-shrink: 0;
 }
 
-.sectionHead:hover {
-  color: var(--color-accent);
-}
-
-.chevron {
+.tabPill {
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
-.sectionBody {
-  padding: 0.15rem 0.6rem 0.55rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+.tabPill:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.tabPanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg) 40%, var(--color-surface));
+  overflow: hidden;
+  animation: tabIn 0.18s ease both;
+}
+
+@keyframes tabIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabPanel {
+    animation: none;
+  }
+  .tabPill {
+    transition: none;
+  }
+}
+
+.tabPanelTitle {
+  flex-shrink: 0;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.panelScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.55rem 0.7rem 0.7rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
+}
+
+.panelScroll::-webkit-scrollbar {
+  width: 8px;
+}
+.panelScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.panelScroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.panelScroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
+  background-clip: padding-box;
+}
+
+.subTabRail {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.subTab {
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.subTabActive {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
 }
 
 .error {
-  margin: 0;
+  margin: 0 0 0.4rem;
   color: #f87171;
   font-size: 0.85rem;
 }
@@ -165,7 +233,7 @@
 
 .detailLink {
   display: inline-block;
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
   color: var(--color-accent);
   font-size: 0.8rem;
   font-weight: 650;
@@ -179,7 +247,7 @@
 .deckExtras {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
 .extraLabel {
@@ -219,7 +287,6 @@
   min-width: 1.4rem;
   text-align: center;
   font-weight: 700;
-  font-size: 0.9rem;
 }
 
 .boardSelect {

@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCardById } from "../lib/scryfallApi";
 import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
+import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
 import { CardArtPanel } from "./CardArtPanel";
@@ -31,6 +32,8 @@ type Props = {
   scryfallId: string;
   name?: string;
   imageUrl?: string;
+  /** Optional preferred/custom back face URL (DFC). */
+  imageUrlBack?: string;
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
@@ -39,43 +42,13 @@ type Props = {
   deck?: CardInspectorDeckControls;
 };
 
-function Section({
-  title,
-  open,
-  onToggle,
-  children,
-  priority = false,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-  priority?: boolean;
-}) {
-  return (
-    <section
-      className={`${styles.section}${priority ? ` ${styles.sectionPriority}` : ""}`}
-    >
-      <button
-        type="button"
-        className={styles.sectionHead}
-        aria-expanded={open}
-        onClick={onToggle}
-      >
-        <span>{title}</span>
-        <span className={styles.chevron} aria-hidden>
-          {open ? "▾" : "▸"}
-        </span>
-      </button>
-      {open && <div className={styles.sectionBody}>{children}</div>}
-    </section>
-  );
-}
+type TabId = "info" | "deck" | "drawers" | "artwork";
 
 export function CardInspectorModal({
   scryfallId,
   name,
   imageUrl,
+  imageUrlBack,
   onClose,
   onPrev,
   onNext,
@@ -86,12 +59,26 @@ export function CardInspectorModal({
   const [scryfall, setScryfall] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [active, setActive] = useState<TabId>("info");
+  const [artSub, setArtSub] = useState<"upload" | "prints">("upload");
+  const [contentKey, setContentKey] = useState(0);
 
-  // Priority: Info open; Deck open when present; Drawers/Artwork closed
-  const [infoOpen, setInfoOpen] = useState(true);
-  const [deckOpen, setDeckOpen] = useState(true);
-  const [drawersOpen, setDrawersOpen] = useState(false);
-  const [artOpen, setArtOpen] = useState(false);
+  const tabs = useMemo(() => {
+    const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
+    if (deck) list.push({ id: "deck", label: "Deck" });
+    list.push({ id: "drawers", label: "Drawers" }, { id: "artwork", label: "Artwork" });
+    return list;
+  }, [deck]);
+
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((t) => t.id === active)
+  );
+
+  useEffect(() => {
+    // Keep active tab valid when deck controls appear/disappear
+    if (!tabs.some((t) => t.id === active)) setActive("info");
+  }, [tabs, active]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,18 +112,44 @@ export function CardInspectorModal({
       if (e.key === "ArrowLeft" && hasPrev && onPrev) {
         e.preventDefault();
         onPrev();
+        return;
       }
       if (e.key === "ArrowRight" && hasNext && onNext) {
         e.preventDefault();
         onNext();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const next = Math.max(0, activeIndex - 1);
+        selectTab(tabs[next].id);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = Math.min(tabs.length - 1, activeIndex + 1);
+        selectTab(tabs[next].id);
+        return;
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasPrev, hasNext, onPrev, onNext, onClose]);
+  }, [hasPrev, hasNext, onPrev, onNext, onClose, activeIndex, tabs]);
+
+  function selectTab(id: TabId) {
+    if (id === active) return;
+    setActive(id);
+    setContentKey((k) => k + 1);
+  }
 
   const displayName = scryfall?.name ?? name ?? "Card";
   const assigned = new Set(deck?.card.tag_ids ?? []);
+  const multi = scryfall ? isMultiCard(scryfall) : false;
+  // Preferred printing is the fetched card when scryfallId points at that printing;
+  // use its back face unless a custom back URL is provided.
+  const backSrc =
+    imageUrlBack ||
+    (scryfall && multi ? getFaceImage(scryfall, 1) || undefined : undefined);
 
   function handleRemove() {
     if (!deck) return;
@@ -144,6 +157,9 @@ export function CardInspectorModal({
     if (hasNext && onNext) onNext();
     else onClose();
   }
+
+  const above = tabs.slice(0, activeIndex);
+  const below = tabs.slice(activeIndex + 1);
 
   return (
     <Modal onClose={onClose} hideClose>
@@ -159,7 +175,7 @@ export function CardInspectorModal({
             >
               ← Prev
             </button>
-            <span className={styles.navHint}>Esc to close · ← →</span>
+            <span className={styles.navHint}>↑↓ tabs · ←→ cards · Esc</span>
             <button
               type="button"
               className={styles.navBtn}
@@ -181,6 +197,7 @@ export function CardInspectorModal({
               <CardImage
                 card={scryfall}
                 overrideFrontSrc={imageUrl}
+                overrideBackSrc={backSrc}
                 bothLayout="stack"
               />
             )}
@@ -198,157 +215,218 @@ export function CardInspectorModal({
           </div>
 
           <div className={styles.body}>
-            <Section
-              title="Info"
-              open={infoOpen}
-              onToggle={() => setInfoOpen((v) => !v)}
-              priority
-            >
-              {error && (
-                <p className={styles.error} role="alert">
-                  {error}
-                </p>
-              )}
-              {scryfall && (
-                <CardDetail
-                  card={scryfall}
-                  hidePrintingMeta={Boolean(imageUrl)}
-                />
-              )}
-              {!scryfall && !loading && (
-                <h2 className={styles.fallbackTitle}>{displayName}</h2>
-              )}
-              <Link
-                to={`/card/${scryfallId}`}
-                className={styles.detailLink}
-                onClick={onClose}
-              >
-                Open card page →
-              </Link>
-            </Section>
-
-            {deck && (
-              <Section
-                title="Deck"
-                open={deckOpen}
-                onToggle={() => setDeckOpen((v) => !v)}
-                priority
-              >
-                <div className={styles.deckExtras}>
-                  <div className={styles.qtyRow}>
-                    <span className={styles.extraLabel}>Quantity</span>
-                    <div className={styles.qtyControls}>
-                      <button
-                        type="button"
-                        className={styles.qtyBtn}
-                        disabled={!deck.isOwner}
-                        onClick={() => deck.onQty(-1)}
-                      >
-                        −
-                      </button>
-                      <span className={styles.qtyValue}>
-                        {deck.card.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        className={styles.qtyBtn}
-                        disabled={!deck.isOwner}
-                        onClick={() => deck.onQty(1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <label className={styles.boardRow}>
-                    <span className={styles.extraLabel}>Board</span>
-                    <select
-                      className={styles.boardSelect}
-                      value={deck.card.board}
-                      disabled={!deck.isOwner}
-                      onChange={(e) =>
-                        deck.onBoard(e.target.value as DeckBoard)
-                      }
-                    >
-                      {BOARDS.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {deck.tags.length > 0 && (
-                    <div className={styles.tagsBlock}>
-                      <span className={styles.extraLabel}>Deck tags</span>
-                      <div className={styles.tagList}>
-                        {deck.tags.map((tag) => {
-                          const on = assigned.has(tag.id);
-                          return (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              className={`${styles.tagChip}${
-                                on ? ` ${styles.tagChipOn}` : ""
-                              }`}
-                              disabled={!deck.isOwner}
-                              style={
-                                on
-                                  ? {
-                                      borderColor: tag.color,
-                                      background: `${tag.color}33`,
-                                    }
-                                  : undefined
-                              }
-                              onClick={() => deck.onToggleTag(tag)}
-                            >
-                              {tag.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {deck.isOwner && (
-                    <button
-                      type="button"
-                      className={styles.removeBtn}
-                      onClick={handleRemove}
-                    >
-                      Remove from deck
-                    </button>
-                  )}
-                </div>
-              </Section>
+            {above.length > 0 && (
+              <div className={styles.tabRail} role="tablist" aria-label="Sections above">
+                {above.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={false}
+                    className={styles.tabPill}
+                    onClick={() => selectTab(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             )}
 
-            <Section
-              title="Drawers"
-              open={drawersOpen}
-              onToggle={() => setDrawersOpen((v) => !v)}
+            <div
+              key={contentKey}
+              className={styles.tabPanel}
+              role="tabpanel"
+              aria-label={tabs[activeIndex]?.label}
             >
-              {scryfall ? (
-                <DrawerPicker
-                  oracleId={(scryfall.oracle_id ?? scryfall.id).toLowerCase()}
-                  scryfallCard={scryfall}
-                />
-              ) : (
-                <p className={styles.muted}>Load card to manage drawers.</p>
-              )}
-            </Section>
+              <div className={styles.tabPanelTitle}>
+                {tabs[activeIndex]?.label}
+              </div>
 
-            <Section
-              title="Artwork"
-              open={artOpen}
-              onToggle={() => setArtOpen((v) => !v)}
-            >
-              {scryfall ? (
-                <CardArtPanel card={scryfall} embedded />
-              ) : (
-                <p className={styles.muted}>Load card to edit art.</p>
+              {active === "info" && (
+                <div className={styles.panelScroll}>
+                  {error && (
+                    <p className={styles.error} role="alert">
+                      {error}
+                    </p>
+                  )}
+                  {scryfall && (
+                    <CardDetail
+                      card={scryfall}
+                      hidePrintingMeta={Boolean(imageUrl)}
+                    />
+                  )}
+                  {!scryfall && !loading && (
+                    <h2 className={styles.fallbackTitle}>{displayName}</h2>
+                  )}
+                  <Link
+                    to={`/card/${scryfallId}`}
+                    className={styles.detailLink}
+                    onClick={onClose}
+                  >
+                    Open card page →
+                  </Link>
+                </div>
               )}
-            </Section>
+
+              {active === "deck" && deck && (
+                <div className={styles.panelScroll}>
+                  <div className={styles.deckExtras}>
+                    <div className={styles.qtyRow}>
+                      <span className={styles.extraLabel}>Quantity</span>
+                      <div className={styles.qtyControls}>
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!deck.isOwner}
+                          onClick={() => deck.onQty(-1)}
+                        >
+                          −
+                        </button>
+                        <span className={styles.qtyValue}>
+                          {deck.card.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!deck.isOwner}
+                          onClick={() => deck.onQty(1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className={styles.boardRow}>
+                      <span className={styles.extraLabel}>Board</span>
+                      <select
+                        className={styles.boardSelect}
+                        value={deck.card.board}
+                        disabled={!deck.isOwner}
+                        onChange={(e) =>
+                          deck.onBoard(e.target.value as DeckBoard)
+                        }
+                      >
+                        {BOARDS.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {deck.tags.length > 0 && (
+                      <div className={styles.tagsBlock}>
+                        <span className={styles.extraLabel}>Deck tags</span>
+                        <div className={styles.tagList}>
+                          {deck.tags.map((tag) => {
+                            const on = assigned.has(tag.id);
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                className={`${styles.tagChip}${
+                                  on ? ` ${styles.tagChipOn}` : ""
+                                }`}
+                                disabled={!deck.isOwner}
+                                style={
+                                  on
+                                    ? {
+                                        borderColor: tag.color,
+                                        background: `${tag.color}33`,
+                                      }
+                                    : undefined
+                                }
+                                onClick={() => deck.onToggleTag(tag)}
+                              >
+                                {tag.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {deck.isOwner && (
+                      <button
+                        type="button"
+                        className={styles.removeBtn}
+                        onClick={handleRemove}
+                      >
+                        Remove from deck
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {active === "drawers" && (
+                <div className={styles.panelScroll}>
+                  {scryfall ? (
+                    <DrawerPicker
+                      oracleId={(scryfall.oracle_id ?? scryfall.id).toLowerCase()}
+                      scryfallCard={scryfall}
+                    />
+                  ) : (
+                    <p className={styles.muted}>Load card to manage drawers.</p>
+                  )}
+                </div>
+              )}
+
+              {active === "artwork" && (
+                <div className={styles.panelScroll}>
+                  <div className={styles.subTabRail} role="tablist" aria-label="Artwork">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={artSub === "upload"}
+                      className={`${styles.subTab}${
+                        artSub === "upload" ? ` ${styles.subTabActive}` : ""
+                      }`}
+                      onClick={() => setArtSub("upload")}
+                    >
+                      Upload
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={artSub === "prints"}
+                      className={`${styles.subTab}${
+                        artSub === "prints" ? ` ${styles.subTabActive}` : ""
+                      }`}
+                      onClick={() => setArtSub("prints")}
+                    >
+                      Printings
+                    </button>
+                  </div>
+                  {scryfall ? (
+                    <CardArtPanel
+                      card={scryfall}
+                      embedded
+                      forceSub={artSub}
+                    />
+                  ) : (
+                    <p className={styles.muted}>Load card to edit art.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {below.length > 0 && (
+              <div className={styles.tabRail} role="tablist" aria-label="Sections below">
+                {below.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={false}
+                    className={styles.tabPill}
+                    onClick={() => selectTab(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

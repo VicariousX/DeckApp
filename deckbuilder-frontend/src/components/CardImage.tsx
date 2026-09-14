@@ -18,6 +18,8 @@ type CardImageProps = {
   onViewChange?: (view: CardFaceView) => void;
   /** Preferred / custom art for the front face (e.g. user choice). */
   overrideFrontSrc?: string;
+  /** Preferred / custom art for the back face when multi-faced. */
+  overrideBackSrc?: string;
   /**
    * How to lay out “both” faces.
    * - row: side-by-side (search results)
@@ -32,6 +34,7 @@ export function CardImage({
   onActivate,
   onViewChange,
   overrideFrontSrc,
+  overrideBackSrc,
   bothLayout = "row",
 }: CardImageProps) {
   const multi = isMultiCard(card);
@@ -42,8 +45,11 @@ export function CardImage({
     onViewChange?.(view);
   }, [view, onViewChange]);
 
+  // Preferred printing card supplies both faces; overrides apply per face when set.
   const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
-  const backSrc = multi ? getFaceImage(card, 1) : "";
+  const backSrc = multi
+    ? overrideBackSrc || getFaceImage(card, 1) || ""
+    : "";
 
   const frontName = faces[0]?.name ?? card.name;
   const backName = faces[1]?.name ?? "Back";
