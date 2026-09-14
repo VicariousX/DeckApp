@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { ThemePicker } from "../components/ThemePicker";
 import { AmbientBackdrop } from "../components/AmbientBackdrop";
 import { useAuth } from "../auth/AuthProvider";
-import {
-  getAvatarUrl,
-  getDisplayName,
-  getInitials,
-} from "../auth/userDisplay";
+import { getDisplayName } from "../auth/userDisplay";
 import { getLastViewedDeck } from "../lib/deckPreferences";
 import styles from "./AppShell.module.css";
 
 export function AppShell() {
   const { user } = useAuth();
   const name = getDisplayName(user);
-  const avatar = getAvatarUrl(user);
   const location = useLocation();
   const [decksOpen, setDecksOpen] = useState(false);
   const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
@@ -185,19 +179,12 @@ export function AppShell() {
               to="/login"
               className={({ isActive }) =>
                 isActive
-                  ? `${styles.accountChip} ${styles.accountChipActive}`
-                  : styles.accountChip
+                  ? `${styles.userLink} ${styles.userLinkActive}`
+                  : styles.userLink
               }
               title={user.email ?? name}
             >
-              <span className={styles.accountChipAvatar} aria-hidden>
-                {avatar ? (
-                  <img src={avatar} alt="" className={styles.accountChipImg} />
-                ) : (
-                  getInitials(user)
-                )}
-              </span>
-              <span className={styles.accountChipName}>{name}</span>
+              {name}
             </NavLink>
           ) : (
             <NavLink
@@ -211,7 +198,6 @@ export function AppShell() {
               Log in
             </NavLink>
           )}
-          <ThemePicker />
         </nav>
       </header>
       <main className={styles.main}>

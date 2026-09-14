@@ -100,7 +100,7 @@ export function DrawerPanel({
 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
     useDraggablePanel(open);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -289,7 +289,7 @@ export function DrawerPanel({
   ];
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} ref={anchorRef}>
       <button
         type="button"
         className={`${styles.toggleBtn}${open ? ` ${styles.toggleBtnOpen}` : ""}`}
@@ -299,7 +299,8 @@ export function DrawerPanel({
         Drawers
       </button>
 
-      {open && (
+      {open &&
+        createPortal(
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
           <div
             className={styles.panelHeader}
@@ -682,7 +683,7 @@ export function DrawerPanel({
             onPointerDown={onResizePointerDown("se")}
           />
         </div>
-      )}
+        , document.body)}
 
       {hover &&
         createPortal(

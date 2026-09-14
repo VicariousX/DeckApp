@@ -31,7 +31,7 @@ import {
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
 import { CardHoverPreview } from "../components/CardHoverPreview";
-import { DeckCardModal } from "../components/DeckCardModal";
+import { CardInspectorModal } from "../components/CardInspectorModal";
 import {
   ImageDndProvider,
   DraggableStackCard,
@@ -984,6 +984,11 @@ export function DeckBuilderPage() {
     setModalCard(card);
   }
 
+  const modalNavList = detail?.cards ?? [];
+  const modalIndex = modalCard
+    ? modalNavList.findIndex((c) => c.id === modalCard.id)
+    : -1;
+
   async function onAddFromDrawer(dc: DrawerCardView) {
     if (!detail || !isOwner || !user) return;
     const scryfallId = dc.scryfall_id;
@@ -1908,29 +1913,52 @@ export function DeckBuilderPage() {
       )}
 
       {modalCard && (
-        <DeckCardModal
-          card={
-            detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard
+        <CardInspectorModal
+          scryfallId={
+            (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard)
+              .scryfall_id
+          }
+          name={
+            (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard).name
           }
           imageUrl={imageUrls[modalCard.id]}
-          isOwner={isOwner}
-          tags={detail?.tags ?? []}
           onClose={() => setModalCard(null)}
-          onQty={(d) => {
-            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-            void onQty(live, d);
+          hasPrev={modalIndex > 0}
+          hasNext={modalIndex >= 0 && modalIndex < modalNavList.length - 1}
+          onPrev={() => {
+            if (modalIndex > 0) setModalCard(modalNavList[modalIndex - 1]);
           }}
-          onBoard={(b) => {
-            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-            void moveCardToBoard(live, b);
+          onNext={() => {
+            if (modalIndex >= 0 && modalIndex < modalNavList.length - 1) {
+              setModalCard(modalNavList[modalIndex + 1]);
+            }
           }}
-          onRemove={() => {
-            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-            void onRemove(live);
-          }}
-          onToggleTag={(tag) => {
-            const live = detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-            void toggleTag(live, tag);
+          deck={{
+            card:
+              detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard,
+            isOwner,
+            tags: detail?.tags ?? [],
+            onQty: (d) => {
+              const live =
+                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+              void onQty(live, d);
+            },
+            onBoard: (b) => {
+              const live =
+                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+              void moveCardToBoard(live, b);
+            },
+            onRemove: () => {
+              const live =
+                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+              void onRemove(live);
+              setModalCard(null);
+            },
+            onToggleTag: (tag) => {
+              const live =
+                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
+              void toggleTag(live, tag);
+            },
           }}
         />
       )}

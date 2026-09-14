@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import {
@@ -24,7 +25,7 @@ export function TextExportMenu({
   label = "Export",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
   const [status, setStatus] = useState<string | null>(null);
 
   const text = useMemo(
@@ -62,7 +63,7 @@ export function TextExportMenu({
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} ref={anchorRef}>
       <button
         type="button"
         className={styles.trigger}
@@ -71,7 +72,8 @@ export function TextExportMenu({
       >
         {label}
       </button>
-      {open && (
+      {open &&
+        createPortal(
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
           <div className={styles.panelTop}>
             <div
@@ -119,7 +121,7 @@ export function TextExportMenu({
           </div>
           {status && <p className={styles.status}>{status}</p>}
         </div>
-      )}
+        , document.body)}
     </div>
   );
 }

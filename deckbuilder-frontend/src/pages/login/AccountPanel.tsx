@@ -8,13 +8,12 @@ import {
 } from "../../auth/userDisplay";
 import { PasswordSetForm } from "./PasswordSetForm";
 import styles from "../LoginPage.module.css";
-import { useTheme, type AppTheme } from "../../theme/ThemeProvider";
+import { ThemePicker } from "../../components/ThemePicker";
 
 type AccountSection = "profile" | "password";
 
 export function AccountPanel() {
   const auth = useAuth();
-  const { theme, setTheme } = useTheme();
   const user = auth.user!;
   const [section, setSection] = useState<AccountSection>("profile");
 
@@ -185,36 +184,21 @@ export function AccountPanel() {
               )}
               <div className={styles.field}>
                 <span className={styles.label}>Theme</span>
-                <div className={styles.themeToggle} role="group" aria-label="App theme">
-                  <button
-                    type="button"
-                    className={`${styles.themeOption} ${styles.themeOptionPremium} ${
-                      theme === "premium" ? styles.themeOptionActive : ""
-                    }`}
-                    onClick={() => setTheme("premium" as AppTheme)}
-                  >
-                    Premium
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.themeOption} ${styles.themeOptionArcane} ${
-                      theme === "arcane" ? styles.themeOptionActive : ""
-                    }`}
-                    onClick={() => setTheme("arcane" as AppTheme)}
-                  >
-                    Arcane
-                  </button>
+                <p className={styles.hint}>
+                  Choose a look for the whole app. Guild themes follow two-color
+                  identities.
+                </p>
+                <div className={styles.themePickerWrap}>
+                  <ThemePicker />
                 </div>
               </div>
-              <div className={styles.actions}>
-                <button
-                  type="submit"
-                  className={styles.primaryBtn}
-                  disabled={busy}
-                >
-                  {busy ? "Saving…" : "Save profile"}
-                </button>
-              </div>
+              <button
+                type="submit"
+                className={styles.primaryBtn}
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save profile"}
+              </button>
             </form>
           </>
         )}

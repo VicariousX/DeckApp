@@ -425,3 +425,10 @@
 .footerLink {
   margin-top: 1.1rem;
 }
+
+.themePickerWrap {
+  margin-top: 0.35rem;
+}
+.themePickerWrap button {
+  /* ensure picker trigger readable on profile */
+}

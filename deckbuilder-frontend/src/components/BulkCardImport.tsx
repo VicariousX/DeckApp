@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import {
@@ -31,7 +32,7 @@ export function BulkCardImport({
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +106,7 @@ export function BulkCardImport({
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} ref={anchorRef}>
       <button
         type="button"
         className={styles.trigger}
@@ -115,7 +116,8 @@ export function BulkCardImport({
         {open ? "Close import" : title}
       </button>
 
-      {open && (
+      {open &&
+        createPortal(
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
           <div className={styles.panelTop}>
             <div
@@ -225,7 +227,7 @@ export function BulkCardImport({
             data-no-drag
             onPointerDown={onResizePointerDown("se")}
           />
-          <div className={styles.actions}>
+          <div className={styles.actions} data-no-drag>
             {!preview ? (
               <button
                 type="button"
@@ -257,7 +259,7 @@ export function BulkCardImport({
             )}
           </div>
         </div>
-      )}
+        , document.body)}
     </div>
   );
 }

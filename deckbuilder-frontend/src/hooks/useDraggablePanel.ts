@@ -11,16 +11,25 @@ type Pos = { x: number; y: number };
 type Size = { w: number; h: number };
 
 /**
- * Floating panel: drag from handle only; optional resize from edges.
- * Click targets with data-no-drag are ignored (close, links, etc.).
+ * Floating panel drag/resize using viewport coordinates only (position: fixed).
+ * Always prefer portal-to-body for the panel so page scroll/transform cannot skew hits.
  */
 export function useDraggablePanel(open: boolean) {
   const [offset, setOffset] = useState<Pos | null>(null);
   const [size, setSize] = useState<Size | null>(null);
   const dragging = useRef(false);
-  const resizing = useRef<null | { dir: string; startX: number; startY: number; startW: number; startH: number; startLeft: number; startTop: number }>(null);
+  const resizing = useRef<null | {
+    dir: string;
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+    startLeft: number;
+    startTop: number;
+  }>(null);
   const grab = useRef<{ gx: number; gy: number } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -29,6 +38,13 @@ export function useDraggablePanel(open: boolean) {
       grab.current = null;
       dragging.current = false;
       resizing.current = null;
+      return;
+    }
+    // Pin under trigger in viewport space when opening
+    const anchor = anchorRef.current;
+    if (anchor) {
+      const r = anchor.getBoundingClientRect();
+      setOffset({ x: r.left, y: r.bottom + 6 });
     }
   }, [open]);
 
@@ -46,15 +62,12 @@ export function useDraggablePanel(open: boolean) {
       /* ignore */
     }
     const rect = el.getBoundingClientRect();
-    // Use fixed coordinates from the live layout box
     grab.current = {
       gx: e.clientX - rect.left,
       gy: e.clientY - rect.top,
     };
     setOffset({ x: rect.left, y: rect.top });
-    if (!size) {
-      setSize({ w: rect.width, h: rect.height });
-    }
+    if (!size) setSize({ w: rect.width, h: rect.height });
     dragging.current = true;
   }, [size]);
 
@@ -71,9 +84,11 @@ export function useDraggablePanel(open: boolean) {
         /* ignore */
       }
       const rect = el.getBoundingClientRect();
-      if (!offset) setOffset({ x: rect.left, y: rect.top });
       const w = size?.w ?? rect.width;
       const h = size?.h ?? rect.height;
+      const left = offset?.x ?? rect.left;
+      const top = offset?.y ?? rect.top;
+      setOffset({ x: left, y: top });
       setSize({ w, h });
       resizing.current = {
         dir,
@@ -81,8 +96,8 @@ export function useDraggablePanel(open: boolean) {
         startY: e.clientY,
         startW: w,
         startH: h,
-        startLeft: offset?.x ?? rect.left,
-        startTop: offset?.y ?? rect.top,
+        startLeft: left,
+        startTop: top,
       };
     },
     [offset, size]
@@ -137,24 +152,26 @@ export function useDraggablePanel(open: boolean) {
     };
   }, [size]);
 
-  const panelStyle: CSSProperties | undefined =
-    offset || size
-      ? {
-          position: "fixed",
-          left: offset?.x,
-          top: offset?.y,
-          width: size?.w,
-          height: size?.h,
-          right: "auto",
-          bottom: "auto",
-          margin: 0,
-          zIndex: 60,
-          maxHeight: "none",
-        }
-      : undefined;
+  // Always fixed in viewport — never absolute-in-page (scroll breaks that).
+  const panelStyle: CSSProperties | undefined = open
+    ? {
+        position: "fixed",
+        left: offset?.x ?? 0,
+        top: offset?.y ?? 0,
+        width: size?.w,
+        height: size?.h,
+        right: "auto",
+        bottom: "auto",
+        margin: 0,
+        zIndex: 200,
+        maxHeight: size?.h ? undefined : "min(70vh, 560px)",
+        visibility: offset ? "visible" : "hidden",
+      }
+    : undefined;
 
   return {
     panelRef,
+    anchorRef,
     panelStyle,
     onHandlePointerDown,
     onResizePointerDown,
