@@ -23,9 +23,18 @@ import styles from "./CardArtPanel.module.css";
 type Props = {
   card: ScryfallCard;
   onResolvedChange?: (resolved: DeckAppCard) => void;
+  /**
+   * When true, skip the outer "Art & printings" shell and show inner
+   * collapsible blocks (upload + preferred printings) directly.
+   */
+  embedded?: boolean;
 };
 
-export function CardArtPanel({ card, onResolvedChange }: Props) {
+export function CardArtPanel({
+  card,
+  onResolvedChange,
+  embedded = false,
+}: Props) {
   const { user } = useAuth();
   const { applyArtPreference, reload: reloadArtPrefs } = useArtPreferences();
   const [printings, setPrintings] = useState<ScryfallCard[]>([]);
@@ -34,8 +43,10 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** Collapsed by default; printings/art load only when expanded. */
-  const [expanded, setExpanded] = useState(false);
+  /** Outer collapse (card page). In embedded mode we start expanded. */
+  const [expanded, setExpanded] = useState(embedded);
+  const [uploadOpen, setUploadOpen] = useState(true);
+  const [printsOpen, setPrintsOpen] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,7 +74,7 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   }, [card, art, printings, onResolvedChange]);
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded && !embedded) return;
     let cancelled = false;
     async function load() {
       setLoadingPrints(true);
@@ -90,7 +101,7 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [expanded, oracleId, user, card.id]);
+  }, [expanded, embedded, oracleId, user, card.id]);
 
   function findPrinting(id: string | null | undefined): ScryfallCard | null {
     if (!id) return null;
@@ -201,6 +212,15 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
   }
 
   if (!user) {
+    const signInMsg = (
+      <p className={styles.hint}>
+        <Link to="/login" className={styles.link}>
+          Sign in
+        </Link>{" "}
+        to choose preferred printings or upload custom art for this card.
+      </p>
+    );
+    if (embedded) return <div className={styles.embedded}>{signInMsg}</div>;
     return (
       <section className={styles.collapsible}>
         <button
@@ -212,23 +232,207 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
           <span>Art &amp; printings</span>
           <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
         </button>
-        {expanded && (
-          <div className={styles.panel}>
-            <p className={styles.hint}>
-              <Link to="/login" className={styles.link}>
-                Sign in
-              </Link>{" "}
-              to choose preferred printings or upload custom art for this card.
-            </p>
-          </div>
-        )}
-      </section>
-    );
-  }
-
+        {expanded && <div className={styles.panel
   const preferredId = art?.preferred_scryfall_id
     ? String(art.preferred_scryfall_id).toLowerCase()
     : null;
+
+  const uploadBlock = (
+    <div className={styles.innerSection}>
+      <button
+        type="button"
+        className={styles.innerHead}
+        aria-expanded={uploadOpen}
+        onClick={() => setUploadOpen((v) => !v)}
+      >
+        <span>Upload custom art</span>
+        <span className={styles.chevron}>{uploadOpen ? "▾" : "▸"}</span>
+      </button>
+      {uploadOpen && (
+        <div className={styles.innerBody}>
+          <div className={styles.uploadRow}>
+            <div className={styles.uploadBlock}>
+              <span className={styles.uploadLabel}>Front</span>
+              {art?.custom_front_path ? (
+                <div className={styles.customPreview}>
+                  <img
+                    src={`${getCardArtPublicBase()}/${art.custom_front_path}`}
+                    alt="Custom front"
+                    className={styles.customImg}
+                  />
+                  <button
+                    type="button"
+                    className={styles.textBtn}
+                    disabled={busy}
+                    onClick={() => void onRemoveCustom("front")}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <p className={styles.hint}>No custom front</p>
+              )}
+              <input
+                ref={frontInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className={styles.fileInput}
+                onChange={(e) => {
+                  void onUpload("front", e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                disabled={busy}
+                onClick={() => frontInputRef.current?.click()}
+              >
+                Upload front
+              </button>
+            </div>
+
+            <div className={styles.uploadBlock}>
+              <span className={styles.uploadLabel}>
+                Back{!isMulti ? " (optional)" : ""}
+              </span>
+              {art?.custom_back_path ? (
+                <div className={styles.customPreview}>
+                  <img
+                    src={`${getCardArtPublicBase()}/${art.custom_back_path}`}
+                    alt="Custom back"
+                    className={styles.customImg}
+                  />
+                  <button
+                    type="button"
+                    className={styles.textBtn}
+                    disabled={busy}
+                    onClick={() => void onRemoveCustom("back")}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <p className={styles.hint}>No custom back</p>
+              )}
+              <input
+                ref={backInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className={styles.fileInput}
+                onChange={(e) => {
+                  void onUpload("back", e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                disabled={busy}
+                onClick={() => backInputRef.current?.click()}
+              >
+                Upload back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const printsBlock = (
+    <div className={styles.innerSection}>
+      <button
+        type="button"
+        className={styles.innerHead}
+        aria-expanded={printsOpen}
+        onClick={() => setPrintsOpen((v) => !v)}
+      >
+        <span>Preferred printing</span>
+        <span className={styles.chevron}>{printsOpen ? "▾" : "▸"}</span>
+      </button>
+      {printsOpen && (
+        <div className={styles.innerBody}>
+          <div className={styles.sectionHead}>
+            {preferredId ? (
+              <button
+                type="button"
+                className={styles.textBtn}
+                disabled={busy}
+                onClick={() => void clearPreferred()}
+              >
+                Clear preference
+              </button>
+            ) : (
+              <span className={styles.hint}>Using default printing</span>
+            )}
+          </div>
+          {loadingPrints ? (
+            <p className={styles.hint}>Loading printings…</p>
+          ) : printings.length === 0 ? (
+            <p className={styles.hint}>No alternate printings found.</p>
+          ) : (
+            <div className={styles.printGrid}>
+              {printings.map((p) => {
+                const thumb = getFaceImage(p, 0);
+                const faces = getFaces(p);
+                const selected =
+                  preferredId !== null &&
+                  preferredId === String(p.id).toLowerCase();
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={
+                      selected
+                        ? `${styles.printCard} ${styles.printCardSelected}`
+                        : styles.printCard
+                    }
+                    disabled={busy}
+                    onClick={() => void selectPrinting(p)}
+                    title={`${p.set_name} · #${p.collector_number}`}
+                  >
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt=""
+                        className={styles.printThumb}
+                      />
+                    ) : (
+                      <span className={styles.printFallback}>
+                        {faces[0]?.name ?? p.name}
+                      </span>
+                    )}
+                    <span className={styles.printMeta}>
+                      {p.set?.toUpperCase() ?? p.set_name}
+                      {" · "}
+                      {p.collector_number}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const content = (
+    <>
+      {(message || error) && (
+        <p className={error ? styles.errorMsg : styles.okMsg}>
+          {error ?? message}
+        </p>
+      )}
+      {uploadBlock}
+      {printsBlock}
+    </>
+  );
+
+  if (embedded) {
+    return <div className={styles.embedded}>{content}</div>;
+  }
 
   return (
     <section className={styles.collapsible}>
@@ -242,168 +446,15 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
         <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
       </button>
       {expanded && (
-    <div className={styles.panel}>
-      <div className={styles.header}>
-        <p className={styles.hint}>
-          Upload custom art first, or pick a preferred Scryfall printing. Custom
-          art is used on this site and in future deck exports.
-        </p>
-      </div>
-
-      {(message || error) && (
-        <p className={error ? styles.errorMsg : styles.okMsg}>
-          {error ?? message}
-        </p>
-      )}
-
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Custom images</h3>
-        <div className={styles.uploadRow}>
-          <div className={styles.uploadBlock}>
-            <span className={styles.uploadLabel}>Front</span>
-            {art?.custom_front_path ? (
-              <div className={styles.customPreview}>
-                <img
-                  src={`${getCardArtPublicBase()}/${art.custom_front_path}`}
-                  alt="Custom front"
-                  className={styles.customImg}
-                />
-                <button
-                  type="button"
-                  className={styles.textBtn}
-                  disabled={busy}
-                  onClick={() => void onRemoveCustom("front")}
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <p className={styles.hint}>No custom front</p>
-            )}
-            <input
-              ref={frontInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className={styles.fileInput}
-              onChange={(e) => {
-                void onUpload("front", e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              disabled={busy}
-              onClick={() => frontInputRef.current?.click()}
-            >
-              Upload front
-            </button>
+        <div className={styles.panel}>
+          <div className={styles.header}>
+            <p className={styles.hint}>
+              Upload custom art first, or pick a preferred Scryfall printing.
+              Custom art is used on this site and in future deck exports.
+            </p>
           </div>
-
-          <div className={styles.uploadBlock}>
-            <span className={styles.uploadLabel}>
-              Back{!isMulti ? " (optional)" : ""}
-            </span>
-            {art?.custom_back_path ? (
-              <div className={styles.customPreview}>
-                <img
-                  src={`${getCardArtPublicBase()}/${art.custom_back_path}`}
-                  alt="Custom back"
-                  className={styles.customImg}
-                />
-                <button
-                  type="button"
-                  className={styles.textBtn}
-                  disabled={busy}
-                  onClick={() => void onRemoveCustom("back")}
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <p className={styles.hint}>No custom back</p>
-            )}
-            <input
-              ref={backInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className={styles.fileInput}
-              onChange={(e) => {
-                void onUpload("back", e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              disabled={busy}
-              onClick={() => backInputRef.current?.click()}
-            >
-              Upload back
-            </button>
-          </div>
+          {content}
         </div>
-      </div>
-      <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <h3 className={styles.sectionTitle}>Preferred printing</h3>
-          {preferredId && (
-            <button
-              type="button"
-              className={styles.textBtn}
-              disabled={busy}
-              onClick={() => void clearPreferred()}
-            >
-              Clear preference
-            </button>
-          )}
-        </div>
-        {loadingPrints ? (
-          <p className={styles.hint}>Loading printings…</p>
-        ) : printings.length === 0 ? (
-          <p className={styles.hint}>No alternate printings found.</p>
-        ) : (
-          <div className={styles.printGrid}>
-            {printings.map((p) => {
-              const thumb = getFaceImage(p, 0);
-              const faces = getFaces(p);
-              const selected =
-                preferredId !== null &&
-                preferredId === String(p.id).toLowerCase();
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={
-                    selected
-                      ? `${styles.printCard} ${styles.printCardSelected}`
-                      : styles.printCard
-                  }
-                  disabled={busy}
-                  onClick={() => void selectPrinting(p)}
-                  title={`${p.set_name} · #${p.collector_number}`}
-                >
-                  {thumb ? (
-                    <img src={thumb} alt="" className={styles.printThumb} />
-                  ) : (
-                    <div className={styles.printPlaceholder} />
-                  )}
-                  <span className={styles.printMeta}>
-                    <span className={styles.printSet}>{p.set.toUpperCase()}</span>
-                    <span className={styles.printNum}>#{p.collector_number}</span>
-                  </span>
-                  {faces[0]?.artist && (
-                    <span className={styles.printArtist}>{faces[0].artist}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-
-    </div>
       )}
     </section>
   );

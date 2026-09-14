@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { fetchCardById } from "../lib/scryfallApi";
 import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
@@ -39,6 +39,39 @@ type Props = {
   deck?: CardInspectorDeckControls;
 };
 
+function Section({
+  title,
+  open,
+  onToggle,
+  children,
+  priority = false,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  priority?: boolean;
+}) {
+  return (
+    <section
+      className={`${styles.section}${priority ? ` ${styles.sectionPriority}` : ""}`}
+    >
+      <button
+        type="button"
+        className={styles.sectionHead}
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <span>{title}</span>
+        <span className={styles.chevron} aria-hidden>
+          {open ? "▾" : "▸"}
+        </span>
+      </button>
+      {open && <div className={styles.sectionBody}>{children}</div>}
+    </section>
+  );
+}
+
 export function CardInspectorModal({
   scryfallId,
   name,
@@ -53,6 +86,12 @@ export function CardInspectorModal({
   const [scryfall, setScryfall] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Priority: Info open; Deck open when present; Drawers/Artwork closed
+  const [infoOpen, setInfoOpen] = useState(true);
+  const [deckOpen, setDeckOpen] = useState(true);
+  const [drawersOpen, setDrawersOpen] = useState(false);
+  const [artOpen, setArtOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +117,11 @@ export function CardInspectorModal({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if (e.key === "ArrowLeft" && hasPrev && onPrev) {
         e.preventDefault();
         onPrev();
@@ -89,13 +133,20 @@ export function CardInspectorModal({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasPrev, hasNext, onPrev, onNext]);
+  }, [hasPrev, hasNext, onPrev, onNext, onClose]);
 
   const displayName = scryfall?.name ?? name ?? "Card";
   const assigned = new Set(deck?.card.tag_ids ?? []);
 
+  function handleRemove() {
+    if (!deck) return;
+    deck.onRemove();
+    if (hasNext && onNext) onNext();
+    else onClose();
+  }
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} hideClose>
       <div className={styles.shell}>
         {(hasPrev || hasNext) && (
           <div className={styles.navRow}>
@@ -108,7 +159,7 @@ export function CardInspectorModal({
             >
               ← Prev
             </button>
-            <span className={styles.navHint}>← → keys</span>
+            <span className={styles.navHint}>Esc to close · ← →</span>
             <button
               type="button"
               className={styles.navBtn}
@@ -135,7 +186,11 @@ export function CardInspectorModal({
             )}
             {!loading && !scryfall && (
               imageUrl ? (
-                <img src={imageUrl} alt={displayName} className={styles.image} />
+                <img
+                  src={imageUrl}
+                  alt={displayName}
+                  className={styles.image}
+                />
               ) : (
                 <div className={styles.imagePlaceholder}>{displayName}</div>
               )
@@ -143,119 +198,25 @@ export function CardInspectorModal({
           </div>
 
           <div className={styles.body}>
-            <div className={styles.scrollRegion}>
-            {error && (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            )}
-            {scryfall && (
-              <CardDetail card={scryfall} hidePrintingMeta={Boolean(imageUrl)} />
-            )}
-            {!scryfall && !loading && (
-              <h2 className={styles.fallbackTitle}>{displayName}</h2>
-            )}
-
-            {deck && (
-              <div className={styles.deckExtras}>
-                <div className={styles.qtyRow}>
-                  <span className={styles.extraLabel}>Quantity</span>
-                  <div className={styles.qtyControls}>
-                    <button
-                      type="button"
-                      className={styles.qtyBtn}
-                      disabled={!deck.isOwner}
-                      onClick={() => deck.onQty(-1)}
-                    >
-                      −
-                    </button>
-                    <span className={styles.qtyValue}>{deck.card.quantity}</span>
-                    <button
-                      type="button"
-                      className={styles.qtyBtn}
-                      disabled={!deck.isOwner}
-                      onClick={() => deck.onQty(1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <label className={styles.boardRow}>
-                  <span className={styles.extraLabel}>Board</span>
-                  <select
-                    className={styles.boardSelect}
-                    value={deck.card.board}
-                    disabled={!deck.isOwner}
-                    onChange={(e) =>
-                      deck.onBoard(e.target.value as DeckBoard)
-                    }
-                  >
-                    {BOARDS.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {deck.tags.length > 0 && (
-                  <div className={styles.tagsBlock}>
-                    <span className={styles.extraLabel}>Deck tags</span>
-                    <div className={styles.tagList}>
-                      {deck.tags.map((tag) => {
-                        const on = assigned.has(tag.id);
-                        return (
-                          <button
-                            key={tag.id}
-                            type="button"
-                            className={`${styles.tagChip}${
-                              on ? ` ${styles.tagChipOn}` : ""
-                            }`}
-                            disabled={!deck.isOwner}
-                            style={
-                              on
-                                ? {
-                                    borderColor: tag.color,
-                                    background: `${tag.color}33`,
-                                  }
-                                : undefined
-                            }
-                            onClick={() => deck.onToggleTag(tag)}
-                          >
-                            {tag.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {deck.isOwner && (
-                  <button
-                    type="button"
-                    className={styles.removeBtn}
-                    onClick={deck.onRemove}
-                  >
-                    Remove from deck
-                  </button>
-                )}
-              </div>
-            )}
-
-            {scryfall && (
-              <div className={styles.artSlot}>
-                <CardArtPanel card={scryfall} />
-              </div>
-            )}
-            </div>
-
-            <div className={styles.actions}>
+            <Section
+              title="Info"
+              open={infoOpen}
+              onToggle={() => setInfoOpen((v) => !v)}
+              priority
+            >
+              {error && (
+                <p className={styles.error} role="alert">
+                  {error}
+                </p>
+              )}
               {scryfall && (
-                <DrawerPicker
-                  oracleId={(scryfall.oracle_id ?? scryfall.id).toLowerCase()}
-                  scryfallCard={scryfall}
+                <CardDetail
+                  card={scryfall}
+                  hidePrintingMeta={Boolean(imageUrl)}
                 />
+              )}
+              {!scryfall && !loading && (
+                <h2 className={styles.fallbackTitle}>{displayName}</h2>
               )}
               <Link
                 to={`/card/${scryfallId}`}
@@ -264,7 +225,130 @@ export function CardInspectorModal({
               >
                 Open card page →
               </Link>
-            </div>
+            </Section>
+
+            {deck && (
+              <Section
+                title="Deck"
+                open={deckOpen}
+                onToggle={() => setDeckOpen((v) => !v)}
+                priority
+              >
+                <div className={styles.deckExtras}>
+                  <div className={styles.qtyRow}>
+                    <span className={styles.extraLabel}>Quantity</span>
+                    <div className={styles.qtyControls}>
+                      <button
+                        type="button"
+                        className={styles.qtyBtn}
+                        disabled={!deck.isOwner}
+                        onClick={() => deck.onQty(-1)}
+                      >
+                        −
+                      </button>
+                      <span className={styles.qtyValue}>
+                        {deck.card.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.qtyBtn}
+                        disabled={!deck.isOwner}
+                        onClick={() => deck.onQty(1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className={styles.boardRow}>
+                    <span className={styles.extraLabel}>Board</span>
+                    <select
+                      className={styles.boardSelect}
+                      value={deck.card.board}
+                      disabled={!deck.isOwner}
+                      onChange={(e) =>
+                        deck.onBoard(e.target.value as DeckBoard)
+                      }
+                    >
+                      {BOARDS.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {deck.tags.length > 0 && (
+                    <div className={styles.tagsBlock}>
+                      <span className={styles.extraLabel}>Deck tags</span>
+                      <div className={styles.tagList}>
+                        {deck.tags.map((tag) => {
+                          const on = assigned.has(tag.id);
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              className={`${styles.tagChip}${
+                                on ? ` ${styles.tagChipOn}` : ""
+                              }`}
+                              disabled={!deck.isOwner}
+                              style={
+                                on
+                                  ? {
+                                      borderColor: tag.color,
+                                      background: `${tag.color}33`,
+                                    }
+                                  : undefined
+                              }
+                              onClick={() => deck.onToggleTag(tag)}
+                            >
+                              {tag.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {deck.isOwner && (
+                    <button
+                      type="button"
+                      className={styles.removeBtn}
+                      onClick={handleRemove}
+                    >
+                      Remove from deck
+                    </button>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            <Section
+              title="Drawers"
+              open={drawersOpen}
+              onToggle={() => setDrawersOpen((v) => !v)}
+            >
+              {scryfall ? (
+                <DrawerPicker
+                  oracleId={(scryfall.oracle_id ?? scryfall.id).toLowerCase()}
+                  scryfallCard={scryfall}
+                />
+              ) : (
+                <p className={styles.muted}>Load card to manage drawers.</p>
+              )}
+            </Section>
+
+            <Section
+              title="Artwork"
+              open={artOpen}
+              onToggle={() => setArtOpen((v) => !v)}
+            >
+              {scryfall ? (
+                <CardArtPanel card={scryfall} embedded />
+              ) : (
+                <p className={styles.muted}>Load card to edit art.</p>
+              )}
+            </Section>
           </div>
         </div>
       </div>

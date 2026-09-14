@@ -286,3 +286,40 @@
   background: var(--color-success-soft);
   border: 1px solid var(--color-success-border);
 }
+
+.embedded {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.innerSection {
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  overflow: hidden;
+}
+
+.innerHead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.innerHead:hover {
+  color: var(--color-accent);
+}
+
+.innerBody {
+  padding: 0.35rem 0.5rem 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}

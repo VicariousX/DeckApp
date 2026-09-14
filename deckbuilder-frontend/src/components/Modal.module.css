@@ -31,7 +31,8 @@
   animation: scaleIn var(--motion-medium) var(--motion-spring);
 }
 
-.close {
+.close,
+.closeButton {
   position: absolute;
   top: 0.45rem;
   right: 0.45rem;
@@ -47,7 +48,8 @@
   cursor: pointer;
 }
 
-.close:hover {
+.close:hover,
+.closeButton:hover {
   color: var(--color-text);
   background: var(--color-surface-highlight);
 }
@@ -67,4 +69,11 @@
   .modal {
     animation: none;
   }
+}
+
+.modal {
+  scrollbar-width: none;
+}
+.modal::-webkit-scrollbar {
+  display: none;
 }

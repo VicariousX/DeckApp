@@ -1952,7 +1952,6 @@ export function DeckBuilderPage() {
               const live =
                 detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
               void onRemove(live);
-              setModalCard(null);
             },
             onToggleTag: (tag) => {
               const live =
