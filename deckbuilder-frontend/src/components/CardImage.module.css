@@ -124,7 +124,7 @@
 }
 
 .frameBothStack {
-  max-width: 220px;
+  max-width: 200px;
 }
 
 .bothStack {
@@ -246,4 +246,50 @@
   isolation: isolate;
   /* room for tilt scale without clipping parent */
   margin: 0.35rem 0.15rem;
+}
+
+/* Fixed silhouette for each face — outline stays put while card tilts */
+.faceSlot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-surface-alt) 70%, transparent),
+      color-mix(in srgb, var(--color-bg) 55%, transparent)
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 4%, transparent);
+  overflow: visible;
+}
+
+.frameModalSlots {
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  max-width: 200px;
+}
+
+.frameModalSlots .bothStack {
+  gap: 0.55rem;
+}
+
+.faceSlot > .faceObject {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 11px;
+}
+
+.faceSlot .image,
+.faceSlot .imageHalf {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
 }

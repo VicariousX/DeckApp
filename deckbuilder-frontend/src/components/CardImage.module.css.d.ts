@@ -4,10 +4,12 @@ declare const styles: {
   readonly frameBoth: string;
   readonly frameBothStack: string;
   readonly frameStackTall: string;
+  readonly frameModalSlots: string;
   readonly frameTilt: string;
   readonly frameTiltActive: string;
   readonly tiltGlare: string;
   readonly faceObject: string;
+  readonly faceSlot: string;
   readonly image: string;
   readonly both: string;
   readonly bothStack: string;

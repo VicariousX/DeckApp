@@ -40,7 +40,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 0.75rem;
   min-height: 0;
   flex: 1;
@@ -56,12 +56,13 @@
 
 .visual {
   min-width: 0;
-  min-height: min(64vh, 520px);
+  width: 200px;
+  max-width: 200px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   overflow: visible;
-  padding: 0.5rem 0.35rem 0.75rem;
+  padding: 1.75rem 0.25rem 0.5rem; /* room for Flip/Both above slots */
 }
 
 .visual :global(img) {

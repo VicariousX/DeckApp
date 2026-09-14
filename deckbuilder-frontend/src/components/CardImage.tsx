@@ -77,7 +77,7 @@ function TiltFace({
   const style: CSSProperties | undefined = enabled
     ? tilt
       ? {
-          transform: `perspective(900px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale3d(1.04, 1.04, 1.04)`,
+          transform: `perspective(900px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale3d(1.05, 1.05, 1.05)`,
           ["--glare-x" as string]: `${tilt.glareX}%`,
           ["--glare-y" as string]: `${tilt.glareY}%`,
         }
@@ -108,6 +108,10 @@ function TiltFace({
       {children}
     </div>
   );
+}
+
+function FaceSlot({ children }: { children: ReactNode }) {
+  return <div className={styles.faceSlot}>{children}</div>;
 }
 
 export function CardImage({
@@ -160,12 +164,15 @@ export function CardImage({
     setView((v) => (v === "both" ? "front" : "both"));
   }
 
+  const showBoth = view === "both" && multi;
+  const showBackOnly = view === "back" && multi;
+
   const shellClass = [
     styles.frame,
     multi ? styles.frameMulti : "",
-    view === "both" ? styles.frameBoth : "",
-    view === "both" && bothLayout === "stack" ? styles.frameBothStack : "",
-    bothLayout === "stack" ? styles.frameStackTall : "",
+    showBoth ? styles.frameBoth : "",
+    showBoth && bothLayout === "stack" ? styles.frameBothStack : "",
+    tilt ? styles.frameModalSlots : "",
     className ?? "",
   ]
     .filter(Boolean)
@@ -191,42 +198,48 @@ export function CardImage({
           : undefined
       }
     >
-      {view === "both" && multi ? (
+      {showBoth ? (
         <div className={bothClass}>
-          <TiltFace enabled={tilt}>
-            <img
-              key={`f-${frontSrc}`}
-              src={frontSrc}
-              alt={frontName}
-              className={styles.imageHalf}
-              draggable={false}
-            />
-          </TiltFace>
-          <TiltFace enabled={tilt}>
-            <img
-              key={`b-${backSrc}`}
-              src={backSrc}
-              alt={backName}
-              className={styles.imageHalf}
-              draggable={false}
-            />
-          </TiltFace>
+          <FaceSlot>
+            <TiltFace enabled={tilt}>
+              <img
+                key={`f-${frontSrc}`}
+                src={frontSrc}
+                alt={frontName}
+                className={styles.imageHalf}
+                draggable={false}
+              />
+            </TiltFace>
+          </FaceSlot>
+          <FaceSlot>
+            <TiltFace enabled={tilt}>
+              <img
+                key={`b-${backSrc}`}
+                src={backSrc}
+                alt={backName}
+                className={styles.imageHalf}
+                draggable={false}
+              />
+            </TiltFace>
+          </FaceSlot>
         </div>
       ) : (
-        <TiltFace enabled={tilt}>
-          <img
-            key={view === "back" && multi ? `b-${backSrc}` : `f-${frontSrc}`}
-            src={view === "back" && multi ? backSrc : frontSrc}
-            alt={view === "back" && multi ? backName : frontName}
-            className={styles.image}
-            draggable={false}
-          />
-          {multi && view !== "both" && !hideFaceBadge && (
-            <span className={styles.faceBadge} aria-hidden>
-              {view === "back" ? "B" : "F"}
-            </span>
-          )}
-        </TiltFace>
+        <FaceSlot>
+          <TiltFace enabled={tilt}>
+            <img
+              key={showBackOnly ? `b-${backSrc}` : `f-${frontSrc}`}
+              src={showBackOnly ? backSrc : frontSrc}
+              alt={showBackOnly ? backName : frontName}
+              className={styles.image}
+              draggable={false}
+            />
+            {multi && !hideFaceBadge && (
+              <span className={styles.faceBadge} aria-hidden>
+                {showBackOnly ? "B" : "F"}
+              </span>
+            )}
+          </TiltFace>
+        </FaceSlot>
       )}
 
       {multi && (

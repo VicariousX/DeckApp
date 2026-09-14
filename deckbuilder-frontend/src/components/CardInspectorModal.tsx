@@ -65,7 +65,9 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("upload");
   const [contentKey, setContentKey] = useState(0);
-  const [modalSize, setModalSize] = useState<{ w: number; h: number } | null>(null);
+  const DEFAULT_MODAL_SIZE = { w: 860, h: 700 };
+  /** Fixed until the user drags the resize handle. */
+  const [modalSize, setModalSize] = useState(DEFAULT_MODAL_SIZE);
   const resizing = useRef<null | {
     startX: number;
     startY: number;
@@ -239,8 +241,8 @@ export function CardInspectorModal({
     resizing.current = {
       startX: e.clientX,
       startY: e.clientY,
-      startW: modalSize?.w ?? rect.width,
-      startH: modalSize?.h ?? rect.height,
+      startW: modalSize.w,
+      startH: modalSize.h,
     };
   }
 
@@ -281,11 +283,12 @@ export function CardInspectorModal({
     <Modal
       onClose={onClose}
       hideClose
-      style={
-        modalSize
-          ? { width: modalSize.w, height: modalSize.h, maxWidth: "none", maxHeight: "none" }
-          : undefined
-      }
+      style={{
+        width: modalSize.w,
+        height: modalSize.h,
+        maxWidth: "none",
+        maxHeight: "none",
+      }}
     >
       <div className={styles.shell} ref={shellRef}>
         {(hasPrev || hasNext) && (
