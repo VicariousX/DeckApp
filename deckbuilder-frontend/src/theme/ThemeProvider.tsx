@@ -7,38 +7,41 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
-export type AppTheme = "premium" | "arcane";
+import { isAppTheme, type AppThemeId, THEME_IDS } from "./themes";
 
 const STORAGE_KEY = "deckapp-theme";
 
 type ThemeContextValue = {
-  theme: AppTheme;
-  setTheme: (theme: AppTheme) => void;
+  theme: AppThemeId;
+  setTheme: (theme: AppThemeId) => void;
+  /** Cycles signature themes only (legacy helper). */
   toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readStoredTheme(): AppTheme {
+function readStoredTheme(): AppThemeId {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "arcane" || v === "premium") return v;
+    if (isAppTheme(v)) return v;
   } catch {
     /* ignore */
   }
   return "premium";
 }
 
-function applyTheme(theme: AppTheme) {
+function applyTheme(theme: AppThemeId) {
   const root = document.documentElement;
   root.dataset.theme = theme;
-  root.classList.remove("theme-premium", "theme-arcane");
+  // Clear legacy classnames
+  for (const id of THEME_IDS) {
+    root.classList.remove(`theme-${id}`);
+  }
   root.classList.add(`theme-${theme}`);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>(() => {
+  const [theme, setThemeState] = useState<AppThemeId>(() => {
     if (typeof document !== "undefined") {
       const initial = readStoredTheme();
       applyTheme(initial);
@@ -56,7 +59,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  const setTheme = useCallback((next: AppTheme) => {
+  const setTheme = useCallback((next: AppThemeId) => {
     setThemeState(next);
   }, []);
 

@@ -1,0 +1,79 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.glowA {
+  position: absolute;
+  width: 90vmax;
+  height: 70vmax;
+  left: 50%;
+  top: -20%;
+  transform: translate3d(
+    -50%,
+    calc(var(--scroll-t, 0) * -40px),
+    0
+  );
+  background: radial-gradient(
+    ellipse at center,
+    var(--color-accent-glow) 0%,
+    transparent 60%
+  );
+  opacity: 0.85;
+  will-change: transform;
+}
+
+.glowB {
+  position: absolute;
+  width: 70vmax;
+  height: 55vmax;
+  right: -15%;
+  bottom: -20%;
+  transform: translate3d(
+    0,
+    calc(var(--scroll-t, 0) * 55px),
+    0
+  );
+  background: radial-gradient(
+    ellipse at center,
+    var(--color-accent-glow) 0%,
+    transparent 65%
+  );
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.haze {
+  position: absolute;
+  inset: -10%;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface-alt) 55%, transparent) 0%,
+    transparent 42%,
+    color-mix(in srgb, var(--color-bg) 40%, transparent) 100%
+  );
+  transform: translate3d(0, calc(var(--scroll-t, 0) * 18px), 0);
+  will-change: transform;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.38) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glowA,
+  .glowB,
+  .haze {
+    transform: none !important;
+  }
+}

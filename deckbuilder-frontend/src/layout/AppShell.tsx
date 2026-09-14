@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { ThemePicker } from "../components/ThemePicker";
+import { AmbientBackdrop } from "../components/AmbientBackdrop";
 import { useAuth } from "../auth/AuthProvider";
 import {
   getAvatarUrl,
@@ -62,6 +64,7 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
+      <AmbientBackdrop />
       <header className={styles.header}>
         <NavLink to="/" className={styles.brand} end>
           Deck<span className={styles.brandAccent}>App</span>
@@ -208,6 +211,7 @@ export function AppShell() {
               Log in
             </NavLink>
           )}
+          <ThemePicker />
         </nav>
       </header>
       <main className={styles.main}>
