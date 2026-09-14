@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -34,14 +35,23 @@ type CardImageProps = {
 
 type Tilt = { rx: number; ry: number; glareX: number; glareY: number };
 
-function useFaceTilt(enabled: boolean) {
-  const ref = useRef<HTMLDivElement | null>(null);
+/** Owns its own ref so parent never reads ref.current during render. */
+function TiltFace({
+  enabled,
+  children,
+  className,
+}: {
+  enabled: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const [tilt, setTilt] = useState<Tilt | null>(null);
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!enabled) return;
-      const el = ref.current;
+      const el = frameRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.width < 8 || rect.height < 8) return;
@@ -77,22 +87,27 @@ function useFaceTilt(enabled: boolean) {
         }
     : undefined;
 
-  const className = [
+  const cls = [
     styles.faceObject,
     enabled ? styles.frameTilt : "",
     tilt ? styles.frameTiltActive : "",
+    className ?? "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  return {
-    ref,
-    style,
-    className,
-    onPointerMove: enabled ? onPointerMove : undefined,
-    onPointerLeave: enabled ? onPointerLeave : undefined,
-    active: Boolean(tilt),
-  };
+  return (
+    <div
+      ref={frameRef}
+      className={cls}
+      style={style}
+      onPointerMove={enabled ? onPointerMove : undefined}
+      onPointerLeave={enabled ? onPointerLeave : undefined}
+    >
+      {enabled && <div className={styles.tiltGlare} aria-hidden />}
+      {children}
+    </div>
+  );
 }
 
 export function CardImage({
@@ -112,10 +127,6 @@ export function CardImage({
     bothLayout === "stack" && multi ? "both" : "front";
   const [userView, setUserView] = useState<CardFaceView | null>(null);
   const view = userView ?? defaultView;
-
-  const frontTilt = useFaceTilt(tilt);
-  const backTilt = useFaceTilt(tilt);
-  const singleTilt = useFaceTilt(tilt);
 
   const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
   const backSrc = multi
@@ -182,14 +193,7 @@ export function CardImage({
     >
       {view === "both" && multi ? (
         <div className={bothClass}>
-          <div
-            ref={frontTilt.ref}
-            className={frontTilt.className}
-            style={frontTilt.style}
-            onPointerMove={frontTilt.onPointerMove}
-            onPointerLeave={frontTilt.onPointerLeave}
-          >
-            {tilt && <div className={styles.tiltGlare} aria-hidden />}
+          <TiltFace enabled={tilt}>
             <img
               key={`f-${frontSrc}`}
               src={frontSrc}
@@ -197,15 +201,8 @@ export function CardImage({
               className={styles.imageHalf}
               draggable={false}
             />
-          </div>
-          <div
-            ref={backTilt.ref}
-            className={backTilt.className}
-            style={backTilt.style}
-            onPointerMove={backTilt.onPointerMove}
-            onPointerLeave={backTilt.onPointerLeave}
-          >
-            {tilt && <div className={styles.tiltGlare} aria-hidden />}
+          </TiltFace>
+          <TiltFace enabled={tilt}>
             <img
               key={`b-${backSrc}`}
               src={backSrc}
@@ -213,17 +210,10 @@ export function CardImage({
               className={styles.imageHalf}
               draggable={false}
             />
-          </div>
+          </TiltFace>
         </div>
       ) : (
-        <div
-          ref={singleTilt.ref}
-          className={singleTilt.className}
-          style={singleTilt.style}
-          onPointerMove={singleTilt.onPointerMove}
-          onPointerLeave={singleTilt.onPointerLeave}
-        >
-          {tilt && <div className={styles.tiltGlare} aria-hidden />}
+        <TiltFace enabled={tilt}>
           <img
             key={view === "back" && multi ? `b-${backSrc}` : `f-${frontSrc}`}
             src={view === "back" && multi ? backSrc : frontSrc}
@@ -236,7 +226,7 @@ export function CardImage({
               {view === "back" ? "B" : "F"}
             </span>
           )}
-        </div>
+        </TiltFace>
       )}
 
       {multi && (
