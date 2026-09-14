@@ -291,6 +291,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .innerSection {
@@ -328,4 +330,50 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.innerBodyFlatFill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.printGridFill {
+  flex: 1;
+  min-height: 10rem;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
+}
+
+.printGridFill::-webkit-scrollbar {
+  width: 8px;
+}
+.printGridFill::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  border-radius: 999px;
+}
+
+.printHoverPreview {
+  position: fixed;
+  z-index: 4000;
+  pointer-events: none;
+  width: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: #000;
+}
+
+.printHoverPreview img {
+  display: block;
+  width: 100%;
+  height: auto;
 }

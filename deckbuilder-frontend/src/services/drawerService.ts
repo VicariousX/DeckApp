@@ -151,26 +151,45 @@ export async function fetchDrawerCards(
 }
 
 /** Which drawers contain this oracle_id (for picker checks). */
+export type DrawerMembership = {
+  drawer_id: string;
+  drawer_card_id: string;
+  tier: number;
+};
+
 export async function drawersContainingOracle(
   userId: string,
   oracleId: string
-): Promise<{ drawerIds: string[]; error: string | null }> {
+): Promise<{
+  drawerIds: string[];
+  memberships: DrawerMembership[];
+  error: string | null;
+}> {
   const { data: drawers, error: dErr } = await supabase
     .from("drawers")
     .select("id")
     .eq("user_id", userId);
-  if (dErr) return { drawerIds: [], error: dErr.message };
+  if (dErr) return { drawerIds: [], memberships: [], error: dErr.message };
   const ids = (drawers ?? []).map((d) => (d as { id: string }).id);
-  if (ids.length === 0) return { drawerIds: [], error: null };
+  if (ids.length === 0) return { drawerIds: [], memberships: [], error: null };
 
   const { data, error } = await supabase
     .from("drawer_cards")
-    .select("drawer_id")
+    .select("id, drawer_id, tier")
     .eq("oracle_id", normOracle(oracleId))
     .in("drawer_id", ids);
-  if (error) return { drawerIds: [], error: error.message };
+  if (error) return { drawerIds: [], memberships: [], error: error.message };
+  const memberships: DrawerMembership[] = (data ?? []).map((r) => {
+    const row = r as { id: string; drawer_id: string; tier?: number | null };
+    return {
+      drawer_id: row.drawer_id,
+      drawer_card_id: row.id,
+      tier: typeof row.tier === "number" && row.tier >= 1 ? row.tier : 1,
+    };
+  });
   return {
-    drawerIds: (data ?? []).map((r) => (r as { drawer_id: string }).drawer_id),
+    drawerIds: memberships.map((m) => m.drawer_id),
+    memberships,
     error: null,
   };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
@@ -46,6 +47,7 @@ export function CardArtPanel({
   const [expanded, setExpanded] = useState(embedded);
   const [uploadOpen, setUploadOpen] = useState(true);
   const [printsOpen, setPrintsOpen] = useState(false);
+  const [printHover, setPrintHover] = useState<{ src: string; x: number; y: number } | null>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
@@ -522,7 +524,7 @@ export function CardArtPanel({
           </div>
         )}
         {openPrints && (
-          <div className={styles.innerBodyFlat}>
+          <div className={styles.innerBodyFlatFill}>
             <div className={styles.sectionHead}>
               {preferredId ? (
                 <button
@@ -544,7 +546,7 @@ export function CardArtPanel({
             ) : printings.length === 0 ? (
               <p className={styles.hint}>No alternate printings found.</p>
             ) : (
-              <div className={styles.printGrid}>
+              <div className={styles.printGridFill}>
                 {printings.map((p) => {
                   const thumb = getFaceImage(p, 0);
                   const faces = getFaces(p);
@@ -563,6 +565,24 @@ export function CardArtPanel({
                       disabled={busy}
                       onClick={() => void selectPrinting(p)}
                       title={`${p.set_name} · #${p.collector_number}`}
+                      onMouseEnter={(e) => {
+                        if (!thumb) return;
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setPrintHover({
+                          src: thumb,
+                          x: r.right + 10,
+                          y: r.top,
+                        });
+                      }}
+                      onMouseLeave={() => setPrintHover(null)}
+                      onMouseMove={(e) => {
+                        if (!thumb) return;
+                        setPrintHover({
+                          src: thumb,
+                          x: e.clientX + 16,
+                          y: e.clientY - 20,
+                        });
+                      }}
                     >
                       {thumb ? (
                         <img src={thumb} alt="" className={styles.printThumb} />
@@ -581,6 +601,16 @@ export function CardArtPanel({
                 })}
               </div>
             )}
+            {printHover &&
+              createPortal(
+                <div
+                  className={styles.printHoverPreview}
+                  style={{ left: printHover.x, top: printHover.y }}
+                >
+                  <img src={printHover.src} alt="" />
+                </div>,
+                document.body
+              )}
           </div>
         )}
       </div>

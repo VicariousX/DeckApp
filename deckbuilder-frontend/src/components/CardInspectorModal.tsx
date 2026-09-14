@@ -168,27 +168,28 @@ export function CardInspectorModal({
         onNext();
         return;
       }
-      // Artwork sub-tabs: left/right also cycle upload ↔ prints when on Artwork
-      // Up/down always move main tabs; when on artwork, left/right can still
-      // change cards — use [ and ] or explicitly Left/Right only for cards.
-      // User asked: arrow keys work within sub tabs — use Left/Right when on
-      // artwork for sub-tabs instead of cards, and keep card nav when not.
-      if (active === "artwork") {
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          // Prefer sub-tab when artwork focused (card nav via prev/next buttons)
-          e.preventDefault();
-          setArtSub((s) => (s === "upload" ? "prints" : "upload"));
-          return;
-        }
-      }
+      // Artwork sub-tabs use ↑/↓; overflow moves between main tabs.
+      // ←/→ always change cards when available.
       if (e.key === "ArrowUp") {
         e.preventDefault();
+        if (active === "artwork" && artSub === "prints") {
+          setArtSub("upload");
+          return;
+        }
         const next = Math.max(0, activeIndex - 1);
         selectTab(tabs[next].id);
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
+        if (active === "artwork" && artSub === "upload") {
+          setArtSub("prints");
+          return;
+        }
+        if (active === "artwork" && artSub === "prints") {
+          // stay on prints (end of sub-tabs)
+          return;
+        }
         const next = Math.min(tabs.length - 1, activeIndex + 1);
         selectTab(tabs[next].id);
         return;
@@ -205,6 +206,7 @@ export function CardInspectorModal({
     activeIndex,
     tabs,
     active,
+    artSub,
   ]);
 
   function selectTab(id: TabId) {
@@ -240,7 +242,7 @@ export function CardInspectorModal({
               ← Prev
             </button>
             <span className={styles.navHint}>
-              ↑↓ tabs · ←→ {active === "artwork" ? "art sub" : "cards"} · Esc
+              ↑↓ tabs/sub · ←→ cards · Esc
             </span>
             <button
               type="button"
@@ -267,6 +269,7 @@ export function CardInspectorModal({
                 overrideBackSrc={backSrc}
                 bothLayout="stack"
                 tilt
+                hideFaceBadge
               />
             )}
             {!loading && !displayCard && (
@@ -409,7 +412,9 @@ export function CardInspectorModal({
                         </div>
                       </div>
                     )}
-                    {deck.isOwner && (
+                  </div>
+                  {deck.isOwner && (
+                    <div className={styles.deckFooter}>
                       <button
                         type="button"
                         className={styles.removeBtn}
@@ -417,8 +422,8 @@ export function CardInspectorModal({
                       >
                         Remove from deck
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 

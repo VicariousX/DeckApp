@@ -7,6 +7,7 @@ declare const styles: {
   readonly frameTilt: string;
   readonly frameTiltActive: string;
   readonly tiltGlare: string;
+  readonly faceObject: string;
   readonly image: string;
   readonly both: string;
   readonly bothStack: string;

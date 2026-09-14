@@ -194,3 +194,10 @@
     display: none;
   }
 }
+
+.faceObject {
+  position: relative;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  isolation: isolate;
+}

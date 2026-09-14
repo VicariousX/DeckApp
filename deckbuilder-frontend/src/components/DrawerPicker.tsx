@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   createDrawer,
   drawersContainingOracle,
   listDrawers,
   seedDefaultDrawers,
+  setDrawerCardTier,
   toggleDrawerMembershipByOracle,
   toggleDrawerMembershipFromScryfall,
+  type DrawerMembership,
 } from "../services/drawerService";
 import type { Drawer } from "../types/drawer";
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -29,14 +32,37 @@ export function DrawerPicker({
   const { user } = useAuth();
   const [open, setOpen] = useState(inline);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
-  const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
+  const [memberships, setMemberships] = useState<Map<string, DrawerMembership>>(
+    () => new Map()
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  // Cache drawer list for the life of this mount (modal open)
+  const drawersCached = useRef(false);
 
-  const reload = useCallback(async () => {
+  const loadMemberships = useCallback(async () => {
     if (!user) return;
+    const { memberships: rows, error: mErr } = await drawersContainingOracle(
+      user.id,
+      oracleId
+    );
+    if (mErr) {
+      setError(mErr);
+      return;
+    }
+    const map = new Map<string, DrawerMembership>();
+    for (const m of rows) map.set(m.drawer_id, m);
+    setMemberships(map);
+  }, [user, oracleId]);
+
+  const ensureDrawers = useCallback(async () => {
+    if (!user) return;
+    if (drawersCached.current && drawers.length > 0) {
+      await loadMemberships();
+      return;
+    }
     setLoading(true);
     setError(null);
     let { drawers: list, error: dErr } = await listDrawers(user.id);
@@ -55,30 +81,36 @@ export function DrawerPicker({
       list = seeded.drawers;
     }
     setDrawers(list);
-    const { drawerIds, error: mErr } = await drawersContainingOracle(
-      user.id,
-      oracleId
-    );
-    if (mErr) {
-      setError(mErr);
-      setLoading(false);
-      return;
-    }
-    setMemberIds(new Set(drawerIds));
+    drawersCached.current = true;
+    await loadMemberships();
     setLoading(false);
-  }, [user, oracleId]);
+  }, [user, drawers.length, loadMemberships]);
 
   useEffect(() => {
-    if (open || inline) void reload();
-  }, [open, inline, reload]);
+    if (open || inline) void ensureDrawers();
+  }, [open, inline, ensureDrawers]);
+
+  // When oracle changes while open, only refresh memberships (keep drawer list)
+  useEffect(() => {
+    if ((open || inline) && drawersCached.current) {
+      void loadMemberships();
+    }
+  }, [oracleId, open, inline, loadMemberships]);
 
   async function onToggle(drawer: Drawer) {
     if (!user) return;
-    const inDrawer = memberIds.has(drawer.id);
-    setMemberIds((prev) => {
-      const next = new Set(prev);
+    const current = memberships.get(drawer.id);
+    const inDrawer = Boolean(current);
+    // Optimistic
+    setMemberships((prev) => {
+      const next = new Map(prev);
       if (inDrawer) next.delete(drawer.id);
-      else next.add(drawer.id);
+      else
+        next.set(drawer.id, {
+          drawer_id: drawer.id,
+          drawer_card_id: current?.drawer_card_id ?? `tmp-${drawer.id}`,
+          tier: 1,
+        });
       return next;
     });
 
@@ -93,7 +125,26 @@ export function DrawerPicker({
 
     if (err) {
       setError(err);
-      void reload();
+      void loadMemberships();
+      return;
+    }
+    // Refresh to get real drawer_card ids / tiers
+    void loadMemberships();
+  }
+
+  async function onTier(drawerId: string, delta: number) {
+    const m = memberships.get(drawerId);
+    if (!m || m.drawer_card_id.startsWith("tmp-")) return;
+    const nextTier = Math.max(1, m.tier + delta);
+    setMemberships((prev) => {
+      const next = new Map(prev);
+      next.set(drawerId, { ...m, tier: nextTier });
+      return next;
+    });
+    const { error: err } = await setDrawerCardTier(m.drawer_card_id, nextTier);
+    if (err) {
+      setError(err);
+      void loadMemberships();
     }
   }
 
@@ -115,6 +166,14 @@ export function DrawerPicker({
 
   const body = (
     <>
+      {inline && (
+        <div className={styles.manageRow}>
+          <Link to="/drawers" className={styles.manageLink}>
+            Manage drawers →
+          </Link>
+        </div>
+      )}
+
       {loading && <p className={styles.muted}>Loading…</p>}
       {error && (
         <p className={styles.error} role="alert">
@@ -125,9 +184,10 @@ export function DrawerPicker({
       {!loading && (
         <ul className={styles.list} role="listbox" aria-label="Drawers">
           {drawers.map((d) => {
-            const on = memberIds.has(d.id);
+            const m = memberships.get(d.id);
+            const on = Boolean(m);
             return (
-              <li key={d.id}>
+              <li key={d.id} className={styles.itemRow}>
                 <button
                   type="button"
                   className={`${styles.item}${on ? ` ${styles.itemOn}` : ""}`}
@@ -139,6 +199,34 @@ export function DrawerPicker({
                   <span className={styles.itemName}>{d.name}</span>
                   <span className={styles.itemCount}>{d.card_count ?? ""}</span>
                 </button>
+                {on && m && (
+                  <div className={styles.tierControls} title="Tier (1 = highest)">
+                    <button
+                      type="button"
+                      className={styles.tierBtn}
+                      aria-label="Higher tier"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onTier(d.id, -1);
+                      }}
+                      disabled={m.tier <= 1}
+                    >
+                      −
+                    </button>
+                    <span className={styles.tierValue}>T{m.tier}</span>
+                    <button
+                      type="button"
+                      className={styles.tierBtn}
+                      aria-label="Lower tier"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onTier(d.id, 1);
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </li>
             );
           })}
@@ -183,7 +271,7 @@ export function DrawerPicker({
       >
         Drawers
         <span className={styles.badge} aria-hidden>
-          {memberIds.size > 0 ? memberIds.size : "·"}
+          {memberships.size > 0 ? memberships.size : "·"}
         </span>
       </button>
 
