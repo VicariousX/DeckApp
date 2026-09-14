@@ -14,14 +14,20 @@ import styles from "./DrawerPicker.module.css";
 
 type Props = {
   oracleId: string;
-  /** When provided, toggling will ensure user_cards from this Scryfall payload. */
   scryfallCard?: ScryfallCard | null;
   className?: string;
+  /** Render list in-place (no popover) — modal Drawers tab. */
+  inline?: boolean;
 };
 
-export function DrawerPicker({ oracleId, scryfallCard, className }: Props) {
+export function DrawerPicker({
+  oracleId,
+  scryfallCard,
+  className,
+  inline = false,
+}: Props) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(inline);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -63,13 +69,12 @@ export function DrawerPicker({ oracleId, scryfallCard, className }: Props) {
   }, [user, oracleId]);
 
   useEffect(() => {
-    if (open) void reload();
-  }, [open, reload]);
+    if (open || inline) void reload();
+  }, [open, inline, reload]);
 
   async function onToggle(drawer: Drawer) {
     if (!user) return;
     const inDrawer = memberIds.has(drawer.id);
-    // Optimistic
     setMemberIds((prev) => {
       const next = new Set(prev);
       if (inDrawer) next.delete(drawer.id);
@@ -108,6 +113,65 @@ export function DrawerPicker({ oracleId, scryfallCard, className }: Props) {
 
   if (!user) return null;
 
+  const body = (
+    <>
+      {loading && <p className={styles.muted}>Loading…</p>}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+
+      {!loading && (
+        <ul className={styles.list} role="listbox" aria-label="Drawers">
+          {drawers.map((d) => {
+            const on = memberIds.has(d.id);
+            return (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  className={`${styles.item}${on ? ` ${styles.itemOn}` : ""}`}
+                  onClick={() => void onToggle(d)}
+                  role="option"
+                  aria-selected={on}
+                >
+                  <span className={styles.check}>{on ? "✓" : ""}</span>
+                  <span className={styles.itemName}>{d.name}</span>
+                  <span className={styles.itemCount}>{d.card_count ?? ""}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <form className={styles.createRow} onSubmit={(e) => void onCreate(e)}>
+        <input
+          className={styles.createInput}
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New drawer…"
+          maxLength={60}
+        />
+        <button
+          type="submit"
+          className={styles.createBtn}
+          disabled={creating || !newName.trim()}
+        >
+          Add
+        </button>
+      </form>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className={`${styles.inline}${className ? ` ${className}` : ""}`}>
+        {body}
+      </div>
+    );
+  }
+
   return (
     <div className={`${styles.wrap}${className ? ` ${className}` : ""}`}>
       <button
@@ -136,55 +200,7 @@ export function DrawerPicker({ oracleId, scryfallCard, className }: Props) {
               ×
             </button>
           </div>
-
-          {loading && <p className={styles.muted}>Loading…</p>}
-          {error && (
-            <p className={styles.error} role="alert">
-              {error}
-            </p>
-          )}
-
-          {!loading && (
-            <ul className={styles.list}>
-              {drawers.map((d) => {
-                const on = memberIds.has(d.id);
-                return (
-                  <li key={d.id}>
-                    <button
-                      type="button"
-                      className={`${styles.item}${on ? ` ${styles.itemOn}` : ""}`}
-                      onClick={() => void onToggle(d)}
-                      role="option"
-                      aria-selected={on}
-                    >
-                      <span className={styles.check}>{on ? "✓" : ""}</span>
-                      <span className={styles.itemName}>{d.name}</span>
-                      <span className={styles.itemCount}>
-                        {d.card_count ?? ""}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          <form className={styles.createRow} onSubmit={(e) => void onCreate(e)}>
-            <input
-              className={styles.createInput}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="New drawer…"
-              maxLength={60}
-            />
-            <button
-              type="submit"
-              className={styles.createBtn}
-              disabled={creating || !newName.trim()}
-            >
-              Add
-            </button>
-          </form>
+          {body}
         </div>
       )}
     </div>

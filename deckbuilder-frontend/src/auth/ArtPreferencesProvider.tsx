@@ -33,10 +33,11 @@ type ArtPreferencesContextValue = {
   preferredPrintings: Map<string, ScryfallCard>;
   loading: boolean;
   reload: () => Promise<void>;
-  /** Resolve best front image URL for an oracle + optional fallback scryfall id. */
+  /** Resolve best image URL for an oracle face (0=front, 1=back). */
   resolveImageUrl: (
     oracleId: string,
-    fallbackScryfallId?: string | null
+    fallbackScryfallId?: string | null,
+    faceIndex?: number
   ) => Promise<string | null>;
   /** Apply user art to a Scryfall card (sync if preferred already cached). */
   resolveDisplayCard: (card: ScryfallCard) => {
@@ -170,41 +171,63 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
   const resolveImageUrl = useCallback(
     async (
       oracleId: string,
-      fallbackScryfallId?: string | null
+      fallbackScryfallId?: string | null,
+      faceIndex = 0
     ): Promise<string | null> => {
       const oid = normId(oracleId);
       if (!oid) return null;
+      const face = faceIndex > 0 ? 1 : 0;
+      const cacheKey = face === 0 ? oid : `${oid}:back`;
 
-      const cached = imageUrlCache.current.get(oid);
+      const cached = imageUrlCache.current.get(cacheKey);
       if (cached) return cached;
 
       const art = artRef.current.get(oid);
 
       // Custom upload wins immediately — no network
-      if (art?.custom_front_path) {
+      if (face === 0 && art?.custom_front_path) {
         const url = cardArtPublicUrl(art.custom_front_path);
         if (url) {
-          imageUrlCache.current.set(oid, url);
+          imageUrlCache.current.set(cacheKey, url);
+          return url;
+        }
+      }
+      if (face === 1 && art?.custom_back_path) {
+        const url = cardArtPublicUrl(art.custom_back_path);
+        if (url) {
+          imageUrlCache.current.set(cacheKey, url);
           return url;
         }
       }
 
-      // Preferred printing
+      function faceUrl(card: ScryfallCard | undefined | null): string {
+        if (!card) return "";
+        if (face === 1) {
+          return (
+            card.card_faces?.[1]?.image_uris?.normal ||
+            card.card_faces?.[1]?.image_uris?.large ||
+            ""
+          );
+        }
+        return (
+          card.image_uris?.normal ||
+          card.card_faces?.[0]?.image_uris?.normal ||
+          card.image_uris?.large ||
+          ""
+        );
+      }
+
+      // Preferred printing (both faces from the same printing when available)
       if (art?.preferred_scryfall_id) {
         const prefId = normId(art.preferred_scryfall_id);
         let pref = preferredRef.current.get(prefId);
         if (!pref) {
           pref = (await ensurePreferred(prefId)) ?? undefined;
         }
-        if (pref) {
-          const url =
-            pref.image_uris?.normal ||
-            pref.card_faces?.[0]?.image_uris?.normal ||
-            "";
-          if (url) {
-            imageUrlCache.current.set(oid, url);
-            return url;
-          }
+        const url = faceUrl(pref);
+        if (url) {
+          imageUrlCache.current.set(cacheKey, url);
+          return url;
         }
       }
 
@@ -215,18 +238,18 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
         if (!card) {
           card = (await ensurePreferred(fid)) ?? undefined;
         }
-        if (card) {
-          const url =
-            card.image_uris?.normal ||
-            card.card_faces?.[0]?.image_uris?.normal ||
-            "";
-          if (url) {
-            // Only cache under oracle if no custom/preferred preference
-            if (!art?.preferred_scryfall_id && !art?.custom_front_path) {
-              imageUrlCache.current.set(oid, url);
-            }
-            return url;
+        const url = faceUrl(card);
+        if (url) {
+          if (
+            face === 0 &&
+            !art?.preferred_scryfall_id &&
+            !art?.custom_front_path
+          ) {
+            imageUrlCache.current.set(cacheKey, url);
+          } else if (face === 1) {
+            imageUrlCache.current.set(cacheKey, url);
           }
+          return url;
         }
       }
 
@@ -258,6 +281,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
       const oid = normId(oracleId);
       if (!oid) return;
       imageUrlCache.current.delete(oid);
+      imageUrlCache.current.delete(`${oid}:back`);
 
       // Normalize art IDs so map lookups always hit
       const normalizedArt = art

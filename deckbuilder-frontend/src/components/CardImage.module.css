@@ -131,3 +131,14 @@
   grid-template-columns: 1fr;
   gap: 6px;
 }
+
+/* Reserve height of two stacked cards (uniform modal footprint) */
+.frameStackTall {
+  min-height: min(64vh, 520px);
+}
+
+.frameBothStack .imageHalf {
+  max-height: min(31vh, 250px);
+  width: 100%;
+  object-fit: contain;
+}

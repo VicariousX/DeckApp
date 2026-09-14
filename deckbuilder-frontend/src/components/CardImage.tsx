@@ -39,7 +39,14 @@ export function CardImage({
 }: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
-  const [view, setView] = useState<CardFaceView>("front");
+  const [view, setView] = useState<CardFaceView>(() =>
+    bothLayout === "stack" && multi ? "both" : "front"
+  );
+
+  // Reset view when card or layout changes
+  useEffect(() => {
+    setView(bothLayout === "stack" && multi ? "both" : "front");
+  }, [card.id, bothLayout, multi]);
 
   useEffect(() => {
     onViewChange?.(view);
@@ -74,6 +81,7 @@ export function CardImage({
     multi ? styles.frameMulti : "",
     view === "both" ? styles.frameBoth : "",
     view === "both" && bothLayout === "stack" ? styles.frameBothStack : "",
+    bothLayout === "stack" ? styles.frameStackTall : "",
     className ?? "",
   ]
     .filter(Boolean)

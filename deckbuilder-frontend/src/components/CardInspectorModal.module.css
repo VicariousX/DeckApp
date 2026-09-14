@@ -54,6 +54,10 @@
 
 .visual {
   min-width: 0;
+  min-height: min(64vh, 520px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .visual :global(img) {

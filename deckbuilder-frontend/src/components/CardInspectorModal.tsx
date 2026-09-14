@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById } from "../lib/scryfallApi";
+import { cardArtPublicUrl } from "../services/cardArtService";
 import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
@@ -32,7 +34,6 @@ type Props = {
   scryfallId: string;
   name?: string;
   imageUrl?: string;
-  /** Optional preferred/custom back face URL (DFC). */
   imageUrlBack?: string;
   onClose: () => void;
   onPrev?: () => void;
@@ -56,17 +57,24 @@ export function CardInspectorModal({
   hasNext = false,
   deck,
 }: Props) {
-  const [scryfall, setScryfall] = useState<ScryfallCard | null>(null);
+  const { artByOracleId, preferredPrintings } = useArtPreferences();
+  const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
+  const [displayCard, setDisplayCard] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("upload");
   const [contentKey, setContentKey] = useState(0);
+  const [frontSrc, setFrontSrc] = useState<string | undefined>(imageUrl);
+  const [backSrc, setBackSrc] = useState<string | undefined>(imageUrlBack);
 
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
     if (deck) list.push({ id: "deck", label: "Deck" });
-    list.push({ id: "drawers", label: "Drawers" }, { id: "artwork", label: "Artwork" });
+    list.push(
+      { id: "drawers", label: "Drawers" },
+      { id: "artwork", label: "Artwork" }
+    );
     return list;
   }, [deck]);
 
@@ -76,10 +84,10 @@ export function CardInspectorModal({
   );
 
   useEffect(() => {
-    // Keep active tab valid when deck controls appear/disappear
     if (!tabs.some((t) => t.id === active)) setActive("info");
   }, [tabs, active]);
 
+  // Load base + preferred printing so both faces use the same preferred art
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -89,18 +97,59 @@ export function CardInspectorModal({
       if (cancelled) return;
       if (err || !c) {
         setError(err ?? "Could not load card details.");
-        setScryfall(null);
+        setBaseCard(null);
+        setDisplayCard(null);
         setLoading(false);
         return;
       }
-      setScryfall(c);
+      setBaseCard(c);
+
+      const oracleId = (c.oracle_id ?? c.id).toLowerCase();
+      const art = artByOracleId.get(oracleId);
+      let display: ScryfallCard = c;
+
+      if (art?.preferred_scryfall_id) {
+        const prefId = String(art.preferred_scryfall_id).toLowerCase();
+        if (prefId !== String(c.id).toLowerCase()) {
+          let pref = preferredPrintings.get(prefId);
+          if (!pref) {
+            const { card: prefCard } = await fetchCardById(prefId);
+            if (cancelled) return;
+            pref = prefCard ?? undefined;
+          }
+          if (pref) display = pref;
+        }
+      }
+
+      setDisplayCard(display);
+
+      // Resolve per-face URLs (custom > preferred printing faces)
+      const customFront = art?.custom_front_path
+        ? cardArtPublicUrl(art.custom_front_path)
+        : "";
+      const customBack = art?.custom_back_path
+        ? cardArtPublicUrl(art.custom_back_path)
+        : "";
+
+      setFrontSrc(
+        customFront ||
+          imageUrl ||
+          getFaceImage(display, 0) ||
+          undefined
+      );
+      setBackSrc(
+        customBack ||
+          imageUrlBack ||
+          (isMultiCard(display) ? getFaceImage(display, 1) || undefined : undefined)
+      );
+
       setLoading(false);
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [scryfallId]);
+  }, [scryfallId, artByOracleId, preferredPrintings, imageUrl, imageUrlBack]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -119,6 +168,19 @@ export function CardInspectorModal({
         onNext();
         return;
       }
+      // Artwork sub-tabs: left/right also cycle upload ↔ prints when on Artwork
+      // Up/down always move main tabs; when on artwork, left/right can still
+      // change cards — use [ and ] or explicitly Left/Right only for cards.
+      // User asked: arrow keys work within sub tabs — use Left/Right when on
+      // artwork for sub-tabs instead of cards, and keep card nav when not.
+      if (active === "artwork") {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          // Prefer sub-tab when artwork focused (card nav via prev/next buttons)
+          e.preventDefault();
+          setArtSub((s) => (s === "upload" ? "prints" : "upload"));
+          return;
+        }
+      }
       if (e.key === "ArrowUp") {
         e.preventDefault();
         const next = Math.max(0, activeIndex - 1);
@@ -134,7 +196,16 @@ export function CardInspectorModal({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasPrev, hasNext, onPrev, onNext, onClose, activeIndex, tabs]);
+  }, [
+    hasPrev,
+    hasNext,
+    onPrev,
+    onNext,
+    onClose,
+    activeIndex,
+    tabs,
+    active,
+  ]);
 
   function selectTab(id: TabId) {
     if (id === active) return;
@@ -142,14 +213,10 @@ export function CardInspectorModal({
     setContentKey((k) => k + 1);
   }
 
-  const displayName = scryfall?.name ?? name ?? "Card";
+  const displayName = displayCard?.name ?? baseCard?.name ?? name ?? "Card";
   const assigned = new Set(deck?.card.tag_ids ?? []);
-  const multi = scryfall ? isMultiCard(scryfall) : false;
-  // Preferred printing is the fetched card when scryfallId points at that printing;
-  // use its back face unless a custom back URL is provided.
-  const backSrc =
-    imageUrlBack ||
-    (scryfall && multi ? getFaceImage(scryfall, 1) || undefined : undefined);
+  const above = tabs.slice(0, activeIndex);
+  const below = tabs.slice(activeIndex + 1);
 
   function handleRemove() {
     if (!deck) return;
@@ -157,9 +224,6 @@ export function CardInspectorModal({
     if (hasNext && onNext) onNext();
     else onClose();
   }
-
-  const above = tabs.slice(0, activeIndex);
-  const below = tabs.slice(activeIndex + 1);
 
   return (
     <Modal onClose={onClose} hideClose>
@@ -175,7 +239,9 @@ export function CardInspectorModal({
             >
               ← Prev
             </button>
-            <span className={styles.navHint}>↑↓ tabs · ←→ cards · Esc</span>
+            <span className={styles.navHint}>
+              ↑↓ tabs · ←→ {active === "artwork" ? "art sub" : "cards"} · Esc
+            </span>
             <button
               type="button"
               className={styles.navBtn}
@@ -193,18 +259,18 @@ export function CardInspectorModal({
             {loading && (
               <div className={styles.imagePlaceholder}>Loading…</div>
             )}
-            {!loading && scryfall && (
+            {!loading && displayCard && (
               <CardImage
-                card={scryfall}
-                overrideFrontSrc={imageUrl}
+                card={displayCard}
+                overrideFrontSrc={frontSrc}
                 overrideBackSrc={backSrc}
                 bothLayout="stack"
               />
             )}
-            {!loading && !scryfall && (
-              imageUrl ? (
+            {!loading && !displayCard && (
+              frontSrc ? (
                 <img
-                  src={imageUrl}
+                  src={frontSrc}
                   alt={displayName}
                   className={styles.image}
                 />
@@ -216,13 +282,12 @@ export function CardInspectorModal({
 
           <div className={styles.body}>
             {above.length > 0 && (
-              <div className={styles.tabRail} role="tablist" aria-label="Sections above">
+              <div className={styles.tabRail} role="tablist">
                 {above.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     role="tab"
-                    aria-selected={false}
                     className={styles.tabPill}
                     onClick={() => selectTab(t.id)}
                   >
@@ -236,7 +301,6 @@ export function CardInspectorModal({
               key={contentKey}
               className={styles.tabPanel}
               role="tabpanel"
-              aria-label={tabs[activeIndex]?.label}
             >
               <div className={styles.tabPanelTitle}>
                 {tabs[activeIndex]?.label}
@@ -249,13 +313,13 @@ export function CardInspectorModal({
                       {error}
                     </p>
                   )}
-                  {scryfall && (
+                  {displayCard && (
                     <CardDetail
-                      card={scryfall}
-                      hidePrintingMeta={Boolean(imageUrl)}
+                      card={displayCard}
+                      hidePrintingMeta={Boolean(frontSrc && frontSrc !== getFaceImage(displayCard, 0))}
                     />
                   )}
-                  {!scryfall && !loading && (
+                  {!displayCard && !loading && (
                     <h2 className={styles.fallbackTitle}>{displayName}</h2>
                   )}
                   <Link
@@ -295,7 +359,6 @@ export function CardInspectorModal({
                         </button>
                       </div>
                     </div>
-
                     <label className={styles.boardRow}>
                       <span className={styles.extraLabel}>Board</span>
                       <select
@@ -313,7 +376,6 @@ export function CardInspectorModal({
                         ))}
                       </select>
                     </label>
-
                     {deck.tags.length > 0 && (
                       <div className={styles.tagsBlock}>
                         <span className={styles.extraLabel}>Deck tags</span>
@@ -345,7 +407,6 @@ export function CardInspectorModal({
                         </div>
                       </div>
                     )}
-
                     {deck.isOwner && (
                       <button
                         type="button"
@@ -361,10 +422,14 @@ export function CardInspectorModal({
 
               {active === "drawers" && (
                 <div className={styles.panelScroll}>
-                  {scryfall ? (
+                  {displayCard || baseCard ? (
                     <DrawerPicker
-                      oracleId={(scryfall.oracle_id ?? scryfall.id).toLowerCase()}
-                      scryfallCard={scryfall}
+                      oracleId={(
+                        (displayCard ?? baseCard)!.oracle_id ??
+                        (displayCard ?? baseCard)!.id
+                      ).toLowerCase()}
+                      scryfallCard={displayCard ?? baseCard!}
+                      inline
                     />
                   ) : (
                     <p className={styles.muted}>Load card to manage drawers.</p>
@@ -374,7 +439,7 @@ export function CardInspectorModal({
 
               {active === "artwork" && (
                 <div className={styles.panelScroll}>
-                  <div className={styles.subTabRail} role="tablist" aria-label="Artwork">
+                  <div className={styles.subTabRail} role="tablist">
                     <button
                       type="button"
                       role="tab"
@@ -398,9 +463,9 @@ export function CardInspectorModal({
                       Printings
                     </button>
                   </div>
-                  {scryfall ? (
+                  {displayCard || baseCard ? (
                     <CardArtPanel
-                      card={scryfall}
+                      card={displayCard ?? baseCard!}
                       embedded
                       forceSub={artSub}
                     />
@@ -412,13 +477,12 @@ export function CardInspectorModal({
             </div>
 
             {below.length > 0 && (
-              <div className={styles.tabRail} role="tablist" aria-label="Sections below">
+              <div className={styles.tabRail} role="tablist">
                 {below.map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     role="tab"
-                    aria-selected={false}
                     className={styles.tabPill}
                     onClick={() => selectTab(t.id)}
                   >

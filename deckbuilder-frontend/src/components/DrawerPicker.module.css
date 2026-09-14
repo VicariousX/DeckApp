@@ -165,3 +165,19 @@
   font-size: 0.8rem;
   color: #f87171;
 }
+
+.inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.inline .list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: none;
+}
