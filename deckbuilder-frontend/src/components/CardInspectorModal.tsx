@@ -497,22 +497,25 @@ export function CardInspectorModal({
                 </div>
               )}
 
-              {active === "drawers" && (
-                <div className={styles.panelScroll}>
-                  {displayCard || baseCard ? (
-                    <DrawerPicker
-                      oracleId={(
-                        (displayCard ?? baseCard)!.oracle_id ??
-                        (displayCard ?? baseCard)!.id
-                      ).toLowerCase()}
-                      scryfallCard={displayCard ?? baseCard!}
-                      inline
-                    />
-                  ) : (
-                    <p className={styles.muted}>Load card to manage drawers.</p>
-                  )}
-                </div>
-              )}
+              {/* Keep mounted so drawer list cache survives tab switches */}
+              <div
+                className={styles.panelScroll}
+                hidden={active !== "drawers"}
+                style={active !== "drawers" ? { display: "none" } : undefined}
+              >
+                {displayCard || baseCard ? (
+                  <DrawerPicker
+                    oracleId={(
+                      (displayCard ?? baseCard)!.oracle_id ??
+                      (displayCard ?? baseCard)!.id
+                    ).toLowerCase()}
+                    scryfallCard={displayCard ?? baseCard!}
+                    inline
+                  />
+                ) : (
+                  <p className={styles.muted}>Load card to manage drawers.</p>
+                )}
+              </div>
 
               {active === "artwork" && (
                 <div className={styles.panelScroll}>

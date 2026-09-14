@@ -18,5 +18,10 @@ declare const styles: {
   readonly controlBtn: string;
   readonly controlBtnActive: string;
   readonly faceBadge: string;
+  readonly enlargeOverlay: string;
+  readonly enlargeStage: string;
+  readonly enlargeImage: string;
+  readonly enlargeHint: string;
 };
+
 export default styles;

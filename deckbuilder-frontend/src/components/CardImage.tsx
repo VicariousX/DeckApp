@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -7,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 import {
@@ -40,10 +42,12 @@ function TiltFace({
   enabled,
   children,
   className,
+  onFaceClick,
 }: {
   enabled: boolean;
   children: ReactNode;
   className?: string;
+  onFaceClick?: () => void;
 }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [tilt, setTilt] = useState<Tilt | null>(null);
@@ -103,6 +107,15 @@ function TiltFace({
       style={style}
       onPointerMove={enabled ? onPointerMove : undefined}
       onPointerLeave={enabled ? onPointerLeave : undefined}
+      onClick={
+        onFaceClick
+          ? (e) => {
+              e.stopPropagation();
+              onFaceClick();
+            }
+          : undefined
+      }
+      role={onFaceClick ? "button" : undefined}
     >
       {enabled && <div className={styles.tiltGlare} aria-hidden />}
       {children}
@@ -131,6 +144,23 @@ export function CardImage({
     bothLayout === "stack" && multi ? "both" : "front";
   const [userView, setUserView] = useState<CardFaceView | null>(null);
   const view = userView ?? defaultView;
+  const [enlarged, setEnlarged] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!enlarged) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        e.preventDefault();
+        setEnlarged(null);
+      }
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [enlarged]);
 
   const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
   const backSrc = multi
@@ -201,7 +231,14 @@ export function CardImage({
       {showBoth ? (
         <div className={bothClass}>
           <FaceSlot>
-            <TiltFace enabled={tilt}>
+            <TiltFace
+              enabled={tilt}
+              onFaceClick={
+                tilt
+                  ? () => setEnlarged({ src: frontSrc, alt: frontName })
+                  : undefined
+              }
+            >
               <img
                 key={`f-${frontSrc}`}
                 src={frontSrc}
@@ -212,7 +249,14 @@ export function CardImage({
             </TiltFace>
           </FaceSlot>
           <FaceSlot>
-            <TiltFace enabled={tilt}>
+            <TiltFace
+              enabled={tilt}
+              onFaceClick={
+                tilt
+                  ? () => setEnlarged({ src: backSrc, alt: backName })
+                  : undefined
+              }
+            >
               <img
                 key={`b-${backSrc}`}
                 src={backSrc}
@@ -225,7 +269,18 @@ export function CardImage({
         </div>
       ) : (
         <FaceSlot>
-          <TiltFace enabled={tilt}>
+          <TiltFace
+            enabled={tilt}
+            onFaceClick={
+              tilt
+                ? () =>
+                    setEnlarged({
+                      src: showBackOnly ? backSrc : frontSrc,
+                      alt: showBackOnly ? backName : frontName,
+                    })
+                : undefined
+            }
+          >
             <img
               key={showBackOnly ? `b-${backSrc}` : `f-${frontSrc}`}
               src={showBackOnly ? backSrc : frontSrc}
@@ -264,6 +319,33 @@ export function CardImage({
           </button>
         </div>
       )}
+
+      {enlarged &&
+        createPortal(
+          <div
+            className={styles.enlargeOverlay}
+            onClick={() => setEnlarged(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={enlarged.alt}
+          >
+            <div
+              className={styles.enlargeStage}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <TiltFace enabled>
+                <img
+                  src={enlarged.src}
+                  alt={enlarged.alt}
+                  className={styles.enlargeImage}
+                  draggable={false}
+                />
+              </TiltFace>
+              <p className={styles.enlargeHint}>Click outside to close</p>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

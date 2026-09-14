@@ -14,6 +14,9 @@ import type { Drawer } from "../types/drawer";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./DrawerPicker.module.css";
 
+/** Session cache so the drawer list is not refetched every tab open. */
+const drawerListCache = new Map<string, Drawer[]>();
+
 type Props = {
   oracleId: string;
   scryfallCard?: ScryfallCard | null;
@@ -30,7 +33,9 @@ export function DrawerPicker({
 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(inline);
-  const [drawers, setDrawers] = useState<Drawer[]>([]);
+  const [drawers, setDrawers] = useState<Drawer[]>(() =>
+    user ? drawerListCache.get(user.id) ?? [] : []
+  );
   const [memberships, setMemberships] = useState<Map<string, DrawerMembership>>(
     () => new Map()
   );
@@ -38,8 +43,7 @@ export function DrawerPicker({
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
-  // Cache drawer list for the life of this mount (modal open)
-  const drawersCached = useRef(false);
+  const membershipOracle = useRef<string | null>(null);
 
   const loadMemberships = useCallback(async () => {
     if (!user) return;
@@ -54,14 +58,19 @@ export function DrawerPicker({
     const map = new Map<string, DrawerMembership>();
     for (const m of rows) map.set(m.drawer_id, m);
     setMemberships(map);
+    membershipOracle.current = oracleId;
   }, [user, oracleId]);
 
   const ensureDrawers = useCallback(async () => {
     if (!user) return;
-    if (drawersCached.current && drawers.length > 0) {
+
+    const cached = drawerListCache.get(user.id);
+    if (cached && cached.length > 0) {
+      setDrawers(cached);
       await loadMemberships();
       return;
     }
+
     setLoading(true);
     setError(null);
     let { drawers: list, error: dErr } = await listDrawers(user.id);
@@ -79,28 +88,28 @@ export function DrawerPicker({
       }
       list = seeded.drawers;
     }
+    drawerListCache.set(user.id, list);
     setDrawers(list);
-    drawersCached.current = true;
     await loadMemberships();
     setLoading(false);
-  }, [user, drawers.length, loadMemberships]);
+  }, [user, loadMemberships]);
 
   useEffect(() => {
     if (open || inline) void ensureDrawers();
   }, [open, inline, ensureDrawers]);
 
-  // When oracle changes while open, only refresh memberships (keep drawer list)
+  // Oracle change: memberships only (list stays cached)
   useEffect(() => {
-    if ((open || inline) && drawersCached.current) {
-      void loadMemberships();
-    }
-  }, [oracleId, open, inline, loadMemberships]);
+    if (!(open || inline)) return;
+    if (membershipOracle.current === oracleId) return;
+    if (drawers.length === 0 && !drawerListCache.get(user?.id ?? "")) return;
+    void loadMemberships();
+  }, [oracleId, open, inline, drawers.length, loadMemberships, user?.id]);
 
   async function onToggle(drawer: Drawer) {
     if (!user) return;
     const current = memberships.get(drawer.id);
     const inDrawer = Boolean(current);
-    // Optimistic
     setMemberships((prev) => {
       const next = new Map(prev);
       if (inDrawer) next.delete(drawer.id);
@@ -127,8 +136,20 @@ export function DrawerPicker({
       void loadMemberships();
       return;
     }
-    // Refresh to get real drawer_card ids / tiers
     void loadMemberships();
+    // Keep list cache; optionally bump card_count optimistically
+    setDrawers((prev) => {
+      const next = prev.map((d) => {
+        if (d.id !== drawer.id) return d;
+        const count = d.card_count ?? 0;
+        return {
+          ...d,
+          card_count: Math.max(0, count + (inDrawer ? -1 : 1)),
+        };
+      });
+      drawerListCache.set(user.id, next);
+      return next;
+    });
   }
 
   async function onTier(drawerId: string, delta: number) {
@@ -158,21 +179,27 @@ export function DrawerPicker({
       return;
     }
     setNewName("");
-    setDrawers((prev) => [...prev, { ...drawer, card_count: 0 }]);
+    setDrawers((prev) => {
+      const next = [...prev, { ...drawer, card_count: 0 }];
+      if (user) drawerListCache.set(user.id, next);
+      return next;
+    });
   }
 
   if (!user) return null;
 
   const body = (
     <>
-      {loading && <p className={styles.muted}>Loading…</p>}
+      {loading && drawers.length === 0 && (
+        <p className={styles.muted}>Loading…</p>
+      )}
       {error && (
         <p className={styles.error} role="alert">
           {error}
         </p>
       )}
 
-      {!loading && (
+      {drawers.length > 0 && (
         <ul className={styles.list} role="listbox" aria-label="Drawers">
           {drawers.map((d) => {
             const m = memberships.get(d.id);

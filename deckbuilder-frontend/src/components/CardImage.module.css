@@ -293,3 +293,43 @@
   object-fit: cover;
   border-radius: 11px;
 }
+
+.enlargeOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.enlargeStage {
+  width: min(340px, 78vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.enlargeStage .faceObject {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 14px;
+}
+
+.enlargeImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
+}
+
+.enlargeHint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 600;
+}
