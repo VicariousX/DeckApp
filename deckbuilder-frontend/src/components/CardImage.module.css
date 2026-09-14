@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow: visible;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
@@ -47,14 +47,14 @@
 .controls {
   position: absolute;
   left: 50%;
-  top: 18%;
+  top: 0.35rem;
   transform: translateX(-50%);
   display: flex;
   gap: 0.4rem;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--motion-fast) var(--motion-ease);
-  z-index: 2;
+  z-index: 30;
 }
 
 .frame:hover .controls,
@@ -146,21 +146,44 @@
 .frameTilt {
   transform-style: preserve-3d;
   transition:
-    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.35s ease;
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s ease,
+    filter 0.3s ease;
   will-change: transform;
   touch-action: none;
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.08), transparent 42%),
+    var(--color-surface);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.frameTilt img {
+  border-radius: 11px;
+  display: block;
+  width: 100%;
+  height: auto;
+  backface-visibility: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
 .frameTiltActive {
   transition:
-    transform 0.08s linear,
-    box-shadow 0.15s ease;
+    transform 0.06s linear,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+  filter: brightness(1.04) contrast(1.03);
   box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.45),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent),
-    0 0 28px var(--color-accent-glow);
-  z-index: 3;
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    0 14px 28px rgba(0, 0, 0, 0.5),
+    0 28px 48px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent),
+    0 0 32px var(--color-accent-glow);
+  z-index: 2;
 }
 
 .tiltGlare {
@@ -170,13 +193,20 @@
   border-radius: inherit;
   z-index: 4;
   opacity: 0;
-  transition: opacity 0.25s ease;
-  background: radial-gradient(
-    circle at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgba(255, 255, 255, 0.28) 0%,
-    rgba(255, 255, 255, 0.06) 35%,
-    transparent 60%
-  );
+  transition: opacity 0.2s ease;
+  background:
+    radial-gradient(
+      circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.12) 28%,
+      transparent 58%
+    ),
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      transparent 42%,
+      rgba(0, 0, 0, 0.12) 100%
+    );
   mix-blend-mode: soft-light;
 }
 
@@ -184,20 +214,36 @@
   opacity: 1;
 }
 
+/* Controls must sit above tilting faces */
+.controls {
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+
+.controlBtn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 21;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .frameTilt,
   .frameTiltActive {
     transition: none;
     transform: none !important;
+    filter: none;
   }
   .tiltGlare {
     display: none;
   }
 }
 
+
 .faceObject {
   position: relative;
-  border-radius: inherit;
+  border-radius: 12px;
   transform-style: preserve-3d;
   isolation: isolate;
+  /* room for tilt scale without clipping parent */
+  margin: 0.35rem 0.15rem;
 }

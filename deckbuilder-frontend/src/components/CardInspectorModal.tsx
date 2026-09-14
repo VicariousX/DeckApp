@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById } from "../lib/scryfallApi";
@@ -65,6 +65,15 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("upload");
   const [contentKey, setContentKey] = useState(0);
+  const [modalSize, setModalSize] = useState<{ w: number; h: number } | null>(null);
+  const resizing = useRef<null | {
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+  }>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
   const [frontSrc, setFrontSrc] = useState<string | undefined>(imageUrl);
   const [backSrc, setBackSrc] = useState<string | undefined>(imageUrlBack);
 
@@ -215,6 +224,47 @@ export function CardInspectorModal({
     setContentKey((k) => k + 1);
   }
 
+  function onResizePointerDown(e: ReactPointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const el = shellRef.current?.parentElement; // .modal
+    const rect = (el ?? shellRef.current)?.getBoundingClientRect();
+    if (!rect) return;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    resizing.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: modalSize?.w ?? rect.width,
+      startH: modalSize?.h ?? rect.height,
+    };
+  }
+
+  useEffect(() => {
+    function onMove(e: PointerEvent) {
+      if (!resizing.current) return;
+      const r = resizing.current;
+      const w = Math.max(520, Math.min(window.innerWidth - 24, r.startW + (e.clientX - r.startX)));
+      const h = Math.max(420, Math.min(window.innerHeight - 24, r.startH + (e.clientY - r.startY)));
+      setModalSize({ w, h });
+    }
+    function onUp() {
+      resizing.current = null;
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
+
   const displayName = displayCard?.name ?? baseCard?.name ?? name ?? "Card";
   const assigned = new Set(deck?.card.tag_ids ?? []);
   const above = tabs.slice(0, activeIndex);
@@ -228,8 +278,16 @@ export function CardInspectorModal({
   }
 
   return (
-    <Modal onClose={onClose} hideClose>
-      <div className={styles.shell}>
+    <Modal
+      onClose={onClose}
+      hideClose
+      style={
+        modalSize
+          ? { width: modalSize.w, height: modalSize.h, maxWidth: "none", maxHeight: "none" }
+          : undefined
+      }
+    >
+      <div className={styles.shell} ref={shellRef}>
         {(hasPrev || hasNext) && (
           <div className={styles.navRow}>
             <button
@@ -308,7 +366,16 @@ export function CardInspectorModal({
               role="tabpanel"
             >
               <div className={styles.tabPanelTitle}>
-                {tabs[activeIndex]?.label}
+                <span>{tabs[activeIndex]?.label}</span>
+                {active === "drawers" && (
+                  <Link
+                    to="/drawers"
+                    className={styles.manageLink}
+                    onClick={onClose}
+                  >
+                    Manage drawers →
+                  </Link>
+                )}
               </div>
 
               {active === "info" && (
@@ -500,6 +567,11 @@ export function CardInspectorModal({
             )}
           </div>
         </div>
+        <div
+          className={styles.resizeHandle}
+          onPointerDown={onResizePointerDown}
+          title="Drag to resize"
+        />
       </div>
     </Modal>
   );
