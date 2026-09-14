@@ -1,13 +1,11 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
-import { useTheme, type AppTheme } from "../theme/ThemeProvider";
 import styles from "./LandingPage.module.css";
 import transitions from "../styles/pageTransitions.module.css";
 
 export function LandingPage() {
   const { user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const displayName = getDisplayName(user);
 
   const guestPaths = [
@@ -67,7 +65,7 @@ export function LandingPage() {
         </h1>
         <p className={styles.subtitle}>
           {user
-            ? `Welcome back, ${displayName}. Search the card pool, manage your decks, or update your account.`
+            ? `Welcome back, ${displayName}. Search the card pool or open your decks.`
             : "Search the full card pool, study public lists, and shape your next brew — all in one place."}
         </p>
       </div>
@@ -85,53 +83,26 @@ export function LandingPage() {
             </span>
             <span className={styles.cardTitle}>{path.title}</span>
             <span className={styles.cardDesc}>{path.description}</span>
-            <span className={styles.cardCta}>Open →</span>
           </Link>
         ))}
       </div>
 
-      {user && (
-        <div className={styles.accountPanel}>
-          <div className={styles.accountPanelHeader}>
-            <div>
-              <p className={styles.accountPanelLabel}>Account</p>
-              <p className={styles.accountPanelName}>{displayName}</p>
-              {user.email && (
-                <p className={styles.accountPanelEmail}>{user.email}</p>
-              )}
-            </div>
-            <Link to="/login" className={styles.accountPanelLink}>
-              Manage profile →
+      <p className={styles.footerHint}>
+        {user ? (
+          <>
+            Signed in as{" "}
+            <Link to="/login" className={styles.inlineLink}>
+              {displayName}
             </Link>
-          </div>
-
-          <div className={styles.themeBar} role="group" aria-label="Theme">
-            <span className={styles.themeLabel}>Theme</span>
-            <button
-              type="button"
-              className={`${styles.themeBtn} ${
-                theme === "premium" ? styles.themeBtnActive : ""
-              }`}
-              onClick={() => setTheme("premium" as AppTheme)}
-            >
-              Premium
-            </button>
-            <button
-              type="button"
-              className={`${styles.themeBtn} ${
-                theme === "arcane" ? styles.themeBtnActive : ""
-              }`}
-              onClick={() => setTheme("arcane" as AppTheme)}
-            >
-              Arcane
-            </button>
-          </div>
-        </div>
-      )}
-
-      <p className={styles.footer}>
-        {theme === "arcane" ? "Arcane" : "Premium"} theme · local Scryfall
-        symbols
+          </>
+        ) : (
+          <>
+            <Link to="/login" className={styles.inlineLink}>
+              Log in
+            </Link>{" "}
+            to save decks and preferences.
+          </>
+        )}
       </p>
     </div>
   );

@@ -23,10 +23,7 @@ import styles from "./CardArtPanel.module.css";
 type Props = {
   card: ScryfallCard;
   onResolvedChange?: (resolved: DeckAppCard) => void;
-  /**
-   * When true, skip the outer "Art & printings" shell and show inner
-   * collapsible blocks (upload + preferred printings) directly.
-   */
+  /** Skip outer shell; show inner collapsible upload/print blocks. */
   embedded?: boolean;
 };
 
@@ -43,19 +40,16 @@ export function CardArtPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** Outer collapse (card page). In embedded mode we start expanded. */
   const [expanded, setExpanded] = useState(embedded);
   const [uploadOpen, setUploadOpen] = useState(true);
   const [printsOpen, setPrintsOpen] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
-  // Always lowercase — Postgres uuid + our in-memory maps are keyed lowercased
   const oracleId = (card.oracle_id ?? card.id).toLowerCase();
   const isMulti =
     Array.isArray(card.card_faces) && card.card_faces.length > 1;
 
-  // Emit resolved card whenever base card or art changes
   useEffect(() => {
     const preferredMap = new Map<string, ScryfallCard>();
     for (const p of printings) {
@@ -127,9 +121,7 @@ export function CardArtPanel({
       return;
     }
     setArt(row);
-    // Seed in-memory prefs + preferred printing immediately (no race with reload)
     applyArtPreference(oracleId, row, printing);
-    // Persist local cache first, then soft-reload so other tabs stay consistent
     await syncUserCardFromArt(user.id, oracleId, row, printing);
     void reloadArtPrefs();
     setBusy(false);
@@ -181,7 +173,12 @@ export function CardArtPanel({
     const { art: row } = await fetchUserCardArt(user.id, oracleId);
     setArt(row);
     applyArtPreference(oracleId, row, null);
-    await syncUserCardFromArt(user.id, oracleId, row, findPrinting(row?.preferred_scryfall_id) ?? card);
+    await syncUserCardFromArt(
+      user.id,
+      oracleId,
+      row,
+      findPrinting(row?.preferred_scryfall_id) ?? card
+    );
     void reloadArtPrefs();
     setBusy(false);
     setMessage(`Custom ${side} image uploaded.`);
@@ -211,15 +208,20 @@ export function CardArtPanel({
     setMessage(`Custom ${side} image removed.`);
   }
 
+  const preferredId = art?.preferred_scryfall_id
+    ? String(art.preferred_scryfall_id).toLowerCase()
+    : null;
+
+  const signInMsg = (
+    <p className={styles.hint}>
+      <Link to="/login" className={styles.link}>
+        Sign in
+      </Link>{" "}
+      to choose preferred printings or upload custom art for this card.
+    </p>
+  );
+
   if (!user) {
-    const signInMsg = (
-      <p className={styles.hint}>
-        <Link to="/login" className={styles.link}>
-          Sign in
-        </Link>{" "}
-        to choose preferred printings or upload custom art for this card.
-      </p>
-    );
     if (embedded) return <div className={styles.embedded}>{signInMsg}</div>;
     return (
       <section className={styles.collapsible}>
@@ -232,10 +234,10 @@ export function CardArtPanel({
           <span>Art &amp; printings</span>
           <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
         </button>
-        {expanded && <div className={styles.panel
-  const preferredId = art?.preferred_scryfall_id
-    ? String(art.preferred_scryfall_id).toLowerCase()
-    : null;
+        {expanded && <div className={styles.panel}>{signInMsg}</div>}
+      </section>
+    );
+  }
 
   const uploadBlock = (
     <div className={styles.innerSection}>
@@ -393,11 +395,7 @@ export function CardArtPanel({
                     title={`${p.set_name} · #${p.collector_number}`}
                   >
                     {thumb ? (
-                      <img
-                        src={thumb}
-                        alt=""
-                        className={styles.printThumb}
-                      />
+                      <img src={thumb} alt="" className={styles.printThumb} />
                     ) : (
                       <span className={styles.printFallback}>
                         {faces[0]?.name ?? p.name}
