@@ -2,8 +2,10 @@ declare const styles: {
   readonly frame: string;
   readonly frameMulti: string;
   readonly frameBoth: string;
+  readonly frameBothStack: string;
   readonly image: string;
   readonly both: string;
+  readonly bothStack: string;
   readonly imageHalf: string;
   readonly controls: string;
   readonly controlBtn: string;
