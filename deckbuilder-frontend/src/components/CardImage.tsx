@@ -1,4 +1,11 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import type { ScryfallCard } from "../types/scryfallCard";
 import {
@@ -26,7 +33,11 @@ type CardImageProps = {
    * - stack: front above back (deck builder modal)
    */
   bothLayout?: "row" | "stack";
+  /** 3D mouse-tracking tilt (modal / focus views). */
+  tilt?: boolean;
 };
+
+type Tilt = { rx: number; ry: number; glareX: number; glareY: number };
 
 export function CardImage({
   card,
@@ -36,21 +47,18 @@ export function CardImage({
   overrideFrontSrc,
   overrideBackSrc,
   bothLayout = "row",
+  tilt = false,
 }: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
-  const [view, setView] = useState<CardFaceView>(() =>
-    bothLayout === "stack" && multi ? "both" : "front"
-  );
+  const defaultView: CardFaceView =
+    bothLayout === "stack" && multi ? "both" : "front";
+  // null = follow default for current card/layout (no effect-based reset)
+  const [userView, setUserView] = useState<CardFaceView | null>(null);
+  const view = userView ?? defaultView;
 
-  // Reset view when card or layout changes
-  useEffect(() => {
-    setView(bothLayout === "stack" && multi ? "both" : "front");
-  }, [card.id, bothLayout, multi]);
-
-  useEffect(() => {
-    onViewChange?.(view);
-  }, [view, onViewChange]);
+  const [tiltState, setTiltState] = useState<Tilt | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   // Preferred printing card supplies both faces; overrides apply per face when set.
   const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
@@ -61,20 +69,56 @@ export function CardImage({
   const frontName = faces[0]?.name ?? card.name;
   const backName = faces[1]?.name ?? "Back";
 
-  function stop(e: MouseEvent) {
+  function setView(next: CardFaceView | ((prev: CardFaceView) => CardFaceView)) {
+    setUserView((prev) => {
+      const current = prev ?? defaultView;
+      const resolved = typeof next === "function" ? next(current) : next;
+      onViewChange?.(resolved);
+      return resolved;
+    });
+  }
+
+  function stop(e: ReactMouseEvent) {
     e.stopPropagation();
     e.preventDefault();
   }
 
-  function cycleFlip(e: MouseEvent) {
+  function cycleFlip(e: ReactMouseEvent) {
     stop(e);
     setView((v) => (v === "back" ? "front" : "back"));
   }
 
-  function toggleBoth(e: MouseEvent) {
+  function toggleBoth(e: ReactMouseEvent) {
     stop(e);
     setView((v) => (v === "both" ? "front" : "both"));
   }
+
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!tilt) return;
+      const el = frameRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 8 || rect.height < 8) return;
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const x = px * 2 - 1;
+      const y = py * 2 - 1;
+      // Subtle tangible pop — stronger near edges
+      setTiltState({
+        rx: -(y * 11),
+        ry: x * 14,
+        glareX: px * 100,
+        glareY: py * 100,
+      });
+    },
+    [tilt]
+  );
+
+  const onPointerLeave = useCallback(() => {
+    if (!tilt) return;
+    setTiltState(null);
+  }, [tilt]);
 
   const frameClass = [
     styles.frame,
@@ -82,6 +126,8 @@ export function CardImage({
     view === "both" ? styles.frameBoth : "",
     view === "both" && bothLayout === "stack" ? styles.frameBothStack : "",
     bothLayout === "stack" ? styles.frameStackTall : "",
+    tilt ? styles.frameTilt : "",
+    tiltState ? styles.frameTiltActive : "",
     className ?? "",
   ]
     .filter(Boolean)
@@ -90,10 +136,27 @@ export function CardImage({
   const bothClass =
     bothLayout === "stack" ? `${styles.both} ${styles.bothStack}` : styles.both;
 
+  const tiltStyle: CSSProperties | undefined =
+    tilt && tiltState
+      ? {
+          transform: `perspective(900px) rotateX(${tiltState.rx}deg) rotateY(${tiltState.ry}deg) scale3d(1.03, 1.03, 1.03)`,
+          ["--glare-x" as string]: `${tiltState.glareX}%`,
+          ["--glare-y" as string]: `${tiltState.glareY}%`,
+        }
+      : tilt
+        ? {
+            transform: "perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
+          }
+        : undefined;
+
   return (
     <div
+      ref={frameRef}
       className={frameClass}
+      style={tiltStyle}
       onClick={() => onActivate?.(card)}
+      onPointerMove={tilt ? onPointerMove : undefined}
+      onPointerLeave={tilt ? onPointerLeave : undefined}
       role={onActivate ? "button" : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onKeyDown={
@@ -107,6 +170,8 @@ export function CardImage({
           : undefined
       }
     >
+      {tilt && <div className={styles.tiltGlare} aria-hidden />}
+
       {view === "both" && multi ? (
         <div className={bothClass}>
           <img
@@ -114,47 +179,50 @@ export function CardImage({
             src={frontSrc}
             alt={frontName}
             className={styles.imageHalf}
-            draggable={true}
+            draggable={false}
           />
           <img
             key={`b-${backSrc}`}
             src={backSrc}
             alt={backName}
             className={styles.imageHalf}
-            draggable={true}
+            draggable={false}
           />
         </div>
       ) : (
-        <img
-          key={view === "back" && multi ? backSrc : frontSrc}
-          src={view === "back" && multi ? backSrc : frontSrc}
-          alt={view === "back" && multi ? backName : frontName}
-          className={styles.image}
-          draggable={true}
-        />
+        <>
+          <img
+            key={view === "back" && multi ? `b-${backSrc}` : `f-${frontSrc}`}
+            src={view === "back" && multi ? backSrc : frontSrc}
+            alt={view === "back" && multi ? backName : frontName}
+            className={styles.image}
+            draggable={false}
+          />
+          {multi && view !== "both" && (
+            <span className={styles.faceBadge} aria-hidden>
+              {view === "back" ? "B" : "F"}
+            </span>
+          )}
+        </>
       )}
 
       {multi && (
-        <div className={styles.controls} onClick={stop}>
+        <div className={styles.controls}>
           <button
             type="button"
-            className={styles.controlBtn}
+            className={`${styles.controlBtn}${
+              view === "back" ? ` ${styles.controlBtnActive}` : ""
+            }`}
             onClick={cycleFlip}
-            title={view === "back" ? "Show front" : "Flip card"}
-            aria-label={view === "back" ? "Show front face" : "Flip to back face"}
           >
             Flip
           </button>
           <button
             type="button"
-            className={`${styles.controlBtn} ${
-              view === "both" ? styles.controlBtnActive : ""
+            className={`${styles.controlBtn}${
+              view === "both" ? ` ${styles.controlBtnActive}` : ""
             }`}
             onClick={toggleBoth}
-            title={view === "both" ? "Single face" : "Show both faces"}
-            aria-label={
-              view === "both" ? "Show one face" : "Show both faces at once"
-            }
           >
             Both
           </button>

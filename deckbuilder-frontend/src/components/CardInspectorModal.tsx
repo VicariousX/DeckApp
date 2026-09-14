@@ -261,10 +261,12 @@ export function CardInspectorModal({
             )}
             {!loading && displayCard && (
               <CardImage
+                key={displayCard.id}
                 card={displayCard}
                 overrideFrontSrc={frontSrc}
                 overrideBackSrc={backSrc}
                 bothLayout="stack"
+                tilt
               />
             )}
             {!loading && !displayCard && (

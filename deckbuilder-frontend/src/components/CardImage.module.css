@@ -142,3 +142,55 @@
   width: 100%;
   object-fit: contain;
 }
+
+.frameTilt {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s ease;
+  will-change: transform;
+  touch-action: none;
+}
+
+.frameTiltActive {
+  transition:
+    transform 0.08s linear,
+    box-shadow 0.15s ease;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent),
+    0 0 28px var(--color-accent-glow);
+  z-index: 3;
+}
+
+.tiltGlare {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.06) 35%,
+    transparent 60%
+  );
+  mix-blend-mode: soft-light;
+}
+
+.frameTiltActive .tiltGlare {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frameTilt,
+  .frameTiltActive {
+    transition: none;
+    transform: none !important;
+  }
+  .tiltGlare {
+    display: none;
+  }
+}
