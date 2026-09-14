@@ -1,7 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
-import { scryfallGet, scryfallPost } from "./scryfallClient";
+import { scryfallGet, scryfallPost } from "./scryfallClient.js";
 import {
   autocompleteNames,
   bulkStatus,
@@ -10,7 +10,7 @@ import {
   getCardByName,
   getPrintsByOracleId,
   simpleNameSearch,
-} from "./bulkData";
+} from "./bulkData.js";
 
 const app = express();
 app.use(cors());
