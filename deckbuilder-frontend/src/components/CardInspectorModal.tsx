@@ -5,6 +5,7 @@ import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
+import { CardArtPanel } from "./CardArtPanel";
 import { DrawerPicker } from "./DrawerPicker";
 import { Modal } from "./Modal";
 import styles from "./CardInspectorModal.module.css";
@@ -142,6 +143,7 @@ export function CardInspectorModal({
           </div>
 
           <div className={styles.body}>
+            <div className={styles.scrollRegion}>
             {error && (
               <p className={styles.error} role="alert">
                 {error}
@@ -240,6 +242,13 @@ export function CardInspectorModal({
                 )}
               </div>
             )}
+
+            {scryfall && (
+              <div className={styles.artSlot}>
+                <CardArtPanel card={scryfall} />
+              </div>
+            )}
+            </div>
 
             <div className={styles.actions}>
               {scryfall && (

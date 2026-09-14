@@ -245,8 +245,8 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
     <div className={styles.panel}>
       <div className={styles.header}>
         <p className={styles.hint}>
-          Pick a Scryfall printing or upload your own image. Custom art is used
-          on this site and in future deck exports.
+          Upload custom art first, or pick a preferred Scryfall printing. Custom
+          art is used on this site and in future deck exports.
         </p>
       </div>
 
@@ -255,64 +255,6 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
           {error ?? message}
         </p>
       )}
-
-      <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <h3 className={styles.sectionTitle}>Preferred printing</h3>
-          {preferredId && (
-            <button
-              type="button"
-              className={styles.textBtn}
-              disabled={busy}
-              onClick={() => void clearPreferred()}
-            >
-              Clear preference
-            </button>
-          )}
-        </div>
-        {loadingPrints ? (
-          <p className={styles.hint}>Loading printings…</p>
-        ) : printings.length === 0 ? (
-          <p className={styles.hint}>No alternate printings found.</p>
-        ) : (
-          <div className={styles.printGrid}>
-            {printings.map((p) => {
-              const thumb = getFaceImage(p, 0);
-              const faces = getFaces(p);
-              const selected =
-                preferredId !== null &&
-                preferredId === String(p.id).toLowerCase();
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={
-                    selected
-                      ? `${styles.printCard} ${styles.printCardSelected}`
-                      : styles.printCard
-                  }
-                  disabled={busy}
-                  onClick={() => void selectPrinting(p)}
-                  title={`${p.set_name} · #${p.collector_number}`}
-                >
-                  {thumb ? (
-                    <img src={thumb} alt="" className={styles.printThumb} />
-                  ) : (
-                    <div className={styles.printPlaceholder} />
-                  )}
-                  <span className={styles.printMeta}>
-                    <span className={styles.printSet}>{p.set.toUpperCase()}</span>
-                    <span className={styles.printNum}>#{p.collector_number}</span>
-                  </span>
-                  {faces[0]?.artist && (
-                    <span className={styles.printArtist}>{faces[0].artist}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Custom images</h3>
@@ -402,6 +344,65 @@ export function CardArtPanel({ card, onResolvedChange }: Props) {
           </div>
         </div>
       </div>
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h3 className={styles.sectionTitle}>Preferred printing</h3>
+          {preferredId && (
+            <button
+              type="button"
+              className={styles.textBtn}
+              disabled={busy}
+              onClick={() => void clearPreferred()}
+            >
+              Clear preference
+            </button>
+          )}
+        </div>
+        {loadingPrints ? (
+          <p className={styles.hint}>Loading printings…</p>
+        ) : printings.length === 0 ? (
+          <p className={styles.hint}>No alternate printings found.</p>
+        ) : (
+          <div className={styles.printGrid}>
+            {printings.map((p) => {
+              const thumb = getFaceImage(p, 0);
+              const faces = getFaces(p);
+              const selected =
+                preferredId !== null &&
+                preferredId === String(p.id).toLowerCase();
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={
+                    selected
+                      ? `${styles.printCard} ${styles.printCardSelected}`
+                      : styles.printCard
+                  }
+                  disabled={busy}
+                  onClick={() => void selectPrinting(p)}
+                  title={`${p.set_name} · #${p.collector_number}`}
+                >
+                  {thumb ? (
+                    <img src={thumb} alt="" className={styles.printThumb} />
+                  ) : (
+                    <div className={styles.printPlaceholder} />
+                  )}
+                  <span className={styles.printMeta}>
+                    <span className={styles.printSet}>{p.set.toUpperCase()}</span>
+                    <span className={styles.printNum}>#{p.collector_number}</span>
+                  </span>
+                  {faces[0]?.artist && (
+                    <span className={styles.printArtist}>{faces[0].artist}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+
     </div>
       )}
     </section>

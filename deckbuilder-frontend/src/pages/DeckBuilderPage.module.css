@@ -114,6 +114,7 @@
 
 .inputWrap {
   position: relative;
+  z-index: 50;
   flex: 1 1 14rem;
   min-width: 0;
 }
@@ -137,7 +138,7 @@
 
 .suggestList {
   position: absolute;
-  z-index: 30;
+  z-index: 60;
   top: calc(100% + 0.3rem);
   left: 0;
   right: 0;
@@ -1309,6 +1310,8 @@
 }
 
 .toolRow {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1320,5 +1323,6 @@
 
 .toolRow > * {
   position: relative;
+  z-index: 1;
   flex: 0 0 auto;
 }

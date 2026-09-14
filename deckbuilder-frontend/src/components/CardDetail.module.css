@@ -3,8 +3,9 @@
 .detailContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--pad-md) 0;
+  gap: 0.45rem;
+  padding: 0;
+  position: relative;
 }
 
 /* --- Card Image --- */
@@ -137,6 +138,7 @@
 
 
 .modalBackgroundImage {
+  opacity: 0.12;
   position: absolute;
   top: 0;
   left: 0;

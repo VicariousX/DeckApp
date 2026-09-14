@@ -92,6 +92,9 @@
 }
 
 .printGrid {
+  max-height: 12rem;
+  overflow-y: auto;
+
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
   gap: 0.65rem;
