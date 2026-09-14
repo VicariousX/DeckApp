@@ -3,6 +3,7 @@ declare const styles: {
   readonly frameMulti: string;
   readonly frameBoth: string;
   readonly frameBothStack: string;
+  readonly frameStackTall: string;
   readonly image: string;
   readonly both: string;
   readonly bothStack: string;
