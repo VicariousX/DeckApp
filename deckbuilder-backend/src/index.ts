@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
+import { scryfallGet, scryfallPost } from "./scryfallClient";
 
 const app = express();
 app.use(cors());
@@ -9,21 +10,7 @@ app.use(express.json({ limit: "1mb" }));
 const PORT = 3001;
 const HOST = "127.0.0.1";
 
-const SCRYFALL_HEADERS = {
-  "User-Agent": "DeckBuilderApp/1.0 (local development)",
-  Accept: "application/json",
-};
-
-async function scryfallGet(pathAndQuery: string) {
-  const url = pathAndQuery.startsWith("http")
-    ? pathAndQuery
-    : `https://api.scryfall.com${pathAndQuery}`;
-  const response = await fetch(url, { headers: SCRYFALL_HEADERS });
-  const data = await response.json();
-  return { status: response.status, data };
-}
-
-// Full-text search (existing)
+// Full-text search
 app.get("/api/scryfall", async (req: Request, res: Response) => {
   const query = req.query.q as string;
   if (!query) {
@@ -42,7 +29,6 @@ app.get("/api/scryfall", async (req: Request, res: Response) => {
 
 // Single card by Scryfall id (UUID)
 app.get("/api/scryfall/card/:id", async (req: Request, res: Response) => {
-  // Express may type params as string | string[]; normalize to a single string
   const raw = req.params.id;
   const id = Array.isArray(raw) ? raw[0] : raw;
   if (!id || typeof id !== "string") {
@@ -78,12 +64,10 @@ app.get("/api/scryfall/autocomplete", async (req: Request, res: Response) => {
 
 // Named lookup (exact or fuzzy)
 app.get("/api/scryfall/named", async (req: Request, res: Response) => {
-  const exact = req.query.exact as string | undefined;
-  const fuzzy = req.query.fuzzy as string | undefined;
+  const exact = (req.query.exact as string | undefined)?.trim();
+  const fuzzy = (req.query.fuzzy as string | undefined)?.trim();
   if (!exact && !fuzzy) {
-    return res
-      .status(400)
-      .json({ error: "Provide exact= or fuzzy= query parameter" });
+    return res.status(400).json({ error: "Provide exact or fuzzy name" });
   }
   try {
     const param = exact
@@ -97,45 +81,37 @@ app.get("/api/scryfall/named", async (req: Request, res: Response) => {
   }
 });
 
-// All printings for an oracle id (art picker)
-
+// Collection (max 75 identifiers) — rate limited to 2/sec upstream
 app.post("/api/scryfall/collection", async (req: Request, res: Response) => {
+  const identifiers = req.body?.identifiers;
+  if (!Array.isArray(identifiers) || identifiers.length === 0) {
+    return res.status(400).json({ error: "identifiers array required" });
+  }
+  if (identifiers.length > 75) {
+    return res.status(400).json({ error: "Max 75 identifiers per request" });
+  }
   try {
-    const identifiers = req.body?.identifiers;
-    if (!Array.isArray(identifiers) || identifiers.length === 0) {
-      res.status(400).json({
-        error: "identifiers array required",
-        details: "POST JSON body must be { identifiers: [{ name: string }, ...] }",
-      });
-      return;
-    }
-    // Scryfall limit: 75 per request
-    const slice = identifiers.slice(0, 75);
-    const upstream = await fetch("https://api.scryfall.com/cards/collection", {
-      method: "POST",
-      headers: {
-        ...SCRYFALL_HEADERS,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ identifiers: slice }),
+    const { status, data } = await scryfallPost("/cards/collection", {
+      identifiers,
     });
-    const data = await upstream.json();
-    res.status(upstream.status).json(data);
+    res.status(status).json(data);
   } catch (error) {
     console.error("Scryfall collection failed:", error);
-    res.status(502).json({ error: "Scryfall collection request failed" });
+    res.status(500).json({ error: "Scryfall request failed" });
   }
 });
 
+// Printings for an oracle_id
 app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
-  const oracleId = req.query.oracle_id as string | undefined;
+  const oracleId = (req.query.oracle_id as string | undefined)?.trim();
   if (!oracleId) {
-    return res.status(400).json({ error: "Missing oracle_id" });
+    return res.status(400).json({ error: "oracle_id required" });
   }
   try {
-    const q = `oracleid:${oracleId}`;
     const { status, data } = await scryfallGet(
-      `/cards/search?q=${encodeURIComponent(q)}&unique=prints&order=released`
+      `/cards/search?q=${encodeURIComponent(
+        `oracleid:${oracleId}`
+      )}&unique=prints&order=released`
     );
     res.status(status).json(data);
   } catch (error) {
@@ -145,5 +121,6 @@ app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`Local-only backend running at http://${HOST}:${PORT}`);
+  console.log(`DeckApp API listening on http://${HOST}:${PORT}`);
+  console.log("Scryfall upstream: queued + cached (respects 2/s and 10/s limits)");
 });
