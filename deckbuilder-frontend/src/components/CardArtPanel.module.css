@@ -94,10 +94,11 @@
 .printGrid {
   max-height: 12rem;
   overflow-y: auto;
-
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
   gap: 0.65rem;
+  align-items: start;
+  align-content: start;
 }
 
 .printCard {
@@ -105,12 +106,15 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface-alt);
   border-radius: var(--radius-md);
-  padding: 0.35rem;
+  padding: 0.3rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.3rem;
-  text-align: left;
+  height: auto;
+  align-self: start;
+  text-align: center;
   color: var(--color-text);
   transition:
     border-color var(--hover-transition),
@@ -149,11 +153,14 @@
 }
 
 .printMeta {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.25rem;
-  font-size: 0.72rem;
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 0.68rem;
   font-weight: 650;
+  line-height: 1.25;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
 }
 
 .printSet {
@@ -347,6 +354,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
   gap: 0.5rem;
+  align-content: start;
+  align-items: start;
   padding-right: 0.15rem;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;

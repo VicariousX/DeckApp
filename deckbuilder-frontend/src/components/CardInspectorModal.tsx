@@ -63,7 +63,7 @@ export function CardInspectorModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>("info");
-  const [artSub, setArtSub] = useState<"upload" | "prints">("upload");
+  const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
   const [contentKey, setContentKey] = useState(0);
   const DEFAULT_MODAL_SIZE = { w: 860, h: 700 };
   /** Fixed until the user drags the resize handle. */
@@ -183,8 +183,8 @@ export function CardInspectorModal({
       // ←/→ always change cards when available.
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (active === "artwork" && artSub === "prints") {
-          setArtSub("upload");
+        if (active === "artwork" && artSub === "upload") {
+          setArtSub("prints");
           return;
         }
         const next = Math.max(0, activeIndex - 1);
@@ -193,12 +193,11 @@ export function CardInspectorModal({
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (active === "artwork" && artSub === "upload") {
-          setArtSub("prints");
+        if (active === "artwork" && artSub === "prints") {
+          setArtSub("upload");
           return;
         }
-        if (active === "artwork" && artSub === "prints") {
-          // stay on prints (end of sub-tabs)
+        if (active === "artwork" && artSub === "upload") {
           return;
         }
         const next = Math.min(tabs.length - 1, activeIndex + 1);
@@ -218,6 +217,91 @@ export function CardInspectorModal({
     tabs,
     active,
     artSub,
+  ]);
+
+
+  // Wheel over non-scrollable areas mirrors arrow keys:
+  // vertical = tabs/sub-tabs, horizontal = prev/next card
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    let lockUntil = 0;
+
+    function isScrollableInDirection(start: EventTarget | null, deltaY: number, deltaX: number) {
+      let el = start instanceof Element ? start : null;
+      while (el && el !== shell) {
+        if (el instanceof HTMLElement) {
+          const style = window.getComputedStyle(el);
+          const oy = style.overflowY;
+          const ox = style.overflowX;
+          const yScrollable =
+            (oy === "auto" || oy === "scroll" || oy === "overlay") &&
+            el.scrollHeight > el.clientHeight + 1;
+          const xScrollable =
+            (ox === "auto" || ox === "scroll" || ox === "overlay") &&
+            el.scrollWidth > el.clientWidth + 1;
+          if (Math.abs(deltaY) >= Math.abs(deltaX) && yScrollable) {
+            if (deltaY < 0 && el.scrollTop > 0) return true;
+            if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1)
+              return true;
+          }
+          if (Math.abs(deltaX) > Math.abs(deltaY) && xScrollable) {
+            if (deltaX < 0 && el.scrollLeft > 0) return true;
+            if (deltaX > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+              return true;
+          }
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+
+    function onWheel(e: WheelEvent) {
+      if (isScrollableInDirection(e.target, e.deltaY, e.deltaX)) return;
+      // Ignore tiny trackpad noise
+      if (Math.abs(e.deltaY) < 4 && Math.abs(e.deltaX) < 4) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now < lockUntil) return;
+      lockUntil = now + 260;
+
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        if (e.deltaX > 0 && hasNext && onNext) onNext();
+        else if (e.deltaX < 0 && hasPrev && onPrev) onPrev();
+        return;
+      }
+
+      if (e.deltaY < 0) {
+        // up
+        if (active === "artwork" && artSub === "upload") {
+          setArtSub("prints");
+          return;
+        }
+        const next = Math.max(0, activeIndex - 1);
+        selectTab(tabs[next].id);
+      } else {
+        // down
+        if (active === "artwork" && artSub === "prints") {
+          setArtSub("upload");
+          return;
+        }
+        if (active === "artwork" && artSub === "upload") return;
+        const next = Math.min(tabs.length - 1, activeIndex + 1);
+        selectTab(tabs[next].id);
+      }
+    }
+
+    shell.addEventListener("wheel", onWheel, { passive: false });
+    return () => shell.removeEventListener("wheel", onWheel);
+  }, [
+    active,
+    artSub,
+    activeIndex,
+    tabs,
+    hasNext,
+    hasPrev,
+    onNext,
+    onPrev,
   ]);
 
   function selectTab(id: TabId) {
@@ -523,17 +607,6 @@ export function CardInspectorModal({
                     <button
                       type="button"
                       role="tab"
-                      aria-selected={artSub === "upload"}
-                      className={`${styles.subTab}${
-                        artSub === "upload" ? ` ${styles.subTabActive}` : ""
-                      }`}
-                      onClick={() => setArtSub("upload")}
-                    >
-                      Upload
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
                       aria-selected={artSub === "prints"}
                       className={`${styles.subTab}${
                         artSub === "prints" ? ` ${styles.subTabActive}` : ""
@@ -541,6 +614,17 @@ export function CardInspectorModal({
                       onClick={() => setArtSub("prints")}
                     >
                       Printings
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={artSub === "upload"}
+                      className={`${styles.subTab}${
+                        artSub === "upload" ? ` ${styles.subTabActive}` : ""
+                      }`}
+                      onClick={() => setArtSub("upload")}
+                    >
+                      Upload
                     </button>
                   </div>
                   {displayCard || baseCard ? (
