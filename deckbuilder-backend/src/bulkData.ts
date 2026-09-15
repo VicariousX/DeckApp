@@ -293,6 +293,13 @@ export function getCardByName(name: string): BulkCard | null {
   return state.byName.get(norm(name)) ?? null;
 }
 
+/** One unique-name representative chosen at random from the local bulk index. */
+export function getRandomCard(): BulkCard | null {
+  if (!state.ready || state.names.length === 0) return null;
+  const key = state.names[Math.floor(Math.random() * state.names.length)];
+  return state.byName.get(key) ?? null;
+}
+
 /** Prefix autocomplete from local name index (max 20). */
 export function autocompleteNames(q: string, limit = 20): string[] {
   if (!state.ready || q.trim().length < 2) return [];

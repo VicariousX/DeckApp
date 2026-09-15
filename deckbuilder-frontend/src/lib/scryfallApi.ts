@@ -19,6 +19,27 @@ function normId(id: string): string {
   return id.trim().toLowerCase();
 }
 
+export async function fetchRandomCard(): Promise<{
+  card: ScryfallCard | null;
+  error: string | null;
+}> {
+  try {
+    const res = await fetch(`${BASE}/api/scryfall/random`);
+    const data = await res.json();
+    if (!res.ok) {
+      return {
+        card: null,
+        error: data?.details ?? data?.error ?? "Random card failed",
+      };
+    }
+    const card = data as ScryfallCard;
+    if (card.id) cardCache.set(normId(card.id), card);
+    return { card, error: null };
+  } catch {
+    return { card: null, error: "Network error loading random card" };
+  }
+}
+
 export async function fetchCardById(
   id: string
 ): Promise<{ card: ScryfallCard | null; error: string | null }> {

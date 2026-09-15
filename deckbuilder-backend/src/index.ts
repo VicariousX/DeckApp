@@ -9,6 +9,7 @@ import {
   getCardById,
   getCardByName,
   getPrintsByOracleId,
+  getRandomCard,
   simpleNameSearch,
 } from "./bulkData.js";
 
@@ -69,6 +70,20 @@ app.get("/api/scryfall", async (req: Request, res: Response) => {
     res.status(status).json(data);
   } catch (error) {
     console.error("Scryfall search failed:", error);
+    res.status(500).json({ error: "Scryfall request failed" });
+  }
+});
+
+// Random unique card from local bulk (fallback: live /cards/random)
+app.get("/api/scryfall/random", async (_req: Request, res: Response) => {
+  try {
+    await ensureBulkData();
+    const local = getRandomCard();
+    if (local) return res.json(local);
+    const { status, data } = await liveGet("/cards/random");
+    res.status(status).json(data);
+  } catch (error) {
+    console.error("Scryfall random failed:", error);
     res.status(500).json({ error: "Scryfall request failed" });
   }
 });
