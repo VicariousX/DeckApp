@@ -402,7 +402,7 @@
 
 .overscrollDots {
   position: fixed;
-  z-index: 4500;
+  z-index: 4200;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -453,3 +453,22 @@
   );
 }
 
+
+.usefulInBlock {
+  padding-bottom: 0.35rem;
+}
+
+.drawersBlock {
+  margin-top: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 75%, var(--color-accent) 10%);
+}
+
+.drawersBlockLabel {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}

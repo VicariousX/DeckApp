@@ -387,7 +387,7 @@
 
 .printHoverPreview {
   position: fixed;
-  z-index: 4000;
+  z-index: 5000;
   pointer-events: none;
   width: 220px;
   border-radius: 12px;

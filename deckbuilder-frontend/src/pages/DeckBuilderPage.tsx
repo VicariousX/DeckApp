@@ -1568,6 +1568,7 @@ export function DeckBuilderPage() {
                                     </button>
                                   )}
                               </div>
+                              <div className={styles.stackColumnBody}>
                               <StackCards count={colCards.length}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
@@ -1648,6 +1649,7 @@ export function DeckBuilderPage() {
                                   );
                                 })}
                               </StackCards>
+                              </div>
                             </DroppableRegion>
                           );
                         })}

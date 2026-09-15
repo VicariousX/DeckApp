@@ -338,7 +338,8 @@ export function CardInspectorModal({
       setOverscrollHint({
         dir,
         ticks: Math.min(3, Math.max(0, ticks)),
-        top: dir === "up" ? r.top + 6 : r.bottom - 18,
+        // Sit just outside the scrollable field
+        top: dir === "up" ? r.top - 14 : r.bottom + 6,
         left: r.left,
         width: r.width,
       });
@@ -757,23 +758,28 @@ export function CardInspectorModal({
               >
                 {displayCard || baseCard ? (
                   <>
-                    <UsefulInPicker
-                      oracleId={(
-                        (displayCard ?? baseCard)!.oracle_id ??
-                        (displayCard ?? baseCard)!.id
-                      ).toLowerCase()}
-                      scryfallCard={displayCard ?? baseCard!}
-                      value={usefulInTags}
-                      onChange={setUsefulInTags}
-                    />
-                    <DrawerPicker
-                      oracleId={(
-                        (displayCard ?? baseCard)!.oracle_id ??
-                        (displayCard ?? baseCard)!.id
-                      ).toLowerCase()}
-                      scryfallCard={displayCard ?? baseCard!}
-                      inline
-                    />
+                    <div className={styles.usefulInBlock}>
+                      <UsefulInPicker
+                        oracleId={(
+                          (displayCard ?? baseCard)!.oracle_id ??
+                          (displayCard ?? baseCard)!.id
+                        ).toLowerCase()}
+                        scryfallCard={displayCard ?? baseCard!}
+                        value={usefulInTags}
+                        onChange={setUsefulInTags}
+                      />
+                    </div>
+                    <div className={styles.drawersBlock}>
+                      <p className={styles.drawersBlockLabel}>Drawer membership</p>
+                      <DrawerPicker
+                        oracleId={(
+                          (displayCard ?? baseCard)!.oracle_id ??
+                          (displayCard ?? baseCard)!.id
+                        ).toLowerCase()}
+                        scryfallCard={displayCard ?? baseCard!}
+                        inline
+                      />
+                    </div>
                   </>
                 ) : (
                   <p className={styles.muted}>Load card to manage drawers.</p>
