@@ -59,7 +59,7 @@ export function CardInspectorModal({
   hasNext = false,
   deck,
 }: Props) {
-  const { artByOracleId, preferredPrintings } = useArtPreferences();
+  const { artByOracleId, preferredPrintings, artRevision } = useArtPreferences();
   const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
   const [displayCard, setDisplayCard] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -154,16 +154,17 @@ export function CardInspectorModal({
         ? cardArtPublicUrl(art.custom_back_path)
         : "";
 
+      // Preferred/custom art wins over the caller's stale imageUrl prop
       setFrontSrc(
         customFront ||
-          imageUrl ||
           getFaceImage(display, 0) ||
+          imageUrl ||
           undefined
       );
       setBackSrc(
         customBack ||
-          imageUrlBack ||
-          (isMultiCard(display) ? getFaceImage(display, 1) || undefined : undefined)
+          (isMultiCard(display) ? getFaceImage(display, 1) || undefined : undefined) ||
+          imageUrlBack
       );
 
       setLoading(false);
@@ -172,7 +173,7 @@ export function CardInspectorModal({
     return () => {
       cancelled = true;
     };
-  }, [scryfallId, artByOracleId, preferredPrintings, imageUrl, imageUrlBack]);
+  }, [scryfallId, artByOracleId, preferredPrintings, artRevision, imageUrl, imageUrlBack]);
 
   // Load Useful-in tags for drawers tab
   useEffect(() => {
@@ -577,7 +578,7 @@ export function CardInspectorModal({
             )}
             {!loading && displayCard && (
               <CardImage
-                key={displayCard.id}
+                key={`${displayCard.id}:${artRevision}`}
                 card={displayCard}
                 overrideFrontSrc={frontSrc}
                 overrideBackSrc={backSrc}

@@ -39,7 +39,7 @@ export function CardArtPanel({
   forceSub,
 }: Props) {
   const { user } = useAuth();
-  const { applyArtPreference, reload: reloadArtPrefs } = useArtPreferences();
+  const { applyArtPreference } = useArtPreferences();
   const [printings, setPrintings] = useState<ScryfallCard[]>([]);
   const [art, setArt] = useState<UserCardArt | null>(null);
   const [loadingPrints, setLoadingPrints] = useState(false);
@@ -58,6 +58,17 @@ export function CardArtPanel({
   }, [printings]);
 
   const [printHover, setPrintHover] = useState<{ src: string; x: number; y: number } | null>(null);
+  const printHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const printHoverPending = useRef<{ src: string; x: number; y: number } | null>(
+    null
+  );
+  const PRINT_HOVER_DELAY_MS = 380;
+
+  useEffect(() => {
+    return () => {
+      if (printHoverTimer.current) clearTimeout(printHoverTimer.current);
+    };
+  }, []);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,7 +149,6 @@ export function CardArtPanel({
     setArt(row);
     applyArtPreference(oracleId, row, printing);
     await syncUserCardFromArt(user.id, oracleId, row, printing);
-    void reloadArtPrefs();
     setBusy(false);
     setMessage(
       `Preferred printing set to ${printing.set_name} (#${printing.collector_number}) — applies to front and back when available.`
@@ -161,7 +171,6 @@ export function CardArtPanel({
     setArt(row);
     applyArtPreference(oracleId, row, null);
     await syncUserCardFromArt(user.id, oracleId, row, card);
-    void reloadArtPrefs();
     setBusy(false);
     setMessage("Preferred printing cleared.");
   }
@@ -194,7 +203,6 @@ export function CardArtPanel({
       row,
       findPrinting(row?.preferred_scryfall_id) ?? card
     );
-    void reloadArtPrefs();
     setBusy(false);
     setMessage(`Custom ${side} image uploaded.`);
   }
@@ -218,7 +226,6 @@ export function CardArtPanel({
     const preferred = findPrinting(row?.preferred_scryfall_id);
     applyArtPreference(oracleId, row, preferred);
     await syncUserCardFromArt(user.id, oracleId, row, preferred ?? card);
-    void reloadArtPrefs();
     setBusy(false);
     setMessage(`Custom ${side} image removed.`);
   }
@@ -577,25 +584,41 @@ export function CardArtPanel({
                       title={`${p.set_name} · #${p.collector_number}`}
                       onMouseEnter={(e) => {
                         if (!thumb) return;
-                        // Pointer at center of the enlarged card
                         const W = 220;
                         const H = 308;
-                        setPrintHover({
+                        printHoverPending.current = {
                           src: thumb,
                           x: e.clientX - W / 2,
                           y: e.clientY - H / 2,
-                        });
+                        };
+                        if (printHoverTimer.current) {
+                          clearTimeout(printHoverTimer.current);
+                        }
+                        printHoverTimer.current = setTimeout(() => {
+                          if (printHoverPending.current) {
+                            setPrintHover(printHoverPending.current);
+                          }
+                        }, PRINT_HOVER_DELAY_MS);
                       }}
-                      onMouseLeave={() => setPrintHover(null)}
+                      onMouseLeave={() => {
+                        if (printHoverTimer.current) {
+                          clearTimeout(printHoverTimer.current);
+                          printHoverTimer.current = null;
+                        }
+                        printHoverPending.current = null;
+                        setPrintHover(null);
+                      }}
                       onMouseMove={(e) => {
                         if (!thumb) return;
                         const W = 220;
                         const H = 308;
-                        setPrintHover({
+                        const next = {
                           src: thumb,
                           x: e.clientX - W / 2,
                           y: e.clientY - H / 2,
-                        });
+                        };
+                        printHoverPending.current = next;
+                        setPrintHover((prev) => (prev ? next : prev));
                       }}
                     >
                       {thumb ? (

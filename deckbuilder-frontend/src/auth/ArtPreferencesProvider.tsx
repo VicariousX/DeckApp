@@ -57,6 +57,8 @@ type ArtPreferencesContextValue = {
     art: UserCardArt | null,
     printing?: ScryfallCard | null
   ) => void;
+  /** Increments whenever any oracle's art preference changes. */
+  artRevision: number;
   isLoggedIn: boolean;
 };
 
@@ -72,6 +74,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
     Map<string, ScryfallCard>
   >(() => new Map());
   const [loading, setLoading] = useState(false);
+  const [artRevision, setArtRevision] = useState(0);
 
   // Persistent image URL cache: oracle_id → resolved front URL
   const imageUrlCache = useRef<Map<string, string>>(new Map());
@@ -104,9 +107,10 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
       });
     }
     setArtByOracleId(normalized);
-    // Warm image cache from local user_cards without wiping freshly seeded entries
+    // Warm image cache from local user_cards only when no live pref is seeded
     const { map: localCards } = await fetchUserCardsMap(user.id);
     for (const [oid, uc] of localCards) {
+      if (imageUrlCache.current.has(oid)) continue;
       if (uc.image_url) imageUrlCache.current.set(oid, uc.image_url);
     }
     // Drop cache entries for oracles no longer in prefs and not in user_cards
@@ -282,6 +286,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
       if (!oid) return;
       imageUrlCache.current.delete(oid);
       imageUrlCache.current.delete(`${oid}:back`);
+      setArtRevision((n) => n + 1);
 
       // Normalize art IDs so map lookups always hit
       const normalizedArt = art
@@ -304,11 +309,10 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
         return next;
       });
 
-      // Seed preferredPrintings from the printing the user just picked
+      // Always overwrite preferred printing so both faces refresh
       if (printing) {
         const pid = normId(printing.id);
         setPreferredPrintings((prev) => {
-          if (prev.has(pid)) return prev;
           const n = new Map(prev);
           n.set(pid, printing);
           return n;
@@ -316,36 +320,49 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
         preferredRef.current = new Map(preferredRef.current).set(pid, printing);
       }
 
+      function seedFace(card: ScryfallCard | null | undefined) {
+        if (!card) return;
+        const front =
+          card.image_uris?.normal ||
+          card.card_faces?.[0]?.image_uris?.normal ||
+          "";
+        const back =
+          card.card_faces?.[1]?.image_uris?.normal ||
+          card.card_faces?.[1]?.image_uris?.large ||
+          "";
+        if (front) imageUrlCache.current.set(oid, front);
+        if (back) imageUrlCache.current.set(`${oid}:back`, back);
+      }
+
       // Seed image cache immediately so search / hover / modal update without reload
       if (normalizedArt?.custom_front_path) {
         const url = cardArtPublicUrl(normalizedArt.custom_front_path);
-        if (url) imageUrlCache.current.set(oid, url);
-      } else if (printing) {
-        const url =
-          printing.image_uris?.normal ||
-          printing.card_faces?.[0]?.image_uris?.normal ||
-          "";
-        if (url) imageUrlCache.current.set(oid, url);
-      } else if (normalizedArt?.preferred_scryfall_id) {
-        const prefId = normId(normalizedArt.preferred_scryfall_id);
-        const pref =
-          preferredRef.current.get(prefId) ||
-          (printing && normId(printing.id) === prefId ? printing : undefined);
-        if (pref) {
-          const url =
-            pref.image_uris?.normal ||
-            pref.card_faces?.[0]?.image_uris?.normal ||
-            "";
-          if (url) imageUrlCache.current.set(oid, url);
-        } else {
-          void ensurePreferred(prefId).then((card) => {
-            if (!card) return;
-            const url =
-              card.image_uris?.normal ||
-              card.card_faces?.[0]?.image_uris?.normal ||
-              "";
-            if (url) imageUrlCache.current.set(oid, url);
-          });
+        if (url) {
+          const bust = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+          imageUrlCache.current.set(oid, bust);
+        }
+      }
+      if (normalizedArt?.custom_back_path) {
+        const url = cardArtPublicUrl(normalizedArt.custom_back_path);
+        if (url) {
+          const bust = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+          imageUrlCache.current.set(`${oid}:back`, bust);
+        }
+      }
+      if (!normalizedArt?.custom_front_path) {
+        if (printing) {
+          seedFace(printing);
+        } else if (normalizedArt?.preferred_scryfall_id) {
+          const prefId = normId(normalizedArt.preferred_scryfall_id);
+          const pref =
+            preferredRef.current.get(prefId) ||
+            (printing && normId(printing.id) === prefId ? printing : undefined);
+          if (pref) seedFace(pref);
+          else {
+            void ensurePreferred(prefId).then((card) => {
+              if (card) seedFace(card);
+            });
+          }
         }
       }
     },
@@ -380,6 +397,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
       resolveDisplayCard,
       hasAlternateArt,
       applyArtPreference,
+      artRevision,
       isLoggedIn: Boolean(user),
     }),
     [
@@ -391,6 +409,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
       resolveDisplayCard,
       hasAlternateArt,
       applyArtPreference,
+      artRevision,
       user,
     ]
   );

@@ -171,7 +171,7 @@ export function DeckBuilderPage() {
     onNameLeave,
     warmCache,
   } = useDeckCardHover();
-  const { resolveImageUrl } = useArtPreferences();
+  const { resolveImageUrl, artRevision } = useArtPreferences();
 
   const [detail, setDetail] = useState<DeckDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -282,7 +282,7 @@ export function DeckBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [detail, viewMode, resolveImageUrl]);
+  }, [detail, viewMode, resolveImageUrl, artRevision]);
 
   function changeViewMode(mode: DeckViewMode) {
     setViewMode(mode);
