@@ -432,75 +432,24 @@
     0 0 0 1px color-mix(in srgb, var(--color-accent-glow, var(--color-accent)) 30%, transparent);
 }
 
-/* Edge mist on scroll panels — deeper, subtly alive + clear edge line */
+/* Soft content fade at scroll edges (no mist overlay) */
 .panelScroll {
   position: relative;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 75%, var(--color-accent) 12%);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 75%, var(--color-accent) 12%);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 36px,
-    #000 calc(100% - 36px),
+    #000 28px,
+    #000 calc(100% - 28px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 36px,
-    #000 calc(100% - 36px),
+    #000 28px,
+    #000 calc(100% - 28px),
     transparent 100%
   );
 }
 
-.panelScroll::before,
-.panelScroll::after {
-  content: "";
-  position: sticky;
-  left: 0;
-  right: 0;
-  display: block;
-  height: 36px;
-  pointer-events: none;
-  z-index: 3;
-  animation: mistBreath 4.5s ease-in-out infinite;
-}
-
-.panelScroll::before {
-  top: 0;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%) 0%,
-    color-mix(in srgb, var(--color-surface) 55%, transparent) 55%,
-    transparent 100%
-  );
-}
-
-.panelScroll::after {
-  bottom: 0;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%) 0%,
-    color-mix(in srgb, var(--color-surface) 55%, transparent) 55%,
-    transparent 100%
-  );
-}
-
-@keyframes mistBreath {
-  0%,
-  100% {
-    opacity: 0.82;
-    filter: blur(0px);
-  }
-  50% {
-    opacity: 1;
-    filter: blur(0.4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .panelScroll::before,
-  .panelScroll::after {
-    animation: none;
-  }
-}

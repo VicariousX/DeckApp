@@ -11,7 +11,7 @@
   overflow-x: hidden;
 }
 
-/* Image mode: still constrained to viewport so boards scroll internally */
+/* Image mode: page grows with boards (no internal vertical board scroll) */
 .pageStacks {
   max-width: 100%;
   width: 100%;
@@ -19,6 +19,7 @@
   padding-left: 1rem;
   padding-right: 1rem;
   overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .topBar {
@@ -571,22 +572,23 @@
 .stacksRow {
   display: flex;
   flex-direction: row;
-  align-items: stretch; /* columns fill board height for full drop targets */
+  align-items: stretch;
   gap: 0.85rem;
   overflow-x: auto;
-  padding-bottom: 1.5rem;
-  min-height: min(52vh, 420px);
-  /* allow cards to peek past column bounds on hover */
   overflow-y: visible;
+  padding-bottom: 0.5rem;
+  min-height: min(70vh, 640px);
 }
 
 .stackColumn {
   flex: 0 0 auto;
   width: 146px;
-  min-height: min(52vh, 420px);
+  min-height: min(70vh, 640px);
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  align-self: stretch;
 }
 
 .stackColumnDrop {
@@ -834,7 +836,8 @@
   background: color-mix(in srgb, var(--color-surface) 55%, transparent);
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   box-sizing: border-box;
 }
 
@@ -974,7 +977,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -1163,13 +1166,15 @@
 
 .stackColumn {
   flex: 0 0 auto;
-  min-height: min(52vh, 420px);
+  min-height: min(70vh, 640px);
   min-width: calc(var(--stack-width, 146px) + 12px);
   padding: 0.25rem;
   box-sizing: border-box;
   border-radius: 12px;
-  /* Droppable fills remaining column height under the header */
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
 }
 
 .stackColumnDropActive {
@@ -1331,61 +1336,33 @@
   flex: 0 0 auto;
 }
 
-/* Stack body fills column for full-height drops */
+/* Stack body + empty space fill column so drop target reaches the bottom */
 .stackColumn > :last-child {
   flex: 1 1 auto;
-  min-height: 8rem;
+  min-height: 12rem;
+  height: 100%;
 }
 
-/* Board expand — no vertical scroll; mist obscures peeked cards at bottom */
+.stackCards {
+  flex: 1 1 auto;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* Board expand — no vertical scroll */
 .boardZone {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: visible !important;
   position: relative;
-}
-
-.boardZone::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 5rem;
-  pointer-events: none;
-  z-index: 5;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%) 0%,
-    color-mix(in srgb, var(--color-surface) 70%, transparent) 40%,
-    color-mix(in srgb, var(--color-surface) 25%, transparent) 70%,
-    transparent 100%
-  );
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 75%, var(--color-accent) 12%);
-}
-
-.boardZonePeeking::after {
-  opacity: 1;
-  animation: boardMistBreath 4.5s ease-in-out infinite;
-}
-
-@keyframes boardMistBreath {
-  0%,
-  100% {
-    opacity: 0.88;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .boardZonePeeking::after {
-    animation: none;
-  }
 }
 
 .stacksRow {
   overflow-y: visible;
+}
+
+
+/* Cards shifted down while peeking fade as they leave the stack view */
+.stackCardPeekFaded {
+  opacity: 0.42;
+  filter: saturate(0.85);
 }

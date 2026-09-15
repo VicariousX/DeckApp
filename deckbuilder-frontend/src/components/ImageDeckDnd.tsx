@@ -322,7 +322,7 @@ export function DraggableStackCard({
         isOver && !isDragging ? ` ${styles.stackCardDropTarget}` : ""
       }${isDragging ? ` ${styles.stackCardDragging}` : ""}${
         isRevealed ? ` ${styles.stackCardRevealed}` : ""
-      }`}
+      }${revealShift ? ` ${styles.stackCardPeekFaded}` : ""}`}
       style={dragStyle}
       onClick={onClick}
       {...listeners}

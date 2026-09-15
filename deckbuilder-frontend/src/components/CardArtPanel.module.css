@@ -357,8 +357,8 @@
   align-content: start;
   align-items: start;
   padding: 0.35rem 0.15rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
   -webkit-mask-image: linear-gradient(
