@@ -270,24 +270,30 @@
   justify-content: center;
   appearance: none;
   border: none;
-  border-top: 1px solid color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
-  background: color-mix(in srgb, var(--color-surface) 82%, var(--color-accent) 10%);
-  color: var(--color-text-muted);
+  border-top: 1px solid transparent;
+  background: transparent;
+  color: transparent;
   font-size: 0.78rem;
   font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   text-decoration: none;
-  cursor: pointer;
+  cursor: default;
+  pointer-events: none;
   transition:
-    color 0.25s ease,
-    background 0.25s ease;
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .drawer:hover .drawerRail,
 .drawer:focus-within .drawerRail {
+  pointer-events: auto;
+  cursor: pointer;
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-surface) 70%, var(--color-accent) 16%);
+  border-top-color: color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
+  transition-delay: 0.34s;
 }
 
 .drawerRail:hover {

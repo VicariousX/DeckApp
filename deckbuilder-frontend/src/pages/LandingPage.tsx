@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
@@ -11,6 +11,19 @@ import transitions from "../styles/pageTransitions.module.css";
 type Rail =
   | { kind: "link"; to: string; label: string; external?: boolean }
   | { kind: "action"; label: string; onClick: () => void };
+
+const WELCOME_NOTES = [
+  "Enjoy!",
+  "Good hunting.",
+  "Shuffle up.",
+  "Make it spicy.",
+  "Brew something weird.",
+  "Trust the pile.",
+  "Draw first.",
+  "Have fun with it.",
+  "Go again.",
+  "Keep the spark.",
+];
 
 type Slot = {
   to: string;
@@ -84,6 +97,10 @@ function LandingDrawer({
 export function LandingPage() {
   const { user } = useAuth();
   const displayName = getDisplayName(user);
+  const welcomeNote = useMemo(
+    () => WELCOME_NOTES[Math.floor(Math.random() * WELCOME_NOTES.length)],
+    []
+  );
   const [randomCard, setRandomCard] = useState<ScryfallCard | null>(null);
   const [randomBusy, setRandomBusy] = useState(false);
 
@@ -175,7 +192,8 @@ export function LandingPage() {
           {user ? (
             <>
               Welcome back,{" "}
-              <span className={styles.titleAccent}>{displayName}</span>. Enjoy!
+              <span className={styles.titleAccent}>{displayName}</span>.{" "}
+              {welcomeNote}
             </>
           ) : (
             "Search the full card pool, study public lists, and shape your next brew — all in one place."
