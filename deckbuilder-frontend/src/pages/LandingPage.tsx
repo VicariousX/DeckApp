@@ -140,7 +140,7 @@ export function LandingPage() {
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
       ]}
-      rail={{ kind: "link", to: "/login", label: "My account" }}
+      rail={{ kind: "link", to: "/login?tab=themes", label: "My themes" }}
     />
   ) : (
     <Link
@@ -192,8 +192,10 @@ export function LandingPage() {
           {user ? (
             <>
               Welcome back,{" "}
-              <span className={styles.titleAccent}>{displayName}</span>.{" "}
-              {welcomeNote}
+              <Link to="/login" className={styles.titleAccent}>
+                {displayName}
+              </Link>
+              . {welcomeNote}
             </>
           ) : (
             "Search the full card pool, study public lists, and shape your next brew — all in one place."

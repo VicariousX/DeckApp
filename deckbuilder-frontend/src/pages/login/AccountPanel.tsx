@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   getAvatarUrl,
@@ -10,12 +10,20 @@ import { PasswordSetForm } from "./PasswordSetForm";
 import styles from "../LoginPage.module.css";
 import { ThemePicker } from "../../components/ThemePicker";
 
-type AccountSection = "profile" | "password";
+type AccountSection = "profile" | "themes" | "password";
+
+function sectionFromSearch(raw: string | null): AccountSection {
+  if (raw === "themes" || raw === "password" || raw === "profile") return raw;
+  return "profile";
+}
 
 export function AccountPanel() {
   const auth = useAuth();
   const user = auth.user!;
-  const [section, setSection] = useState<AccountSection>("profile");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [section, setSection] = useState<AccountSection>(() =>
+    sectionFromSearch(searchParams.get("tab"))
+  );
 
   const [displayName, setDisplayName] = useState(getDisplayName(user));
   const [avatarUrl, setAvatarUrl] = useState(getAvatarUrl(user) ?? "");
@@ -26,6 +34,10 @@ export function AccountPanel() {
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
+    setSection(sectionFromSearch(searchParams.get("tab")));
+  }, [searchParams]);
+
+  useEffect(() => {
     setDisplayName(getDisplayName(user));
     setAvatarUrl(getAvatarUrl(user) ?? "");
   }, [user]);
@@ -33,6 +45,12 @@ export function AccountPanel() {
   function clearMessages() {
     setError(null);
     setInfo(null);
+  }
+
+  function goSection(next: AccountSection) {
+    setSection(next);
+    clearMessages();
+    setSearchParams(next === "profile" ? {} : { tab: next }, { replace: true });
   }
 
   async function onSaveProfile(e: FormEvent) {
@@ -103,22 +121,25 @@ export function AccountPanel() {
             className={`${styles.accountNavBtn} ${
               section === "profile" ? styles.accountNavBtnActive : ""
             }`}
-            onClick={() => {
-              setSection("profile");
-              clearMessages();
-            }}
+            onClick={() => goSection("profile")}
           >
             Profile
           </button>
           <button
             type="button"
             className={`${styles.accountNavBtn} ${
+              section === "themes" ? styles.accountNavBtnActive : ""
+            }`}
+            onClick={() => goSection("themes")}
+          >
+            Themes
+          </button>
+          <button
+            type="button"
+            className={`${styles.accountNavBtn} ${
               section === "password" ? styles.accountNavBtnActive : ""
             }`}
-            onClick={() => {
-              setSection("password");
-              clearMessages();
-            }}
+            onClick={() => goSection("password")}
           >
             Password
           </button>
@@ -182,16 +203,6 @@ export function AccountPanel() {
                   />
                 </div>
               )}
-              <div className={styles.field}>
-                <span className={styles.label}>Theme</span>
-                <p className={styles.hint}>
-                  Choose a look for the whole app. Guild themes follow two-color
-                  identities.
-                </p>
-                <div className={styles.themePickerWrap}>
-                  <ThemePicker />
-                </div>
-              </div>
               <button
                 type="submit"
                 className={styles.primaryBtn}
@@ -200,6 +211,20 @@ export function AccountPanel() {
                 {busy ? "Saving…" : "Save profile"}
               </button>
             </form>
+          </>
+        )}
+
+        {section === "themes" && (
+          <>
+            <h1 className={styles.title}>Themes</h1>
+            <p className={styles.subtitle}>
+              Choose a look for the whole app. Guild themes follow two-color
+              identities. Later, finishing a deck in a theme’s colors can unlock
+              that theme.
+            </p>
+            <div className={styles.themePickerWrap}>
+              <ThemePicker />
+            </div>
           </>
         )}
 

@@ -55,6 +55,11 @@
 .titleAccent {
   color: var(--color-accent);
   font-weight: 750;
+  text-decoration: none;
+}
+
+a.titleAccent:hover {
+  text-decoration: underline;
 }
 
 .subtitle {
