@@ -1,14 +1,61 @@
 /**
- * Courteous pacing for cards.scryfall.io / img.scryfall.com loads.
- * CDN is not under the API rate limit, but we still avoid stampeding it.
+ * Courteous pacing for cards.scryfall.io loads + short session cache of
+ * decoded image URLs so print-grid revisits do not re-queue every thumb.
  */
 
 const MAX_CONCURRENT = 6;
 const MIN_GAP_MS = 40;
+/** Keep warmed URL entries for 30 minutes. */
+const CACHE_TTL_MS = 30 * 60 * 1000;
 
 let active = 0;
 let lastStart = 0;
 const queue: Array<() => void> = [];
+
+/** url → expiresAt */
+const warmed = new Map<string, number>();
+
+function pruneWarmed() {
+  const now = Date.now();
+  for (const [url, exp] of warmed) {
+    if (exp <= now) warmed.delete(url);
+  }
+}
+
+export function isImageWarmed(src: string | undefined | null): boolean {
+  if (!src) return false;
+  const exp = warmed.get(src);
+  if (!exp) return false;
+  if (exp <= Date.now()) {
+    warmed.delete(src);
+    return false;
+  }
+  return true;
+}
+
+export function markImageWarmed(src: string): void {
+  warmed.set(src, Date.now() + CACHE_TTL_MS);
+}
+
+/** Preload a list of URLs through the same polite queue (print grid). */
+export function preloadScryfallImages(urls: string[]): void {
+  pruneWarmed();
+  for (const url of urls) {
+    if (!url || isImageWarmed(url)) continue;
+    enqueueScryfallImageLoad(() => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        markImageWarmed(url);
+        releaseScryfallImageSlot();
+      };
+      img.onerror = () => {
+        releaseScryfallImageSlot();
+      };
+      img.src = url;
+    });
+  }
+}
 
 function pump() {
   if (active >= MAX_CONCURRENT) return;
@@ -26,7 +73,6 @@ function pump() {
   job();
 }
 
-/** Schedule work when an image slot is free. */
 export function enqueueScryfallImageLoad(start: () => void): void {
   queue.push(start);
   pump();
@@ -37,7 +83,6 @@ export function releaseScryfallImageSlot(): void {
   pump();
 }
 
-/** True for Scryfall CDN hosts (images, not api.scryfall.com). */
 export function isScryfallCdnUrl(src: string | undefined | null): boolean {
   if (!src) return false;
   try {

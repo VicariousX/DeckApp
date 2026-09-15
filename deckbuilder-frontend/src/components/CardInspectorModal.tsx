@@ -10,6 +10,7 @@ import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
 import { CardArtPanel } from "./CardArtPanel";
 import { DrawerPicker } from "./DrawerPicker";
+import { UsefulInPicker } from "./UsefulInPicker";
 import { Modal } from "./Modal";
 import styles from "./CardInspectorModal.module.css";
 
@@ -64,6 +65,8 @@ export function CardInspectorModal({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
+  const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
+
   const [contentKey, setContentKey] = useState(0);
   const DEFAULT_MODAL_SIZE = { w: 860, h: 700 };
   /** Fixed until the user drags the resize handle. */
@@ -162,6 +165,32 @@ export function CardInspectorModal({
     };
   }, [scryfallId, artByOracleId, preferredPrintings, imageUrl, imageUrlBack]);
 
+  // Load Useful-in tags for drawers tab
+  useEffect(() => {
+    const card = displayCard ?? baseCard;
+    if (!card) {
+      setUsefulInTags([]);
+      return;
+    }
+    const oracle = String(card.oracle_id ?? card.id).toLowerCase();
+    let cancelled = false;
+    (async () => {
+      const { supabase } = await import("../lib/supabaseClient");
+      const { data } = await supabase
+        .from("user_cards")
+        .select("useful_in")
+        .eq("oracle_id", oracle)
+        .maybeSingle();
+      if (cancelled) return;
+      const u = (data as { useful_in?: string[] | null } | null)?.useful_in;
+      setUsefulInTags(u && u.length ? u : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayCard, baseCard]);
+
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -242,8 +271,9 @@ export function CardInspectorModal({
       }, GESTURE_IDLE_MS);
     }
 
-    /** True if target is inside any vertically scrollable box (even at ends). */
-    function isInsideVerticalScrollRegion(start: EventTarget | null): boolean {
+    function findVerticalScrollEl(
+      start: EventTarget | null
+    ): HTMLElement | null {
       let el = start instanceof Element ? start : null;
       while (el && el !== shell) {
         if (el instanceof HTMLElement) {
@@ -253,12 +283,12 @@ export function CardInspectorModal({
             (oy === "auto" || oy === "scroll" || oy === "overlay") &&
             el.scrollHeight > el.clientHeight + 1
           ) {
-            return true;
+            return el;
           }
         }
         el = el.parentElement;
       }
-      return false;
+      return null;
     }
 
     function isInsideHorizontalScrollRegion(start: EventTarget | null): boolean {
@@ -277,6 +307,27 @@ export function CardInspectorModal({
         el = el.parentElement;
       }
       return false;
+    }
+
+    /** Overscroll buffer: 3 ticks at edge "nudge", 4th switches tabs. */
+    let edgeTicks = 0;
+    let edgeDir: "up" | "down" | null = null;
+    const EDGE_TICKS_BEFORE_TAB = 3;
+
+    function clearEdgeBuffer() {
+      edgeTicks = 0;
+      edgeDir = null;
+      shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
+    }
+
+    function nudgeEdge(dir: "up" | "down") {
+      shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
+      shell.classList.add(
+        dir === "up" ? styles.overscrollNudgeUp : styles.overscrollNudgeDown
+      );
+      window.setTimeout(() => {
+        shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
+      }, 120);
     }
 
     function navVertical(deltaY: number) {
@@ -310,15 +361,52 @@ export function CardInspectorModal({
 
       const preferX = absX > absY;
 
-      // Never steal vertical scroll from print grids / lists
-      if (!preferX && isInsideVerticalScrollRegion(e.target)) {
-        return;
-      }
       if (preferX && isInsideHorizontalScrollRegion(e.target)) {
         return;
       }
 
+      // Vertical over a scrollable region: allow native scroll until edge buffer
+      if (!preferX) {
+        const scrollEl = findVerticalScrollEl(e.target);
+        if (scrollEl) {
+          const atTop = scrollEl.scrollTop <= 0;
+          const atBottom =
+            scrollEl.scrollTop + scrollEl.clientHeight >=
+            scrollEl.scrollHeight - 1;
+          const scrollingUp = e.deltaY < 0;
+          const scrollingDown = e.deltaY > 0;
+          const pastEdge =
+            (scrollingUp && atTop) || (scrollingDown && atBottom);
+
+          if (!pastEdge) {
+            clearEdgeBuffer();
+            return; // native scroll
+          }
+
+          // At edge — buffered tab switch
+          e.preventDefault();
+          const dir: "up" | "down" = scrollingUp ? "up" : "down";
+          if (edgeDir !== dir) {
+            edgeDir = dir;
+            edgeTicks = 1;
+            nudgeEdge(dir);
+            return;
+          }
+          edgeTicks += 1;
+          if (edgeTicks <= EDGE_TICKS_BEFORE_TAB) {
+            nudgeEdge(dir);
+            return;
+          }
+          // 4th tick past edge → switch tabs
+          clearEdgeBuffer();
+          resetGestureSoon();
+          navVertical(e.deltaY);
+          return;
+        }
+      }
+
       e.preventDefault();
+      clearEdgeBuffer();
       resetGestureSoon();
 
       if (!gestureAxis) {
@@ -329,7 +417,6 @@ export function CardInspectorModal({
       const now = Date.now();
 
       if (gestureAxis === "x") {
-        // First tick of a horizontal gesture → one card; further ticks paced
         if (!gestureConsumed) {
           gestureConsumed = true;
           lastNavAt = now;
@@ -343,7 +430,6 @@ export function CardInspectorModal({
         return;
       }
 
-      // vertical tabs
       if (!gestureConsumed) {
         gestureConsumed = true;
         lastNavAt = now;
@@ -656,14 +742,25 @@ export function CardInspectorModal({
                 style={active !== "drawers" ? { display: "none" } : undefined}
               >
                 {displayCard || baseCard ? (
-                  <DrawerPicker
-                    oracleId={(
-                      (displayCard ?? baseCard)!.oracle_id ??
-                      (displayCard ?? baseCard)!.id
-                    ).toLowerCase()}
-                    scryfallCard={displayCard ?? baseCard!}
-                    inline
-                  />
+                  <>
+                    <UsefulInPicker
+                      oracleId={(
+                        (displayCard ?? baseCard)!.oracle_id ??
+                        (displayCard ?? baseCard)!.id
+                      ).toLowerCase()}
+                      scryfallCard={displayCard ?? baseCard!}
+                      value={usefulInTags}
+                      onChange={setUsefulInTags}
+                    />
+                    <DrawerPicker
+                      oracleId={(
+                        (displayCard ?? baseCard)!.oracle_id ??
+                        (displayCard ?? baseCard)!.id
+                      ).toLowerCase()}
+                      scryfallCard={displayCard ?? baseCard!}
+                      inline
+                    />
+                  </>
                 ) : (
                   <p className={styles.muted}>Load card to manage drawers.</p>
                 )}

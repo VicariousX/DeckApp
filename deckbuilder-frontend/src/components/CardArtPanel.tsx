@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RateLimitedImg } from "./RateLimitedImg";
+import { preloadScryfallImages } from "../lib/scryfallImageQueue";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
@@ -48,6 +49,14 @@ export function CardArtPanel({
   const [expanded, setExpanded] = useState(embedded);
   const [uploadOpen, setUploadOpen] = useState(true);
   const [printsOpen, setPrintsOpen] = useState(false);
+  useEffect(() => {
+    if (printings.length === 0) return;
+    const urls = printings
+      .map((p) => getFaceImage(p, 0))
+      .filter((u): u is string => Boolean(u));
+    preloadScryfallImages(urls);
+  }, [printings]);
+
   const [printHover, setPrintHover] = useState<{ src: string; x: number; y: number } | null>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -568,13 +577,13 @@ export function CardArtPanel({
                       title={`${p.set_name} · #${p.collector_number}`}
                       onMouseEnter={(e) => {
                         if (!thumb) return;
-                        // Pointer sits ~1/3 from left and top of the enlarged card
+                        // Pointer at center of the enlarged card
                         const W = 220;
                         const H = 308;
                         setPrintHover({
                           src: thumb,
-                          x: e.clientX - W / 3,
-                          y: e.clientY - H / 3,
+                          x: e.clientX - W / 2,
+                          y: e.clientY - H / 2,
                         });
                       }}
                       onMouseLeave={() => setPrintHover(null)}
@@ -584,8 +593,8 @@ export function CardArtPanel({
                         const H = 308;
                         setPrintHover({
                           src: thumb,
-                          x: e.clientX - W / 3,
-                          y: e.clientY - H / 3,
+                          x: e.clientX - W / 2,
+                          y: e.clientY - H / 2,
                         });
                       }}
                     >

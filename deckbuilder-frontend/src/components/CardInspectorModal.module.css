@@ -396,3 +396,10 @@
     );
   border-bottom-right-radius: 8px;
 }
+
+.overscrollNudgeUp {
+  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+.overscrollNudgeDown {
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--color-accent) 55%, transparent);
+}

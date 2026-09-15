@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ImgHTMLAttributes } from "react";
 import {
   enqueueScryfallImageLoad,
+  isImageWarmed,
   isScryfallCdnUrl,
+  markImageWarmed,
   releaseScryfallImageSlot,
 } from "../lib/scryfallImageQueue";
 
@@ -10,13 +12,14 @@ type Props = ImgHTMLAttributes<HTMLImageElement> & {
 };
 
 /**
- * <img> that paces loads against Scryfall CDN hosts.
- * Non-Scryfall URLs load immediately.
+ * <img> that paces loads against Scryfall CDN hosts and reuses warmed URLs.
  */
 export function RateLimitedImg({ src, alt, onLoad, onError, ...rest }: Props) {
-  const [activeSrc, setActiveSrc] = useState<string | undefined>(() =>
-    src && !isScryfallCdnUrl(src) ? src : undefined
-  );
+  const [activeSrc, setActiveSrc] = useState<string | undefined>(() => {
+    if (!src) return undefined;
+    if (!isScryfallCdnUrl(src) || isImageWarmed(src)) return src;
+    return undefined;
+  });
   const held = useRef(false);
 
   useEffect(() => {
@@ -25,7 +28,7 @@ export function RateLimitedImg({ src, alt, onLoad, onError, ...rest }: Props) {
       setActiveSrc(undefined);
       return;
     }
-    if (!isScryfallCdnUrl(src)) {
+    if (!isScryfallCdnUrl(src) || isImageWarmed(src)) {
       setActiveSrc(src);
       return;
     }
@@ -57,6 +60,7 @@ export function RateLimitedImg({ src, alt, onLoad, onError, ...rest }: Props) {
       src={activeSrc}
       alt={alt}
       onLoad={(e) => {
+        if (src) markImageWarmed(src);
         if (held.current) {
           held.current = false;
           releaseScryfallImageSlot();
