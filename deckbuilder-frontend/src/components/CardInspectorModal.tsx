@@ -258,6 +258,33 @@ export function CardInspectorModal({
     artSub,
   ]);
 
+  // Mouse back (3) / forward (4) — prev/next card while the modal is open
+  useEffect(() => {
+    function onMouseButton(e: MouseEvent) {
+      if (e.button !== 3 && e.button !== 4) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.button === 3 && hasPrev && onPrev) onPrev();
+      if (e.button === 4 && hasNext && onNext) onNext();
+    }
+    function onPopState() {
+      // Swallow history navigation triggered by mouse back while modal is open
+      history.pushState({ deckappModal: 1 }, "");
+    }
+    history.pushState({ deckappModal: 1 }, "");
+    window.addEventListener("mouseup", onMouseButton, true);
+    window.addEventListener("auxclick", onMouseButton, true);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("mouseup", onMouseButton, true);
+      window.removeEventListener("auxclick", onMouseButton, true);
+      window.removeEventListener("popstate", onPopState);
+      if (history.state && (history.state as { deckappModal?: number }).deckappModal) {
+        history.back();
+      }
+    };
+  }, [hasPrev, hasNext, onPrev, onNext]);
+
 
   // Wheel: vertical = tabs (only outside scrollable regions);
   // horizontal = prev/next card with gesture gating (once per flick, then paced).
@@ -435,21 +462,8 @@ export function CardInspectorModal({
 
       const now = Date.now();
 
+      // Horizontal wheel no longer changes cards (mouse back/forward does)
       if (gestureAxis === "x") {
-        if (!gestureConsumed) {
-          gestureConsumed = true;
-          lastNavAt = now;
-          navHorizontal(e.deltaX);
-          return;
-        }
-        const gap = firstRepeatDone
-          ? REPEAT_NAV_MS
-          : FIRST_REPEAT_DELAY_MS;
-        if (now - lastNavAt >= gap) {
-          firstRepeatDone = true;
-          lastNavAt = now;
-          navHorizontal(e.deltaX);
-        }
         return;
       }
 

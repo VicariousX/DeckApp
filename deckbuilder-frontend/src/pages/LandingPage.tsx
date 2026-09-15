@@ -8,7 +8,13 @@ export function LandingPage() {
   const { user } = useAuth();
   const displayName = getDisplayName(user);
 
-  const guestPaths = [
+  const guestPaths: Array<{
+    to: string;
+    mark: string;
+    title: string;
+    description: string;
+    drawer?: boolean;
+  }> = [
     {
       to: "/search",
       mark: "S",
@@ -39,8 +45,9 @@ export function LandingPage() {
     {
       to: "/my-decks",
       mark: "M",
-      title: "My decks",
-      description: "Open your personal deck lists and drafts.",
+      title: "My",
+      description: "Your decks and drawers.",
+      drawer: true,
     },
     {
       to: "/decks",
@@ -71,20 +78,46 @@ export function LandingPage() {
       </div>
 
       <div className={styles.actions}>
-        {paths.map((path, index) => (
-          <Link
-            key={path.to}
-            to={path.to}
-            className={styles.card}
-            style={{ animationDelay: `${80 + index * 70}ms` }}
-          >
-            <span className={styles.cardMark} aria-hidden>
-              {path.mark}
-            </span>
-            <span className={styles.cardTitle}>{path.title}</span>
-            <span className={styles.cardDesc}>{path.description}</span>
-          </Link>
-        ))}
+        {paths.map((path, index) =>
+          "drawer" in path && path.drawer ? (
+            <div
+              key={path.to}
+              className={styles.myDrawer}
+              style={{ animationDelay: `${80 + index * 70}ms` }}
+            >
+              <div className={styles.myDrawerFace} aria-hidden={false}>
+                <span className={styles.cardMark} aria-hidden>
+                  {path.mark}
+                </span>
+                <span className={styles.cardTitle}>{path.title}</span>
+                <span className={styles.cardDesc}>{path.description}</span>
+              </div>
+              <div className={styles.myDrawerInner}>
+                <Link to="/my-decks" className={styles.myDrawerSlot}>
+                  <span className={styles.myDrawerSlotMark}>D</span>
+                  <span className={styles.myDrawerSlotTitle}>Decks</span>
+                </Link>
+                <Link to="/drawers" className={styles.myDrawerSlot}>
+                  <span className={styles.myDrawerSlotMark}>W</span>
+                  <span className={styles.myDrawerSlotTitle}>Drawers</span>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <Link
+              key={path.to}
+              to={path.to}
+              className={styles.card}
+              style={{ animationDelay: `${80 + index * 70}ms` }}
+            >
+              <span className={styles.cardMark} aria-hidden>
+                {path.mark}
+              </span>
+              <span className={styles.cardTitle}>{path.title}</span>
+              <span className={styles.cardDesc}>{path.description}</span>
+            </Link>
+          )
+        )}
       </div>
 
       <p className={styles.footerHint}>
