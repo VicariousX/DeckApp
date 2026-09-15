@@ -597,8 +597,8 @@
 .stackColumn {
   flex: 0 0 auto;
   width: 146px;
-  min-height: var(--board-col-min-h, min(70vh, 640px));
-  height: 100%;
+  min-height: 0;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
