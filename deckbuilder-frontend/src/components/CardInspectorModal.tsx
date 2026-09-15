@@ -66,6 +66,14 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
+  const [overscrollHint, setOverscrollHint] = useState<{
+    dir: "up" | "down";
+    ticks: number;
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
 
   const [contentKey, setContentKey] = useState(0);
   const DEFAULT_MODAL_SIZE = { w: 860, h: 700 };
@@ -309,7 +317,7 @@ export function CardInspectorModal({
       return false;
     }
 
-    /** Overscroll buffer: 3 ticks at edge "nudge", 4th switches tabs. */
+    /** Overscroll buffer: 3 filled dots at edge, 4th tick switches tabs. */
     let edgeTicks = 0;
     let edgeDir: "up" | "down" | null = null;
     const EDGE_TICKS_BEFORE_TAB = 3;
@@ -317,17 +325,22 @@ export function CardInspectorModal({
     function clearEdgeBuffer() {
       edgeTicks = 0;
       edgeDir = null;
-      shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
+      setOverscrollHint(null);
     }
 
-    function nudgeEdge(dir: "up" | "down") {
-      shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
-      shell.classList.add(
-        dir === "up" ? styles.overscrollNudgeUp : styles.overscrollNudgeDown
-      );
-      window.setTimeout(() => {
-        shell.classList.remove(styles.overscrollNudgeUp, styles.overscrollNudgeDown);
-      }, 120);
+    function showEdgeDots(
+      dir: "up" | "down",
+      ticks: number,
+      scrollEl: HTMLElement
+    ) {
+      const r = scrollEl.getBoundingClientRect();
+      setOverscrollHint({
+        dir,
+        ticks: Math.min(3, Math.max(0, ticks)),
+        top: dir === "up" ? r.top + 6 : r.bottom - 18,
+        left: r.left,
+        width: r.width,
+      });
     }
 
     function navVertical(deltaY: number) {
@@ -383,18 +396,18 @@ export function CardInspectorModal({
             return; // native scroll
           }
 
-          // At edge — buffered tab switch
+          // At edge — buffered tab switch (3 dots, then switch)
           e.preventDefault();
           const dir: "up" | "down" = scrollingUp ? "up" : "down";
           if (edgeDir !== dir) {
             edgeDir = dir;
             edgeTicks = 1;
-            nudgeEdge(dir);
+            showEdgeDots(dir, edgeTicks, scrollEl);
             return;
           }
           edgeTicks += 1;
           if (edgeTicks <= EDGE_TICKS_BEFORE_TAB) {
-            nudgeEdge(dir);
+            showEdgeDots(dir, edgeTicks, scrollEl);
             return;
           }
           // 4th tick past edge → switch tabs
@@ -828,6 +841,29 @@ export function CardInspectorModal({
           title="Drag to resize"
         />
       </div>
+      {overscrollHint &&
+        createPortal(
+          <div
+            className={styles.overscrollDots}
+            style={{
+              top: overscrollHint.top,
+              left: overscrollHint.left,
+              width: overscrollHint.width,
+            }}
+            data-dir={overscrollHint.dir}
+            aria-hidden
+          >
+            {[1, 2, 3].map((n) => (
+              <span
+                key={n}
+                className={`${styles.overscrollDot}${
+                  overscrollHint.ticks >= n ? ` ${styles.overscrollDotFilled}` : ""
+                }`}
+              />
+            ))}
+          </div>,
+          document.body
+        )}
     </Modal>
   );
 }

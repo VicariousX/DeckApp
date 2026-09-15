@@ -361,6 +361,7 @@ export function DroppableRegion({
     <div
       ref={setNodeRef}
       data-board={dataBoard}
+      data-board-zone={dataBoard ? "" : undefined}
       className={`${className ?? ""}${
         active && activeClassName ? ` ${activeClassName}` : ""
       }`}

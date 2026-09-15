@@ -67,6 +67,10 @@ export function StackCards({ count, className, children }: Props) {
     if (hoverIdxRef.current === idx) return;
     hoverIdxRef.current = idx;
     setHoverIdx(idx);
+    const zone = ref.current?.closest("[data-board-zone]");
+    if (zone instanceof HTMLElement) {
+      zone.classList.toggle(styles.boardZonePeeking, idx != null);
+    }
   }, []);
 
   const updateHoverFromPointer = useCallback(

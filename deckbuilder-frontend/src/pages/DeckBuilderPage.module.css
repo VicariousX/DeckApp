@@ -820,6 +820,7 @@
 .boardZones {
   display: flex;
   flex-direction: column;
+  overflow: visible;
   gap: 1.75rem;
 }
 
@@ -1334,4 +1335,39 @@
 .stackColumn > :last-child {
   flex: 1 1 auto;
   min-height: 8rem;
+}
+
+/* Board expand — no vertical scroll; mist obscures peeked cards at bottom */
+.boardZone {
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+}
+
+.boardZone::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.25rem;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-surface) 92%, transparent) 0%,
+    color-mix(in srgb, var(--color-surface) 55%, transparent) 45%,
+    transparent 100%
+  );
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.boardZonePeeking::after {
+  opacity: 1;
+}
+
+.stacksRow {
+  overflow-y: visible;
 }
