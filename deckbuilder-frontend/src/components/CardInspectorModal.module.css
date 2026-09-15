@@ -432,22 +432,20 @@
     0 0 0 1px color-mix(in srgb, var(--color-accent-glow, var(--color-accent)) 30%, transparent);
 }
 
-/* Soft content fade at scroll edges (no mist overlay) */
+/* Fade only the bottom of scroll panels so tab headers stay sharp */
 .panelScroll {
   position: relative;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   -webkit-mask-image: linear-gradient(
     to bottom,
-    transparent 0,
-    #000 28px,
+    #000 0,
     #000 calc(100% - 28px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
-    transparent 0,
-    #000 28px,
+    #000 0,
     #000 calc(100% - 28px),
     transparent 100%
   );
