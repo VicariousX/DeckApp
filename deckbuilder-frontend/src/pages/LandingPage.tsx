@@ -45,37 +45,38 @@ function LandingDrawer({
       </div>
 
       <div className={styles.drawerSheet}>
-        <span className={styles.cardMark} aria-hidden>
-          {mark}
-        </span>
-        <span className={styles.cardTitle}>{title}</span>
-        <span className={styles.cardDesc}>{description}</span>
-      </div>
-
-      {rail.kind === "link" ? (
-        rail.external ? (
-          <a
-            href={rail.to}
+        <div className={styles.drawerSheetMain}>
+          <span className={styles.cardMark} aria-hidden>
+            {mark}
+          </span>
+          <span className={styles.cardTitle}>{title}</span>
+          <span className={styles.cardDesc}>{description}</span>
+        </div>
+        {rail.kind === "link" ? (
+          rail.external ? (
+            <a
+              href={rail.to}
+              className={styles.drawerRail}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {rail.label}
+            </a>
+          ) : (
+            <Link to={rail.to} className={styles.drawerRail}>
+              {rail.label}
+            </Link>
+          )
+        ) : (
+          <button
+            type="button"
             className={styles.drawerRail}
-            target="_blank"
-            rel="noreferrer"
+            onClick={rail.onClick}
           >
             {rail.label}
-          </a>
-        ) : (
-          <Link to={rail.to} className={styles.drawerRail}>
-            {rail.label}
-          </Link>
-        )
-      ) : (
-        <button
-          type="button"
-          className={styles.drawerRail}
-          onClick={rail.onClick}
-        >
-          {rail.label}
-        </button>
-      )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -114,8 +115,8 @@ export function LandingPage() {
 
   const myDrawer = user ? (
     <LandingDrawer
-      mark="M"
-      title="My"
+      mark={(displayName || "M").charAt(0).toUpperCase()}
+      title="My..."
       description="Your collection space."
       delayMs={150}
       slots={[
