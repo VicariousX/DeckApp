@@ -575,9 +575,22 @@
   align-items: stretch;
   gap: 0.85rem;
   overflow-x: auto;
-  overflow-y: visible;
-  padding-bottom: 0.5rem;
+  overflow-y: hidden;
+  padding-bottom: 0.35rem;
   min-height: min(70vh, 640px);
+  /* Same soft edge fade as modal printings — cards leaving the bottom lose opacity */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 36px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 36px),
+    transparent 100%
+  );
 }
 
 .stackColumn {
@@ -837,7 +850,8 @@
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
+  /* Clip peek transforms so the page does not become scrollable */
+  overflow-y: hidden;
   box-sizing: border-box;
 }
 
@@ -1349,20 +1363,16 @@
   box-sizing: border-box;
 }
 
-/* Board expand — no vertical scroll */
+/* Board expands with cards; clip Y so peek never introduces vertical scroll */
 .boardZone {
   overflow-x: auto;
-  overflow-y: visible !important;
+  overflow-y: hidden !important;
   position: relative;
 }
 
 .stacksRow {
-  overflow-y: visible;
+  overflow-y: hidden;
 }
 
 
-/* Cards shifted down while peeking fade as they leave the stack view */
-.stackCardPeekFaded {
-  opacity: 0.42;
-  filter: saturate(0.85);
-}
+
