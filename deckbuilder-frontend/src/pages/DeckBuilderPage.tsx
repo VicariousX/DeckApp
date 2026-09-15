@@ -1531,13 +1531,7 @@ export function DeckBuilderPage() {
                             colIdx === 0
                           );
                           return (
-                            <DroppableRegion
-                              key={col.id}
-                              id={listColDropId(board.id, col.id)}
-                              className={styles.stackColumn}
-                              activeClassName={styles.stackColumnDropActive}
-                              disabled={!isOwner}
-                            >
+                            <div key={col.id} className={styles.stackColumn}>
                               <div className={styles.stackHeader}>
                                 {isOwner ? (
                                   <input
@@ -1569,6 +1563,14 @@ export function DeckBuilderPage() {
                                   )}
                               </div>
                               <div className={styles.stackColumnBody}>
+                                <DroppableRegion
+                                  id={listColDropId(board.id, col.id)}
+                                  className={styles.stackColumnDropFill}
+                                  activeClassName={styles.stackColumnDropActive}
+                                  disabled={!isOwner}
+                                >
+                                  <span className={styles.stackColumnDropHit} aria-hidden />
+                                </DroppableRegion>
                               <StackCards count={colCards.length}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
@@ -1650,7 +1652,7 @@ export function DeckBuilderPage() {
                                 })}
                               </StackCards>
                               </div>
-                            </DroppableRegion>
+                            </div>
                           );
                         })}
                         {isOwner && (

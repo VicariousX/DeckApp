@@ -91,12 +91,21 @@ export function parseDropId(id: string | null | undefined): DropTarget | null {
   return null;
 }
 
-/** Prefer cards under the pointer; fall back to columns/boards; then closest center. */
+/** Prefer cards, then list columns / new-column, then groups/boards. */
 const deckCollision: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
   if (pointerHits.length > 0) {
-    const cards = pointerHits.filter((h) => String(h.id).startsWith("card:"));
+    const id = (h: { id: string | number }) => String(h.id);
+    const cards = pointerHits.filter((h) => id(h).startsWith("card:"));
     if (cards.length > 0) return cards;
+    const listCols = pointerHits.filter(
+      (h) => id(h).startsWith("listcol:") && !id(h).startsWith("listcol-new:")
+    );
+    if (listCols.length > 0) return listCols;
+    const listNew = pointerHits.filter((h) => id(h).startsWith("listcol-new:"));
+    if (listNew.length > 0) return listNew;
+    const groups = pointerHits.filter((h) => id(h).startsWith("group:"));
+    if (groups.length > 0) return groups;
     return pointerHits;
   }
   return closestCenter(args);

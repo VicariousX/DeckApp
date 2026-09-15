@@ -3,8 +3,8 @@
  * decoded image URLs so print-grid revisits do not re-queue every thumb.
  */
 
-const MAX_CONCURRENT = 6;
-const MIN_GAP_MS = 40;
+const MAX_CONCURRENT = 14;
+const MIN_GAP_MS = 16;
 /** Keep warmed URL entries for 30 minutes. */
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
