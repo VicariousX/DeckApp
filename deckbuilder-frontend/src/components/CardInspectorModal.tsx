@@ -220,35 +220,40 @@ export function CardInspectorModal({
   ]);
 
 
-  // Wheel over non-scrollable areas mirrors arrow keys:
-  // vertical = tabs/sub-tabs, horizontal = prev/next card
+  // Wheel: vertical = tabs (only outside scrollable regions);
+  // horizontal = prev/next card with gesture gating (once per flick, then paced).
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;
-    let lockUntil = 0;
 
-    function isScrollableInDirection(start: EventTarget | null, deltaY: number, deltaX: number) {
+    let gestureAxis: "x" | "y" | null = null;
+    let gestureConsumed = false;
+    let gestureTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastNavAt = 0;
+    const GESTURE_IDLE_MS = 160;
+    const FIRST_NAV_COOLDOWN = 420;
+    const REPEAT_NAV_MS = 520;
+
+    function resetGestureSoon() {
+      if (gestureTimer) clearTimeout(gestureTimer);
+      gestureTimer = setTimeout(() => {
+        gestureAxis = null;
+        gestureConsumed = false;
+      }, GESTURE_IDLE_MS);
+    }
+
+    /** True if target is inside any vertically scrollable box (even at ends). */
+    function isInsideVerticalScrollRegion(start: EventTarget | null): boolean {
       let el = start instanceof Element ? start : null;
       while (el && el !== shell) {
         if (el instanceof HTMLElement) {
           const style = window.getComputedStyle(el);
           const oy = style.overflowY;
-          const ox = style.overflowX;
-          const yScrollable =
+          if (
             (oy === "auto" || oy === "scroll" || oy === "overlay") &&
-            el.scrollHeight > el.clientHeight + 1;
-          const xScrollable =
-            (ox === "auto" || ox === "scroll" || ox === "overlay") &&
-            el.scrollWidth > el.clientWidth + 1;
-          if (Math.abs(deltaY) >= Math.abs(deltaX) && yScrollable) {
-            if (deltaY < 0 && el.scrollTop > 0) return true;
-            if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1)
-              return true;
-          }
-          if (Math.abs(deltaX) > Math.abs(deltaY) && xScrollable) {
-            if (deltaX < 0 && el.scrollLeft > 0) return true;
-            if (deltaX > 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
-              return true;
+            el.scrollHeight > el.clientHeight + 1
+          ) {
+            return true;
           }
         }
         el = el.parentElement;
@@ -256,23 +261,26 @@ export function CardInspectorModal({
       return false;
     }
 
-    function onWheel(e: WheelEvent) {
-      if (isScrollableInDirection(e.target, e.deltaY, e.deltaX)) return;
-      // Ignore tiny trackpad noise
-      if (Math.abs(e.deltaY) < 4 && Math.abs(e.deltaX) < 4) return;
-      e.preventDefault();
-      const now = Date.now();
-      if (now < lockUntil) return;
-      lockUntil = now + 260;
-
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        if (e.deltaX > 0 && hasNext && onNext) onNext();
-        else if (e.deltaX < 0 && hasPrev && onPrev) onPrev();
-        return;
+    function isInsideHorizontalScrollRegion(start: EventTarget | null): boolean {
+      let el = start instanceof Element ? start : null;
+      while (el && el !== shell) {
+        if (el instanceof HTMLElement) {
+          const style = window.getComputedStyle(el);
+          const ox = style.overflowX;
+          if (
+            (ox === "auto" || ox === "scroll" || ox === "overlay") &&
+            el.scrollWidth > el.clientWidth + 1
+          ) {
+            return true;
+          }
+        }
+        el = el.parentElement;
       }
+      return false;
+    }
 
-      if (e.deltaY < 0) {
-        // up
+    function navVertical(deltaY: number) {
+      if (deltaY < 0) {
         if (active === "artwork" && artSub === "upload") {
           setArtSub("prints");
           return;
@@ -280,7 +288,6 @@ export function CardInspectorModal({
         const next = Math.max(0, activeIndex - 1);
         selectTab(tabs[next].id);
       } else {
-        // down
         if (active === "artwork" && artSub === "prints") {
           setArtSub("upload");
           return;
@@ -291,8 +298,69 @@ export function CardInspectorModal({
       }
     }
 
+    function navHorizontal(deltaX: number) {
+      if (deltaX > 0 && hasNext && onNext) onNext();
+      else if (deltaX < 0 && hasPrev && onPrev) onPrev();
+    }
+
+    function onWheel(e: WheelEvent) {
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+      if (absX < 4 && absY < 4) return;
+
+      const preferX = absX > absY;
+
+      // Never steal vertical scroll from print grids / lists
+      if (!preferX && isInsideVerticalScrollRegion(e.target)) {
+        return;
+      }
+      if (preferX && isInsideHorizontalScrollRegion(e.target)) {
+        return;
+      }
+
+      e.preventDefault();
+      resetGestureSoon();
+
+      if (!gestureAxis) {
+        gestureAxis = preferX ? "x" : "y";
+        gestureConsumed = false;
+      }
+
+      const now = Date.now();
+
+      if (gestureAxis === "x") {
+        // First tick of a horizontal gesture → one card; further ticks paced
+        if (!gestureConsumed) {
+          gestureConsumed = true;
+          lastNavAt = now;
+          navHorizontal(e.deltaX);
+          return;
+        }
+        if (now - lastNavAt >= REPEAT_NAV_MS) {
+          lastNavAt = now;
+          navHorizontal(e.deltaX);
+        }
+        return;
+      }
+
+      // vertical tabs
+      if (!gestureConsumed) {
+        gestureConsumed = true;
+        lastNavAt = now;
+        navVertical(e.deltaY);
+        return;
+      }
+      if (now - lastNavAt >= FIRST_NAV_COOLDOWN) {
+        lastNavAt = now;
+        navVertical(e.deltaY);
+      }
+    }
+
     shell.addEventListener("wheel", onWheel, { passive: false });
-    return () => shell.removeEventListener("wheel", onWheel);
+    return () => {
+      shell.removeEventListener("wheel", onWheel);
+      if (gestureTimer) clearTimeout(gestureTimer);
+    };
   }, [
     active,
     artSub,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { RateLimitedImg } from "./RateLimitedImg";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
@@ -567,25 +568,29 @@ export function CardArtPanel({
                       title={`${p.set_name} · #${p.collector_number}`}
                       onMouseEnter={(e) => {
                         if (!thumb) return;
-                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        // Pointer sits ~1/3 from left and top of the enlarged card
+                        const W = 220;
+                        const H = 308;
                         setPrintHover({
                           src: thumb,
-                          x: r.right + 10,
-                          y: r.top,
+                          x: e.clientX - W / 3,
+                          y: e.clientY - H / 3,
                         });
                       }}
                       onMouseLeave={() => setPrintHover(null)}
                       onMouseMove={(e) => {
                         if (!thumb) return;
+                        const W = 220;
+                        const H = 308;
                         setPrintHover({
                           src: thumb,
-                          x: e.clientX + 16,
-                          y: e.clientY - 20,
+                          x: e.clientX - W / 3,
+                          y: e.clientY - H / 3,
                         });
                       }}
                     >
                       {thumb ? (
-                        <img src={thumb} alt="" className={styles.printThumb} />
+                        <RateLimitedImg src={thumb} alt="" className={styles.printThumb} />
                       ) : (
                         <span className={styles.printFallback}>
                           {faces[0]?.name ?? p.name}

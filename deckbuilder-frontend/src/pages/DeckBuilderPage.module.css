@@ -571,10 +571,11 @@
 .stacksRow {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch; /* columns fill board height for full drop targets */
   gap: 0.85rem;
   overflow-x: auto;
   padding-bottom: 1.5rem;
+  min-height: min(52vh, 420px);
   /* allow cards to peek past column bounds on hover */
   overflow-y: visible;
 }
@@ -582,7 +583,7 @@
 .stackColumn {
   flex: 0 0 auto;
   width: 146px;
-  min-height: 4rem;
+  min-height: min(52vh, 420px);
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -1161,11 +1162,13 @@
 
 .stackColumn {
   flex: 0 0 auto;
-  min-height: 220px;
+  min-height: min(52vh, 420px);
   min-width: calc(var(--stack-width, 146px) + 12px);
   padding: 0.25rem;
   box-sizing: border-box;
   border-radius: 12px;
+  /* Droppable fills remaining column height under the header */
+  position: relative;
 }
 
 .stackColumnDropActive {
@@ -1325,4 +1328,10 @@
   position: relative;
   z-index: 1;
   flex: 0 0 auto;
+}
+
+/* Stack body fills column for full-height drops */
+.stackColumn > :last-child {
+  flex: 1 1 auto;
+  min-height: 8rem;
 }

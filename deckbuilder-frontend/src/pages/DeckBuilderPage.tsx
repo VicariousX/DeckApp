@@ -43,7 +43,8 @@ import {
   groupDropId,
   stopDndPropagation,
   type DropTarget,
-} from "../components/ImageDeckDnd";
+} from "../components/ImageDeckDnd"
+import { RateLimitedImg } from "../components/RateLimitedImg";
 import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
@@ -914,7 +915,7 @@ export function DeckBuilderPage() {
       void (async () => {
         await ensureBoardThen(source, target.board, () => {
           placeCardInListColumn(target.board, source.id, target.colId);
-          // Drop on column body → append to end of that column's visual stack
+          // Drop on column body (full height) → treat as frontmost card
           const layout =
             listLayouts[target.board] ??
             getListColumnLayout(detail.deck.id, target.board);
@@ -924,17 +925,15 @@ export function DeckBuilderPage() {
             target.colId,
             layout.columns[0]?.id === target.colId
           ).filter((c) => c.id !== source.id);
-          const beforeId = null; // end of board order among these is approximate
-          // Put after last card currently in the column
           if (colCards.length > 0) {
-            const last = colCards[colCards.length - 1];
-            // Insert after last: reorder so source is right after last
+            const first = colCards[0];
+            // Insert before first card in the column (front of stack)
             const boardList = sortCards(
               detail.cards.filter((c) => c.board === target.board)
             );
             const without = boardList.filter((c) => c.id !== source.id);
-            const lastIdx = without.findIndex((c) => c.id === last.id);
-            const insertAt = lastIdx < 0 ? without.length : lastIdx + 1;
+            const firstIdx = without.findIndex((c) => c.id === first.id);
+            const insertAt = firstIdx < 0 ? 0 : firstIdx;
             const src = boardList.find((c) => c.id === source.id) ?? source;
             const nextOrder = [
               ...without.slice(0, insertAt),
@@ -956,7 +955,6 @@ export function DeckBuilderPage() {
             });
             void reorderBoardCards(orderedIds);
           } else {
-            void beforeId;
           }
         });
       })();
@@ -1589,7 +1587,7 @@ export function DeckBuilderPage() {
                                         title={c.name}
                                       >
                                         {src ? (
-                                          <img
+                                          <RateLimitedImg
                                             src={src}
                                             alt={c.name}
                                             className={styles.stackCardImg}
@@ -1717,7 +1715,7 @@ export function DeckBuilderPage() {
                                         title={c.name}
                                       >
                                         {src ? (
-                                          <img
+                                          <RateLimitedImg
                                             src={src}
                                             alt={c.name}
                                             className={styles.stackCardImg}
