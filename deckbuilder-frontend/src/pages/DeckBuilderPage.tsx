@@ -1562,15 +1562,12 @@ export function DeckBuilderPage() {
                                     </button>
                                   )}
                               </div>
-                              <div className={styles.stackColumnBody}>
-                                <DroppableRegion
-                                  id={listColDropId(board.id, col.id)}
-                                  className={styles.stackColumnDropFill}
-                                  activeClassName={styles.stackColumnDropActive}
-                                  disabled={!isOwner}
-                                >
-                                  <span className={styles.stackColumnDropHit} aria-hidden />
-                                </DroppableRegion>
+                              <DroppableRegion
+                                id={listColDropId(board.id, col.id)}
+                                className={styles.stackColumnDropFill}
+                                activeClassName={styles.stackColumnDropActive}
+                                disabled={!isOwner}
+                              >
                               <StackCards count={colCards.length}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
@@ -1651,7 +1648,8 @@ export function DeckBuilderPage() {
                                   );
                                 })}
                               </StackCards>
-                              </div>
+                              <div className={styles.stackColumnSpacer} aria-hidden />
+                              </DroppableRegion>
                             </div>
                           );
                         })}
