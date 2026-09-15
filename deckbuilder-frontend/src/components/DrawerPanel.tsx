@@ -25,6 +25,7 @@ import {
   type DrawerViewMode,
 } from "../lib/deckPreferences";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
+import { ConfirmDialog } from "./ConfirmDialog";
 import styles from "./DrawerPanel.module.css";
 
 type Props = {
@@ -125,6 +126,8 @@ export function DrawerPanel({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<string | null>(null);
+  const [applyMissingOnly, setApplyMissingOnly] = useState(true);
+  const [applyConfirm, setApplyConfirm] = useState<string | null>(null);
   const [hover, setHover] = useState<{
     src: string;
     name: string;
@@ -226,22 +229,47 @@ export function DrawerPanel({
     return { eligible: ok, excluded: no };
   }, [visible, respectIdentity, respectUseful, hasCommanderIdentity, commanderColorIdentity]);
 
-  async function handleApply() {
-    if (!onApplyDrawer || eligible.length === 0) return;
-    const msg =
-      excluded.length > 0
-        ? `Add ${eligible.length} card(s) to ${applyBoardLabel}?\n${excluded.length} excluded by color identity.`
-        : `Add ${eligible.length} card(s) to ${applyBoardLabel}?`;
-    if (!confirm(msg)) return;
+  const applySet = useMemo(() => {
+    if (!applyMissingOnly) return eligible;
+    return eligible.filter((c) => {
+      const oid = String(c.oracle_id ?? "").toLowerCase();
+      return !oid || (deckQtyByOracle[oid] ?? 0) === 0;
+    });
+  }, [eligible, applyMissingOnly, deckQtyByOracle]);
+
+  const alreadyInDeck = eligible.length - applySet.length;
+
+  function requestApply() {
+    if (!onApplyDrawer || applySet.length === 0) return;
+    const lines = [
+      `Add ${applySet.length} card${applySet.length === 1 ? "" : "s"} to ${applyBoardLabel}?`,
+    ];
+    if (applyMissingOnly && alreadyInDeck > 0) {
+      lines.push(`${alreadyInDeck} already in the deck will be skipped.`);
+    }
+    if (excluded.length > 0) {
+      lines.push(`${excluded.length} excluded by identity / useful-in filters.`);
+    }
+    setApplyConfirm(lines.join("\n"));
+  }
+
+  async function confirmApply() {
+    setApplyConfirm(null);
+    if (!onApplyDrawer || applySet.length === 0) return;
     setApplying(true);
     setApplyResult(null);
     setError(null);
     try {
-      await onApplyDrawer(eligible);
+      await onApplyDrawer(applySet);
+      const extra: string[] = [];
+      if (applyMissingOnly && alreadyInDeck > 0) {
+        extra.push(`skipped ${alreadyInDeck} already in deck`);
+      }
+      if (excluded.length > 0) extra.push(`filtered ${excluded.length}`);
       setApplyResult(
-        excluded.length > 0
-          ? `Added ${eligible.length}, skipped ${excluded.length}`
-          : `Added ${eligible.length} card(s)`
+        extra.length
+          ? `Added ${applySet.length}, ${extra.join(", ")}`
+          : `Added ${applySet.length} card${applySet.length === 1 ? "" : "s"}`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Apply failed.");
@@ -539,13 +567,23 @@ export function DrawerPanel({
             <div className={styles.applyBar} data-no-drag>
               <button
                 type="button"
+                className={`${styles.toggle}${applyMissingOnly ? ` ${styles.toggleOn}` : ""}`}
+                aria-pressed={applyMissingOnly}
+                onClick={() => setApplyMissingOnly((v) => !v)}
+                title="When on, skip cards already in this deck"
+              >
+                <span className={styles.toggleKnob} />
+                <span className={styles.toggleLabel}>Missing only</span>
+              </button>
+              <button
+                type="button"
                 className={styles.applyBtn}
-                disabled={applying || loadingCards || eligible.length === 0}
-                onClick={() => void handleApply()}
+                disabled={applying || loadingCards || applySet.length === 0}
+                onClick={requestApply}
               >
                 {applying
                   ? "Applying…"
-                  : `Apply (${eligible.length}${
+                  : `Apply (${applySet.length}${
                       excluded.length ? ` · −${excluded.length}` : ""
                     })`}
               </button>
@@ -695,6 +733,17 @@ export function DrawerPanel({
           </div>,
           document.body
         )}
+
+      {applyConfirm && (
+        <ConfirmDialog
+          title="Apply drawer"
+          message={applyConfirm}
+          confirmLabel="Apply"
+          cancelLabel="Cancel"
+          onConfirm={() => void confirmApply()}
+          onCancel={() => setApplyConfirm(null)}
+        />
+      )}
 
       {lightbox &&
         createPortal(

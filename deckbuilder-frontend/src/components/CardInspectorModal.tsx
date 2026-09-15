@@ -267,17 +267,20 @@ export function CardInspectorModal({
 
     let gestureAxis: "x" | "y" | null = null;
     let gestureConsumed = false;
+    let firstRepeatDone = false;
     let gestureTimer: ReturnType<typeof setTimeout> | null = null;
     let lastNavAt = 0;
-    const GESTURE_IDLE_MS = 160;
-    const FIRST_NAV_COOLDOWN = 420;
-    const REPEAT_NAV_MS = 520;
+    const GESTURE_IDLE_MS = 240;
+    const FIRST_NAV_COOLDOWN = 900;
+    const REPEAT_NAV_MS = 950;
+    const FIRST_REPEAT_DELAY_MS = 1100;
 
     function resetGestureSoon() {
       if (gestureTimer) clearTimeout(gestureTimer);
       gestureTimer = setTimeout(() => {
         gestureAxis = null;
         gestureConsumed = false;
+        firstRepeatDone = false;
       }, GESTURE_IDLE_MS);
     }
 
@@ -439,7 +442,11 @@ export function CardInspectorModal({
           navHorizontal(e.deltaX);
           return;
         }
-        if (now - lastNavAt >= REPEAT_NAV_MS) {
+        const gap = firstRepeatDone
+          ? REPEAT_NAV_MS
+          : FIRST_REPEAT_DELAY_MS;
+        if (now - lastNavAt >= gap) {
+          firstRepeatDone = true;
           lastNavAt = now;
           navHorizontal(e.deltaX);
         }
