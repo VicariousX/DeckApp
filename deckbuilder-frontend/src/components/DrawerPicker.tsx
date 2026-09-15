@@ -215,41 +215,33 @@ export function DrawerPicker({
                 >
                   <span className={styles.check}>{on ? "✓" : ""}</span>
                   <span className={styles.itemName}>{d.name}</span>
-                  {on && m && (
-                    <span
-                      className={styles.tierControls}
-                      title="Tier (1 = highest)"
-                      onClick={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className={styles.tierBtn}
-                        aria-label="Higher tier"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void onTier(d.id, -1);
-                        }}
-                        disabled={m.tier <= 1}
-                      >
-                        −
-                      </button>
-                      <span className={styles.tierValue}>T{m.tier}</span>
-                      <button
-                        type="button"
-                        className={styles.tierBtn}
-                        aria-label="Lower tier"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void onTier(d.id, 1);
-                        }}
-                      >
-                        +
-                      </button>
-                    </span>
-                  )}
                   <span className={styles.itemCount}>{d.card_count ?? ""}</span>
                 </button>
+                {on && m && (
+                  <div
+                    className={styles.tierControls}
+                    title="Tier (1 = highest)"
+                  >
+                    <button
+                      type="button"
+                      className={styles.tierBtn}
+                      aria-label="Higher tier"
+                      onClick={() => void onTier(d.id, -1)}
+                      disabled={m.tier <= 1}
+                    >
+                      −
+                    </button>
+                    <span className={styles.tierValue}>T{m.tier}</span>
+                    <button
+                      type="button"
+                      className={styles.tierBtn}
+                      aria-label="Lower tier"
+                      onClick={() => void onTier(d.id, 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </li>
             );
           })}

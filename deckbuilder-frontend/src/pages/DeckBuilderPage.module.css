@@ -1350,22 +1350,40 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 3.25rem;
+  height: 5rem;
   pointer-events: none;
   z-index: 5;
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.2s ease;
   background: linear-gradient(
     to top,
-    color-mix(in srgb, var(--color-surface) 92%, transparent) 0%,
-    color-mix(in srgb, var(--color-surface) 55%, transparent) 45%,
+    color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%) 0%,
+    color-mix(in srgb, var(--color-surface) 70%, transparent) 40%,
+    color-mix(in srgb, var(--color-surface) 25%, transparent) 70%,
     transparent 100%
   );
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 75%, var(--color-accent) 12%);
 }
 
 .boardZonePeeking::after {
   opacity: 1;
+  animation: boardMistBreath 4.5s ease-in-out infinite;
+}
+
+@keyframes boardMistBreath {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boardZonePeeking::after {
+    animation: none;
+  }
 }
 
 .stacksRow {

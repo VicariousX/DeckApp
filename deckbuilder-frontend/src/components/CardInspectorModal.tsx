@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById } from "../lib/scryfallApi";

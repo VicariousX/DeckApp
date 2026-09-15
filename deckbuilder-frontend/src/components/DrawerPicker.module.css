@@ -198,9 +198,12 @@
 }
 .itemRow {
   list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 .itemRow .item {
-  width: 100%;
+  flex: 1;
   min-width: 0;
 }
 .tierControls {
@@ -208,11 +211,10 @@
   align-items: center;
   gap: 0.15rem;
   flex-shrink: 0;
-  margin-left: auto;
 }
 .itemCount {
   flex-shrink: 0;
-  margin-left: 0.15rem;
+  margin-left: auto;
 }
 .tierBtn {
   width: 1.35rem;
