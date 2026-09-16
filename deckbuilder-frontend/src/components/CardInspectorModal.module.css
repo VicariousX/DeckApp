@@ -431,6 +431,15 @@
   visibility: hidden;
 }
 
+.tagChipReveal .tagLabel {
+  animation: tagLabelIn 180ms ease;
+}
+
+@keyframes tagLabelIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .tagGhost {
   position: fixed;
   z-index: 4000;

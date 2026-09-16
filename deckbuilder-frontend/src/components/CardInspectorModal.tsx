@@ -73,6 +73,8 @@ function DeckTagRows({
     color: string;
     from: DOMRect;
     others: Map<string, DOMRect>;
+    fromActive: boolean;
+    toActive: boolean;
   } | null>(null);
   const [flight, setFlight] = useState<{
     id: string;
@@ -80,7 +82,10 @@ function DeckTagRows({
     color: string;
     from: DOMRect;
     to: DOMRect;
+    toActive: boolean;
+    fromActive: boolean;
   } | null>(null);
+  const [revealId, setRevealId] = useState<string | null>(null);
   const ghostRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -96,6 +101,8 @@ function DeckTagRows({
         color: p.color,
         from: p.from,
         to,
+        toActive: p.toActive,
+        fromActive: p.fromActive,
       });
     }
     for (const [id, first] of p.others) {
@@ -119,9 +126,11 @@ function DeckTagRows({
   useEffect(() => {
     if (!flight || !ghostRef.current) return;
     const node = ghostRef.current;
-    const { from, to } = flight;
+    const { from, to, fromActive, toActive } = flight;
     const midX = (from.left + to.left) / 2 + (to.left - from.left) * 0.12;
     const midY = Math.min(from.top, to.top) - 18;
+    const glowOn = `0 8px 18px color-mix(in srgb, var(--color-accent) 32%, transparent)`;
+    const glowOff = "0 0 0 transparent";
     const anim = node.animate(
       [
         {
@@ -132,6 +141,7 @@ function DeckTagRows({
           borderRadius: "999px",
           opacity: 1,
           color: "transparent",
+          boxShadow: fromActive ? glowOn : glowOff,
           transform: "scale(1)",
         },
         {
@@ -142,6 +152,7 @@ function DeckTagRows({
           borderRadius: "50%",
           opacity: 0.95,
           color: "transparent",
+          boxShadow: glowOff,
           transform: "scale(0.72)",
           offset: 0.45,
         },
@@ -153,12 +164,18 @@ function DeckTagRows({
           borderRadius: "999px",
           opacity: 1,
           color: "transparent",
+          boxShadow: toActive ? glowOn : glowOff,
           transform: "scale(1)",
         },
       ],
       { duration: 520, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
     );
-    anim.onfinish = () => setFlight(null);
+    anim.onfinish = () => {
+      const id = flight.id;
+      setFlight(null);
+      setRevealId(id);
+      window.setTimeout(() => setRevealId((cur) => (cur === id ? null : cur)), 200);
+    };
     return () => anim.cancel();
   }, [flight]);
 
@@ -168,12 +185,15 @@ function DeckTagRows({
     for (const [id, node] of nodes.current) {
       others.set(id, node.getBoundingClientRect());
     }
+    const fromActive = assigned.has(tag.id);
     pending.current = {
       id: tag.id,
       name: tag.name,
       color: tag.color,
       from: el.getBoundingClientRect(),
       others,
+      fromActive,
+      toActive: !fromActive,
     };
     onToggle(tag);
   }
@@ -193,7 +213,7 @@ function DeckTagRows({
         }}
         className={`${styles.tagChip}${on ? ` ${styles.tagChipOn}` : ""}${
           hiding ? ` ${styles.tagChipHidden}` : ""
-        }`}
+        }${revealId === tag.id ? ` ${styles.tagChipReveal}` : ""}`}
         disabled={!isOwner}
         style={
           on
@@ -202,7 +222,7 @@ function DeckTagRows({
         }
         onClick={(e) => handleToggle(tag, e.currentTarget)}
       >
-        {tag.name}
+        <span className={styles.tagLabel}>{tag.name}</span>
       </button>
     );
   }
@@ -305,6 +325,10 @@ export function CardInspectorModal({
   useEffect(() => {
     if (!tabs.some((t) => t.id === active)) setActive("info");
   }, [tabs, active]);
+
+  useEffect(() => {
+    setOverscrollHint(null);
+  }, [active, infoSub, artSub]);
 
   useEffect(() => {
     setRulings([]);
@@ -740,6 +764,7 @@ export function CardInspectorModal({
   ]);
 
   function selectTab(id: TabId) {
+    setOverscrollHint(null);
     if (id === active) return;
     setActive(id);
     setContentKey((k) => k + 1);
