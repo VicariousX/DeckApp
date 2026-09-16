@@ -78,7 +78,7 @@
 }
 
 .item {
-  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -93,11 +93,7 @@
 }
 
 .item:hover {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-}
-
-.itemOn {
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  background: transparent;
 }
 
 .check {
@@ -198,23 +194,65 @@
 }
 .itemRow {
   list-style: none;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.35rem;
+  width: 100%;
+  border-radius: 10px;
+  transition: background 0.18s ease;
+}
+.itemRow:hover,
+.itemRowOn {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 .itemRow .item {
   flex: 1;
   min-width: 0;
 }
+.rowMeta {
+  display: grid;
+  grid-template-columns: 4.4rem 2.4rem;
+  align-items: center;
+  justify-items: center;
+  gap: 0.2rem;
+  padding-right: 0.35rem;
+}
 .tierControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  flex-shrink: 0;
+}
+.tierBtns {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  flex-shrink: 0;
+  gap: 0.12rem;
+}
+.tierPlaceholder {
+  width: 4.4rem;
+}
+.metaLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+.countMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
 }
 .itemCount {
   flex-shrink: 0;
-  margin-left: auto;
+  margin-left: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 .tierBtn {
   width: 1.35rem;

@@ -88,6 +88,35 @@ app.get("/api/scryfall/random", async (_req: Request, res: Response) => {
   }
 });
 
+const rulingsCache = new Map<string, { at: number; data: unknown }>();
+const RULINGS_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Official rulings for a printing (live API, cached)
+app.get("/api/scryfall/rulings/:id", async (req: Request, res: Response) => {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id || typeof id !== "string") {
+    return res.status(400).json({ error: "Missing card id" });
+  }
+  const key = id.toLowerCase();
+  const hit = rulingsCache.get(key);
+  if (hit && Date.now() - hit.at < RULINGS_TTL_MS) {
+    return res.json(hit.data);
+  }
+  try {
+    const { status, data } = await liveGet(
+      `/cards/${encodeURIComponent(id)}/rulings`
+    );
+    if (status >= 200 && status < 300) {
+      rulingsCache.set(key, { at: Date.now(), data });
+    }
+    res.status(status).json(data);
+  } catch (error) {
+    console.error("Scryfall rulings failed:", error);
+    res.status(500).json({ error: "Scryfall request failed" });
+  }
+});
+
 // Single card by Scryfall id
 app.get("/api/scryfall/card/:id", async (req: Request, res: Response) => {
   const raw = req.params.id;

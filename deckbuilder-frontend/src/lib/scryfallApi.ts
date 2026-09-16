@@ -79,6 +79,56 @@ export async function fetchCardById(
   return promise;
 }
 
+export type ScryfallRuling = {
+  object: "ruling";
+  oracle_id?: string;
+  source?: string;
+  published_at?: string;
+  comment: string;
+};
+
+const rulingsCache = new Map<string, ScryfallRuling[]>();
+const rulingsInflight = new Map<
+  string,
+  Promise<{ rulings: ScryfallRuling[]; error: string | null }>
+>();
+
+export async function fetchRulings(
+  scryfallId: string
+): Promise<{ rulings: ScryfallRuling[]; error: string | null }> {
+  const key = normId(scryfallId);
+  if (!key) return { rulings: [], error: "Missing card id" };
+  const cached = rulingsCache.get(key);
+  if (cached) return { rulings: cached, error: null };
+  const pending = rulingsInflight.get(key);
+  if (pending) return pending;
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(
+        `${BASE}/api/scryfall/rulings/${encodeURIComponent(scryfallId)}`
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        return {
+          rulings: [] as ScryfallRuling[],
+          error: data?.details ?? data?.error ?? "Rulings failed",
+        };
+      }
+      const list = (data?.data as ScryfallRuling[]) ?? [];
+      rulingsCache.set(key, list);
+      return { rulings: list, error: null };
+    } catch {
+      return { rulings: [], error: "Network error loading rulings" };
+    } finally {
+      rulingsInflight.delete(key);
+    }
+  })();
+
+  rulingsInflight.set(key, promise);
+  return promise;
+}
+
 export async function fetchAutocomplete(
   q: string
 ): Promise<{ names: string[]; error: string | null }> {

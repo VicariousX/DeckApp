@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
-import { fetchCardById } from "../lib/scryfallApi";
+import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
 import { cardArtPublicUrl } from "../services/cardArtService";
 import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -48,6 +55,111 @@ type Props = {
 
 type TabId = "info" | "deck" | "drawers" | "artwork";
 
+function DeckTagRows({
+  tags,
+  assigned,
+  isOwner,
+  onToggle,
+}: {
+  tags: DeckTag[];
+  assigned: Set<string>;
+  isOwner: boolean;
+  onToggle: (tag: DeckTag) => void;
+}) {
+  const nodes = useRef(new Map<string, HTMLButtonElement>());
+  const prev = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    for (const tag of tags) {
+      const el = nodes.current.get(tag.id);
+      if (!el) continue;
+      const last = el.getBoundingClientRect();
+      const first = prev.current.get(tag.id);
+      if (first) {
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          el.animate(
+            [
+              {
+                transform: `translate(${dx}px, ${dy}px) scale(0.55)`,
+                borderRadius: "50%",
+                filter: "brightness(1.15)",
+              },
+              {
+                transform: `translate(${dx * 0.18}px, ${dy * 0.18}px) scale(1.12)`,
+                borderRadius: "14px",
+                offset: 0.62,
+              },
+              {
+                transform: "translate(0, 0) scale(1)",
+                borderRadius: "999px",
+              },
+            ],
+            {
+              duration: 420,
+              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+            }
+          );
+        }
+      }
+      prev.current.set(tag.id, last);
+    }
+  }, [tags, assigned]);
+
+  const activeTags = tags.filter((t) => assigned.has(t.id));
+  const availableTags = tags.filter((t) => !assigned.has(t.id));
+
+  return (
+    <>
+      <div className={styles.tagLane}>
+        <span className={styles.extraLabel}>Active tags</span>
+        <div className={styles.tagList}>
+          {activeTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              ref={(n) => {
+                if (n) nodes.current.set(tag.id, n);
+                else nodes.current.delete(tag.id);
+              }}
+              className={`${styles.tagChip} ${styles.tagChipOn}`}
+              disabled={!isOwner}
+              style={{
+                borderColor: tag.color,
+                background: `${tag.color}33`,
+              }}
+              onClick={() => onToggle(tag)}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={styles.tagLane}>
+        <span className={styles.extraLabel}>Available tags</span>
+        <div className={styles.tagList}>
+          {availableTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              ref={(n) => {
+                if (n) nodes.current.set(tag.id, n);
+                else nodes.current.delete(tag.id);
+              }}
+              className={styles.tagChip}
+              disabled={!isOwner}
+              onClick={() => onToggle(tag)}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function CardInspectorModal({
   scryfallId,
   name,
@@ -67,6 +179,10 @@ export function CardInspectorModal({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
+  const [infoSub, setInfoSub] = useState<"details" | "rulings">("details");
+  const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
+  const [rulingsError, setRulingsError] = useState<string | null>(null);
+  const [rulingsLoading, setRulingsLoading] = useState(false);
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [tagBusy, setTagBusy] = useState(false);
@@ -112,6 +228,34 @@ export function CardInspectorModal({
   useEffect(() => {
     if (!tabs.some((t) => t.id === active)) setActive("info");
   }, [tabs, active]);
+
+  useEffect(() => {
+    setInfoSub("details");
+    setRulings([]);
+    setRulingsError(null);
+  }, [scryfallId]);
+
+  useEffect(() => {
+    if (active !== "info" || infoSub !== "rulings") return;
+    const id = (displayCard ?? baseCard)?.id ?? scryfallId;
+    if (!id) return;
+    let cancelled = false;
+    setRulingsLoading(true);
+    setRulingsError(null);
+    void fetchRulings(id).then(({ rulings: list, error: err }) => {
+      if (cancelled) return;
+      setRulingsLoading(false);
+      if (err) {
+        setRulingsError(err);
+        setRulings([]);
+        return;
+      }
+      setRulings(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, infoSub, scryfallId, displayCard, baseCard]);
 
   // Load base + preferred printing so both faces use the same preferred art
   useEffect(() => {
@@ -221,10 +365,13 @@ export function CardInspectorModal({
         onNext();
         return;
       }
-      // Artwork sub-tabs use ↑/↓; overflow moves between main tabs.
-      // ←/→ always change cards when available.
+      // Sub-tabs use ↑/↓; overflow moves between main tabs.
       if (e.key === "ArrowUp") {
         e.preventDefault();
+        if (active === "info" && infoSub === "rulings") {
+          setInfoSub("details");
+          return;
+        }
         if (active === "artwork" && artSub === "upload") {
           setArtSub("prints");
           return;
@@ -235,6 +382,10 @@ export function CardInspectorModal({
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
+        if (active === "info" && infoSub === "details") {
+          setInfoSub("rulings");
+          return;
+        }
         if (active === "artwork" && artSub === "prints") {
           setArtSub("upload");
           return;
@@ -259,6 +410,7 @@ export function CardInspectorModal({
     tabs,
     active,
     artSub,
+    infoSub,
   ]);
 
   // Mouse back (3) / forward (4) — prev/next card while the modal is open
@@ -381,6 +533,10 @@ export function CardInspectorModal({
 
     function navVertical(deltaY: number) {
       if (deltaY < 0) {
+        if (active === "info" && infoSub === "rulings") {
+          setInfoSub("details");
+          return;
+        }
         if (active === "artwork" && artSub === "upload") {
           setArtSub("prints");
           return;
@@ -388,6 +544,10 @@ export function CardInspectorModal({
         const next = Math.max(0, activeIndex - 1);
         selectTab(tabs[next].id);
       } else {
+        if (active === "info" && infoSub === "details") {
+          setInfoSub("rulings");
+          return;
+        }
         if (active === "artwork" && artSub === "prints") {
           setArtSub("upload");
           return;
@@ -490,6 +650,7 @@ export function CardInspectorModal({
   }, [
     active,
     artSub,
+    infoSub,
     activeIndex,
     tabs,
     hasNext,
@@ -661,34 +822,93 @@ export function CardInspectorModal({
 
               {active === "info" && (
                 <div className={styles.panelScroll}>
-                  {error && (
-                    <p className={styles.error} role="alert">
-                      {error}
-                    </p>
+                  <div className={styles.subTabRail} role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={infoSub === "details"}
+                      className={`${styles.subTab}${
+                        infoSub === "details" ? ` ${styles.subTabActive}` : ""
+                      }`}
+                      onClick={() => setInfoSub("details")}
+                    >
+                      Details
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={infoSub === "rulings"}
+                      className={`${styles.subTab}${
+                        infoSub === "rulings" ? ` ${styles.subTabActive}` : ""
+                      }`}
+                      onClick={() => setInfoSub("rulings")}
+                    >
+                      Rulings
+                    </button>
+                  </div>
+                  {infoSub === "details" && (
+                    <>
+                      {error && (
+                        <p className={styles.error} role="alert">
+                          {error}
+                        </p>
+                      )}
+                      {displayCard && (
+                        <CardDetail
+                          card={displayCard}
+                          hidePrintingMeta={Boolean(
+                            frontSrc &&
+                              frontSrc !== getFaceImage(displayCard, 0)
+                          )}
+                        />
+                      )}
+                      {!displayCard && !loading && (
+                        <h2 className={styles.fallbackTitle}>{displayName}</h2>
+                      )}
+                      <Link
+                        to={`/card/${scryfallId}`}
+                        className={styles.detailLink}
+                        onClick={onClose}
+                      >
+                        Open card page →
+                      </Link>
+                    </>
                   )}
-                  {displayCard && (
-                    <CardDetail
-                      card={displayCard}
-                      hidePrintingMeta={Boolean(frontSrc && frontSrc !== getFaceImage(displayCard, 0))}
-                    />
+                  {infoSub === "rulings" && (
+                    <div className={styles.rulingsList}>
+                      {rulingsLoading && (
+                        <p className={styles.rulingsMuted}>Loading rulings…</p>
+                      )}
+                      {rulingsError && (
+                        <p className={styles.error} role="alert">
+                          {rulingsError}
+                        </p>
+                      )}
+                      {!rulingsLoading &&
+                        !rulingsError &&
+                        rulings.length === 0 && (
+                          <p className={styles.rulingsMuted}>
+                            No official rulings for this card.
+                          </p>
+                        )}
+                      {rulings.map((r, i) => (
+                        <article key={`${r.published_at ?? "r"}-${i}`} className={styles.ruling}>
+                          <header className={styles.rulingMeta}>
+                            <span>{r.source === "wotc" ? "WotC" : r.source ?? "Ruling"}</span>
+                            {r.published_at && <time>{r.published_at}</time>}
+                          </header>
+                          <p className={styles.rulingBody}>{r.comment}</p>
+                        </article>
+                      ))}
+                    </div>
                   )}
-                  {!displayCard && !loading && (
-                    <h2 className={styles.fallbackTitle}>{displayName}</h2>
-                  )}
-                  <Link
-                    to={`/card/${scryfallId}`}
-                    className={styles.detailLink}
-                    onClick={onClose}
-                  >
-                    Open card page →
-                  </Link>
                 </div>
               )}
 
               {active === "deck" && deck && (
                 <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
                   <div className={styles.deckExtras}>
-                    <div className={styles.qtyRow}>
+                    <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
                       <span className={styles.extraLabel}>Quantity</span>
                       <div className={styles.qtyControls}>
                         <button
@@ -712,7 +932,7 @@ export function CardInspectorModal({
                         </button>
                       </div>
                     </div>
-                    <label className={styles.boardRow}>
+                    <label className={`${styles.boardRow} ${styles.deckGroup}`}>
                       <span className={styles.extraLabel}>Board</span>
                       <select
                         className={styles.boardSelect}
@@ -729,56 +949,13 @@ export function CardInspectorModal({
                         ))}
                       </select>
                     </label>
-                    <div className={styles.tagsBlock}>
-                      <span className={styles.extraLabel}>Deck tags</span>
-                      <div className={styles.tagRow}>
-                        <span className={styles.tagRowLabel}>Active</span>
-                        <div className={styles.tagList}>
-                          {deck.tags.filter((tag) => assigned.has(tag.id))
-                            .length === 0 && (
-                            <span className={styles.tagEmpty}>None</span>
-                          )}
-                          {deck.tags
-                            .filter((tag) => assigned.has(tag.id))
-                            .map((tag) => (
-                              <button
-                                key={tag.id}
-                                type="button"
-                                className={`${styles.tagChip} ${styles.tagChipOn}`}
-                                disabled={!deck.isOwner}
-                                style={{
-                                  borderColor: tag.color,
-                                  background: `${tag.color}33`,
-                                }}
-                                onClick={() => deck.onToggleTag(tag)}
-                              >
-                                {tag.name}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                      <div className={styles.tagRow}>
-                        <span className={styles.tagRowLabel}>Available</span>
-                        <div className={styles.tagList}>
-                          {deck.tags.filter((tag) => !assigned.has(tag.id))
-                            .length === 0 && (
-                            <span className={styles.tagEmpty}>None</span>
-                          )}
-                          {deck.tags
-                            .filter((tag) => !assigned.has(tag.id))
-                            .map((tag) => (
-                              <button
-                                key={tag.id}
-                                type="button"
-                                className={styles.tagChip}
-                                disabled={!deck.isOwner}
-                                onClick={() => deck.onToggleTag(tag)}
-                              >
-                                {tag.name}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
+                    <div className={`${styles.tagsBlock} ${styles.deckGroup}`}>
+                      <DeckTagRows
+                        tags={deck.tags}
+                        assigned={assigned}
+                        isOwner={deck.isOwner}
+                        onToggle={deck.onToggleTag}
+                      />
                       {deck.isOwner && deck.onCreateTag && (
                         <form
                           className={styles.tagCreate}

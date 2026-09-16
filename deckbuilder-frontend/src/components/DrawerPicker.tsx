@@ -205,10 +205,13 @@ export function DrawerPicker({
             const m = memberships.get(d.id);
             const on = Boolean(m);
             return (
-              <li key={d.id} className={styles.itemRow}>
+              <li
+                key={d.id}
+                className={`${styles.itemRow}${on ? ` ${styles.itemRowOn}` : ""}`}
+              >
                 <button
                   type="button"
-                  className={`${styles.item}${on ? ` ${styles.itemOn}` : ""}`}
+                  className={styles.item}
                   onClick={() => void onToggle(d)}
                   role="option"
                   aria-selected={on}
@@ -216,32 +219,42 @@ export function DrawerPicker({
                   <span className={styles.check}>{on ? "✓" : ""}</span>
                   <span className={styles.itemName}>{d.name}</span>
                 </button>
-                {on && m && (
-                  <div
-                    className={styles.tierControls}
-                    title="Tier (1 = highest)"
-                  >
-                    <button
-                      type="button"
-                      className={styles.tierBtn}
-                      aria-label="Higher tier"
-                      onClick={() => void onTier(d.id, -1)}
-                      disabled={m.tier <= 1}
+                <div className={styles.rowMeta}>
+                  {on && m ? (
+                    <div
+                      className={styles.tierControls}
+                      title="Tier (1 = highest)"
                     >
-                      −
-                    </button>
-                    <span className={styles.tierValue}>T{m.tier}</span>
-                    <button
-                      type="button"
-                      className={styles.tierBtn}
-                      aria-label="Lower tier"
-                      onClick={() => void onTier(d.id, 1)}
-                    >
-                      +
-                    </button>
+                      <span className={styles.metaLabel}>Tier</span>
+                      <div className={styles.tierBtns}>
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          aria-label="Higher tier"
+                          onClick={() => void onTier(d.id, -1)}
+                          disabled={m.tier <= 1}
+                        >
+                          −
+                        </button>
+                        <span className={styles.tierValue}>{m.tier}</span>
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          aria-label="Lower tier"
+                          onClick={() => void onTier(d.id, 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className={styles.tierPlaceholder} />
+                  )}
+                  <div className={styles.countMeta}>
+                    <span className={styles.metaLabel}>Cards</span>
+                    <span className={styles.itemCount}>{d.card_count ?? 0}</span>
                   </div>
-                )}
-                <span className={styles.itemCount}>{d.card_count ?? ""}</span>
+                </div>
               </li>
             );
           })}
