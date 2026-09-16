@@ -72,6 +72,7 @@ function DeckTagRows({
     name: string;
     color: string;
     from: DOMRect;
+    others: Map<string, DOMRect>;
   } | null>(null);
   const [flight, setFlight] = useState<{
     id: string;
@@ -87,9 +88,32 @@ function DeckTagRows({
     if (!p) return;
     const el = nodes.current.get(p.id);
     pending.current = null;
-    if (!el) return;
-    const to = el.getBoundingClientRect();
-    setFlight({ ...p, to });
+    if (el) {
+      const to = el.getBoundingClientRect();
+      setFlight({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        from: p.from,
+        to,
+      });
+    }
+    for (const [id, first] of p.others) {
+      if (id === p.id) continue;
+      const node = nodes.current.get(id);
+      if (!node) continue;
+      const last = node.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      node.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px)` },
+          { transform: "translate(0, 0)" },
+        ],
+        { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)", delay: 40 }
+      );
+    }
   }, [assigned]);
 
   useEffect(() => {
@@ -107,6 +131,7 @@ function DeckTagRows({
           height: `${from.height}px`,
           borderRadius: "999px",
           opacity: 1,
+          color: "transparent",
           transform: "scale(1)",
         },
         {
@@ -116,6 +141,7 @@ function DeckTagRows({
           height: `${Math.max(18, from.height * 0.9)}px`,
           borderRadius: "50%",
           opacity: 0.95,
+          color: "transparent",
           transform: "scale(0.72)",
           offset: 0.45,
         },
@@ -126,6 +152,7 @@ function DeckTagRows({
           height: `${to.height}px`,
           borderRadius: "999px",
           opacity: 1,
+          color: "transparent",
           transform: "scale(1)",
         },
       ],
@@ -137,11 +164,16 @@ function DeckTagRows({
 
   function handleToggle(tag: DeckTag, el: HTMLButtonElement) {
     if (!isOwner) return;
+    const others = new Map<string, DOMRect>();
+    for (const [id, node] of nodes.current) {
+      others.set(id, node.getBoundingClientRect());
+    }
     pending.current = {
       id: tag.id,
       name: tag.name,
       color: tag.color,
       from: el.getBoundingClientRect(),
+      others,
     };
     onToggle(tag);
   }
@@ -275,7 +307,6 @@ export function CardInspectorModal({
   }, [tabs, active]);
 
   useEffect(() => {
-    setInfoSub("details");
     setRulings([]);
     setRulingsError(null);
   }, [scryfallId]);
