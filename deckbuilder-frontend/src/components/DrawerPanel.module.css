@@ -31,7 +31,7 @@
   right: auto;
   z-index: 50;
   width: min(340px, 92vw);
-  max-height: min(70vh, 560px);
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   border-radius: 12px;
@@ -165,6 +165,21 @@
   flex: 1;
   overflow-y: auto;
   padding: 0.25rem 0.4rem 0.6rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
+}
+
+.cardList::-webkit-scrollbar {
+  width: 8px;
+}
+.cardList::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cardList::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .cardRow {
@@ -314,9 +329,9 @@
 .idFilters {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.25rem;
-  padding: 0.35rem 0.65rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  padding: 0.35rem 0.35rem 0.45rem;
 }
 
 .idChip {
@@ -419,8 +434,29 @@
 }
 
 .filterBlock {
-  padding: 0.25rem 0.65rem 0.15rem;
+  padding: 0.15rem 0.35rem 0.2rem;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+}
+
+.subCollapseBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.28rem 0.2rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.subCollapseBtn:hover {
+  color: var(--color-accent);
 }
 
 .filterLabel {
@@ -452,8 +488,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.3rem;
-  padding-bottom: 0.3rem;
+  padding: 0.15rem 0.2rem 0.4rem;
 }
 
 .tierInput {

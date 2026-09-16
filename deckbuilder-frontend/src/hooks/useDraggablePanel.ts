@@ -164,7 +164,7 @@ export function useDraggablePanel(open: boolean) {
         bottom: "auto",
         margin: 0,
         zIndex: 200,
-        maxHeight: size?.h ? undefined : "min(70vh, 560px)",
+        maxHeight: undefined,
         visibility: offset ? "visible" : "hidden",
       }
     : undefined;

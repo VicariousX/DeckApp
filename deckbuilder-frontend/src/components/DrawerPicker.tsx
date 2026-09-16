@@ -215,7 +215,6 @@ export function DrawerPicker({
                 >
                   <span className={styles.check}>{on ? "✓" : ""}</span>
                   <span className={styles.itemName}>{d.name}</span>
-                  <span className={styles.itemCount}>{d.card_count ?? ""}</span>
                 </button>
                 {on && m && (
                   <div
@@ -242,6 +241,7 @@ export function DrawerPicker({
                     </button>
                   </div>
                 )}
+                <span className={styles.itemCount}>{d.card_count ?? ""}</span>
               </li>
             );
           })}

@@ -51,7 +51,7 @@ function matchesColorFilters(
   if (selected.size === 0) return true;
   const id = identityOf(c);
   const modes = [...selected].filter((s) =>
-    ["colorless", "mono", "multi", "wubrg"].includes(s)
+    ["colorless", "colored", "mono", "multi", "wubrg"].includes(s)
   );
   const colors = [...selected].filter((s) =>
     ["W", "U", "B", "R", "G"].includes(s)
@@ -65,6 +65,7 @@ function matchesColorFilters(
   // Modes: if any selected, card must satisfy ALL selected modes
   for (const m of modes) {
     if (m === "colorless" && id.length !== 0) return false;
+    if (m === "colored" && id.length === 0) return false;
     if (m === "mono" && id.length !== 1) return false;
     if (m === "multi" && id.length < 2) return false;
     if (m === "wubrg" && id.length !== 5) return false;
@@ -124,6 +125,9 @@ export function DrawerPanel({
   const [respectIdentity, setRespectIdentity] = useState(true);
   const [respectUseful, setRespectUseful] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterIdOpen, setFilterIdOpen] = useState(true);
+  const [filterUsefulOpen, setFilterUsefulOpen] = useState(false);
+  const [filterTierOpen, setFilterTierOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<string | null>(null);
   const [applyMissingOnly, setApplyMissingOnly] = useState(true);
@@ -294,6 +298,7 @@ export function DrawerPanel({
 
   const COLOR_FILTERS: { id: string; label: string }[] = [
     { id: "colorless", label: "Colorless" },
+    { id: "colored", label: "Colored" },
     { id: "mono", label: "Mono" },
     { id: "multi", label: "Multi" },
     { id: "wubrg", label: "WUBRG" },
@@ -306,6 +311,7 @@ export function DrawerPanel({
 
   const USEFUL_FILTERS: { id: string; label: string }[] = [
     { id: "colorless", label: "Colorless" },
+    { id: "colored", label: "Colored" },
     { id: "mono", label: "Mono" },
     { id: "multi", label: "Multi" },
     { id: "wubrg", label: "WUBRG" },
@@ -428,7 +434,17 @@ export function DrawerPanel({
             {filtersOpen && (
               <div className={styles.collapseBody}>
           <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Color identity</span>
+            <button
+              type="button"
+              className={styles.subCollapseBtn}
+              data-no-drag
+              aria-expanded={filterIdOpen}
+              onClick={() => setFilterIdOpen((v) => !v)}
+            >
+              <span>Color identity</span>
+              <span className={styles.chevron}>{filterIdOpen ? "▾" : "▸"}</span>
+            </button>
+            {filterIdOpen && (
             <div className={styles.idFilters} role="group" aria-label="Color identity filters">
               {COLOR_FILTERS.map((f) => (
                 <button
@@ -452,10 +468,21 @@ export function DrawerPanel({
                 </button>
               )}
             </div>
+            )}
           </div>
 
           <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Useful in</span>
+            <button
+              type="button"
+              className={styles.subCollapseBtn}
+              data-no-drag
+              aria-expanded={filterUsefulOpen}
+              onClick={() => setFilterUsefulOpen((v) => !v)}
+            >
+              <span>Useful in</span>
+              <span className={styles.chevron}>{filterUsefulOpen ? "▾" : "▸"}</span>
+            </button>
+            {filterUsefulOpen && (
             <div className={styles.idFilters} role="group" aria-label="Useful in filters">
               {USEFUL_FILTERS.map((f) => (
                 <button
@@ -479,10 +506,21 @@ export function DrawerPanel({
                 </button>
               )}
             </div>
+            )}
           </div>
 
           <div className={styles.filterBlock}>
-            <span className={styles.filterLabel}>Tier (1 = best)</span>
+            <button
+              type="button"
+              className={styles.subCollapseBtn}
+              data-no-drag
+              aria-expanded={filterTierOpen}
+              onClick={() => setFilterTierOpen((v) => !v)}
+            >
+              <span>Tier (1 = best)</span>
+              <span className={styles.chevron}>{filterTierOpen ? "▾" : "▸"}</span>
+            </button>
+            {filterTierOpen && (
             <div className={styles.tierFilterRow}>
               <button
                 type="button"
@@ -535,6 +573,7 @@ export function DrawerPanel({
                 </button>
               )}
             </div>
+            )}
           </div>
               </div>
             )}

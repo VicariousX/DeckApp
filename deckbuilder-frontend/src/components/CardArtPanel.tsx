@@ -586,11 +586,13 @@ export function CardArtPanel({
                         if (!thumb) return;
                         const W = 220;
                         const H = 308;
-                        printHoverPending.current = {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        const next = {
                           src: thumb,
-                          x: e.clientX - W / 2,
-                          y: e.clientY - H / 2,
+                          x: r.left + r.width / 2 - W / 2,
+                          y: r.top + r.height / 2 - H / 2,
                         };
+                        printHoverPending.current = next;
                         if (printHoverTimer.current) {
                           clearTimeout(printHoverTimer.current);
                         }
@@ -607,18 +609,6 @@ export function CardArtPanel({
                         }
                         printHoverPending.current = null;
                         setPrintHover(null);
-                      }}
-                      onMouseMove={(e) => {
-                        if (!thumb) return;
-                        const W = 220;
-                        const H = 308;
-                        const next = {
-                          src: thumb,
-                          x: e.clientX - W / 2,
-                          y: e.clientY - H / 2,
-                        };
-                        printHoverPending.current = next;
-                        setPrintHover((prev) => (prev ? next : prev));
                       }}
                     >
                       {thumb ? (

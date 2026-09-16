@@ -30,6 +30,7 @@ export type CardInspectorDeckControls = {
   onBoard: (board: DeckBoard) => void;
   onRemove: () => void;
   onToggleTag: (tag: DeckTag) => void;
+  onCreateTag?: (name: string) => Promise<void> | void;
 };
 
 type Props = {
@@ -67,6 +68,8 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>("info");
   const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [tagBusy, setTagBusy] = useState(false);
   const [overscrollHint, setOverscrollHint] = useState<{
     dir: "up" | "down";
     ticks: number;
@@ -683,7 +686,7 @@ export function CardInspectorModal({
               )}
 
               {active === "deck" && deck && (
-                <div className={styles.panelScroll}>
+                <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
                   <div className={styles.deckExtras}>
                     <div className={styles.qtyRow}>
                       <span className={styles.extraLabel}>Quantity</span>
@@ -726,37 +729,90 @@ export function CardInspectorModal({
                         ))}
                       </select>
                     </label>
-                    {deck.tags.length > 0 && (
-                      <div className={styles.tagsBlock}>
-                        <span className={styles.extraLabel}>Deck tags</span>
+                    <div className={styles.tagsBlock}>
+                      <span className={styles.extraLabel}>Deck tags</span>
+                      <div className={styles.tagRow}>
+                        <span className={styles.tagRowLabel}>Active</span>
                         <div className={styles.tagList}>
-                          {deck.tags.map((tag) => {
-                            const on = assigned.has(tag.id);
-                            return (
+                          {deck.tags.filter((tag) => assigned.has(tag.id))
+                            .length === 0 && (
+                            <span className={styles.tagEmpty}>None</span>
+                          )}
+                          {deck.tags
+                            .filter((tag) => assigned.has(tag.id))
+                            .map((tag) => (
                               <button
                                 key={tag.id}
                                 type="button"
-                                className={`${styles.tagChip}${
-                                  on ? ` ${styles.tagChipOn}` : ""
-                                }`}
+                                className={`${styles.tagChip} ${styles.tagChipOn}`}
                                 disabled={!deck.isOwner}
-                                style={
-                                  on
-                                    ? {
-                                        borderColor: tag.color,
-                                        background: `${tag.color}33`,
-                                      }
-                                    : undefined
-                                }
+                                style={{
+                                  borderColor: tag.color,
+                                  background: `${tag.color}33`,
+                                }}
                                 onClick={() => deck.onToggleTag(tag)}
                               >
                                 {tag.name}
                               </button>
-                            );
-                          })}
+                            ))}
                         </div>
                       </div>
-                    )}
+                      <div className={styles.tagRow}>
+                        <span className={styles.tagRowLabel}>Available</span>
+                        <div className={styles.tagList}>
+                          {deck.tags.filter((tag) => !assigned.has(tag.id))
+                            .length === 0 && (
+                            <span className={styles.tagEmpty}>None</span>
+                          )}
+                          {deck.tags
+                            .filter((tag) => !assigned.has(tag.id))
+                            .map((tag) => (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                className={styles.tagChip}
+                                disabled={!deck.isOwner}
+                                onClick={() => deck.onToggleTag(tag)}
+                              >
+                                {tag.name}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                      {deck.isOwner && deck.onCreateTag && (
+                        <form
+                          className={styles.tagCreate}
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const name = newTagName.trim();
+                            if (!name || tagBusy) return;
+                            setTagBusy(true);
+                            void Promise.resolve(deck.onCreateTag!(name)).finally(
+                              () => {
+                                setNewTagName("");
+                                setTagBusy(false);
+                              }
+                            );
+                          }}
+                        >
+                          <input
+                            className={styles.tagCreateInput}
+                            value={newTagName}
+                            onChange={(e) => setNewTagName(e.target.value)}
+                            placeholder="New tag"
+                            maxLength={32}
+                            aria-label="New deck tag"
+                          />
+                          <button
+                            type="submit"
+                            className={styles.tagCreateBtn}
+                            disabled={tagBusy || !newTagName.trim()}
+                          >
+                            Add
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   </div>
                   {deck.isOwner && (
                     <div className={styles.deckFooter}>

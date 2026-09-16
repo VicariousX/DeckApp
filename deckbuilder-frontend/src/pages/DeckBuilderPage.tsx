@@ -1958,6 +1958,24 @@ export function DeckBuilderPage() {
                 detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
               void toggleTag(live, tag);
             },
+            onCreateTag: async (name) => {
+              if (!id || !isOwner) return;
+              const { tag, error: err } = await createDeckTag(id, name);
+              if (err || !tag) {
+                setError(err ?? "Could not create tag.");
+                return;
+              }
+              setDetail((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      tags: [...prev.tags, tag].sort((a, b) =>
+                        a.name.localeCompare(b.name)
+                      ),
+                    }
+                  : prev
+              );
+            },
           }}
         />
       )}

@@ -43,6 +43,7 @@ export function UsefulInPicker({
 
   const hasMode =
     tags.has("colorless") ||
+    tags.has("colored") ||
     tags.has("mono") ||
     tags.has("multi") ||
     tags.has("wubrg");
@@ -57,21 +58,23 @@ export function UsefulInPicker({
 
   if (!user) return null;
 
-  function exclusiveMode(mode: "colorless" | "mono" | "multi" | "wubrg") {
+  function exclusiveMode(
+    mode: "colorless" | "colored" | "mono" | "multi" | "wubrg"
+  ) {
     setStatus(null);
     setTags((prev) => {
       const next = new Set<string>();
-      // Keep colors when switching mono/multi; clear for colorless/wubrg
-      if (mode === "mono" || mode === "multi") {
+      if (mode === "mono" || mode === "multi" || mode === "colored") {
         for (const c of COLORS) {
           if (prev.has(c)) next.add(c);
         }
         if (mode === "mono") {
-          // Keep only first color
           const first = COLORS.find((c) => next.has(c));
           next.clear();
           if (first) next.add(first);
         }
+        if (mode === "colored" && prev.has("multi")) next.add("multi");
+        if (mode === "multi" && prev.has("colored")) next.add("colored");
       }
       next.add(mode);
       return next;
@@ -85,6 +88,7 @@ export function UsefulInPicker({
       // Colors incompatible with pure colorless / wubrg modes
       next.delete("colorless");
       next.delete("wubrg");
+      if (next.has("colorless")) next.delete("colorless");
       if (next.has(c)) next.delete(c);
       else {
         if (next.has("mono")) {
@@ -107,7 +111,9 @@ export function UsefulInPicker({
     });
   }
 
-  function onModeClick(mode: "colorless" | "mono" | "multi" | "wubrg") {
+  function onModeClick(
+    mode: "colorless" | "colored" | "mono" | "multi" | "wubrg"
+  ) {
     if (tags.has(mode)) {
       clearMode(mode);
       setStatus(null);
@@ -167,6 +173,7 @@ export function UsefulInPicker({
         {(
           [
             ["colorless", "Colorless"],
+            ["colored", "Colored"],
             ["mono", "Mono"],
             ["multi", "Multi"],
             ["wubrg", "WUBRG"],
