@@ -94,9 +94,10 @@ const rulingsInflight = new Map<
 >();
 
 export async function fetchRulings(
-  scryfallId: string
+  scryfallId: string,
+  oracleId?: string
 ): Promise<{ rulings: ScryfallRuling[]; error: string | null }> {
-  const key = normId(scryfallId);
+  const key = normId(oracleId || scryfallId);
   if (!key) return { rulings: [], error: "Missing card id" };
   const cached = rulingsCache.get(key);
   if (cached) return { rulings: cached, error: null };
@@ -105,8 +106,9 @@ export async function fetchRulings(
 
   const promise = (async () => {
     try {
+      const q = oracleId ? `?oracle=${encodeURIComponent(oracleId)}` : "";
       const res = await fetch(
-        `${BASE}/api/scryfall/rulings/${encodeURIComponent(scryfallId)}`
+        `${BASE}/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`
       );
       const data = await res.json();
       if (!res.ok) {

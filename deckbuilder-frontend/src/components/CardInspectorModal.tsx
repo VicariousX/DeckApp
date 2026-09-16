@@ -67,95 +67,140 @@ function DeckTagRows({
   onToggle: (tag: DeckTag) => void;
 }) {
   const nodes = useRef(new Map<string, HTMLButtonElement>());
-  const prev = useRef(new Map<string, DOMRect>());
+  const pending = useRef<{
+    id: string;
+    name: string;
+    color: string;
+    from: DOMRect;
+  } | null>(null);
+  const [flight, setFlight] = useState<{
+    id: string;
+    name: string;
+    color: string;
+    from: DOMRect;
+    to: DOMRect;
+  } | null>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
-    for (const tag of tags) {
-      const el = nodes.current.get(tag.id);
-      if (!el) continue;
-      const last = el.getBoundingClientRect();
-      const first = prev.current.get(tag.id);
-      if (first) {
-        const dx = first.left - last.left;
-        const dy = first.top - last.top;
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-          el.animate(
-            [
-              {
-                transform: `translate(${dx}px, ${dy}px) scale(0.55)`,
-                borderRadius: "50%",
-                filter: "brightness(1.15)",
-              },
-              {
-                transform: `translate(${dx * 0.18}px, ${dy * 0.18}px) scale(1.12)`,
-                borderRadius: "14px",
-                offset: 0.62,
-              },
-              {
-                transform: "translate(0, 0) scale(1)",
-                borderRadius: "999px",
-              },
-            ],
-            {
-              duration: 420,
-              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-            }
-          );
-        }
-      }
-      prev.current.set(tag.id, last);
-    }
-  }, [tags, assigned]);
+    const p = pending.current;
+    if (!p) return;
+    const el = nodes.current.get(p.id);
+    pending.current = null;
+    if (!el) return;
+    const to = el.getBoundingClientRect();
+    setFlight({ ...p, to });
+  }, [assigned]);
+
+  useEffect(() => {
+    if (!flight || !ghostRef.current) return;
+    const node = ghostRef.current;
+    const { from, to } = flight;
+    const midX = (from.left + to.left) / 2 + (to.left - from.left) * 0.12;
+    const midY = Math.min(from.top, to.top) - 18;
+    const anim = node.animate(
+      [
+        {
+          left: `${from.left}px`,
+          top: `${from.top}px`,
+          width: `${from.width}px`,
+          height: `${from.height}px`,
+          borderRadius: "999px",
+          opacity: 1,
+          transform: "scale(1)",
+        },
+        {
+          left: `${midX}px`,
+          top: `${midY}px`,
+          width: `${Math.max(18, from.width * 0.42)}px`,
+          height: `${Math.max(18, from.height * 0.9)}px`,
+          borderRadius: "50%",
+          opacity: 0.95,
+          transform: "scale(0.72)",
+          offset: 0.45,
+        },
+        {
+          left: `${to.left}px`,
+          top: `${to.top}px`,
+          width: `${to.width}px`,
+          height: `${to.height}px`,
+          borderRadius: "999px",
+          opacity: 1,
+          transform: "scale(1)",
+        },
+      ],
+      { duration: 520, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
+    );
+    anim.onfinish = () => setFlight(null);
+    return () => anim.cancel();
+  }, [flight]);
+
+  function handleToggle(tag: DeckTag, el: HTMLButtonElement) {
+    if (!isOwner) return;
+    pending.current = {
+      id: tag.id,
+      name: tag.name,
+      color: tag.color,
+      from: el.getBoundingClientRect(),
+    };
+    onToggle(tag);
+  }
 
   const activeTags = tags.filter((t) => assigned.has(t.id));
   const availableTags = tags.filter((t) => !assigned.has(t.id));
+
+  function chip(tag: DeckTag, on: boolean) {
+    const hiding = flight?.id === tag.id;
+    return (
+      <button
+        key={tag.id}
+        type="button"
+        ref={(n) => {
+          if (n) nodes.current.set(tag.id, n);
+          else nodes.current.delete(tag.id);
+        }}
+        className={`${styles.tagChip}${on ? ` ${styles.tagChipOn}` : ""}${
+          hiding ? ` ${styles.tagChipHidden}` : ""
+        }`}
+        disabled={!isOwner}
+        style={
+          on
+            ? { borderColor: tag.color, background: `${tag.color}33` }
+            : undefined
+        }
+        onClick={(e) => handleToggle(tag, e.currentTarget)}
+      >
+        {tag.name}
+      </button>
+    );
+  }
 
   return (
     <>
       <div className={styles.tagLane}>
         <span className={styles.extraLabel}>Active tags</span>
-        <div className={styles.tagList}>
-          {activeTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              ref={(n) => {
-                if (n) nodes.current.set(tag.id, n);
-                else nodes.current.delete(tag.id);
-              }}
-              className={`${styles.tagChip} ${styles.tagChipOn}`}
-              disabled={!isOwner}
-              style={{
-                borderColor: tag.color,
-                background: `${tag.color}33`,
-              }}
-              onClick={() => onToggle(tag)}
-            >
-              {tag.name}
-            </button>
-          ))}
-        </div>
+        <div className={styles.tagList}>{activeTags.map((t) => chip(t, true))}</div>
       </div>
       <div className={styles.tagLane}>
         <span className={styles.extraLabel}>Available tags</span>
         <div className={styles.tagList}>
-          {availableTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              ref={(n) => {
-                if (n) nodes.current.set(tag.id, n);
-                else nodes.current.delete(tag.id);
-              }}
-              className={styles.tagChip}
-              disabled={!isOwner}
-              onClick={() => onToggle(tag)}
-            >
-              {tag.name}
-            </button>
-          ))}
+          {availableTags.map((t) => chip(t, false))}
         </div>
       </div>
+      {flight &&
+        createPortal(
+          <div
+            ref={ghostRef}
+            className={`${styles.tagChip} ${styles.tagChipOn} ${styles.tagGhost}`}
+            style={{
+              borderColor: flight.color,
+              background: `${flight.color}33`,
+            }}
+          >
+            {flight.name}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
@@ -242,7 +287,11 @@ export function CardInspectorModal({
     let cancelled = false;
     setRulingsLoading(true);
     setRulingsError(null);
-    void fetchRulings(id).then(({ rulings: list, error: err }) => {
+    const oracle =
+      (displayCard ?? baseCard)?.oracle_id ??
+      (displayCard ?? baseCard)?.id ??
+      id;
+    void fetchRulings(id, oracle).then(({ rulings: list, error: err }) => {
       if (cancelled) return;
       setRulingsLoading(false);
       if (err) {

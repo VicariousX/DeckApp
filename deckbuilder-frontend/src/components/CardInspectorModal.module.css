@@ -427,6 +427,18 @@
   font-weight: 700;
 }
 
+.tagChipHidden {
+  visibility: hidden;
+}
+
+.tagGhost {
+  position: fixed;
+  z-index: 4000;
+  pointer-events: none;
+  margin: 0;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
 .tagLane {
   display: flex;
   flex-direction: column;

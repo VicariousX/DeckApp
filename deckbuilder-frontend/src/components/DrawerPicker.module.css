@@ -111,8 +111,9 @@
 }
 
 .itemCount {
-  font-size: 0.72rem;
-  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--color-accent);
 }
 
 .createRow {
@@ -251,8 +252,8 @@
   flex-shrink: 0;
   margin-left: 0;
   font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--color-text);
+  font-weight: 750;
+  color: var(--color-accent);
 }
 .tierBtn {
   width: 1.35rem;

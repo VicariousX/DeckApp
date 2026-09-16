@@ -294,6 +294,173 @@ export function getCardByName(name: string): BulkCard | null {
 }
 
 /** One unique-name representative chosen at random from the local bulk index. */
+export type BulkRuling = {
+  object?: string;
+  oracle_id: string;
+  source?: string;
+  published_at?: string;
+  comment: string;
+};
+
+const RULINGS_META_PATH = path.join(DATA_DIR, "rulings-meta.json");
+const RULINGS_JSONL_PATH = path.join(DATA_DIR, "rulings.jsonl");
+
+type RulingsMeta = {
+  updated_at: string;
+  jsonl_download_uri: string;
+  downloaded_at: string;
+  ruling_count: number;
+};
+
+const rulingsState = {
+  ready: false,
+  loading: null as Promise<void> | null,
+  meta: null as RulingsMeta | null,
+  byOracle: new Map<string, BulkRuling[]>(),
+};
+
+async function fetchRulingsMeta(): Promise<{
+  updated_at: string;
+  jsonl_download_uri: string;
+}> {
+  const res = await fetch("https://api.scryfall.com/bulk-data/rulings", {
+    headers: SCRYFALL_HEADERS,
+  });
+  if (!res.ok) throw new Error(`rulings bulk-data metadata failed: ${res.status}`);
+  const data = (await res.json()) as {
+    updated_at: string;
+    jsonl_download_uri?: string;
+    download_uri?: string;
+  };
+  const uri = data.jsonl_download_uri || data.download_uri;
+  if (!uri) throw new Error("No download URI in rulings bulk-data response");
+  return { updated_at: data.updated_at, jsonl_download_uri: uri };
+}
+
+async function downloadRulingsJsonl(uri: string): Promise<void> {
+  await ensureDataDir();
+  const res = await fetch(uri, { headers: SCRYFALL_HEADERS });
+  if (!res.ok || !res.body) throw new Error(`rulings download failed: ${res.status}`);
+  const tmp = RULINGS_JSONL_PATH + ".tmp";
+  const out = fs.createWriteStream(tmp);
+  const isGz = uri.endsWith(".gz") || uri.includes(".jsonl.gz");
+  const nodeStream = (await import("node:stream")).Readable.fromWeb(
+    res.body as import("node:stream/web").ReadableStream
+  );
+  await new Promise<void>((resolve, reject) => {
+    const pipeline = isGz ? nodeStream.pipe(createGunzip()) : nodeStream;
+    pipeline.pipe(out);
+    out.on("finish", () => resolve());
+    out.on("error", reject);
+    pipeline.on("error", reject);
+  });
+  await fsp.rename(tmp, RULINGS_JSONL_PATH);
+}
+
+async function indexRulingsJsonl(): Promise<number> {
+  rulingsState.byOracle = new Map();
+  const stream = fs.createReadStream(RULINGS_JSONL_PATH);
+  const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  let count = 0;
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    try {
+      const row = JSON.parse(line) as BulkRuling;
+      const oid = norm(row.oracle_id ?? "");
+      if (!oid || !row.comment) continue;
+      const list = rulingsState.byOracle.get(oid) ?? [];
+      list.push({
+        object: "ruling",
+        oracle_id: oid,
+        source: row.source,
+        published_at: row.published_at,
+        comment: row.comment,
+      });
+      rulingsState.byOracle.set(oid, list);
+      count++;
+    } catch {
+      /* skip bad line */
+    }
+  }
+  rulingsState.ready = true;
+  return count;
+}
+
+async function loadRulingsFromDisk(): Promise<boolean> {
+  try {
+    await fsp.access(RULINGS_JSONL_PATH);
+    const count = await indexRulingsJsonl();
+    try {
+      const raw = await fsp.readFile(RULINGS_META_PATH, "utf8");
+      rulingsState.meta = JSON.parse(raw) as RulingsMeta;
+    } catch {
+      rulingsState.meta = {
+        updated_at: "",
+        jsonl_download_uri: "",
+        downloaded_at: new Date().toISOString(),
+        ruling_count: count,
+      };
+    }
+    console.log(`[bulk] loaded ${count} rulings from disk`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function ensureRulingsData(options?: { force?: boolean }): Promise<void> {
+  if (rulingsState.ready && !options?.force) return;
+  if (rulingsState.loading) return rulingsState.loading;
+  rulingsState.loading = (async () => {
+    await ensureDataDir();
+    if (!options?.force) {
+      const ok = await loadRulingsFromDisk();
+      if (ok) {
+        void (async () => {
+          if (!rulingsState.meta?.updated_at) return;
+          const meta = await fetchRulingsMeta();
+          if (meta.updated_at === rulingsState.meta.updated_at) return;
+          console.log("[bulk] newer rulings available — refreshing");
+          await ensureRulingsData({ force: true });
+        })().catch((e) => console.warn("[bulk] rulings refresh failed:", e));
+        return;
+      }
+    }
+    console.log("[bulk] downloading rulings from Scryfall…");
+    const meta = await fetchRulingsMeta();
+    await downloadRulingsJsonl(meta.jsonl_download_uri);
+    const count = await indexRulingsJsonl();
+    rulingsState.meta = {
+      updated_at: meta.updated_at,
+      jsonl_download_uri: meta.jsonl_download_uri,
+      downloaded_at: new Date().toISOString(),
+      ruling_count: count,
+    };
+    await fsp.writeFile(RULINGS_META_PATH, JSON.stringify(rulingsState.meta, null, 2));
+    console.log(`[bulk] indexed ${count} rulings (updated ${meta.updated_at})`);
+  })().finally(() => {
+    rulingsState.loading = null;
+  });
+  return rulingsState.loading;
+}
+
+export function getRulingsByOracleId(oracleId: string): BulkRuling[] {
+  if (!rulingsState.ready) return [];
+  return rulingsState.byOracle.get(norm(oracleId)) ?? [];
+}
+
+export function rulingsStatus(): {
+  ready: boolean;
+  ruling_count: number;
+  updated_at: string | null;
+} {
+  return {
+    ready: rulingsState.ready,
+    ruling_count: rulingsState.meta?.ruling_count ?? rulingsState.byOracle.size,
+    updated_at: rulingsState.meta?.updated_at ?? null,
+  };
+}
+
 export function getRandomCard(): BulkCard | null {
   if (!state.ready || state.names.length === 0) return null;
   const key = state.names[Math.floor(Math.random() * state.names.length)];
