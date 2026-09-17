@@ -11,6 +11,7 @@
 
 .artBtn {
   position: relative;
+  z-index: 3;
   display: block;
   width: 100%;
   height: 100%;
@@ -21,6 +22,14 @@
   background: var(--color-surface);
   cursor: pointer;
   box-shadow: var(--shadow-lg);
+  transform-style: preserve-3d;
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.artAwake {
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #000 42%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
 .art {
@@ -29,6 +38,7 @@
   object-fit: cover;
   object-position: top center;
   display: block;
+  pointer-events: none;
 }
 
 .fallback {
@@ -38,6 +48,18 @@
   padding: 0.5rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    420px circle at var(--glare-x, 50%) var(--glare-y, 20%),
+    color-mix(in srgb, #fff 28%, transparent),
+    transparent 55%
+  );
+  mix-blend-mode: soft-light;
 }
 
 .ear {
@@ -60,246 +82,126 @@
   pointer-events: none;
 }
 
-.ring {
+.slide {
   position: absolute;
-  inset: 4px;
-  border-radius: 8px;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
-}
-
-.ringRun {
-  animation: ringFill 820ms linear forwards;
-}
-
-@keyframes ringFill {
-  from {
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
-    background: conic-gradient(
-      var(--color-accent) 0deg,
-      transparent 0deg
-    );
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    padding: 2px;
-  }
-  to {
-    background: conic-gradient(
-      var(--color-accent) 360deg,
-      transparent 360deg
-    );
-  }
-}
-
-.ringRun::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(
-    from -90deg,
-    var(--color-accent) var(--ring, 0%),
-    transparent 0
-  );
-  animation: sweep 820ms linear forwards;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-@keyframes sweep {
-  from { background: conic-gradient(from -90deg, var(--color-accent) 0%, transparent 0); }
-  to { background: conic-gradient(from -90deg, var(--color-accent) 100%, transparent 0); }
-}
-
-.flipBar {
-  position: absolute;
-  left: 50%;
-  bottom: 0.35rem;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 0.2rem;
-  z-index: 4;
-}
-
-.flipBtn {
-  padding: 0.12rem 0.4rem;
-  border-radius: 999px;
+  z-index: 1;
   border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-accent) 8%);
   color: var(--color-text);
-  font-size: 0.62rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.flipOn {
-  background: color-mix(in srgb, var(--color-accent) 28%, var(--color-surface));
-  border-color: transparent;
-}
-
-.tools {
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
   pointer-events: none;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
 }
 
-.tools > .rail {
+.tileLive .slide {
+  opacity: 1;
   pointer-events: auto;
 }
 
-.rail {
-  position: absolute;
-  z-index: 3;
-  max-width: calc(100% + 1.2rem);
-  padding: 0.22rem 0.4rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%);
-  box-shadow: var(--shadow-lg);
-  color: var(--color-text);
-  font-size: 0.68rem;
-  font-weight: 650;
+.nameSlide {
+  left: 6%;
+  right: 6%;
+  top: 0;
+  transform: translateY(12px);
+  padding: 0.28rem 0.4rem;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.railTop {
-  left: 50%;
-  bottom: calc(100% + 0.28rem);
-  transform: translateX(-50%) translateY(8px);
-  animation: inTop 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  text-align: center;
+.tileLive .nameSlide {
+  transform: translateY(calc(-100% - 0.2rem));
 }
 
-.railBottom {
-  left: 50%;
-  top: calc(100% + 0.28rem);
-  transform: translateX(-50%) translateY(-8px);
-  animation: inBottom 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-weight: 550;
+.nameSlide:hover {
+  color: var(--color-accent);
 }
 
-.railLeft {
-  top: 50%;
-  right: calc(100% + 0.28rem);
-  transform: translateY(-50%) translateX(8px);
-  animation: inLeft 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.tierSlide {
+  top: 8%;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.18rem;
+  padding: 0.35rem 0.28rem;
+  border-radius: 0 8px 8px 0;
+  transform: translateX(-10px);
 }
 
-.railRight {
-  top: 50%;
-  left: calc(100% + 0.28rem);
-  transform: translateY(-50%) translateX(-8px);
-  animation: inRight 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes inTop {
-  to { transform: translateX(-50%) translateY(0); }
-}
-@keyframes inBottom {
-  to { transform: translateX(-50%) translateY(0); }
-}
-@keyframes inLeft {
-  to { transform: translateY(-50%) translateX(0); }
-}
-@keyframes inRight {
-  to { transform: translateY(-50%) translateX(0); }
+.tileLive .tierSlide {
+  transform: translateX(calc(100% + 0.18rem));
 }
 
 .railLabel {
-  font-size: 0.52rem;
-  letter-spacing: 0.05em;
+  font-size: 0.5rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
-.tierRow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-.tinyBtn,
-.remove {
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
+.tierVal {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--color-accent);
 }
 
 .tinyBtn {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
   font-weight: 700;
   line-height: 1;
-  padding: 0;
+  cursor: pointer;
 }
 
 .tinyBtn:disabled {
   opacity: 0.35;
 }
 
-.remove {
-  padding: 0.2rem 0.4rem;
-  font-size: 0.68rem;
+.removeSlide {
+  left: 12%;
+  right: 12%;
+  bottom: 0;
+  transform: translateY(-10px);
+  padding: 0.28rem 0.4rem;
+  border-radius: 0 0 8px 8px;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #f87171;
-  border-color: color-mix(in srgb, #f87171 50%, transparent);
-}
-
-.popLayer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  pointer-events: none;
-}
-
-.popWrap {
-  position: absolute;
-  width: 280px;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-}
-
-.popCard {
-  width: 100%;
-  border-radius: 12px;
-  overflow: visible;
   cursor: pointer;
 }
 
-.popCard img,
-.popCard :global(img) {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 12px;
+.tileLive .removeSlide {
+  transform: translateY(calc(100% + 0.18rem));
 }
 
-.toolsPop .railTop {
-  bottom: auto;
-  top: -2.2rem;
-}
-.toolsPop .railBottom {
-  top: auto;
-  bottom: -2.2rem;
-}
-.toolsPop .railLeft {
-  right: auto;
-  left: -4.6rem;
-}
-.toolsPop .railRight {
-  left: auto;
-  right: -5.2rem;
+.flipBtn {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 0.4rem;
+  transform: translateX(-50%);
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
 }
