@@ -51,9 +51,18 @@ type Props = {
   hasPrev?: boolean;
   hasNext?: boolean;
   deck?: CardInspectorDeckControls;
+  drawer?: CardInspectorDrawerControls;
 };
 
-type TabId = "info" | "deck" | "drawers" | "artwork";
+type TabId = "info" | "deck" | "drawer" | "drawers" | "artwork";
+
+export type CardInspectorDrawerControls = {
+  drawerName: string;
+  tier: number;
+  isOwner: boolean;
+  onTier: (next: number) => void;
+  onRemove: () => void;
+};
 
 function DeckTagRows({
   tags,
@@ -169,6 +178,7 @@ export function CardInspectorModal({
   hasPrev = false,
   hasNext = false,
   deck,
+  drawer,
 }: Props) {
   const { artByOracleId, preferredPrintings, artRevision } = useArtPreferences();
   const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
@@ -211,12 +221,13 @@ export function CardInspectorModal({
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
     if (deck) list.push({ id: "deck", label: "Deck" });
+    if (drawer) list.push({ id: "drawer", label: drawer.drawerName || "Drawer" });
     list.push(
       { id: "drawers", label: "Drawers" },
       { id: "artwork", label: "Artwork" }
     );
     return list;
-  }, [deck]);
+  }, [deck, drawer]);
 
   const activeIndex = Math.max(
     0,
@@ -724,6 +735,13 @@ export function CardInspectorModal({
     else onClose();
   }
 
+  function handleDrawerRemove() {
+    if (!drawer) return;
+    drawer.onRemove();
+    if (hasNext && onNext) onNext();
+    else onClose();
+  }
+
   return (
     <Modal
       onClose={onClose}
@@ -1005,6 +1023,49 @@ export function CardInspectorModal({
                         onClick={handleRemove}
                       >
                         Remove from deck
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {active === "drawer" && drawer && (
+                <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+                  <div className={styles.deckExtras}>
+                    <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
+                      <span className={styles.extraLabel}>Tier</span>
+                      <div className={styles.qtyControls}>
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!drawer.isOwner || drawer.tier <= 1}
+                          onClick={() => drawer.onTier(drawer.tier - 1)}
+                        >
+                          −
+                        </button>
+                        <span className={styles.qtyValue}>{drawer.tier}</span>
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!drawer.isOwner}
+                          onClick={() => drawer.onTier(drawer.tier + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <p className={styles.muted}>
+                      1 is the highest priority in {drawer.drawerName}.
+                    </p>
+                  </div>
+                  {drawer.isOwner && (
+                    <div className={styles.deckFooter}>
+                      <button
+                        type="button"
+                        className={styles.removeBtn}
+                        onClick={handleDrawerRemove}
+                      >
+                        Remove from drawer
                       </button>
                     </div>
                   )}

@@ -1,0 +1,305 @@
+.tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  z-index: 1;
+}
+
+.tileLive {
+  z-index: 8;
+}
+
+.artBtn {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-surface);
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+}
+
+.art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+
+.fallback {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.ear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1.55rem;
+  height: 1.55rem;
+  background: linear-gradient(
+    225deg,
+    color-mix(in srgb, var(--color-accent) 88%, transparent) 50%,
+    transparent 50%
+  );
+  color: var(--color-accent-contrast, #fff);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.18rem 0.12rem 0 0;
+  text-align: right;
+  pointer-events: none;
+}
+
+.ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.ringRun {
+  animation: ringFill 820ms linear forwards;
+}
+
+@keyframes ringFill {
+  from {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+    background: conic-gradient(
+      var(--color-accent) 0deg,
+      transparent 0deg
+    );
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    padding: 2px;
+  }
+  to {
+    background: conic-gradient(
+      var(--color-accent) 360deg,
+      transparent 360deg
+    );
+  }
+}
+
+.ringRun::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from -90deg,
+    var(--color-accent) var(--ring, 0%),
+    transparent 0
+  );
+  animation: sweep 820ms linear forwards;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+@keyframes sweep {
+  from { background: conic-gradient(from -90deg, var(--color-accent) 0%, transparent 0); }
+  to { background: conic-gradient(from -90deg, var(--color-accent) 100%, transparent 0); }
+}
+
+.flipBar {
+  position: absolute;
+  left: 50%;
+  bottom: 0.35rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.2rem;
+  z-index: 4;
+}
+
+.flipBtn {
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.flipOn {
+  background: color-mix(in srgb, var(--color-accent) 28%, var(--color-surface));
+  border-color: transparent;
+}
+
+.tools {
+  pointer-events: none;
+}
+
+.tools > .rail {
+  pointer-events: auto;
+}
+
+.rail {
+  position: absolute;
+  z-index: 3;
+  max-width: calc(100% + 1.2rem);
+  padding: 0.22rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-accent) 6%);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.railTop {
+  left: 50%;
+  bottom: calc(100% + 0.28rem);
+  transform: translateX(-50%) translateY(8px);
+  animation: inTop 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  text-align: center;
+}
+
+.railBottom {
+  left: 50%;
+  top: calc(100% + 0.28rem);
+  transform: translateX(-50%) translateY(-8px);
+  animation: inBottom 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-weight: 550;
+}
+
+.railLeft {
+  top: 50%;
+  right: calc(100% + 0.28rem);
+  transform: translateY(-50%) translateX(8px);
+  animation: inLeft 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.railRight {
+  top: 50%;
+  left: calc(100% + 0.28rem);
+  transform: translateY(-50%) translateX(-8px);
+  animation: inRight 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes inTop {
+  to { transform: translateX(-50%) translateY(0); }
+}
+@keyframes inBottom {
+  to { transform: translateX(-50%) translateY(0); }
+}
+@keyframes inLeft {
+  to { transform: translateY(-50%) translateX(0); }
+}
+@keyframes inRight {
+  to { transform: translateY(-50%) translateX(0); }
+}
+
+.railLabel {
+  font-size: 0.52rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tierRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.tinyBtn,
+.remove {
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.tinyBtn {
+  width: 1.2rem;
+  height: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.tinyBtn:disabled {
+  opacity: 0.35;
+}
+
+.remove {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f87171;
+  border-color: color-mix(in srgb, #f87171 50%, transparent);
+}
+
+.popLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.popWrap {
+  position: absolute;
+  width: 280px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.popCard {
+  width: 100%;
+  border-radius: 12px;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.popCard img,
+.popCard :global(img) {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+}
+
+.toolsPop .railTop {
+  bottom: auto;
+  top: -2.2rem;
+}
+.toolsPop .railBottom {
+  top: auto;
+  bottom: -2.2rem;
+}
+.toolsPop .railLeft {
+  right: auto;
+  left: -4.6rem;
+}
+.toolsPop .railRight {
+  left: auto;
+  right: -5.2rem;
+}

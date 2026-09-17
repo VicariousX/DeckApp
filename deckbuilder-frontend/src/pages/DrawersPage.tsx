@@ -26,12 +26,16 @@ import {
   type CardSortKey,
 } from "../lib/cards/cardSort";
 import {
+  getDrawerShowTiers,
   getDrawerSortKey,
   getDrawerViewMode,
+  setDrawerShowTiers,
   setDrawerSortKey,
   setDrawerViewMode,
   type DrawerViewMode,
 } from "../lib/deckPreferences";
+import { CardInspectorModal } from "../components/CardInspectorModal";
+import { DrawerCardTile } from "../components/DrawerCardTile";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
 
@@ -47,6 +51,8 @@ export function DrawersPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
+  const [showTiers, setShowTiers] = useState(() => getDrawerShowTiers());
+  const [inspectId, setInspectId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<CardSortKey>(() => {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
@@ -149,6 +155,10 @@ export function DrawersPage() {
       return;
     }
     setCards((prev) => prev.filter((c) => c.oracle_id !== oracleId));
+    setInspectId((id) => {
+      const cur = cards.find((c) => c.id === id);
+      return cur && cur.oracle_id === oracleId ? null : id;
+    });
     setDrawers((prev) =>
       prev.map((d) =>
         d.id === selectedId
@@ -283,6 +293,12 @@ export function DrawersPage() {
   }
 
   const selected = drawers.find((d) => d.id === selectedId) ?? null;
+  const inspectNav = sortedCards.filter((c) => c.scryfall_id);
+  const inspectIndex = inspectNav.findIndex((c) => c.id === inspectId);
+  const inspectCard =
+    inspectIndex >= 0
+      ? inspectNav[inspectIndex]
+      : sortedCards.find((c) => c.id === inspectId) ?? null;
 
   return (
     <div className={`${transitions.page} ${styles.page}`}>
@@ -294,33 +310,6 @@ export function DrawersPage() {
           </p>
         </div>
         <div className={styles.headerTools}>
-          {selected && (
-            <TextExportMenu
-              label="Export"
-              fileBaseName={selected.name}
-              sections={[
-                {
-                  title: selected.name,
-                  items: sortedCards.map((c) => ({ name: c.name, quantity: 1 })),
-                },
-              ]}
-              options={{ includeHeaders: false }}
-            />
-          )}
-          <label className={styles.sortLabel}>
-            Sort
-            <select
-              className={styles.sortSelect}
-              value={sortKey}
-              onChange={(e) => onSortKey(e.target.value as CardSortKey)}
-            >
-              {CARD_SORT_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <div className={styles.viewToggle} role="group" aria-label="Drawer view mode">
             <button
               type="button"
@@ -339,6 +328,19 @@ export function DrawersPage() {
               Images
             </button>
           </div>
+          <button
+            type="button"
+            className={`${styles.viewBtn}${showTiers ? ` ${styles.viewBtnActive}` : ""}`}
+            aria-pressed={showTiers}
+            onClick={() => {
+              setShowTiers((v) => {
+                setDrawerShowTiers(!v);
+                return !v;
+              });
+            }}
+          >
+            Tiers
+          </button>
         </div>
       </header>
 
@@ -492,11 +494,43 @@ export function DrawersPage() {
                     {addBusy ? "Adding…" : "Add"}
                   </button>
                 </div>
-                <BulkCardImport
-                  title="Bulk Import"
-                  respectQuantity={false}
-                  onImport={onBulkImport}
-                />
+                <div className={styles.toolRow}>
+                  <BulkCardImport
+                    title="Bulk Import"
+                    respectQuantity={false}
+                    onImport={onBulkImport}
+                  />
+                  {selected && (
+                    <TextExportMenu
+                      label="Export"
+                      fileBaseName={selected.name}
+                      sections={[
+                        {
+                          title: selected.name,
+                          items: sortedCards.map((c) => ({
+                            name: c.name,
+                            quantity: 1,
+                          })),
+                        },
+                      ]}
+                      options={{ includeHeaders: false }}
+                    />
+                  )}
+                  <label className={styles.sortLabel}>
+                    Sort
+                    <select
+                      className={styles.sortSelect}
+                      value={sortKey}
+                      onChange={(e) => onSortKey(e.target.value as CardSortKey)}
+                    >
+                      {CARD_SORT_OPTIONS.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
 
               {cardsLoading && <p className={styles.muted}>Loading cards…</p>}
@@ -507,31 +541,27 @@ export function DrawersPage() {
                 </p>
               )}
 
-              {!cardsLoading && sortedCards.length > 0 && (
-                <ul
-                  className={
-                    viewMode === "image" ? styles.cardGrid : styles.cardList
-                  }
-                >
+              {!cardsLoading && sortedCards.length > 0 && viewMode === "image" && (
+                <div className={styles.tileGrid}>
+                  {sortedCards.map((c) => (
+                    <DrawerCardTile
+                      key={c.id}
+                      card={c}
+                      showTierMark={showTiers}
+                      onOpen={() => {
+                        if (c.scryfall_id) setInspectId(c.id);
+                      }}
+                      onRemove={() => void onRemoveCard(c.oracle_id)}
+                      onTier={(n) => void onTier(c.id, n)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {!cardsLoading && sortedCards.length > 0 && viewMode === "text" && (
+                <ul className={styles.cardList}>
                   {sortedCards.map((c) => (
                     <li key={c.id} className={styles.cardRow}>
-                      {viewMode === "image" && (
-                        <button
-                          type="button"
-                          className={styles.thumb}
-                          onClick={() => {
-                            if (c.image_url)
-                              setLightbox({ src: c.image_url, name: c.name });
-                          }}
-                          style={{ cursor: c.image_url ? "zoom-in" : "default" }}
-                        >
-                          {c.image_url ? (
-                            <img src={c.image_url} alt={c.name} />
-                          ) : (
-                            <span className={styles.thumbFallback}>{c.name}</span>
-                          )}
-                        </button>
-                      )}
                       <div className={styles.cardMeta}>
                         {c.scryfall_id ? (
                           <Link to={`/card/${c.scryfall_id}`} className={styles.cardName}>
@@ -593,6 +623,33 @@ export function DrawersPage() {
           )}
         </section>
       </div>
+      {inspectCard && inspectCard.scryfall_id && (
+        <CardInspectorModal
+          scryfallId={inspectCard.scryfall_id}
+          name={inspectCard.name}
+          imageUrl={inspectCard.image_url ?? undefined}
+          onClose={() => setInspectId(null)}
+          hasPrev={inspectIndex > 0}
+          hasNext={inspectIndex >= 0 && inspectIndex < inspectNav.length - 1}
+          onPrev={() => {
+            if (inspectIndex > 0) setInspectId(inspectNav[inspectIndex - 1].id);
+          }}
+          onNext={() => {
+            if (inspectIndex >= 0 && inspectIndex < inspectNav.length - 1) {
+              setInspectId(inspectNav[inspectIndex + 1].id);
+            }
+          }}
+          drawer={{
+            drawerName: selected?.name ?? "Drawer",
+            tier: inspectCard.tier ?? 1,
+            isOwner: true,
+            onTier: (n) => void onTier(inspectCard.id, n),
+            onRemove: () => {
+              void onRemoveCard(inspectCard.oracle_id);
+            },
+          }}
+        />
+      )}
       {deleteTarget && (
         <ConfirmDialog
           title={`Delete ${deleteTarget.name}?`}

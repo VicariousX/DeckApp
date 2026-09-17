@@ -263,6 +263,20 @@
   padding: 0;
 }
 
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 4.25rem 3.5rem;
+  padding: 2.4rem 2.2rem 3rem;
+}
+
+.toolRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .cardList {
   display: flex;
   flex-direction: column;

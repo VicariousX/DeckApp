@@ -153,6 +153,25 @@ export function setDrawerViewMode(mode: DrawerViewMode): void {
   }
 }
 
+const DRAWER_SHOW_TIERS_KEY = "deckapp.drawerShowTiers";
+
+export function getDrawerShowTiers(): boolean {
+  try {
+    const v = localStorage.getItem(DRAWER_SHOW_TIERS_KEY);
+    return v !== "0";
+  } catch {
+    return true;
+  }
+}
+
+export function setDrawerShowTiers(on: boolean): void {
+  try {
+    localStorage.setItem(DRAWER_SHOW_TIERS_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getDrawerSortKey(): string {
   try {
     return localStorage.getItem(DRAWER_SORT_KEY) ?? "name";
