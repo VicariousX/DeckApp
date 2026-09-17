@@ -22,22 +22,53 @@ const HOLD_MS = 1000;
 
 const AwakeCtx = createContext<{
   awake: string | null;
-  setAwake: (id: string | null) => void;
-}>({ awake: null, setAwake: () => {} });
+  wake: (id: string) => void;
+  scheduleSleep: (id: string) => void;
+}>({
+  awake: null,
+  wake: () => {},
+  scheduleSleep: () => {},
+});
 
 export function DrawerTileField({ children }: { children: ReactNode }) {
   const [awake, setAwake] = useState<string | null>(null);
+  const holdRef = useRef<number | null>(null);
+
+  function clearHold() {
+    if (holdRef.current) {
+      window.clearTimeout(holdRef.current);
+      holdRef.current = null;
+    }
+  }
+
+  function wake(id: string) {
+    clearHold();
+    setAwake(id);
+  }
+
+  function scheduleSleep(id: string) {
+    clearHold();
+    holdRef.current = window.setTimeout(() => {
+      setAwake((cur) => (cur === id ? null : cur));
+      holdRef.current = null;
+    }, HOLD_MS);
+  }
+
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-drawer-field]")) return;
+      clearHold();
       setAwake(null);
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+
+  useEffect(() => () => clearHold(), []);
+
   return (
-    <AwakeCtx.Provider value={{ awake, setAwake }}>
+    <AwakeCtx.Provider value={{ awake, wake, scheduleSleep }}>
       <div data-drawer-field="1">{children}</div>
     </AwakeCtx.Provider>
   );
@@ -59,10 +90,10 @@ export function DrawerCardTile({
   onTier,
 }: Props) {
   const id = useId();
-  const { awake, setAwake } = useContext(AwakeCtx);
+  const { awake, wake: wakeField, scheduleSleep: sleepField } =
+    useContext(AwakeCtx);
   const open = awake === id;
   const faceRef = useRef<HTMLButtonElement | null>(null);
-  const holdRef = useRef<number | null>(null);
   const [tilt, setTilt] = useState<{
     rx: number;
     ry: number;
@@ -107,12 +138,6 @@ export function DrawerCardTile({
     };
   }, [card.oracle_id, card.scryfall_id, resolveImageUrl, artRevision]);
 
-  useEffect(() => {
-    return () => {
-      if (holdRef.current) window.clearTimeout(holdRef.current);
-    };
-  }, []);
-
   const multi = scry ? isMultiCard(scry) : false;
   const front =
     prefFront || (scry ? getFaceImage(scry, 0) : card.image_url);
@@ -120,21 +145,14 @@ export function DrawerCardTile({
   const shown = face === "back" && back ? back : front;
 
   function wake() {
-    if (holdRef.current) {
-      window.clearTimeout(holdRef.current);
-      holdRef.current = null;
-    }
     setHovered(true);
-    setAwake(id);
+    wakeField(id);
   }
 
   function scheduleSleep() {
     setHovered(false);
     setTilt(null);
-    if (holdRef.current) window.clearTimeout(holdRef.current);
-    holdRef.current = window.setTimeout(() => {
-      setAwake(null);
-    }, HOLD_MS);
+    sleepField(id);
   }
 
   const onMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
