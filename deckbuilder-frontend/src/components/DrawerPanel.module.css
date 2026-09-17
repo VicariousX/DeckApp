@@ -332,10 +332,17 @@
 
 .idFilters {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  padding: 0.35rem 0.35rem 0.45rem;
+}
+
+.filterRow {
+  display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.25rem;
-  padding: 0.35rem 0.35rem 0.45rem;
 }
 
 .idChip {

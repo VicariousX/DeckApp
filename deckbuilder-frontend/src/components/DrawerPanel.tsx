@@ -296,25 +296,14 @@ export function DrawerPanel({
     });
   }
 
-  const COLOR_FILTERS: { id: string; label: string }[] = [
+  const MODE_FILTERS: { id: string; label: string }[] = [
     { id: "colorless", label: "Colorless" },
     { id: "colored", label: "Colored" },
     { id: "mono", label: "Mono" },
     { id: "multi", label: "Multi" },
     { id: "wubrg", label: "WUBRG" },
-    { id: "W", label: "W" },
-    { id: "U", label: "U" },
-    { id: "B", label: "B" },
-    { id: "R", label: "R" },
-    { id: "G", label: "G" },
   ];
-
-  const USEFUL_FILTERS: { id: string; label: string }[] = [
-    { id: "colorless", label: "Colorless" },
-    { id: "colored", label: "Colored" },
-    { id: "mono", label: "Mono" },
-    { id: "multi", label: "Multi" },
-    { id: "wubrg", label: "WUBRG" },
+  const COLOR_PIPS: { id: string; label: string }[] = [
     { id: "W", label: "W" },
     { id: "U", label: "U" },
     { id: "B", label: "B" },
@@ -330,7 +319,7 @@ export function DrawerPanel({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        Drawers
+        {open ? "Close Drawers" : "Drawers"}
       </button>
 
       {open &&
@@ -446,27 +435,43 @@ export function DrawerPanel({
             </button>
             {filterIdOpen && (
             <div className={styles.idFilters} role="group" aria-label="Color identity filters">
-              {COLOR_FILTERS.map((f) => (
-                <button
-                  key={`ci-${f.id}`}
-                  type="button"
-                  className={`${styles.idChip}${
-                    colorFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
-                  }`}
-                  onClick={() => toggleInSet(setColorFilters, f.id)}
-                >
-                  {f.label}
-                </button>
-              ))}
-              {colorFilters.size > 0 && (
-                <button
-                  type="button"
-                  className={styles.clearFilters}
-                  onClick={() => setColorFilters(new Set())}
-                >
-                  Clear
-                </button>
-              )}
+              <div className={styles.filterRow}>
+                {MODE_FILTERS.map((f) => (
+                  <button
+                    key={`ci-${f.id}`}
+                    type="button"
+                    className={`${styles.idChip}${
+                      colorFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                    }`}
+                    onClick={() => toggleInSet(setColorFilters, f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.filterRow}>
+                {COLOR_PIPS.map((f) => (
+                  <button
+                    key={`ci-${f.id}`}
+                    type="button"
+                    className={`${styles.idChip}${
+                      colorFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                    }`}
+                    onClick={() => toggleInSet(setColorFilters, f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+                {colorFilters.size > 0 && (
+                  <button
+                    type="button"
+                    className={styles.clearFilters}
+                    onClick={() => setColorFilters(new Set())}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
             )}
           </div>
@@ -484,27 +489,43 @@ export function DrawerPanel({
             </button>
             {filterUsefulOpen && (
             <div className={styles.idFilters} role="group" aria-label="Useful in filters">
-              {USEFUL_FILTERS.map((f) => (
-                <button
-                  key={`ui-${f.id}`}
-                  type="button"
-                  className={`${styles.idChip}${
-                    usefulFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
-                  }`}
-                  onClick={() => toggleInSet(setUsefulFilters, f.id)}
-                >
-                  {f.label}
-                </button>
-              ))}
-              {usefulFilters.size > 0 && (
-                <button
-                  type="button"
-                  className={styles.clearFilters}
-                  onClick={() => setUsefulFilters(new Set())}
-                >
-                  Clear
-                </button>
-              )}
+              <div className={styles.filterRow}>
+                {MODE_FILTERS.map((f) => (
+                  <button
+                    key={`ui-${f.id}`}
+                    type="button"
+                    className={`${styles.idChip}${
+                      usefulFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                    }`}
+                    onClick={() => toggleInSet(setUsefulFilters, f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.filterRow}>
+                {COLOR_PIPS.map((f) => (
+                  <button
+                    key={`ui-${f.id}`}
+                    type="button"
+                    className={`${styles.idChip}${
+                      usefulFilters.has(f.id) ? ` ${styles.idChipOn}` : ""
+                    }`}
+                    onClick={() => toggleInSet(setUsefulFilters, f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+                {usefulFilters.size > 0 && (
+                  <button
+                    type="button"
+                    className={styles.clearFilters}
+                    onClick={() => setUsefulFilters(new Set())}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
             )}
           </div>

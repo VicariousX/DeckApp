@@ -170,44 +170,48 @@ export function UsefulInPicker({
       </div>
 
       <div className={styles.tags} role="group" aria-label="Useful in">
-        {(
-          [
-            ["colorless", "Colorless"],
-            ["colored", "Colored"],
-            ["mono", "Mono"],
-            ["multi", "Multi"],
-            ["wubrg", "WUBRG"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`${styles.tag}${tags.has(id) ? ` ${styles.tagOn}` : ""}${
-              id === "mono" && !monoAllowed ? ` ${styles.tagDisabled}` : ""
-            }`}
-            onClick={() => onModeClick(id)}
-            disabled={id === "mono" && !monoAllowed && !tags.has("mono")}
-            title={
-              id === "mono" && !monoAllowed
-                ? "Select only one color for Mono"
-                : undefined
-            }
-          >
-            {label}
-          </button>
-        ))}
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`${styles.tag} ${styles[`pip${c}`]}${
-              tags.has(c) ? ` ${styles.tagOn}` : ""
-            }`}
-            onClick={() => toggleColor(c)}
-          >
-            {c}
-          </button>
-        ))}
+        <div className={styles.tagRow}>
+          {(
+            [
+              ["colorless", "Colorless"],
+              ["colored", "Colored"],
+              ["mono", "Mono"],
+              ["multi", "Multi"],
+              ["wubrg", "WUBRG"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`${styles.tag}${tags.has(id) ? ` ${styles.tagOn}` : ""}${
+                id === "mono" && !monoAllowed ? ` ${styles.tagDisabled}` : ""
+              }`}
+              onClick={() => onModeClick(id)}
+              disabled={id === "mono" && !monoAllowed && !tags.has("mono")}
+              title={
+                id === "mono" && !monoAllowed
+                  ? "Select only one color for Mono"
+                  : undefined
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className={styles.tagRow}>
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`${styles.tag} ${styles[`pip${c}`]}${
+                tags.has(c) ? ` ${styles.tagOn}` : ""
+              }`}
+              onClick={() => toggleColor(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
 
       <p className={styles.previewLine}>{summary}</p>

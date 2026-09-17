@@ -28,7 +28,7 @@ type Props = {
 export function BulkCardImport({
   onImport,
   respectQuantity = true,
-  title = "Bulk import",
+  title = "Bulk Import",
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -113,7 +113,7 @@ export function BulkCardImport({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        {open ? "Close import" : title}
+        {open ? "Close Import" : title}
       </button>
 
       {open &&
@@ -124,7 +124,7 @@ export function BulkCardImport({
               className={styles.dragHandle}
               onPointerDown={onHandlePointerDown}
             >
-              Bulk import
+              Bulk Import
             </div>
             <button
               type="button"

@@ -70,7 +70,7 @@ export function TextExportMenu({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        {label}
+        {open ? "Close Export" : label}
       </button>
       {open &&
         createPortal(
