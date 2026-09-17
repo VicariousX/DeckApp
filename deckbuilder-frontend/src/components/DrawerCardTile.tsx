@@ -197,7 +197,7 @@ export function DrawerCardTile({
           if (!card.scryfall_id) e.preventDefault();
         }}
       >
-        {card.name}
+        Card Page
       </Link>
 
       <div className={`${styles.slide} ${styles.tierSlide}`}>

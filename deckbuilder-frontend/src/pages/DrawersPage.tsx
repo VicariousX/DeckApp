@@ -62,6 +62,9 @@ export function DrawersPage() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterUseful, setFilterUseful] = useState<string[]>([]);
+  const [filterMaxTier, setFilterMaxTier] = useState<number | "">("");
   const [deleteTarget, setDeleteTarget] = useState<Drawer | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,9 +276,24 @@ export function DrawersPage() {
     if (err) setError(err);
   }
 
+  const filteredCards = useMemo(() => {
+    return cards.filter((c) => {
+      if (filterMaxTier !== "" && (c.tier ?? 1) > filterMaxTier) return false;
+      if (filterUseful.length > 0) {
+        const have = new Set(
+          (c.useful_in ?? []).map((t) =>
+            t.length === 1 ? t.toUpperCase() : t.toLowerCase()
+          )
+        );
+        if (!filterUseful.every((t) => have.has(t))) return false;
+      }
+      return true;
+    });
+  }, [cards, filterUseful, filterMaxTier]);
+
   const sortedCards = useMemo(
-    () => sortCardsBy(cards, sortKey),
-    [cards, sortKey]
+    () => sortCardsBy(filteredCards, sortKey),
+    [filteredCards, sortKey]
   );
 
   function onViewMode(mode: DrawerViewMode) {
@@ -498,6 +516,7 @@ export function DrawersPage() {
                   <BulkCardImport
                     title="Bulk Import"
                     respectQuantity={false}
+                    existingOracleIds={cards.map((c) => c.oracle_id)}
                     onImport={onBulkImport}
                   />
                   {selected && (
@@ -513,9 +532,26 @@ export function DrawersPage() {
                           })),
                         },
                       ]}
+                      allSections={[
+                        {
+                          title: selected.name,
+                          items: cards.map((c) => ({
+                            name: c.name,
+                            quantity: 1,
+                          })),
+                        },
+                      ]}
                       options={{ includeHeaders: false }}
                     />
                   )}
+                  <button
+                    type="button"
+                    className={`${styles.viewBtn}${filterOpen ? ` ${styles.viewBtnActive}` : ""}`}
+                    onClick={() => setFilterOpen((v) => !v)}
+                    aria-expanded={filterOpen}
+                  >
+                    Filter
+                  </button>
                   <label className={styles.sortLabel}>
                     Sort
                     <select
@@ -531,6 +567,57 @@ export function DrawersPage() {
                     </select>
                   </label>
                 </div>
+                {filterOpen && (
+                  <div className={styles.filterPanel}>
+                    <label className={styles.sortLabel}>
+                      Tier ≤
+                      <input
+                        className={styles.sortSelect}
+                        type="number"
+                        min={1}
+                        value={filterMaxTier}
+                        placeholder="Any"
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10);
+                          setFilterMaxTier(Number.isFinite(n) ? n : "");
+                        }}
+                      />
+                    </label>
+                    <div className={styles.filterChips}>
+                      {["W", "U", "B", "R", "G", "colorless", "colored", "mono", "multi", "wubrg"].map(
+                        (tag) => {
+                          const on = filterUseful.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
+                              onClick={() =>
+                                setFilterUseful((prev) =>
+                                  on ? prev.filter((t) => t !== tag) : [...prev, tag]
+                                )
+                              }
+                            >
+                              {tag}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                    {(filterUseful.length > 0 || filterMaxTier !== "") && (
+                      <button
+                        type="button"
+                        className={styles.ghostBtn}
+                        onClick={() => {
+                          setFilterUseful([]);
+                          setFilterMaxTier("");
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {cardsLoading && <p className={styles.muted}>Loading cards…</p>}

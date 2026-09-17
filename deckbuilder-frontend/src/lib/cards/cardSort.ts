@@ -16,6 +16,8 @@ export type SortableCard = {
   /** Optional stable tie-breaker */
   id?: string | null;
   oracle_id?: string | null;
+  tier?: number | null;
+  useful_in?: string[] | null;
 };
 
 export type CardSortKey =
@@ -25,6 +27,8 @@ export type CardSortKey =
   | "color"
   /** Groups similar rules text (helps cluster cycles / variants). */
   | "oracle"
+  | "tier"
+  | "useful"
   | "manual";
 
 export const CARD_SORT_OPTIONS: { id: CardSortKey; label: string }[] = [
@@ -33,6 +37,8 @@ export const CARD_SORT_OPTIONS: { id: CardSortKey; label: string }[] = [
   { id: "cmc", label: "Mana value" },
   { id: "type", label: "Type" },
   { id: "oracle", label: "Oracle text" },
+  { id: "tier", label: "Tier" },
+  { id: "useful", label: "Useful in" },
 ];
 
 const WUBRG: ColorLetter[] = ["W", "U", "B", "R", "G"];
@@ -176,6 +182,23 @@ export function compareCards(
     if (ra !== rb) return ra - rb;
     const sc = cmpStr(sa, sb);
     if (sc !== 0) return sc;
+    return tieBreak(a, b);
+  }
+
+  if (key === "tier") {
+    const ta = a.tier ?? 99;
+    const tb = b.tier ?? 99;
+    if (ta !== tb) return ta - tb;
+    return tieBreak(a, b);
+  }
+
+  if (key === "useful") {
+    const ua = (a.useful_in ?? []).join(" ").toLowerCase();
+    const ub = (b.useful_in ?? []).join(" ").toLowerCase();
+    if (ua && !ub) return -1;
+    if (!ua && ub) return 1;
+    const c = cmpStr(ua, ub);
+    if (c !== 0) return c;
     return tieBreak(a, b);
   }
 

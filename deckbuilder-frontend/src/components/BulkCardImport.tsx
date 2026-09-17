@@ -23,6 +23,8 @@ type Props = {
   respectQuantity?: boolean;
   title?: string;
   placeholder?: string;
+  /** Oracle ids already present — used with missing-only. */
+  existingOracleIds?: string[];
 };
 
 export function BulkCardImport({
@@ -30,8 +32,10 @@ export function BulkCardImport({
   respectQuantity = true,
   title = "Bulk Import",
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
+  existingOracleIds,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [missingOnly, setMissingOnly] = useState(false);
   const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 400, h: 440 });
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,6 +75,13 @@ export function BulkCardImport({
       const card = byName.get(e.name.toLowerCase());
       if (!card) {
         if (!missing.includes(e.name)) missing.push(e.name);
+        continue;
+      }
+      const oid = (card.oracle_id ?? "").toLowerCase();
+      if (
+        missingOnly &&
+        existingOracleIds?.some((id) => id.toLowerCase() === oid)
+      ) {
         continue;
       }
       resolved.push({
@@ -152,6 +163,19 @@ export function BulkCardImport({
             rows={8}
             disabled={busy}
           />
+          {existingOracleIds && (
+            <label className={styles.missingToggle}>
+              <input
+                type="checkbox"
+                checked={missingOnly}
+                onChange={(e) => {
+                  setMissingOnly(e.target.checked);
+                  setPreview(null);
+                }}
+              />
+              Missing only
+            </label>
+          )}
           <div className={styles.meta}>
             <span>
               {parsed.entries.length} unique name

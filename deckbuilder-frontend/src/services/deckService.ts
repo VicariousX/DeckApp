@@ -214,6 +214,37 @@ export async function addCardToDeck(
   };
 }
 
+export type DeckCardPresence = {
+  deck: Deck;
+  board: DeckBoard;
+  quantity: number;
+};
+
+export async function listDecksContainingOracle(
+  userId: string,
+  oracleId: string
+): Promise<{ rows: DeckCardPresence[]; error: string | null }> {
+  const oid = oracleId.toLowerCase();
+  const { data, error } = await supabase
+    .from("deck_cards")
+    .select("board, quantity, decks!inner(id, user_id, name, description, format, is_public, created_at, updated_at)")
+    .eq("oracle_id", oid)
+    .eq("decks.user_id", userId);
+  if (error) return { rows: [], error: error.message };
+  const rows: DeckCardPresence[] = [];
+  for (const r of data ?? []) {
+    const raw = (r as { decks: Deck | Deck[] }).decks;
+    const deck = Array.isArray(raw) ? raw[0] : raw;
+    if (!deck) continue;
+    rows.push({
+      deck,
+      board: (r as { board: DeckBoard }).board,
+      quantity: (r as { quantity: number }).quantity ?? 1,
+    });
+  }
+  return { rows, error: null };
+}
+
 /** Move a card to another board (merges quantity if same oracle already there). */
 export async function setCardBoard(
   card: DeckCard,

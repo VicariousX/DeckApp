@@ -52,10 +52,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
-  grid-template-areas:
-    "visual info"
-    "art art";
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
   gap: 1.5rem 1.75rem;
   align-items: start;
 }
@@ -63,20 +60,15 @@
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "visual"
-      "info"
-      "art";
   }
 
   .visual {
-    max-width: 280px;
+    max-width: 240px;
     margin: 0 auto;
   }
 }
 
 .visual {
-  grid-area: visual;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -155,6 +147,91 @@
   line-height: 1.45;
   color: var(--color-text-muted);
   flex: 1;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+
+.section {
+  padding: 1.1rem 1.15rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.subTitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.rulingList,
+.deckList {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.rulingDate {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.select,
+.primaryBtn {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
+.primaryBtn {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
 }
 
 .relatedLink {

@@ -6,31 +6,51 @@ import { CardImage } from "../components/CardImage";
 import { CardLightbox } from "../components/CardLightbox";
 import { DrawerPicker } from "../components/DrawerPicker";
 import { UsefulInPicker } from "../components/UsefulInPicker";
-import { useAuth } from "../auth/AuthProvider";
-import { supabase } from "../lib/supabaseClient";
 import { CardNameSwitcher } from "../components/CardNameSwitcher";
-import { fetchCardById } from "../lib/scryfallApi";
+import { useAuth } from "../auth/AuthProvider";
+import { useArtPreferences } from "../auth/ArtPreferencesProvider";
+import { supabase } from "../lib/supabaseClient";
+import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
 import { mapScryfallToDeckApp } from "../lib/cards/mapScryfallToDeckApp";
 import { withResolvedImages } from "../lib/cards/withResolvedImages";
-import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { getFaceImage } from "../utils/scryfall";
+import {
+  addCardToDeck,
+  listDecksContainingOracle,
+  listMyDecks,
+  type DeckCardPresence,
+} from "../services/deckService";
+import { ensureUserCardFromScryfall } from "../services/userCardService";
+import {
+  getListColumnLayout,
+  newListColumnId,
+  setListColumnLayout,
+} from "../lib/deckPreferences";
+import type { Deck } from "../types/deck";
 import type { DeckAppCard } from "../types/deckAppCard";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./CardPage.module.css";
 
+const FROM_OUTSIDE = "From Outside";
+
 export function CardPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { reload: reloadArtPrefs } = useArtPreferences();
+  const { user } = useAuth();
   const [card, setCard] = useState<ScryfallCard | null>(null);
   const [resolved, setResolved] = useState<DeckAppCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const { user } = useAuth();
   const [usefulIn, setUsefulIn] = useState<string[]>([]);
-
+  const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
+  const [presence, setPresence] = useState<DeckCardPresence[]>([]);
+  const [myDecks, setMyDecks] = useState<Deck[]>([]);
+  const [addDeckId, setAddDeckId] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addMsg, setAddMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -59,8 +79,24 @@ export function CardPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!card) {
+      setRulings([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchRulings(card.id, card.oracle_id).then(({ rulings: list }) => {
+      if (!cancelled) setRulings(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [card]);
+
+  useEffect(() => {
     if (!user || !card) {
       setUsefulIn([]);
+      setPresence([]);
+      setMyDecks([]);
       return;
     }
     const oracleId = (card.oracle_id ?? card.id).toLowerCase();
@@ -76,6 +112,12 @@ export function CardPage() {
       const u = (data as { useful_in?: string[] | null } | null)?.useful_in;
       setUsefulIn(u && u.length ? u : []);
     })();
+    void listDecksContainingOracle(user.id, oracleId).then(({ rows }) => {
+      if (!cancelled) setPresence(rows);
+    });
+    void listMyDecks(user.id).then(({ decks }) => {
+      if (!cancelled) setMyDecks(decks);
+    });
     return () => {
       cancelled = true;
     };
@@ -90,7 +132,6 @@ export function CardPage() {
   );
 
   function goBack() {
-    // Prefer real browser history when the user navigated within the app
     if (window.history.length > 1) {
       navigate(-1);
       return;
@@ -98,8 +139,43 @@ export function CardPage() {
     navigate("/search");
   }
 
+  async function addToDeck() {
+    if (!user || !card || !addDeckId) return;
+    setAddBusy(true);
+    setAddMsg(null);
+    const { card: uc } = await ensureUserCardFromScryfall(user.id, card);
+    const { card: added, error: err } = await addCardToDeck(addDeckId, {
+      oracle_id: (uc?.oracle_id ?? card.oracle_id ?? card.id).toLowerCase(),
+      scryfall_id: uc?.scryfall_id ?? card.id,
+      name: card.name,
+      type_line: card.type_line ?? "",
+      mana_cost: card.mana_cost ?? null,
+      cmc: card.cmc ?? null,
+      quantity: 1,
+      board: "maybe",
+    });
+    setAddBusy(false);
+    if (err || !added) {
+      setAddMsg(err ?? "Could not add to deck.");
+      return;
+    }
+    const layout = getListColumnLayout(addDeckId, "maybe");
+    let col = layout.columns.find((c) => c.name === FROM_OUTSIDE);
+    if (!col) {
+      col = { id: newListColumnId(), name: FROM_OUTSIDE };
+      layout.columns = [col, ...layout.columns];
+    }
+    layout.placement = { ...layout.placement, [added.id]: col.id };
+    setListColumnLayout(addDeckId, "maybe", layout);
+    setAddMsg(`Added to maybeboard · ${FROM_OUTSIDE}`);
+    const oracleId = (card.oracle_id ?? card.id).toLowerCase();
+    const { rows } = await listDecksContainingOracle(user.id, oracleId);
+    setPresence(rows);
+  }
+
   const displayCard = card ? withResolvedImages(card, resolved) : null;
   const enlargeSrc = displayCard ? getFaceImage(displayCard, 0) : "";
+  const inDeckIds = new Set(presence.map((p) => p.deck.id));
 
   return (
     <div className={`${transitions.page} ${styles.page}`}>
@@ -114,79 +190,116 @@ export function CardPage() {
       {error && <p className={styles.statusError}>{error}</p>}
 
       {!loading && card && displayCard && (
-        <>
-          <div className={styles.layout}>
-            <div className={styles.visual}>
-              <div className={styles.imageFrame} title="Click card to enlarge">
-                <CardImage
-                  card={displayCard}
-                  onActivate={() => enlargeSrc && setLightboxSrc(enlargeSrc)}
-                />
-              </div>
-              {resolved &&
-                (resolved.has_custom_art ||
-                  resolved.has_preferred_printing) && (
-                  <p className={styles.badgeRow}>
-                    {resolved.has_custom_art && (
-                      <span className={styles.badge}>Custom art</span>
-                    )}
-                    {resolved.has_preferred_printing && (
-                      <span className={styles.badge}>Preferred printing</span>
-                    )}
-                  </p>
-                )}
+        <div className={styles.layout}>
+          <aside className={styles.visual}>
+            <div className={styles.imageFrame}>
+              <CardImage
+                card={displayCard}
+                tilt
+                hideFaceBadge
+                hideControls
+                bothLayout="stack"
+                onActivate={() => enlargeSrc && setLightboxSrc(enlargeSrc)}
+              />
             </div>
+          </aside>
 
-            <div className={styles.info}>
+          <div className={styles.stack}>
+            <section className={styles.section} id="info">
+              <h2 className={styles.sectionTitle}>Info</h2>
               <CardDetail
                 card={displayCard}
                 hidePrintingMeta={Boolean(
                   resolved?.has_custom_art || resolved?.has_preferred_printing
                 )}
               />
-            </div>
-
-            <div className={styles.artCol}>
-              <CardArtPanel card={card} onResolvedChange={onResolvedChange} />
-            </div>
-          </div>
-
-          <section className={styles.relatedSection} aria-label="Related">
-            <div className={styles.relatedCard}>
-              <h2 className={styles.relatedTitle}>In your decks</h2>
-              <p className={styles.relatedBody}>
-                Decks that include this card will appear here once deck storage
-                is connected.
-              </p>
-              <Link to="/my-decks" className={styles.relatedLink}>
-                Open My decks →
-              </Link>
-            </div>
-            <div className={styles.relatedCard}>
-              <h2 className={styles.relatedTitle}>Drawers</h2>
-              <p className={styles.relatedBody}>
-                Save this card into a reusable group you can pull into any deck.
-              </p>
-              {card && (card.oracle_id || card.id) && (
-                <>
-                  <DrawerPicker
-                    oracleId={(card.oracle_id ?? card.id).toLowerCase()}
-                    scryfallCard={card}
-                  />
-                  <UsefulInPicker
-                    oracleId={(card.oracle_id ?? card.id).toLowerCase()}
-                    scryfallCard={card}
-                    value={usefulIn}
-                    onChange={setUsefulIn}
-                  />
-                </>
+              <h3 className={styles.subTitle}>Rulings</h3>
+              {rulings.length === 0 ? (
+                <p className={styles.muted}>No rulings on file.</p>
+              ) : (
+                <ul className={styles.rulingList}>
+                  {rulings.map((r, i) => (
+                    <li key={`${r.published_at}-${i}`}>
+                      <span className={styles.rulingDate}>{r.published_at}</span>
+                      {r.comment}
+                    </li>
+                  ))}
+                </ul>
               )}
+            </section>
+
+            <section className={styles.section} id="deck">
+              <h2 className={styles.sectionTitle}>Decks</h2>
+              {user ? (
+                <>
+                  {presence.length === 0 ? (
+                    <p className={styles.muted}>Not in any of your decks yet.</p>
+                  ) : (
+                    <ul className={styles.deckList}>
+                      {presence.map((p) => (
+                        <li key={`${p.deck.id}-${p.board}`}>
+                          <Link to={`/deck/${p.deck.id}`}>{p.deck.name}</Link>
+                          <span className={styles.muted}>
+                            {" "}
+                            · {p.board} · ×{p.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className={styles.addRow}>
+                    <select
+                      className={styles.select}
+                      value={addDeckId}
+                      onChange={(e) => setAddDeckId(e.target.value)}
+                    >
+                      <option value="">Add to a deck…</option>
+                      {myDecks.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                          {inDeckIds.has(d.id) ? " (already in)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={!addDeckId || addBusy}
+                      onClick={() => void addToDeck()}
+                    >
+                      {addBusy ? "Adding…" : "Add to maybeboard"}
+                    </button>
+                  </div>
+                  {addMsg && <p className={styles.muted}>{addMsg}</p>}
+                </>
+              ) : (
+                <p className={styles.muted}>Sign in to track this card in decks.</p>
+              )}
+            </section>
+
+            <section className={styles.section} id="drawers">
+              <h2 className={styles.sectionTitle}>Drawers</h2>
+              <DrawerPicker
+                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
+                scryfallCard={card}
+              />
+              <UsefulInPicker
+                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
+                scryfallCard={card}
+                value={usefulIn}
+                onChange={setUsefulIn}
+              />
               <Link to="/drawers" className={styles.relatedLink}>
                 Manage drawers →
               </Link>
-            </div>
-          </section>
-        </>
+            </section>
+
+            <section className={styles.section} id="artwork">
+              <h2 className={styles.sectionTitle}>Artwork</h2>
+              <CardArtPanel card={card} onResolvedChange={onResolvedChange} />
+            </section>
+          </div>
+        </div>
       )}
 
       {lightboxSrc && (

@@ -239,3 +239,15 @@
   height: 14px;
   cursor: nwse-resize;
 }
+
+.missingToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.45rem 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-text);
+  cursor: pointer;
+}
+

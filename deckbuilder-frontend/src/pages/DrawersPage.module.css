@@ -277,6 +277,38 @@
   gap: 0.5rem;
 }
 
+.filterPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.filterChip {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.filterChipOn {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
+  border-color: transparent;
+}
+
 .cardList {
   display: flex;
   flex-direction: column;
