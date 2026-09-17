@@ -589,7 +589,7 @@ export function DrawersPage() {
                       title={sortDir === "asc" ? "Ascending" : "Descending"}
                       aria-label="Reverse sort order"
                     >
-                      {sortDir === "asc" ? "· → ∴" : "∴ → ·"}
+                      {sortDir === "asc" ? "· ➜ ∴" : "∴ ➜ ·"}
                     </button>
                   </label>
                 </div>
@@ -597,7 +597,7 @@ export function DrawersPage() {
                   <div className={styles.filterPanel}>
                     <div className={styles.filterGrid}>
                       <div className={`${styles.tierControl} ${styles.filterTier}`} title="Show cards at this tier or better">
-                        <span className={styles.filterHeading}>Tier ≤</span>
+                        <span className={styles.tierFilterLabel}>Tier ≤</span>
                         <div className={styles.tierRow}>
                           <button
                             type="button"
@@ -641,7 +641,16 @@ export function DrawersPage() {
                         <div className={styles.filterLine}>
                           <span className={styles.filterHeading}>Identity</span>
                           <div className={styles.filterChips}>
-                            {["W", "U", "B", "R", "G", "C"].map((tag) => {
+                            {(
+                              [
+                                ["W", "White"],
+                                ["U", "Blue"],
+                                ["B", "Black"],
+                                ["R", "Red"],
+                                ["G", "Green"],
+                                ["C", "Colorless"],
+                              ] as const
+                            ).map(([tag, label]) => {
                               const on = filterIdentity.includes(tag);
                               return (
                                 <button
@@ -654,7 +663,7 @@ export function DrawersPage() {
                                     )
                                   }
                                 >
-                                  {tag === "C" ? "C" : tag}
+                                  {label}
                                 </button>
                               );
                             })}
@@ -663,25 +672,36 @@ export function DrawersPage() {
                         <div className={styles.filterLine}>
                           <span className={styles.filterHeading}>Useful in</span>
                           <div className={styles.filterChips}>
-                            {["W", "U", "B", "R", "G", "colorless", "colored", "mono", "multi", "wubrg"].map(
-                              (tag) => {
-                                const on = filterUseful.includes(tag);
-                                return (
-                                  <button
-                                    key={tag}
-                                    type="button"
-                                    className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
-                                    onClick={() =>
-                                      setFilterUseful((prev) =>
-                                        on ? prev.filter((t) => t !== tag) : [...prev, tag]
-                                      )
-                                    }
-                                  >
-                                    {tag}
-                                  </button>
-                                );
-                              }
-                            )}
+                            {(
+                              [
+                                ["W", "White"],
+                                ["U", "Blue"],
+                                ["B", "Black"],
+                                ["R", "Red"],
+                                ["G", "Green"],
+                                ["colorless", "Colorless"],
+                                ["colored", "Colored"],
+                                ["mono", "Mono"],
+                                ["multi", "Multi"],
+                                ["wubrg", "WUBRG"],
+                              ] as const
+                            ).map(([tag, label]) => {
+                              const on = filterUseful.includes(tag);
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
+                                  onClick={() =>
+                                    setFilterUseful((prev) =>
+                                      on ? prev.filter((t) => t !== tag) : [...prev, tag]
+                                    )
+                                  }
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
