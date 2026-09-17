@@ -26,8 +26,19 @@ const AwakeCtx = createContext<{
 
 export function DrawerTileField({ children }: { children: ReactNode }) {
   const [awake, setAwake] = useState<string | null>(null);
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-drawer-field]")) return;
+      setAwake(null);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
   return (
-    <AwakeCtx.Provider value={{ awake, setAwake }}>{children}</AwakeCtx.Provider>
+    <AwakeCtx.Provider value={{ awake, setAwake }}>
+      <div data-drawer-field="1">{children}</div>
+    </AwakeCtx.Provider>
   );
 }
 
@@ -59,6 +70,7 @@ export function DrawerCardTile({
   } | null>(null);
   const [scry, setScry] = useState<ScryfallCard | null>(null);
   const [face, setFace] = useState<"front" | "back">("front");
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     if (!card.scryfall_id) return;
@@ -70,17 +82,6 @@ export function DrawerCardTile({
       cancel = true;
     };
   }, [card.scryfall_id]);
-
-  useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      const t = e.target as Node | null;
-      const root = faceRef.current?.closest(`.${styles.tile}`);
-      if (root && t && root.contains(t)) return;
-      setAwake(null);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [setAwake]);
 
   useEffect(() => {
     return () => {
@@ -98,14 +99,16 @@ export function DrawerCardTile({
       window.clearTimeout(holdRef.current);
       holdRef.current = null;
     }
+    setHovered(true);
     setAwake(id);
   }
 
   function scheduleSleep() {
+    setHovered(false);
+    setTilt(null);
     if (holdRef.current) window.clearTimeout(holdRef.current);
     holdRef.current = window.setTimeout(() => {
       setAwake(null);
-      setTilt(null);
     }, HOLD_MS);
   }
 
@@ -125,7 +128,7 @@ export function DrawerCardTile({
   }, []);
 
   const tiltStyle: CSSProperties | undefined = open
-    ? tilt
+    ? hovered && tilt
       ? {
           transform: `perspective(900px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale3d(1.04, 1.04, 1.04)`,
           ["--glare-x" as string]: `${tilt.gx}%`,
@@ -133,7 +136,7 @@ export function DrawerCardTile({
         }
       : {
           transform:
-            "perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
+            "perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1.04, 1.04, 1.04)",
         }
     : undefined;
 

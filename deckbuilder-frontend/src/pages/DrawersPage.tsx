@@ -641,15 +641,6 @@ export function DrawersPage() {
               setInspectId(inspectNav[inspectIndex + 1].id);
             }
           }}
-          drawer={{
-            drawerName: selected?.name ?? "Drawer",
-            tier: inspectCard.tier ?? 1,
-            isOwner: true,
-            onTier: (n) => void onTier(inspectCard.id, n),
-            onRemove: () => {
-              void onRemoveCard(inspectCard.oracle_id);
-            },
-          }}
         />
       )}
       {deleteTarget && (

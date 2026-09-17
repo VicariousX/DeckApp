@@ -3,6 +3,7 @@
   width: 100%;
   aspect-ratio: 5 / 7;
   z-index: 1;
+  overflow: visible;
 }
 
 .tileLive {
@@ -101,8 +102,8 @@
   left: 8%;
   right: 8%;
   top: 0;
-  transform: translateY(55%);
-  padding: 0.28rem 0.4rem 0.7rem;
+  transform: translateY(70%);
+  padding: 0.32rem 0.45rem 1.15rem;
   border-radius: 8px 8px 0 0;
   font-size: 0.72rem;
   font-weight: 700;
@@ -115,7 +116,7 @@
 }
 
 .tileLive .nameSlide {
-  transform: translateY(calc(-72%));
+  transform: translateY(-58%);
 }
 
 .nameSlide:hover {
@@ -129,28 +130,28 @@
   flex-direction: column;
   align-items: center;
   gap: 0.18rem;
-  padding: 0.35rem 0.28rem 0.35rem 0.7rem;
+  padding: 0.35rem 0.32rem 0.35rem 1.15rem;
   border-radius: 0 8px 8px 0;
-  transform: translateX(-45%);
+  transform: translateX(-55%);
 }
 
 .tileLive .tierSlide {
-  transform: translateX(58%);
+  transform: translateX(42%);
 }
 
 .flipSlide {
   top: 62%;
   right: 0;
-  padding: 0.32rem 0.4rem 0.32rem 0.75rem;
+  padding: 0.35rem 0.45rem 0.35rem 1.15rem;
   border-radius: 0 8px 8px 0;
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
-  transform: translateX(-45%);
+  transform: translateX(-55%);
 }
 
 .tileLive .flipSlide {
-  transform: translateX(58%);
+  transform: translateX(42%);
 }
 
 .railLabel {
@@ -188,8 +189,8 @@
   left: 14%;
   right: 14%;
   bottom: 0;
-  transform: translateY(-55%);
-  padding: 0.65rem 0.4rem 0.28rem;
+  transform: translateY(-70%);
+  padding: 1.15rem 0.45rem 0.32rem;
   border-radius: 0 0 8px 8px;
   font-size: 0.72rem;
   font-weight: 700;
@@ -198,5 +199,5 @@
 }
 
 .tileLive .removeSlide {
-  transform: translateY(68%);
+  transform: translateY(52%);
 }

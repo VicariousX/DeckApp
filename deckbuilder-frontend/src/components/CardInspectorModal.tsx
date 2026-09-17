@@ -222,14 +222,11 @@ export function CardInspectorModal({
     const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
     if (deck) list.push({ id: "deck", label: "Deck" });
     list.push(
-      {
-        id: "drawers",
-        label: drawer ? `${drawer.drawerName}-Drawer` : "Drawers",
-      },
+      { id: "drawers", label: "Drawers" },
       { id: "artwork", label: "Artwork" }
     );
     return list;
-  }, [deck, drawer]);
+  }, [deck]);
 
   const activeIndex = Math.max(
     0,
@@ -737,13 +734,6 @@ export function CardInspectorModal({
     else onClose();
   }
 
-  function handleDrawerRemove() {
-    if (!drawer) return;
-    drawer.onRemove();
-    if (hasNext && onNext) onNext();
-    else onClose();
-  }
-
   return (
     <Modal
       onClose={onClose}
@@ -1039,45 +1029,6 @@ export function CardInspectorModal({
               >
                 {displayCard || baseCard ? (
                   <>
-                    {drawer && (
-                      <div className={styles.deckExtras}>
-                        <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
-                          <span className={styles.extraLabel}>
-                            Tier in {drawer.drawerName}
-                          </span>
-                          <div className={styles.qtyControls}>
-                            <button
-                              type="button"
-                              className={styles.qtyBtn}
-                              disabled={!drawer.isOwner || drawer.tier <= 1}
-                              onClick={() => drawer.onTier(drawer.tier - 1)}
-                            >
-                              −
-                            </button>
-                            <span className={styles.qtyValue}>{drawer.tier}</span>
-                            <button
-                              type="button"
-                              className={styles.qtyBtn}
-                              disabled={!drawer.isOwner}
-                              onClick={() => drawer.onTier(drawer.tier + 1)}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                        {drawer.isOwner && (
-                          <div className={styles.deckFooter}>
-                            <button
-                              type="button"
-                              className={styles.removeBtn}
-                              onClick={handleDrawerRemove}
-                            >
-                              Remove from {drawer.drawerName}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
                     <div className={styles.usefulInBlock}>
                       <UsefulInPicker
                         oracleId={(
