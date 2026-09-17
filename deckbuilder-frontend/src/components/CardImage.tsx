@@ -33,6 +33,8 @@ type CardImageProps = {
   tilt?: boolean;
   /** Hide F/B face badge (modal). */
   hideFaceBadge?: boolean;
+  /** Hide Flip / Both controls (modal always-both). */
+  hideControls?: boolean;
 };
 
 type Tilt = { rx: number; ry: number; glareX: number; glareY: number };
@@ -137,11 +139,12 @@ export function CardImage({
   bothLayout = "row",
   tilt = false,
   hideFaceBadge = false,
+  hideControls = false,
 }: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
   const defaultView: CardFaceView =
-    bothLayout === "stack" && multi ? "both" : "front";
+    (hideControls || bothLayout === "stack") && multi ? "both" : "front";
   const [userView, setUserView] = useState<CardFaceView | null>(null);
   const view = userView ?? defaultView;
   const [enlarged, setEnlarged] = useState<{
@@ -297,7 +300,7 @@ export function CardImage({
         </FaceSlot>
       )}
 
-      {multi && (
+      {multi && !hideControls && (
         <div className={styles.controls}>
           <button
             type="button"

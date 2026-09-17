@@ -786,6 +786,7 @@ export function CardInspectorModal({
                 bothLayout="stack"
                 tilt
                 hideFaceBadge
+                hideControls
               />
             )}
             {!loading && !displayCard && (

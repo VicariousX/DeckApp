@@ -116,7 +116,7 @@
 }
 
 .tileLive .nameSlide {
-  transform: translateY(-58%);
+  transform: translateY(-92%);
 }
 
 .nameSlide:hover {
@@ -136,7 +136,7 @@
 }
 
 .tileLive .tierSlide {
-  transform: translateX(42%);
+  transform: translateX(calc(100% - 10px));
 }
 
 .flipSlide {
@@ -151,7 +151,7 @@
 }
 
 .tileLive .flipSlide {
-  transform: translateX(42%);
+  transform: translateX(calc(100% - 10px));
 }
 
 .railLabel {
@@ -199,5 +199,5 @@
 }
 
 .tileLive .removeSlide {
-  transform: translateY(52%);
+  transform: translateY(88%);
 }

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
+import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById } from "../lib/scryfallApi";
 import type { DrawerCardView } from "../types/drawer";
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -70,9 +71,18 @@ export function DrawerCardTile({
   } | null>(null);
   const [scry, setScry] = useState<ScryfallCard | null>(null);
   const [face, setFace] = useState<"front" | "back">("front");
+  const [prefFront, setPrefFront] = useState<string | null>(null);
+  const [prefBack, setPrefBack] = useState<string | null>(null);
+  const { resolveImageUrl, preferredPrintings, artRevision } =
+    useArtPreferences();
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
+    const pref = preferredPrintings.get(card.oracle_id);
+    if (pref) {
+      setScry(pref);
+      return;
+    }
     if (!card.scryfall_id) return;
     let cancel = false;
     void fetchCardById(card.scryfall_id).then(({ card: c }) => {
@@ -81,7 +91,21 @@ export function DrawerCardTile({
     return () => {
       cancel = true;
     };
-  }, [card.scryfall_id]);
+  }, [card.scryfall_id, card.oracle_id, preferredPrintings, artRevision]);
+
+  useEffect(() => {
+    let cancel = false;
+    void (async () => {
+      const front = await resolveImageUrl(card.oracle_id, card.scryfall_id, 0);
+      const back = await resolveImageUrl(card.oracle_id, card.scryfall_id, 1);
+      if (cancel) return;
+      setPrefFront(front);
+      setPrefBack(back);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [card.oracle_id, card.scryfall_id, resolveImageUrl, artRevision]);
 
   useEffect(() => {
     return () => {
@@ -90,8 +114,9 @@ export function DrawerCardTile({
   }, []);
 
   const multi = scry ? isMultiCard(scry) : false;
-  const front = scry ? getFaceImage(scry, 0) : card.image_url;
-  const back = scry ? getFaceImage(scry, 1) : null;
+  const front =
+    prefFront || (scry ? getFaceImage(scry, 0) : card.image_url);
+  const back = prefBack || (scry ? getFaceImage(scry, 1) : null);
   const shown = face === "back" && back ? back : front;
 
   function wake() {
