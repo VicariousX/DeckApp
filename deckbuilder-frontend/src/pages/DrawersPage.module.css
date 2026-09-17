@@ -372,11 +372,33 @@
 }
 
 .sortDirBtn {
-  min-width: 3.4rem;
-  font-size: 1.05rem;
-  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  min-width: 3.6rem;
+  padding-top: 0.18rem;
+  padding-bottom: 0.18rem;
   line-height: 1;
   color: var(--color-accent);
+}
+
+.sortDot {
+  font-size: 11pt;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sortArrow {
+  font-size: 11pt;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.sortTri {
+  font-size: 18pt;
+  font-weight: 800;
+  line-height: 0.7;
 }
 
 .filterChips {

@@ -589,7 +589,19 @@ export function DrawersPage() {
                       title={sortDir === "asc" ? "Ascending" : "Descending"}
                       aria-label="Reverse sort order"
                     >
-                      {sortDir === "asc" ? "· ➜ ∴" : "∴ ➜ ·"}
+                      {sortDir === "asc" ? (
+                        <>
+                          <span className={styles.sortDot}>•</span>
+                          <span className={styles.sortArrow}>➔</span>
+                          <span className={styles.sortTri}>∴</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={styles.sortTri}>∴</span>
+                          <span className={styles.sortArrow}>➔</span>
+                          <span className={styles.sortDot}>•</span>
+                        </>
+                      )}
                     </button>
                   </label>
                 </div>
