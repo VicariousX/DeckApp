@@ -1,7 +1,8 @@
 .page {
-  max-width: 1100px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 1.25rem 1rem 3rem;
+  color: var(--color-text);
 }
 
 .header {
@@ -53,21 +54,20 @@
   display: inline-flex;
   padding: 3px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
   gap: 2px;
 }
 
 .viewBtn {
-  padding: 0.35rem 0.75rem;
+  padding: 0.32rem 0.7rem;
   border: none;
   border-radius: 8px;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 650;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .viewBtn:hover {
@@ -75,9 +75,8 @@
 }
 
 .viewBtnActive {
-  background: var(--color-surface);
-  color: var(--color-accent);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
 }
 
 .layout {
@@ -94,10 +93,20 @@
 }
 
 .sidebar {
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 14px);
   padding: 0.75rem;
   background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebarHead {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 0.55rem;
 }
 
 .createForm {
@@ -166,7 +175,7 @@
   gap: 0.5rem;
   padding: 0.45rem 0.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--color-text);
   font-size: 0.9rem;
@@ -174,12 +183,12 @@
   cursor: pointer;
 }
 
-.drawerItem:hover {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+.drawerItem:hover,
+.drawerItemActive {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 .drawerItemActive {
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
   font-weight: 650;
 }
 
@@ -189,17 +198,36 @@
   white-space: nowrap;
 }
 
-.drawerCount {
-  font-size: 0.75rem;
+.drawerCountMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  flex-shrink: 0;
+}
+
+.countLabel {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--color-text-muted);
+  line-height: 1;
+}
+
+.drawerCount {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--color-accent);
 }
 
 .main {
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 14px);
   padding: 1rem;
   background: var(--color-surface);
-  min-height: 280px;
+  box-shadow: var(--shadow-lg);
+  min-height: 320px;
 }
 
 .mainHeader {
@@ -345,6 +373,13 @@
 
 .addSection {
   margin-bottom: 0.85rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 12%);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .addRow {
@@ -371,9 +406,11 @@
   max-height: 240px;
   overflow-y: auto;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-lg);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
 }
 
 .suggestItem {
@@ -399,7 +436,8 @@
   z-index: 100001;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--overlay-bg, color-mix(in srgb, #000 72%, transparent));
+  backdrop-filter: blur(4px);
   cursor: zoom-out;
   padding: 1.5rem;
 }
@@ -419,9 +457,24 @@ button.thumb {
 
 .tierControl {
   display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+  flex-shrink: 0;
+}
+
+.tierLabel {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tierRow {
+  display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  flex-shrink: 0;
 }
 
 .tierBtn {

@@ -19,6 +19,7 @@ import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
   CARD_SORT_OPTIONS,
   sortCardsBy,
@@ -55,6 +56,7 @@ export function DrawersPage() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Drawer | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -127,9 +129,6 @@ export function DrawersPage() {
   }
 
   async function onDelete(drawerId: string) {
-    if (!confirm("Delete this drawer? Cards are only removed from the drawer.")) {
-      return;
-    }
     const { error: err } = await deleteDrawer(drawerId);
     if (err) {
       setError(err);
@@ -291,7 +290,7 @@ export function DrawersPage() {
         <div>
           <h1 className={styles.title}>Drawers</h1>
           <p className={styles.subtitle}>
-            Saved card groups you can pull into any deck.
+            Saved groups you can pull into any deck.
           </p>
         </div>
         <div className={styles.headerTools}>
@@ -351,6 +350,7 @@ export function DrawersPage() {
 
       <div className={styles.layout}>
         <aside className={styles.sidebar}>
+          <div className={styles.sidebarHead}>Your drawers</div>
           <form className={styles.createForm} onSubmit={(e) => void onCreate(e)}>
             <input
               className={styles.input}
@@ -377,7 +377,10 @@ export function DrawersPage() {
                   onClick={() => setSelectedId(d.id)}
                 >
                   <span className={styles.drawerName}>{d.name}</span>
-                  <span className={styles.drawerCount}>{d.card_count ?? 0}</span>
+                  <span className={styles.drawerCountMeta}>
+                    <span className={styles.countLabel}>Cards</span>
+                    <span className={styles.drawerCount}>{d.card_count ?? 0}</span>
+                  </span>
                 </button>
               </li>
             ))}
@@ -433,7 +436,7 @@ export function DrawersPage() {
                       <button
                         type="button"
                         className={styles.dangerBtn}
-                        onClick={() => void onDelete(selected.id)}
+                        onClick={() => setDeleteTarget(selected)}
                       >
                         Delete
                       </button>
@@ -490,7 +493,7 @@ export function DrawersPage() {
                   </button>
                 </div>
                 <BulkCardImport
-                  title="Bulk import"
+                  title="Bulk Import"
                   respectQuantity={false}
                   onImport={onBulkImport}
                 />
@@ -544,7 +547,9 @@ export function DrawersPage() {
                           <ManaCost cost={c.mana_cost} size={14} />
                         </span>
                       )}
-                      <div className={styles.tierControl} title="Tier (1 = best)">
+                      <div className={styles.tierControl} title="Tier (1 = highest)">
+                        <span className={styles.tierLabel}>Tier</span>
+                        <div className={styles.tierRow}>
                         <button
                           type="button"
                           className={styles.tierBtn}
@@ -570,6 +575,7 @@ export function DrawersPage() {
                         >
                           +
                         </button>
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -587,6 +593,20 @@ export function DrawersPage() {
           )}
         </section>
       </div>
+      {deleteTarget && (
+        <ConfirmDialog
+          title={`Delete ${deleteTarget.name}?`}
+          message="Cards stay in your collection. They are only removed from this drawer."
+          confirmLabel="Delete Drawer"
+          cancelLabel="Cancel"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            const id = deleteTarget.id;
+            setDeleteTarget(null);
+            void onDelete(id);
+          }}
+        />
+      )}
       {lightbox &&
         createPortal(
           <div
