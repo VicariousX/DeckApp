@@ -221,9 +221,11 @@ export function CardInspectorModal({
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
     if (deck) list.push({ id: "deck", label: "Deck" });
-    if (drawer) list.push({ id: "drawer", label: drawer.drawerName || "Drawer" });
     list.push(
-      { id: "drawers", label: "Drawers" },
+      {
+        id: "drawers",
+        label: drawer ? `${drawer.drawerName}-Drawer` : "Drawers",
+      },
       { id: "artwork", label: "Artwork" }
     );
     return list;
@@ -1029,49 +1031,6 @@ export function CardInspectorModal({
                 </div>
               )}
 
-              {active === "drawer" && drawer && (
-                <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
-                  <div className={styles.deckExtras}>
-                    <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
-                      <span className={styles.extraLabel}>Tier</span>
-                      <div className={styles.qtyControls}>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          disabled={!drawer.isOwner || drawer.tier <= 1}
-                          onClick={() => drawer.onTier(drawer.tier - 1)}
-                        >
-                          −
-                        </button>
-                        <span className={styles.qtyValue}>{drawer.tier}</span>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          disabled={!drawer.isOwner}
-                          onClick={() => drawer.onTier(drawer.tier + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <p className={styles.muted}>
-                      1 is the highest priority in {drawer.drawerName}.
-                    </p>
-                  </div>
-                  {drawer.isOwner && (
-                    <div className={styles.deckFooter}>
-                      <button
-                        type="button"
-                        className={styles.removeBtn}
-                        onClick={handleDrawerRemove}
-                      >
-                        Remove from drawer
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Keep mounted so drawer list cache survives tab switches */}
               <div
                 className={styles.panelScroll}
@@ -1080,6 +1039,45 @@ export function CardInspectorModal({
               >
                 {displayCard || baseCard ? (
                   <>
+                    {drawer && (
+                      <div className={styles.deckExtras}>
+                        <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
+                          <span className={styles.extraLabel}>
+                            Tier in {drawer.drawerName}
+                          </span>
+                          <div className={styles.qtyControls}>
+                            <button
+                              type="button"
+                              className={styles.qtyBtn}
+                              disabled={!drawer.isOwner || drawer.tier <= 1}
+                              onClick={() => drawer.onTier(drawer.tier - 1)}
+                            >
+                              −
+                            </button>
+                            <span className={styles.qtyValue}>{drawer.tier}</span>
+                            <button
+                              type="button"
+                              className={styles.qtyBtn}
+                              disabled={!drawer.isOwner}
+                              onClick={() => drawer.onTier(drawer.tier + 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        {drawer.isOwner && (
+                          <div className={styles.deckFooter}>
+                            <button
+                              type="button"
+                              className={styles.removeBtn}
+                              onClick={handleDrawerRemove}
+                            >
+                              Remove from {drawer.drawerName}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className={styles.usefulInBlock}>
                       <UsefulInPicker
                         oracleId={(

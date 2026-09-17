@@ -35,7 +35,7 @@ import {
   type DrawerViewMode,
 } from "../lib/deckPreferences";
 import { CardInspectorModal } from "../components/CardInspectorModal";
-import { DrawerCardTile } from "../components/DrawerCardTile";
+import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
 
@@ -542,6 +542,7 @@ export function DrawersPage() {
               )}
 
               {!cardsLoading && sortedCards.length > 0 && viewMode === "image" && (
+                <DrawerTileField>
                 <div className={styles.tileGrid}>
                   {sortedCards.map((c) => (
                     <DrawerCardTile
@@ -556,6 +557,7 @@ export function DrawersPage() {
                     />
                   ))}
                 </div>
+                </DrawerTileField>
               )}
 
               {!cardsLoading && sortedCards.length > 0 && viewMode === "text" && (
