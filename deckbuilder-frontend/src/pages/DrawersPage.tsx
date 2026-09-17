@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   addOracleToDrawer,
@@ -64,6 +64,7 @@ export function DrawersPage() {
   const [lightbox, setLightbox] = useState<{ src: string; name: string } | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterUseful, setFilterUseful] = useState<string[]>([]);
+  const [filterIdentity, setFilterIdentity] = useState<string[]>([]);
   const [filterMaxTier, setFilterMaxTier] = useState<number | "">("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [deleteTarget, setDeleteTarget] = useState<Drawer | null>(null);
@@ -280,6 +281,17 @@ export function DrawersPage() {
   const filteredCards = useMemo(() => {
     return cards.filter((c) => {
       if (filterMaxTier !== "" && (c.tier ?? 1) > filterMaxTier) return false;
+      if (filterIdentity.length > 0) {
+        const id = (c.effective_color_identity ?? c.color_identity ?? []).map(
+          (x) => x.toUpperCase()
+        );
+        const wantC = filterIdentity.includes("C");
+        const colors = filterIdentity.filter((t) => t !== "C");
+        if (wantC && id.length !== 0) return false;
+        if (colors.length > 0 && !colors.every((col) => id.includes(col))) {
+          return false;
+        }
+      }
       if (filterUseful.length > 0) {
         const have = new Set(
           (c.useful_in ?? []).map((t) =>
@@ -290,7 +302,7 @@ export function DrawersPage() {
       }
       return true;
     });
-  }, [cards, filterUseful, filterMaxTier]);
+  }, [cards, filterUseful, filterIdentity, filterMaxTier]);
 
   const sortedCards = useMemo(() => {
     const list = sortCardsBy(filteredCards, sortKey);
@@ -577,80 +589,112 @@ export function DrawersPage() {
                       title={sortDir === "asc" ? "Ascending" : "Descending"}
                       aria-label="Reverse sort order"
                     >
-                      {sortDir === "asc" ? "·" : "∴"}
+                      {sortDir === "asc" ? "· → ∴" : "∴ → ·"}
                     </button>
                   </label>
                 </div>
                 {filterOpen && (
                   <div className={styles.filterPanel}>
-                    <div className={`${styles.tierControl} ${styles.filterTier}`} title="Show cards at this tier or better">
-                      <span className={styles.tierLabel}>Tier ≤</span>
-                      <div className={styles.tierRow}>
-                        <button
-                          type="button"
-                          className={styles.tierBtn}
-                          disabled={filterMaxTier === ""}
-                          onClick={() =>
-                            setFilterMaxTier((v) =>
-                              v === "" || v <= 1 ? "" : v - 1
-                            )
-                          }
-                        >
-                          −
-                        </button>
-                        <input
-                          className={styles.tierInput}
-                          type="text"
-                          inputMode="numeric"
-                          value={filterMaxTier === "" ? "Any" : filterMaxTier}
-                          onChange={(e) => {
-                            const raw = e.target.value.trim();
-                            if (raw === "" || raw.toLowerCase() === "any") {
-                              setFilterMaxTier("");
-                              return;
+                    <div className={styles.filterGrid}>
+                      <div className={`${styles.tierControl} ${styles.filterTier}`} title="Show cards at this tier or better">
+                        <span className={styles.filterHeading}>Tier ≤</span>
+                        <div className={styles.tierRow}>
+                          <button
+                            type="button"
+                            className={styles.tierBtn}
+                            disabled={filterMaxTier === ""}
+                            onClick={() =>
+                              setFilterMaxTier((v) =>
+                                v === "" || v <= 1 ? "" : v - 1
+                              )
                             }
-                            const n = parseInt(raw, 10);
-                            setFilterMaxTier(Number.isFinite(n) && n >= 1 ? n : "");
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className={styles.tierBtn}
-                          onClick={() =>
-                            setFilterMaxTier((v) => (v === "" ? 1 : v + 1))
-                          }
-                        >
-                          +
-                        </button>
+                          >
+                            −
+                          </button>
+                          <input
+                            className={styles.tierInput}
+                            type="text"
+                            inputMode="numeric"
+                            value={filterMaxTier === "" ? "Any" : filterMaxTier}
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              if (raw === "" || raw.toLowerCase() === "any") {
+                                setFilterMaxTier("");
+                                return;
+                              }
+                              const n = parseInt(raw, 10);
+                              setFilterMaxTier(Number.isFinite(n) && n >= 1 ? n : "");
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className={styles.tierBtn}
+                            onClick={() =>
+                              setFilterMaxTier((v) => (v === "" ? 1 : v + 1))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <div className={styles.filterStack}>
+                        <div className={styles.filterLine}>
+                          <span className={styles.filterHeading}>Identity</span>
+                          <div className={styles.filterChips}>
+                            {["W", "U", "B", "R", "G", "C"].map((tag) => {
+                              const on = filterIdentity.includes(tag);
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
+                                  onClick={() =>
+                                    setFilterIdentity((prev) =>
+                                      on ? prev.filter((t) => t !== tag) : [...prev, tag]
+                                    )
+                                  }
+                                >
+                                  {tag === "C" ? "C" : tag}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className={styles.filterLine}>
+                          <span className={styles.filterHeading}>Useful in</span>
+                          <div className={styles.filterChips}>
+                            {["W", "U", "B", "R", "G", "colorless", "colored", "mono", "multi", "wubrg"].map(
+                              (tag) => {
+                                const on = filterUseful.includes(tag);
+                                return (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
+                                    onClick={() =>
+                                      setFilterUseful((prev) =>
+                                        on ? prev.filter((t) => t !== tag) : [...prev, tag]
+                                      )
+                                    }
+                                  >
+                                    {tag}
+                                  </button>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className={styles.filterChips}>
-                      {["W", "U", "B", "R", "G", "colorless", "colored", "mono", "multi", "wubrg"].map(
-                        (tag) => {
-                          const on = filterUseful.includes(tag);
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              className={`${styles.filterChip}${on ? ` ${styles.filterChipOn}` : ""}`}
-                              onClick={() =>
-                                setFilterUseful((prev) =>
-                                  on ? prev.filter((t) => t !== tag) : [...prev, tag]
-                                )
-                              }
-                            >
-                              {tag}
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
-                    {(filterUseful.length > 0 || filterMaxTier !== "") && (
+                    {(filterUseful.length > 0 ||
+                      filterIdentity.length > 0 ||
+                      filterMaxTier !== "") && (
                       <button
                         type="button"
                         className={styles.ghostBtn}
                         onClick={() => {
                           setFilterUseful([]);
+                          setFilterIdentity([]);
                           setFilterMaxTier("");
                         }}
                       >
@@ -691,15 +735,15 @@ export function DrawersPage() {
               {!cardsLoading && sortedCards.length > 0 && viewMode === "text" && (
                 <ul className={styles.cardList}>
                   {sortedCards.map((c) => (
-                    <li key={c.id} className={styles.cardRow}>
+                    <li
+                      key={c.id}
+                      className={styles.cardRow}
+                      onClick={() => {
+                        if (c.scryfall_id) setInspectId(c.id);
+                      }}
+                    >
                       <div className={styles.cardMeta}>
-                        {c.scryfall_id ? (
-                          <Link to={`/card/${c.scryfall_id}`} className={styles.cardName}>
-                            {c.name}
-                          </Link>
-                        ) : (
-                          <span className={styles.cardName}>{c.name}</span>
-                        )}
+                        <span className={styles.cardName}>{c.name}</span>
                         <span className={styles.cardType}>{c.type_line}</span>
                       </div>
                       {c.mana_cost && (
@@ -714,7 +758,10 @@ export function DrawersPage() {
                           type="button"
                           className={styles.tierBtn}
                           disabled={(c.tier ?? 1) <= 1}
-                          onClick={() => void onTier(c.id, (c.tier ?? 1) - 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void onTier(c.id, (c.tier ?? 1) - 1);
+                          }}
                         >
                           −
                         </button>
@@ -723,6 +770,7 @@ export function DrawersPage() {
                           type="number"
                           min={1}
                           value={c.tier ?? 1}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
                             const n = parseInt(e.target.value, 10);
                             if (Number.isFinite(n)) void onTier(c.id, n);
@@ -731,7 +779,10 @@ export function DrawersPage() {
                         <button
                           type="button"
                           className={styles.tierBtn}
-                          onClick={() => void onTier(c.id, (c.tier ?? 1) + 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void onTier(c.id, (c.tier ?? 1) + 1);
+                          }}
                         >
                           +
                         </button>
@@ -740,7 +791,10 @@ export function DrawersPage() {
                       <button
                         type="button"
                         className={styles.removeBtn}
-                        onClick={() => void onRemoveCard(c.oracle_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void onRemoveCard(c.oracle_id);
+                        }}
                         aria-label={`Remove ${c.name}`}
                       >
                         Remove
