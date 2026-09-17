@@ -211,7 +211,7 @@ export function DrawerCardTile({
             onTier((card.tier ?? 1) - 1);
           }}
         >
-          −
+          ↑
         </button>
         <span className={styles.tierVal}>{card.tier ?? 1}</span>
         <button
@@ -222,7 +222,7 @@ export function DrawerCardTile({
             onTier((card.tier ?? 1) + 1);
           }}
         >
-          +
+          ↓
         </button>
       </div>
 

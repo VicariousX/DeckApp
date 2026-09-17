@@ -572,18 +572,18 @@ export function DrawersPage() {
                     </select>
                     <button
                       type="button"
-                      className={styles.toolBtn}
+                      className={`${styles.toolBtn} ${styles.sortDirBtn}`}
                       onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                       title={sortDir === "asc" ? "Ascending" : "Descending"}
                       aria-label="Reverse sort order"
                     >
-                      {sortDir === "asc" ? "A→Z" : "Z→A"}
+                      {sortDir === "asc" ? "·" : "∴"}
                     </button>
                   </label>
                 </div>
                 {filterOpen && (
                   <div className={styles.filterPanel}>
-                    <div className={styles.tierControl} title="Show cards at this tier or better">
+                    <div className={`${styles.tierControl} ${styles.filterTier}`} title="Show cards at this tier or better">
                       <span className={styles.tierLabel}>Tier ≤</span>
                       <div className={styles.tierRow}>
                         <button

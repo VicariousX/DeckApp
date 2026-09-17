@@ -323,6 +323,19 @@
   margin-top: 0.55rem;
 }
 
+.filterTier {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sortDirBtn {
+  min-width: 2.1rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
 .filterChips {
   display: flex;
   flex-wrap: wrap;
