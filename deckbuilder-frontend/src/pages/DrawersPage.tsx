@@ -65,6 +65,7 @@ export function DrawersPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterUseful, setFilterUseful] = useState<string[]>([]);
   const [filterMaxTier, setFilterMaxTier] = useState<number | "">("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [deleteTarget, setDeleteTarget] = useState<Drawer | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -291,10 +292,10 @@ export function DrawersPage() {
     });
   }, [cards, filterUseful, filterMaxTier]);
 
-  const sortedCards = useMemo(
-    () => sortCardsBy(filteredCards, sortKey),
-    [filteredCards, sortKey]
-  );
+  const sortedCards = useMemo(() => {
+    const list = sortCardsBy(filteredCards, sortKey);
+    return sortDir === "desc" ? [...list].reverse() : list;
+  }, [filteredCards, sortKey, sortDir]);
 
   function onViewMode(mode: DrawerViewMode) {
     setViewMode(mode);
@@ -346,19 +347,21 @@ export function DrawersPage() {
               Images
             </button>
           </div>
-          <button
-            type="button"
-            className={`${styles.viewBtn}${showTiers ? ` ${styles.viewBtnActive}` : ""}`}
-            aria-pressed={showTiers}
-            onClick={() => {
-              setShowTiers((v) => {
-                setDrawerShowTiers(!v);
-                return !v;
-              });
-            }}
-          >
-            Tiers
-          </button>
+          {viewMode === "image" && (
+            <button
+              type="button"
+              className={`${styles.viewBtn}${showTiers ? ` ${styles.viewBtnActive}` : ""}`}
+              aria-pressed={showTiers}
+              onClick={() => {
+                setShowTiers((v) => {
+                  setDrawerShowTiers(!v);
+                  return !v;
+                });
+              }}
+            >
+              Tiers
+            </button>
+          )}
         </div>
       </header>
 
@@ -517,11 +520,13 @@ export function DrawersPage() {
                     title="Bulk Import"
                     respectQuantity={false}
                     existingOracleIds={cards.map((c) => c.oracle_id)}
+                    triggerClassName={styles.toolBtn}
                     onImport={onBulkImport}
                   />
                   {selected && (
                     <TextExportMenu
                       label="Export"
+                      triggerClassName={styles.toolBtn}
                       fileBaseName={selected.name}
                       sections={[
                         {
@@ -546,16 +551,16 @@ export function DrawersPage() {
                   )}
                   <button
                     type="button"
-                    className={`${styles.viewBtn}${filterOpen ? ` ${styles.viewBtnActive}` : ""}`}
+                    className={`${styles.toolBtn}${filterOpen ? ` ${styles.toolBtnOn}` : ""}`}
                     onClick={() => setFilterOpen((v) => !v)}
                     aria-expanded={filterOpen}
                   >
-                    Filter
+                    {filterOpen ? "Close Filter" : "Filter"}
                   </button>
                   <label className={styles.sortLabel}>
                     Sort
                     <select
-                      className={styles.sortSelect}
+                      className={styles.toolSelect}
                       value={sortKey}
                       onChange={(e) => onSortKey(e.target.value as CardSortKey)}
                     >
@@ -565,24 +570,60 @@ export function DrawersPage() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      className={styles.toolBtn}
+                      onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                      title={sortDir === "asc" ? "Ascending" : "Descending"}
+                      aria-label="Reverse sort order"
+                    >
+                      {sortDir === "asc" ? "A→Z" : "Z→A"}
+                    </button>
                   </label>
                 </div>
                 {filterOpen && (
                   <div className={styles.filterPanel}>
-                    <label className={styles.sortLabel}>
-                      Tier ≤
-                      <input
-                        className={styles.sortSelect}
-                        type="number"
-                        min={1}
-                        value={filterMaxTier}
-                        placeholder="Any"
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value, 10);
-                          setFilterMaxTier(Number.isFinite(n) ? n : "");
-                        }}
-                      />
-                    </label>
+                    <div className={styles.tierControl} title="Show cards at this tier or better">
+                      <span className={styles.tierLabel}>Tier ≤</span>
+                      <div className={styles.tierRow}>
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          disabled={filterMaxTier === ""}
+                          onClick={() =>
+                            setFilterMaxTier((v) =>
+                              v === "" || v <= 1 ? "" : v - 1
+                            )
+                          }
+                        >
+                          −
+                        </button>
+                        <input
+                          className={styles.tierInput}
+                          type="text"
+                          inputMode="numeric"
+                          value={filterMaxTier === "" ? "Any" : filterMaxTier}
+                          onChange={(e) => {
+                            const raw = e.target.value.trim();
+                            if (raw === "" || raw.toLowerCase() === "any") {
+                              setFilterMaxTier("");
+                              return;
+                            }
+                            const n = parseInt(raw, 10);
+                            setFilterMaxTier(Number.isFinite(n) && n >= 1 ? n : "");
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.tierBtn}
+                          onClick={() =>
+                            setFilterMaxTier((v) => (v === "" ? 1 : v + 1))
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                     <div className={styles.filterChips}>
                       {["W", "U", "B", "R", "G", "colorless", "colored", "mono", "multi", "wubrg"].map(
                         (tag) => {

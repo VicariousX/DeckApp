@@ -27,9 +27,10 @@
 
 .headerTools {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: flex-end;
+  gap: 0.35rem;
 }
 
 .sortLabel {
@@ -274,7 +275,44 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+}
+
+.toolBtn,
+.toolSelect {
+  padding: 0.32rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.toolBtn:hover,
+.toolSelect:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.toolBtnOn {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-color: transparent;
+  color: var(--color-text);
+}
+
+.toolRow :global(button) {
+  padding: 0.32rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.2;
 }
 
 .filterPanel {

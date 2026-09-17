@@ -18,6 +18,7 @@ type Props = {
   label?: string;
   /** When set, export can switch between filtered and full lists. */
   allSections?: ExportSection[];
+  triggerClassName?: string;
 };
 
 export function TextExportMenu({
@@ -26,6 +27,7 @@ export function TextExportMenu({
   options,
   label = "Export",
   allSections,
+  triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [useFilter, setUseFilter] = useState(true);
@@ -63,7 +65,7 @@ export function TextExportMenu({
 
   if (total === 0) {
     return (
-      <button type="button" className={styles.trigger} disabled title="Nothing to export">
+      <button type="button" className={`${styles.trigger}${triggerClassName ? ` ${triggerClassName}` : ""}`} disabled title="Nothing to export">
         {label}
       </button>
     );
@@ -73,7 +75,7 @@ export function TextExportMenu({
     <div className={styles.wrap} ref={anchorRef}>
       <button
         type="button"
-        className={styles.trigger}
+        className={`${styles.trigger}${triggerClassName ? ` ${triggerClassName}` : ""}`}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >

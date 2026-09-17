@@ -25,6 +25,7 @@ type Props = {
   placeholder?: string;
   /** Oracle ids already present — used with missing-only. */
   existingOracleIds?: string[];
+  triggerClassName?: string;
 };
 
 export function BulkCardImport({
@@ -33,6 +34,7 @@ export function BulkCardImport({
   title = "Bulk Import",
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
   existingOracleIds,
+  triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [missingOnly, setMissingOnly] = useState(false);
@@ -120,7 +122,7 @@ export function BulkCardImport({
     <div className={styles.wrap} ref={anchorRef}>
       <button
         type="button"
-        className={styles.trigger}
+        className={`${styles.trigger}${triggerClassName ? ` ${triggerClassName}` : ""}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
