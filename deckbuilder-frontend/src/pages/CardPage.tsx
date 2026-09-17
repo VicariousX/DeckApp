@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { CardArtPanel } from "../components/CardArtPanel";
 import { CardDetail } from "../components/CardDetail";
 import { CardImage } from "../components/CardImage";
-import { CardLightbox } from "../components/CardLightbox";
 import { DrawerPicker } from "../components/DrawerPicker";
 import { UsefulInPicker } from "../components/UsefulInPicker";
 import { CardNameSwitcher } from "../components/CardNameSwitcher";
@@ -13,7 +12,6 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
 import { mapScryfallToDeckApp } from "../lib/cards/mapScryfallToDeckApp";
 import { withResolvedImages } from "../lib/cards/withResolvedImages";
-import { getFaceImage } from "../utils/scryfall";
 import {
   addCardToDeck,
   listDecksContainingOracle,
@@ -26,7 +24,7 @@ import {
   newListColumnId,
   setListColumnLayout,
 } from "../lib/deckPreferences";
-import type { Deck } from "../types/deck";
+import type { Deck, DeckBoard } from "../types/deck";
 import type { DeckAppCard } from "../types/deckAppCard";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
@@ -43,8 +41,9 @@ export function CardPage() {
   const [resolved, setResolved] = useState<DeckAppCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [usefulIn, setUsefulIn] = useState<string[]>([]);
+  const [rulingsOpen, setRulingsOpen] = useState(false);
+  const [addBoard, setAddBoard] = useState<DeckBoard>("maybe");
   const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
   const [presence, setPresence] = useState<DeckCardPresence[]>([]);
   const [myDecks, setMyDecks] = useState<Deck[]>([]);
@@ -60,7 +59,6 @@ export function CardPage() {
       setError(null);
       setCard(null);
       setResolved(null);
-      setLightboxSrc(null);
       const { card: c, error: err } = await fetchCardById(id!);
       if (cancelled) return;
       if (err || !c) {
@@ -152,30 +150,45 @@ export function CardPage() {
       mana_cost: card.mana_cost ?? null,
       cmc: card.cmc ?? null,
       quantity: 1,
-      board: "maybe",
+      board: addBoard,
     });
     setAddBusy(false);
     if (err || !added) {
       setAddMsg(err ?? "Could not add to deck.");
       return;
     }
-    const layout = getListColumnLayout(addDeckId, "maybe");
-    let col = layout.columns.find((c) => c.name === FROM_OUTSIDE);
-    if (!col) {
-      col = { id: newListColumnId(), name: FROM_OUTSIDE };
-      layout.columns = [col, ...layout.columns];
+    if (addBoard === "maybe") {
+      const layout = getListColumnLayout(addDeckId, "maybe");
+      let col = layout.columns.find((c) => c.name === FROM_OUTSIDE);
+      if (!col) {
+        col = { id: newListColumnId(), name: FROM_OUTSIDE };
+        layout.columns = [col, ...layout.columns];
+      }
+      layout.placement = { ...layout.placement, [added.id]: col.id };
+      setListColumnLayout(addDeckId, "maybe", layout);
     }
-    layout.placement = { ...layout.placement, [added.id]: col.id };
-    setListColumnLayout(addDeckId, "maybe", layout);
-    setAddMsg(`Added to maybeboard · ${FROM_OUTSIDE}`);
+    const boardLabel =
+      addBoard === "maybe" ? "maybeboard" : addBoard === "side" ? "sideboard" : "mainboard";
+    setAddMsg(
+      addBoard === "maybe"
+        ? `Added to ${boardLabel} · ${FROM_OUTSIDE}`
+        : `Added to ${boardLabel}`
+    );
     const oracleId = (card.oracle_id ?? card.id).toLowerCase();
     const { rows } = await listDecksContainingOracle(user.id, oracleId);
     setPresence(rows);
   }
 
   const displayCard = card ? withResolvedImages(card, resolved) : null;
-  const enlargeSrc = displayCard ? getFaceImage(displayCard, 0) : "";
   const inDeckIds = new Set(presence.map((p) => p.deck.id));
+  const boardLabel =
+    addBoard === "maybe" ? "Maybe" : addBoard === "side" ? "Side" : "Main";
+
+  function cycleBoard() {
+    setAddBoard((b) =>
+      b === "maybe" ? "side" : b === "side" ? "main" : "maybe"
+    );
+  }
 
   return (
     <div className={`${transitions.page} ${styles.page}`}>
@@ -199,7 +212,6 @@ export function CardPage() {
                 hideFaceBadge
                 hideControls
                 bothLayout="stack"
-                onActivate={() => enlargeSrc && setLightboxSrc(enlargeSrc)}
               />
             </div>
           </aside>
@@ -213,67 +225,28 @@ export function CardPage() {
                   resolved?.has_custom_art || resolved?.has_preferred_printing
                 )}
               />
-              <h3 className={styles.subTitle}>Rulings</h3>
-              {rulings.length === 0 ? (
-                <p className={styles.muted}>No rulings on file.</p>
-              ) : (
-                <ul className={styles.rulingList}>
-                  {rulings.map((r, i) => (
-                    <li key={`${r.published_at}-${i}`}>
-                      <span className={styles.rulingDate}>{r.published_at}</span>
-                      {r.comment}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className={styles.section} id="deck">
-              <h2 className={styles.sectionTitle}>Decks</h2>
-              {user ? (
-                <>
-                  {presence.length === 0 ? (
-                    <p className={styles.muted}>Not in any of your decks yet.</p>
-                  ) : (
-                    <ul className={styles.deckList}>
-                      {presence.map((p) => (
-                        <li key={`${p.deck.id}-${p.board}`}>
-                          <Link to={`/deck/${p.deck.id}`}>{p.deck.name}</Link>
-                          <span className={styles.muted}>
-                            {" "}
-                            · {p.board} · ×{p.quantity}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className={styles.addRow}>
-                    <select
-                      className={styles.select}
-                      value={addDeckId}
-                      onChange={(e) => setAddDeckId(e.target.value)}
-                    >
-                      <option value="">Add to a deck…</option>
-                      {myDecks.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                          {inDeckIds.has(d.id) ? " (already in)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.primaryBtn}
-                      disabled={!addDeckId || addBusy}
-                      onClick={() => void addToDeck()}
-                    >
-                      {addBusy ? "Adding…" : "Add to maybeboard"}
-                    </button>
-                  </div>
-                  {addMsg && <p className={styles.muted}>{addMsg}</p>}
-                </>
-              ) : (
-                <p className={styles.muted}>Sign in to track this card in decks.</p>
+              <button
+                type="button"
+                className={styles.expandHead}
+                aria-expanded={rulingsOpen}
+                onClick={() => setRulingsOpen((v) => !v)}
+              >
+                Rulings
+                <span>{rulingsOpen ? "▾" : "▸"}</span>
+              </button>
+              {rulingsOpen && (
+                rulings.length === 0 ? (
+                  <p className={styles.muted}>No rulings on file.</p>
+                ) : (
+                  <ul className={styles.rulingScroll}>
+                    {rulings.map((r, i) => (
+                      <li key={`${r.published_at}-${i}`}>
+                        <span className={styles.rulingDate}>{r.published_at}</span>
+                        {r.comment}
+                      </li>
+                    ))}
+                  </ul>
+                )
               )}
             </section>
 
@@ -294,6 +267,68 @@ export function CardPage() {
               </Link>
             </section>
 
+            <section className={styles.section} id="deck">
+              <h2 className={styles.sectionTitle}>Decks</h2>
+              {user ? (
+                <>
+                  <p className={styles.muted}>
+                    This card is in the following decks:
+                  </p>
+                  <div className={styles.deckScroll}>
+                    {presence.length === 0 ? (
+                      <p className={styles.muted}>None yet.</p>
+                    ) : (
+                      <ul className={styles.deckList}>
+                        {presence.map((p) => (
+                          <li key={`${p.deck.id}-${p.board}`}>
+                            <Link to={`/deck/${p.deck.id}`}>{p.deck.name}</Link>
+                            <span className={styles.muted}>
+                              {" "}
+                              · {p.board} · ×{p.quantity}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className={styles.addRow}>
+                    <select
+                      className={styles.select}
+                      value={addDeckId}
+                      onChange={(e) => setAddDeckId(e.target.value)}
+                    >
+                      <option value="">Choose a deck…</option>
+                      {myDecks.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                          {inDeckIds.has(d.id) ? " (already in)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.boardCycle}
+                      onClick={cycleBoard}
+                      title="Cycle board"
+                    >
+                      {boardLabel}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      disabled={!addDeckId || addBusy}
+                      onClick={() => void addToDeck()}
+                    >
+                      {addBusy ? "Adding…" : "Add"}
+                    </button>
+                  </div>
+                  {addMsg && <p className={styles.muted}>{addMsg}</p>}
+                </>
+              ) : (
+                <p className={styles.muted}>Sign in to track this card in decks.</p>
+              )}
+            </section>
+
             <section className={styles.section} id="artwork">
               <h2 className={styles.sectionTitle}>Artwork</h2>
               <CardArtPanel card={card} onResolvedChange={onResolvedChange} />
@@ -302,13 +337,6 @@ export function CardPage() {
         </div>
       )}
 
-      {lightboxSrc && (
-        <CardLightbox
-          src={lightboxSrc}
-          alt={card?.name ?? "Card"}
-          onClose={() => setLightboxSrc(null)}
-        />
-      )}
     </div>
   );
 }

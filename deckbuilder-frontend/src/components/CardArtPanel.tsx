@@ -46,7 +46,7 @@ export function CardArtPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(embedded);
+  const [expanded, setExpanded] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(true);
   const [printsOpen, setPrintsOpen] = useState(false);
   useEffect(() => {
@@ -94,7 +94,7 @@ export function CardArtPanel({
   }, [card, art, printings, onResolvedChange]);
 
   useEffect(() => {
-    if (!expanded && !embedded) return;
+    if (!expanded && !embedded) return; // page layout keeps expanded true
     let cancelled = false;
     async function load() {
       setLoadingPrints(true);
@@ -245,20 +245,7 @@ export function CardArtPanel({
 
   if (!user) {
     if (embedded) return <div className={styles.embedded}>{signInMsg}</div>;
-    return (
-      <section className={styles.collapsible}>
-        <button
-          type="button"
-          className={styles.collapseHeader}
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          <span>Art &amp; printings</span>
-          <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
-        </button>
-        {expanded && <div className={styles.panel}>{signInMsg}</div>}
-      </section>
-    );
+    return <div className={styles.pageArt}>{signInMsg}</div>;
   }
 
   const uploadBlock = (
@@ -657,27 +644,99 @@ export function CardArtPanel({
   }
 
   return (
-    <section className={styles.collapsible}>
+    <div className={styles.pageArt}>
+      {statusMsg}
       <button
         type="button"
-        className={styles.collapseHeader}
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        className={`${styles.strip}${uploadOpen ? ` ${styles.stripOn}` : ""}`}
+        aria-expanded={uploadOpen}
+        onClick={() => {
+          setUploadOpen(true);
+          setPrintsOpen(false);
+        }}
       >
-        <span>Art &amp; printings</span>
-        <span className={styles.chevron}>{expanded ? "▾" : "▸"}</span>
+        Custom upload
       </button>
-      {expanded && (
-        <div className={styles.panel}>
-          <div className={styles.header}>
-            <p className={styles.hint}>
-              Upload custom art first, or pick a preferred Scryfall printing.
-              Custom art is used on this site and in future deck exports.
-            </p>
+      {uploadOpen && (
+        <div className={styles.stripBody}>{uploadBlock}</div>
+      )}
+      <button
+        type="button"
+        className={`${styles.strip}${printsOpen ? ` ${styles.stripOn}` : ""}`}
+        aria-expanded={printsOpen}
+        onClick={() => {
+          setPrintsOpen(true);
+          setUploadOpen(false);
+        }}
+      >
+        Card printings
+      </button>
+      {printsOpen && (
+        <div className={styles.stripBody}>
+          <div className={styles.sectionHead}>
+            {preferredId ? (
+              <button
+                type="button"
+                className={styles.textBtn}
+                disabled={busy}
+                onClick={() => void clearPreferred()}
+              >
+                Clear preference
+              </button>
+            ) : (
+              <span className={styles.hint}>
+                Preferred printing applies to front and back when available
+              </span>
+            )}
           </div>
-          {content}
+          {loadingPrints ? (
+            <p className={styles.hint}>Loading printings…</p>
+          ) : printings.length === 0 ? (
+            <p className={styles.hint}>No alternate printings found.</p>
+          ) : (
+            <div className={styles.printGridFill}>
+              {printings.map((p) => {
+                const thumb = getFaceImage(p, 0);
+                const faces = getFaces(p);
+                const selected =
+                  preferredId !== null &&
+                  preferredId === String(p.id).toLowerCase();
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={
+                      selected
+                        ? `${styles.printCard} ${styles.printCardSelected}`
+                        : styles.printCard
+                    }
+                    disabled={busy}
+                    onClick={() => void selectPrinting(p)}
+                    title={`${p.set_name} · #${p.collector_number}`}
+                  >
+                    {thumb ? (
+                      <RateLimitedImg
+                        src={thumb}
+                        alt=""
+                        className={styles.printThumb}
+                      />
+                    ) : (
+                      <span className={styles.printFallback}>
+                        {faces[0]?.name ?? p.name}
+                      </span>
+                    )}
+                    <span className={styles.printMeta}>
+                      {p.set?.toUpperCase() ?? p.set_name}
+                      {" · "}
+                      {p.collector_number}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
-    </section>
+    </div>
   );
 }
