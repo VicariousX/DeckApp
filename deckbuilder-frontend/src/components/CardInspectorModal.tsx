@@ -67,46 +67,16 @@ function DeckTagRows({
   onToggle: (tag: DeckTag) => void;
 }) {
   const nodes = useRef(new Map<string, HTMLButtonElement>());
-  const pending = useRef<{
-    id: string;
-    name: string;
-    color: string;
-    from: DOMRect;
-    others: Map<string, DOMRect>;
-    fromActive: boolean;
-    toActive: boolean;
-  } | null>(null);
-  const [flight, setFlight] = useState<{
-    id: string;
-    name: string;
-    color: string;
-    from: DOMRect;
-    to: DOMRect;
-    toActive: boolean;
-    fromActive: boolean;
-  } | null>(null);
-  const [revealId, setRevealId] = useState<string | null>(null);
-  const ghostRef = useRef<HTMLDivElement | null>(null);
+  const pendingRects = useRef<Map<string, DOMRect> | null>(null);
+  const [exitingId, setExitingId] = useState<string | null>(null);
+  const [arrivingId, setArrivingId] = useState<string | null>(null);
+  const busy = useRef(false);
 
   useLayoutEffect(() => {
-    const p = pending.current;
-    if (!p) return;
-    const el = nodes.current.get(p.id);
-    pending.current = null;
-    if (el) {
-      const to = el.getBoundingClientRect();
-      setFlight({
-        id: p.id,
-        name: p.name,
-        color: p.color,
-        from: p.from,
-        to,
-        toActive: p.toActive,
-        fromActive: p.fromActive,
-      });
-    }
-    for (const [id, first] of p.others) {
-      if (id === p.id) continue;
+    const firsts = pendingRects.current;
+    if (!firsts) return;
+    pendingRects.current = null;
+    for (const [id, first] of firsts) {
       const node = nodes.current.get(id);
       if (!node) continue;
       const last = node.getBoundingClientRect();
@@ -118,91 +88,36 @@ function DeckTagRows({
           { transform: `translate(${dx}px, ${dy}px)` },
           { transform: "translate(0, 0)" },
         ],
-        { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)", delay: 40 }
+        { duration: 360, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
       );
     }
   }, [assigned]);
 
-  useEffect(() => {
-    if (!flight || !ghostRef.current) return;
-    const node = ghostRef.current;
-    const { from, to, fromActive, toActive } = flight;
-    const midX = (from.left + to.left) / 2 + (to.left - from.left) * 0.12;
-    const midY = Math.min(from.top, to.top) - 18;
-    const glowOn = `0 8px 18px color-mix(in srgb, var(--color-accent) 32%, transparent)`;
-    const glowOff = "0 0 0 transparent";
-    const anim = node.animate(
-      [
-        {
-          left: `${from.left}px`,
-          top: `${from.top}px`,
-          width: `${from.width}px`,
-          height: `${from.height}px`,
-          borderRadius: "999px",
-          opacity: 1,
-          color: "transparent",
-          boxShadow: fromActive ? glowOn : glowOff,
-          transform: "scale(1)",
-        },
-        {
-          left: `${midX}px`,
-          top: `${midY}px`,
-          width: `${Math.max(18, from.width * 0.42)}px`,
-          height: `${Math.max(18, from.height * 0.9)}px`,
-          borderRadius: "50%",
-          opacity: 0.95,
-          color: "transparent",
-          boxShadow: glowOff,
-          transform: "scale(0.72)",
-          offset: 0.45,
-        },
-        {
-          left: `${to.left}px`,
-          top: `${to.top}px`,
-          width: `${to.width}px`,
-          height: `${to.height}px`,
-          borderRadius: "999px",
-          opacity: 1,
-          color: "transparent",
-          boxShadow: toActive ? glowOn : glowOff,
-          transform: "scale(1)",
-        },
-      ],
-      { duration: 520, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" }
-    );
-    anim.onfinish = () => {
-      const id = flight.id;
-      setFlight(null);
-      setRevealId(id);
-      window.setTimeout(() => setRevealId((cur) => (cur === id ? null : cur)), 200);
-    };
-    return () => anim.cancel();
-  }, [flight]);
-
-  function handleToggle(tag: DeckTag, el: HTMLButtonElement) {
-    if (!isOwner) return;
-    const others = new Map<string, DOMRect>();
-    for (const [id, node] of nodes.current) {
-      others.set(id, node.getBoundingClientRect());
-    }
-    const fromActive = assigned.has(tag.id);
-    pending.current = {
-      id: tag.id,
-      name: tag.name,
-      color: tag.color,
-      from: el.getBoundingClientRect(),
-      others,
-      fromActive,
-      toActive: !fromActive,
-    };
-    onToggle(tag);
+  function handleToggle(tag: DeckTag) {
+    if (!isOwner || busy.current) return;
+    busy.current = true;
+    setExitingId(tag.id);
+    window.setTimeout(() => {
+      const rects = new Map<string, DOMRect>();
+      for (const [id, node] of nodes.current) {
+        if (id === tag.id) continue;
+        rects.set(id, node.getBoundingClientRect());
+      }
+      pendingRects.current = rects;
+      onToggle(tag);
+      setExitingId(null);
+      setArrivingId(tag.id);
+      window.setTimeout(() => {
+        setArrivingId((cur) => (cur === tag.id ? null : cur));
+        busy.current = false;
+      }, 280);
+    }, 280);
   }
 
   const activeTags = tags.filter((t) => assigned.has(t.id));
   const availableTags = tags.filter((t) => !assigned.has(t.id));
 
   function chip(tag: DeckTag, on: boolean) {
-    const hiding = flight?.id === tag.id;
     return (
       <button
         key={tag.id}
@@ -212,15 +127,15 @@ function DeckTagRows({
           else nodes.current.delete(tag.id);
         }}
         className={`${styles.tagChip}${on ? ` ${styles.tagChipOn}` : ""}${
-          hiding ? ` ${styles.tagChipHidden}` : ""
-        }${revealId === tag.id ? ` ${styles.tagChipReveal}` : ""}`}
+          exitingId === tag.id ? ` ${styles.tagChipExit}` : ""
+        }${arrivingId === tag.id ? ` ${styles.tagChipEnter}` : ""}`}
         disabled={!isOwner}
         style={
           on
             ? { borderColor: tag.color, background: `${tag.color}33` }
             : undefined
         }
-        onClick={(e) => handleToggle(tag, e.currentTarget)}
+        onClick={() => handleToggle(tag)}
       >
         <span className={styles.tagLabel}>{tag.name}</span>
       </button>
@@ -239,20 +154,6 @@ function DeckTagRows({
           {availableTags.map((t) => chip(t, false))}
         </div>
       </div>
-      {flight &&
-        createPortal(
-          <div
-            ref={ghostRef}
-            className={`${styles.tagChip} ${styles.tagChipOn} ${styles.tagGhost}`}
-            style={{
-              borderColor: flight.color,
-              background: `${flight.color}33`,
-            }}
-          >
-            {flight.name}
-          </div>,
-          document.body
-        )}
     </>
   );
 }

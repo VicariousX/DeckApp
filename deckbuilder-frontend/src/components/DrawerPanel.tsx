@@ -103,7 +103,7 @@ export function DrawerPanel({
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
-    useDraggablePanel(open);
+    useDraggablePanel(open, { w: 420, h: 560 });
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cards, setCards] = useState<DrawerCardView[]>([]);

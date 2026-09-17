@@ -32,7 +32,7 @@ export function BulkCardImport({
   placeholder = "Paste a list…\n1 Sol Ring\n1x Arcane Signet\nCultivate",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 400, h: 440 });
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

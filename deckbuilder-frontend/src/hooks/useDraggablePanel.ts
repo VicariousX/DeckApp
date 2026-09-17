@@ -14,7 +14,10 @@ type Size = { w: number; h: number };
  * Floating panel drag/resize using viewport coordinates only (position: fixed).
  * Always prefer portal-to-body for the panel so page scroll/transform cannot skew hits.
  */
-export function useDraggablePanel(open: boolean) {
+export function useDraggablePanel(
+  open: boolean,
+  defaults?: { w?: number; h?: number }
+) {
   const [offset, setOffset] = useState<Pos | null>(null);
   const [size, setSize] = useState<Size | null>(null);
   const dragging = useRef(false);
@@ -45,6 +48,12 @@ export function useDraggablePanel(open: boolean) {
     if (anchor) {
       const r = anchor.getBoundingClientRect();
       setOffset({ x: r.left, y: r.bottom + 6 });
+    }
+    if (defaults?.w || defaults?.h) {
+      setSize({
+        w: defaults.w ?? 380,
+        h: defaults.h ?? 460,
+      });
     }
   }, [open]);
 

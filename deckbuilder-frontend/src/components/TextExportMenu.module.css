@@ -6,7 +6,7 @@
 .trigger {
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.82rem;
@@ -19,6 +19,7 @@
 .trigger:hover:not(:disabled) {
   border-color: var(--color-accent);
   color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
 }
 
 .trigger:disabled {
@@ -34,12 +35,16 @@
   left: 0;
   right: auto;
   z-index: 50;
-  width: min(360px, 92vw);
+  width: min(380px, 92vw);
   padding: 0.65rem;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .meta {
@@ -50,16 +55,21 @@
 
 .preview {
   margin: 0;
-  max-height: 220px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   padding: 0.5rem 0.55rem;
-  border-radius: 8px;
-  background: var(--color-bg);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface) 86%, var(--color-accent) 5%);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 10%);
   font-size: 0.78rem;
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
+  color: var(--color-text);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
 }
 
 .actions {

@@ -25,7 +25,7 @@ export function TextExportMenu({
   label = "Export",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open);
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 380, h: 360 });
   const [status, setStatus] = useState<string | null>(null);
 
   const text = useMemo(

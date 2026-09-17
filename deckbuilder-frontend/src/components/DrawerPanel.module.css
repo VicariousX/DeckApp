@@ -6,7 +6,7 @@
 .toggleBtn {
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.82rem;
@@ -20,6 +20,7 @@
 .toggleBtnOpen {
   border-color: var(--color-accent);
   color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
 }
 
 .panel {
@@ -30,14 +31,15 @@
   left: 0;
   right: auto;
   z-index: 50;
-  width: min(340px, 92vw);
-  min-height: 220px;
+  width: min(420px, 92vw);
+  min-height: 280px;
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
   overflow: hidden;
 }
 
@@ -46,7 +48,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.55rem 0.65rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
 }
 
 .panelTitle {
@@ -86,19 +89,20 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-  color: var(--color-text);
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: transparent;
+  color: var(--color-text-muted);
   font-size: 0.75rem;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .tabActive {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  font-weight: 650;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
 }
 
 .tabCount {
