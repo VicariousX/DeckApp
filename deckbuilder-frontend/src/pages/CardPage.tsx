@@ -227,44 +227,35 @@ export function CardPage() {
               />
               <button
                 type="button"
-                className={styles.expandHead}
+                className={`${styles.plainStrip}${rulingsOpen ? ` ${styles.plainStripOn}` : ""}`}
                 aria-expanded={rulingsOpen}
                 onClick={() => setRulingsOpen((v) => !v)}
               >
                 Rulings
-                <span>{rulingsOpen ? "▾" : "▸"}</span>
               </button>
-              {rulingsOpen && (
-                rulings.length === 0 ? (
-                  <p className={styles.muted}>No rulings on file.</p>
-                ) : (
-                  <ul className={styles.rulingScroll}>
-                    {rulings.map((r, i) => (
-                      <li key={`${r.published_at}-${i}`}>
-                        <span className={styles.rulingDate}>{r.published_at}</span>
-                        {r.comment}
-                      </li>
-                    ))}
-                  </ul>
-                )
-              )}
+              <div
+                className={`${styles.stripReveal}${rulingsOpen ? ` ${styles.stripRevealOpen}` : ""}`}
+              >
+                <div className={styles.stripRevealInner}>
+                  {rulings.length === 0 ? (
+                    <p className={styles.muted}>No rulings on file.</p>
+                  ) : (
+                    <ul className={styles.rulingScroll}>
+                      {rulings.map((r, i) => (
+                        <li key={`${r.published_at}-${i}`}>
+                          <span className={styles.rulingDate}>{r.published_at}</span>
+                          {r.comment}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             </section>
 
-            <section className={styles.section} id="drawers">
-              <h2 className={styles.sectionTitle}>Drawers</h2>
-              <DrawerPicker
-                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
-                scryfallCard={card}
-              />
-              <UsefulInPicker
-                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
-                scryfallCard={card}
-                value={usefulIn}
-                onChange={setUsefulIn}
-              />
-              <Link to="/drawers" className={styles.relatedLink}>
-                Manage drawers →
-              </Link>
+            <section className={styles.section} id="artwork">
+              <h2 className={styles.sectionTitle}>Artwork</h2>
+              <CardArtPanel card={card} onResolvedChange={onResolvedChange} />
             </section>
 
             <section className={styles.section} id="deck">
@@ -329,9 +320,25 @@ export function CardPage() {
               )}
             </section>
 
-            <section className={styles.section} id="artwork">
-              <h2 className={styles.sectionTitle}>Artwork</h2>
-              <CardArtPanel card={card} onResolvedChange={onResolvedChange} />
+            <section className={styles.section} id="drawers">
+              <div className={styles.sectionHeadRow}>
+                <h2 className={styles.sectionTitle}>Drawers</h2>
+                <Link to="/drawers" className={styles.relatedLink}>
+                  Manage drawers →
+                </Link>
+              </div>
+              <UsefulInPicker
+                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
+                scryfallCard={card}
+                value={usefulIn}
+                onChange={setUsefulIn}
+              />
+              <p className={styles.drawersBlockLabel}>Drawer membership</p>
+              <DrawerPicker
+                oracleId={(card.oracle_id ?? card.id).toLowerCase()}
+                scryfallCard={card}
+                inline
+              />
             </section>
           </div>
         </div>

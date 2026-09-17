@@ -657,9 +657,11 @@ export function CardArtPanel({
       >
         Custom upload
       </button>
-      {uploadOpen && (
-        <div className={styles.stripBody}>{uploadBlock}</div>
-      )}
+      <div
+        className={`${styles.stripReveal}${uploadOpen ? ` ${styles.stripRevealOpen}` : ""}`}
+      >
+        <div className={styles.stripRevealInner}>{uploadBlock}</div>
+      </div>
       <button
         type="button"
         className={`${styles.strip}${printsOpen ? ` ${styles.stripOn}` : ""}`}
@@ -671,8 +673,10 @@ export function CardArtPanel({
       >
         Card printings
       </button>
-      {printsOpen && (
-        <div className={styles.stripBody}>
+      <div
+        className={`${styles.stripReveal}${printsOpen ? ` ${styles.stripRevealOpen}` : ""}`}
+      >
+        <div className={styles.stripRevealInner}>
           <div className={styles.sectionHead}>
             {preferredId ? (
               <button
@@ -736,7 +740,7 @@ export function CardArtPanel({
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

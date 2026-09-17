@@ -8,38 +8,46 @@
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.75rem;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
-  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 8%);
-  color: var(--color-text);
+  justify-content: flex-start;
+  padding: 0.5rem 0.15rem;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 750;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
 }
 
 .strip:hover,
 .stripOn {
-  border-color: var(--color-accent);
   color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
-.stripOn {
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+.stripReveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
 }
 
-.stripBody {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.stripRevealOpen {
+  grid-template-rows: 1fr;
+}
+
+.stripRevealInner {
+  overflow: hidden;
   min-height: 0;
 }
 
-.stripBody .printGridFill {
-  max-height: 22rem;
+.stripRevealOpen .printGridFill {
+  resize: vertical;
+  min-height: 10rem;
+  max-height: none;
+  height: 16rem;
 }
 
 .pageArt .innerHead {
