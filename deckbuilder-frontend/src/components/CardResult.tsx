@@ -7,12 +7,15 @@ import { useDisplayCards } from "../hooks/useUserCardArt";
 import type { CardFaceView } from "./CardImage";
 
 import styles from "./CardResult.module.css";
-import { CardImage } from "./CardImage";
+import { CardEnlargeOverlay, CardImage } from "./CardImage";
 import { CardInspectorModal } from "./CardInspectorModal";
+import { getFaceImage } from "../utils/scryfall";
 
 type CardResultProps = {
   cards: ScryfallCard[];
   cardSize?: number;
+  viewMode?: "image" | "text";
+  previewFirst?: boolean;
 };
 
 function ResultCard({
@@ -58,8 +61,14 @@ function ResultCard({
   );
 }
 
-export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
+export function CardResult({
+  cards,
+  cardSize = 240,
+  viewMode = "image",
+  previewFirst = false,
+}: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const list = useMemo(
@@ -86,18 +95,60 @@ export function CardResult({ cards, cardSize = 240 }: CardResultProps) {
       ? list[selectedIndex]
       : null;
 
+  const preview =
+    previewIndex != null && previewIndex >= 0 && previewIndex < list.length
+      ? list[previewIndex]
+      : null;
+
   return (
     <>
-      <div className={styles.resultsGrid} style={gridStyle}>
-        {list.map((item, i) => (
-          <ResultCard
-            key={item.originalId}
-            display={item.display}
-            originalId={item.originalId}
-            onSelect={() => setSelectedIndex(i)}
-          />
-        ))}
-      </div>
+      {viewMode === "text" ? (
+        <ul className={styles.textList}>
+          {list.map((item, i) => (
+            <li key={item.originalId}>
+              <button
+                type="button"
+                className={styles.textRow}
+                onClick={() =>
+                  previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
+                }
+              >
+                <span className={styles.textName}>{item.display.name}</span>
+                <span className={styles.textType}>{item.display.type_line}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className={styles.resultsGrid} style={gridStyle}>
+          {list.map((item, i) => (
+            <ResultCard
+              key={item.originalId}
+              display={item.display}
+              originalId={item.originalId}
+              onSelect={() =>
+                previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {preview && previewIndex != null && (
+        <CardEnlargeOverlay
+          frontSrc={getFaceImage(preview.display, 0)}
+          backSrc={getFaceImage(preview.display, 1) || ""}
+          frontName={preview.display.name}
+          backName={preview.display.card_faces?.[1]?.name ?? "Back"}
+          multi={isMultiCard(preview.display)}
+          onClose={() => setPreviewIndex(null)}
+          onActivate={() => {
+            setSelectedIndex(previewIndex);
+            setPreviewIndex(null);
+          }}
+          hint="Click the card for details · click outside to close"
+        />
+      )}
 
       {selected && selectedIndex != null && (
         <CardInspectorModal

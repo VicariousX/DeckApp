@@ -78,10 +78,11 @@ app.get("/api/scryfall", async (req: Request, res: Response) => {
         source: "bulk",
       });
     }
-    // Complex Scryfall syntax → live API (rate-limited)
-    const { status, data } = await liveGet(
-      `/cards/search?q=${encodeURIComponent(query)}&page=${page}`
-    );
+    const order = typeof req.query.order === "string" ? req.query.order : "";
+    const dir = req.query.dir === "desc" ? "desc" : "asc";
+    let path = `/cards/search?q=${encodeURIComponent(query)}&page=${page}`;
+    if (order) path += `&order=${encodeURIComponent(order)}&dir=${dir}`;
+    const { status, data } = await liveGet(path);
     res.status(status).json(data);
   } catch (error) {
     console.error("Scryfall search failed:", error);
