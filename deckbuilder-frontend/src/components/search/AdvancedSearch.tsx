@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, FIELD_TO_CATEGORY } from "../../lib/search/categories";
-import { OP_LABELS } from "../../lib/search/operators";
-import {
-  fieldAllowsSymbols,
-  suggestionsFor,
-} from "../../lib/search/autocomplete";
+import { fieldAllowsSymbols, suggestionsFor } from "../../lib/search/autocomplete";
 import {
   emptyGroup,
   parseQuery,
@@ -19,31 +15,36 @@ import {
 } from "../../lib/search/syntaxModel";
 import styles from "./AdvancedSearch.module.css";
 
-const SYMBOLS: { insert: string; label: string }[] = [
-  { insert: "~", label: "this card's name (~)" },
-  { insert: "{W}", label: "White" },
-  { insert: "{U}", label: "Blue" },
-  { insert: "{B}", label: "Black" },
-  { insert: "{R}", label: "Red" },
-  { insert: "{G}", label: "Green" },
-  { insert: "{C}", label: "Colorless" },
-  { insert: "{S}", label: "Snow" },
-  { insert: "{X}", label: "X" },
-  { insert: "{T}", label: "Tap" },
-  { insert: "{Q}", label: "Untap" },
-  { insert: "{E}", label: "Energy" },
-  { insert: "{P}", label: "Phyrexian" },
-  { insert: "{W/U}", label: "W/U" },
-  { insert: "{W/B}", label: "W/B" },
-  { insert: "{U/B}", label: "U/B" },
-  { insert: "{U/R}", label: "U/R" },
-  { insert: "{B/R}", label: "B/R" },
-  { insert: "{B/G}", label: "B/G" },
-  { insert: "{R/G}", label: "R/G" },
-  { insert: "{R/W}", label: "R/W" },
-  { insert: "{G/W}", label: "G/W" },
-  { insert: "{G/U}", label: "G/U" },
+const SYMBOLS = [
+  { insert: "~", label: "~ name" },
+  { insert: "{W}", label: "{W}" },
+  { insert: "{U}", label: "{U}" },
+  { insert: "{B}", label: "{B}" },
+  { insert: "{R}", label: "{R}" },
+  { insert: "{G}", label: "{G}" },
+  { insert: "{C}", label: "{C}" },
+  { insert: "{S}", label: "{S}" },
+  { insert: "{X}", label: "{X}" },
+  { insert: "{T}", label: "{T}" },
+  { insert: "{Q}", label: "{Q}" },
+  { insert: "{E}", label: "{E}" },
+  { insert: "{P}", label: "{P}" },
 ];
+
+const OPS: CmpOp[] = [":", "=", ">", "<", ">=", "<=", "!="];
+
+type FieldOpt = { category: string; key: string; label: string; group: string; hint?: string; ops?: CmpOp[] };
+
+const FIELD_OPTS: FieldOpt[] = CATEGORIES.filter((c) => c.id !== "custom").flatMap((c) =>
+  c.fields.map((f) => ({
+    category: c.id,
+    key: f.key,
+    label: f.key ? `${f.key} · ${f.label}` : f.label,
+    group: c.label,
+    hint: f.hint,
+    ops: f.ops,
+  }))
+);
 
 type Draft = {
   category: string;
@@ -54,13 +55,7 @@ type Draft = {
   editId?: string;
 };
 
-const EMPTY_DRAFT: Draft = {
-  category: "",
-  field: "",
-  op: ":",
-  excluded: false,
-  value: "",
-};
+const EMPTY: Draft = { category: "", field: "", op: ":", excluded: false, value: "" };
 
 function findNode(root: Group, id: string): { parent: Group; index: number } | null {
   const i = root.items.findIndex((n) => n.id === id);
@@ -85,8 +80,7 @@ function removeNode(root: Group, id: string): Group {
 
 function containsId(node: Node, id: string): boolean {
   if (node.id === id) return true;
-  if (node.kind !== "group") return false;
-  return node.items.some((n) => containsId(n, id));
+  return node.kind === "group" && node.items.some((n) => containsId(n, id));
 }
 
 function insertInto(root: Group, groupId: string, node: Node): Group {
@@ -98,9 +92,7 @@ function insertInto(root: Group, groupId: string, node: Node): Group {
   }
   return {
     ...root,
-    items: root.items.map((n) =>
-      n.kind === "group" ? insertInto(n, groupId, node) : n
-    ),
+    items: root.items.map((n) => (n.kind === "group" ? insertInto(n, groupId, node) : n)),
   };
 }
 
@@ -115,22 +107,14 @@ function replaceNode(root: Group, id: string, next: Node): Group {
   };
 }
 
-function tokenLabel(c: Clause): string {
-  const cat = CATEGORIES.find((x) => x.id === c.category);
-  const field = cat?.fields.find((f) => f.key === c.field);
-  const op = OP_LABELS.find((o) => o.op === c.op)?.label ?? c.op;
-  return `${c.excluded ? "not " : ""}${field?.label ?? c.field} ${op} ${c.value}`.trim();
-}
-
 export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string }) {
   const navigate = useNavigate();
-  const [root, setRoot] = useState<Group>(() =>
-    parseQuery(initialQuery, FIELD_TO_CATEGORY)
-  );
+  const [root, setRoot] = useState<Group>(() => parseQuery(initialQuery, FIELD_TO_CATEGORY));
   const [bar, setBar] = useState(initialQuery);
   const [barDirty, setBarDirty] = useState(false);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const [step, setStep] = useState<"category" | "field" | "value">("category");
+  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const fieldBox = useRef<HTMLInputElement>(null);
+  const valueBox = useRef<HTMLInputElement>(null);
 
   const serialized = useMemo(() => serializeQuery(root), [root]);
   const hasTokens = serialized.trim().length > 0;
@@ -140,54 +124,65 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
     setBar((prev) => (prev === serialized ? prev : serialized));
   }, [serialized, barDirty]);
 
-  const cat = CATEGORIES.find((c) => c.id === draft.category);
-  const fields = cat?.fields ?? [];
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        fieldBox.current?.focus();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        submit(barDirty ? validateBar() : bar);
+      }
+      if (e.key === "Escape") {
+        setDraft(EMPTY);
+        (document.activeElement as HTMLElement | null)?.blur();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bar, barDirty]);
 
-  function pickCategory(id: string) {
-    const next = CATEGORIES.find((c) => c.id === id);
-    const first = next?.fields[0]?.key ?? "";
-    setDraft({
-      ...EMPTY_DRAFT,
-      category: id,
-      field: next && next.fields.length === 1 ? first : "",
-    });
-    setStep(next && next.fields.length > 1 ? "field" : "value");
-  }
-
-  function pickField(key: string) {
-    setDraft((d) => ({ ...d, field: key }));
-    setStep("value");
+  function pickField(opt: FieldOpt) {
+    setDraft((d) => ({
+      ...d,
+      category: opt.category,
+      field: opt.key,
+      op: (opt.ops?.[0] ?? ":") as CmpOp,
+    }));
+    requestAnimationFrame(() => valueBox.current?.focus());
   }
 
   function commitDraft() {
     if (!draft.category || !draft.value.trim()) return;
-    const field = draft.field || fields[0]?.key || "";
     const clause: Clause = {
       kind: "clause",
       id: draft.editId ?? uid(),
       category: draft.category,
-      field,
+      field: draft.field,
       op: draft.op,
       value: draft.value.trim(),
       excluded: draft.excluded,
       joinAfter: "and",
     };
     setBarDirty(false);
-    if (draft.editId) {
-      setRoot((r) => replaceNode(r, draft.editId!, clause));
-    } else {
-      setRoot((r) => ({ ...r, join: "and", items: [...r.items, clause] }));
-    }
-    setDraft(EMPTY_DRAFT);
-    setStep("category");
+    if (draft.editId) setRoot((r) => replaceNode(r, draft.editId!, clause));
+    else setRoot((r) => ({ ...r, join: "and", items: [...r.items, clause] }));
+    setDraft(EMPTY);
+    fieldBox.current?.focus();
   }
 
   function validateBar() {
     const next = parseQuery(bar, FIELD_TO_CATEGORY);
-    setRoot({ ...next, join: "and" });
-    setBar(serializeQuery(next));
+    const locked = { ...next, join: "and" as const };
+    setRoot(locked);
+    const out = serializeQuery(locked);
+    setBar(out);
     setBarDirty(false);
-    return serializeQuery(next);
+    return out;
   }
 
   function submit(q: string) {
@@ -200,7 +195,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
     <div className={styles.wrap}>
       <div className={styles.liveBar}>
         <label className={styles.liveLabel} htmlFor="adv-live">
-          Live syntax
+          Syntax
         </label>
         <input
           id="adv-live"
@@ -215,47 +210,47 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
             e.preventDefault();
             submit(barDirty ? validateBar() : bar);
           }}
-          placeholder="Tokens parse here as you build…"
+          placeholder="t:creature (c:r or c:u)"
           spellCheck={false}
         />
         <button
           type="button"
-          className={`${styles.validateBtn}${barDirty ? ` ${styles.validateHot}` : ""}`}
+          className={`${styles.iconBtn}${barDirty ? ` ${styles.iconHot}` : ""}`}
           disabled={!barDirty}
           onClick={() => validateBar()}
+          title="Apply bar to board"
         >
           ✓
         </button>
-        <button
-          type="button"
-          className={styles.clearBtn}
-          onClick={() => submit(barDirty ? validateBar() : bar)}
-        >
+        <button type="button" className={styles.primary} onClick={() => submit(barDirty ? validateBar() : bar)}>
           Search
         </button>
         <button
           type="button"
-          className={styles.clearBtn}
+          className={styles.ghost}
           onClick={() => {
             setRoot(emptyGroup());
             setBar("");
             setBarDirty(false);
-            setDraft(EMPTY_DRAFT);
-            setStep("category");
+            setDraft(EMPTY);
           }}
         >
           Clear
         </button>
       </div>
 
-      <ClauseTemplate
+      <ClauseRow
         draft={draft}
-        step={step}
-        onPickCategory={pickCategory}
-        onPickField={pickField}
-        onChange={setDraft}
+        setDraft={setDraft}
+        fieldBox={fieldBox}
+        valueBox={valueBox}
+        onPick={pickField}
         onSubmit={commitDraft}
       />
+
+      <p className={styles.hint}>
+        <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
+      </p>
 
       {hasTokens && (
         <LogicBoard
@@ -270,7 +265,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               value: c.value,
               editId: c.id,
             });
-            setStep("value");
+            valueBox.current?.focus();
           }}
         />
       )}
@@ -278,160 +273,192 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   );
 }
 
-function ClauseTemplate({
+function ClauseRow({
   draft,
-  step,
-  onPickCategory,
-  onPickField,
-  onChange,
+  setDraft,
+  fieldBox,
+  valueBox,
+  onPick,
   onSubmit,
 }: {
   draft: Draft;
-  step: "category" | "field" | "value";
-  onPickCategory: (id: string) => void;
-  onPickField: (key: string) => void;
-  onChange: (d: Draft) => void;
+  setDraft: (d: Draft) => void;
+  fieldBox: RefObject<HTMLInputElement | null>;
+  valueBox: RefObject<HTMLInputElement | null>;
+  onPick: (opt: FieldOpt) => void;
   onSubmit: () => void;
 }) {
-  const cat = CATEGORIES.find((c) => c.id === draft.category);
-  const fields = cat?.fields ?? [];
-  const hints = suggestionsFor(draft.category, draft.field);
-  const symbols = fieldAllowsSymbols(draft.category, draft.field);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fieldRef = useRef<HTMLSelectElement>(null);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
   const [symOpen, setSymOpen] = useState(false);
-  const q = draft.value.toLowerCase();
-  const suggest = hints.filter((h) => !q || h.toLowerCase().includes(q)).slice(0, 8);
 
-  useEffect(() => {
-    if (step === "field") fieldRef.current?.focus();
-    if (step === "value") inputRef.current?.focus();
-  }, [step, draft.category, draft.field]);
+  const selected = FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field);
+  const q = query.toLowerCase();
+  const filtered = FIELD_OPTS.filter(
+    (f) => !q || f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || f.group.toLowerCase().includes(q)
+  );
+  const groups = useMemo(() => {
+    const map = new Map<string, FieldOpt[]>();
+    for (const f of filtered) {
+      const list = map.get(f.group) ?? [];
+      list.push(f);
+      map.set(f.group, list);
+    }
+    return [...map.entries()];
+  }, [filtered]);
+
+  const flat = filtered;
+  const ops = selected?.ops ?? OPS;
+  const hints = suggestionsFor(draft.category, draft.field);
+  const vq = draft.value.toLowerCase();
+  const valueHints = hints.filter((h) => !vq || h.toLowerCase().includes(vq)).slice(0, 8);
+  const symbols = fieldAllowsSymbols(draft.category, draft.field);
 
   return (
-    <section className={styles.template}>
-      <p className={styles.templateLabel}>
-        {draft.editId ? "Edit clause" : "New clause"}
-      </p>
-      <div className={styles.templateRow}>
-        <select
-          className={`${styles.select}${step === "category" ? ` ${styles.hot}` : ""}`}
-          value={draft.category}
-          onChange={(e) => onPickCategory(e.target.value)}
-        >
-          <option value="">Category…</option>
-          {CATEGORIES.filter((c) => c.id !== "custom").map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-
-        {draft.category && fields.length > 1 && (
-          <select
-            ref={fieldRef}
-            className={`${styles.select}${step === "field" ? ` ${styles.hot}` : ""}`}
-            value={draft.field}
-            onChange={(e) => onPickField(e.target.value)}
-          >
-            <option value="">Which field…</option>
-            {fields.map((f) => (
-              <option key={f.key || "_"} value={f.key}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {draft.category && (fields.length === 1 || draft.field) && (
-          <>
-            <select
-              className={styles.select}
-              value={draft.op}
-              onChange={(e) => onChange({ ...draft, op: e.target.value as CmpOp })}
-            >
-              {(fields.find((f) => f.key === draft.field)?.ops ?? [":", "="]).map((o) => (
-                <option key={o} value={o}>
-                  {OP_LABELS.find((x) => x.op === o)?.label ?? o}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className={`${styles.chip}${draft.excluded ? ` ${styles.chipOn}` : ""}`}
-              onClick={() => onChange({ ...draft, excluded: !draft.excluded })}
-            >
-              {draft.excluded ? "excluding" : "including"}
-            </button>
-            <div className={styles.valueWrap}>
-              <input
-                ref={inputRef}
-                className={`${styles.value}${step === "value" ? ` ${styles.hot}` : ""}`}
-                value={draft.value}
-                placeholder={cat?.fields.find((f) => f.key === draft.field)?.hint ?? "value"}
-                onChange={(e) => onChange({ ...draft, value: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    onSubmit();
-                  }
-                }}
-              />
-              {symbols && (
-                <button
-                  type="button"
-                  className={styles.symBtn}
-                  onClick={() => setSymOpen((v) => !v)}
-                  title="Insert symbol"
-                >
-                  {"{ }"}
-                </button>
-              )}
-              {symOpen && (
-                <div className={styles.symMenu}>
-                  {SYMBOLS.map((s) => (
-                    <button
-                      key={s.insert}
-                      type="button"
-                      onClick={() => {
-                        onChange({ ...draft, value: `${draft.value}${s.insert}` });
-                        setSymOpen(false);
-                        inputRef.current?.focus();
-                      }}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {suggest.length > 0 && draft.value && (
-                <ul className={styles.suggest}>
-                  {suggest.map((s) => (
-                    <li key={s}>
+    <section className={styles.composer}>
+      <div className={styles.row}>
+        <div className={styles.fieldPick}>
+          <input
+            ref={fieldBox}
+            className={styles.fieldInput}
+            value={open ? query : selected?.label ?? query}
+            placeholder="Field…  (type to filter)"
+            onFocus={() => {
+              setOpen(true);
+              setQuery("");
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+              setHi(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setHi((i) => Math.min(i + 1, flat.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setHi((i) => Math.max(i - 1, 0));
+              } else if (e.key === "Enter" && open && flat[hi]) {
+                e.preventDefault();
+                onPick(flat[hi]);
+                setOpen(false);
+                setQuery("");
+              } else if (e.key === "Escape") {
+                setOpen(false);
+              }
+            }}
+            onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          />
+          {open && (
+            <div className={styles.menu} role="listbox">
+              {groups.map(([group, items]) => (
+                <div key={group}>
+                  <div className={styles.menuGroup}>{group}</div>
+                  {items.map((item) => {
+                    const idx = flat.indexOf(item);
+                    return (
                       <button
+                        key={`${item.category}:${item.key}`}
                         type="button"
+                        className={`${styles.menuItem}${idx === hi ? ` ${styles.menuOn}` : ""}`}
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          onChange({ ...draft, value: s });
-                          inputRef.current?.focus();
+                          onPick(item);
+                          setOpen(false);
+                          setQuery("");
                         }}
                       >
-                        {s}
+                        <code>{item.key || "name"}</code>
+                        <span>{item.label.split(" · ").slice(-1)[0]}</span>
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    );
+                  })}
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={`${styles.op}${draft.excluded ? ` ${styles.opOn}` : ""}`}
+          onClick={() => setDraft({ ...draft, excluded: !draft.excluded })}
+          title="Negate"
+        >
+          −
+        </button>
+
+        <div className={styles.ops}>
+          {ops.map((o) => (
             <button
+              key={o}
               type="button"
-              className={styles.clearBtn}
-              disabled={!draft.value.trim()}
-              onClick={onSubmit}
+              className={`${styles.op}${draft.op === o ? ` ${styles.opOn}` : ""}`}
+              onClick={() => setDraft({ ...draft, op: o })}
             >
-              {draft.editId ? "Update" : "Add token"}
+              {o}
             </button>
-          </>
-        )}
+          ))}
+        </div>
+
+        <div className={styles.valueWrap}>
+          <input
+            ref={valueBox}
+            className={styles.value}
+            value={draft.value}
+            placeholder={selected?.hint ?? "value"}
+            onChange={(e) => setDraft({ ...draft, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSubmit();
+              }
+            }}
+          />
+          {symbols && (
+            <button type="button" className={styles.symBtn} onClick={() => setSymOpen((v) => !v)}>
+              {"{ }"}
+            </button>
+          )}
+          {symOpen && (
+            <div className={styles.menu}>
+              {SYMBOLS.map((s) => (
+                <button
+                  key={s.insert}
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setDraft({ ...draft, value: `${draft.value}${s.insert}` });
+                    setSymOpen(false);
+                    valueBox.current?.focus();
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {valueHints.length > 0 && draft.value && (
+            <div className={styles.menu}>
+              {valueHints.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => setDraft({ ...draft, value: s })}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button type="button" className={styles.primary} disabled={!draft.value.trim()} onClick={onSubmit}>
+          {draft.editId ? "Update" : "Add"}
+        </button>
       </div>
     </section>
   );
@@ -447,47 +474,25 @@ function LogicBoard({
   onEdit: (c: Clause) => void;
 }) {
   function patch(mut: (g: Group) => Group) {
-    onChange((prev) => {
-      const next = mut(prev);
-      return { ...next, join: "and" };
-    });
+    onChange((prev) => ({ ...mut(prev), join: "and" }));
   }
-
-  function move(id: string, targetGroupId: string) {
-    if (id === targetGroupId) return;
+  function move(id: string, target: string) {
+    if (id === target) return;
     onChange((prev) => {
       const loc = findNode(prev, id);
       if (!loc) return prev;
       const node = loc.parent.items[loc.index];
-      if (node.kind === "group" && containsId(node, targetGroupId)) return prev;
-      return {
-        ...insertInto(removeNode(prev, id), targetGroupId, node),
-        join: "and",
-      };
+      if (node.kind === "group" && containsId(node, target)) return prev;
+      return { ...insertInto(removeNode(prev, id), target, node), join: "and" };
     });
   }
 
   return (
     <section className={styles.logic}>
       <div className={styles.logicHead}>
-        <h2>Logic</h2>
-        <button
-          type="button"
-          className={styles.chip}
-          onClick={() =>
-            patch((g) => ({ ...g, items: [...g.items, emptyGroup("and")] }))
-          }
-        >
-          + AND group
-        </button>
-        <button
-          type="button"
-          className={styles.chip}
-          onClick={() =>
-            patch((g) => ({ ...g, items: [...g.items, emptyGroup("or")] }))
-          }
-        >
-          + OR group
+        <h2>Board</h2>
+        <button type="button" className={styles.ghost} onClick={() => patch((g) => ({ ...g, items: [...g.items, emptyGroup("or")] }))}>
+          + ( )
         </button>
       </div>
       <Bubble group={root} onEdit={onEdit} onMove={move} onPatch={patch} isRoot />
@@ -520,58 +525,32 @@ function Bubble({
       }}
     >
       <div className={styles.bubbleBar}>
-        <span>{isRoot ? "AND (root)" : `${group.join.toUpperCase()} group`}</span>
+        <span className={styles.joinMark}>{isRoot ? "AND" : group.join.toUpperCase()}</span>
         {!isRoot && (
           <button
             type="button"
-            className={styles.chip}
+            className={styles.ghost}
             onClick={() =>
               onPatch((tree) =>
-                replaceNode(tree, group.id, {
-                  ...group,
-                  join: group.join === "and" ? "or" : "and",
-                })
+                replaceNode(tree, group.id, { ...group, join: group.join === "and" ? "or" : "and" })
               )
             }
           >
-            Flip to {group.join === "and" ? "OR" : "AND"}
+            {group.join === "and" ? "→ OR" : "→ AND"}
           </button>
         )}
         <button
           type="button"
-          className={styles.chip}
+          className={styles.ghost}
           onClick={() =>
-            onPatch((tree) =>
-              replaceNode(tree, group.id, {
-                ...group,
-                items: [...group.items, emptyGroup("and")],
-              })
-            )
+            onPatch((tree) => replaceNode(tree, group.id, { ...group, items: [...group.items, emptyGroup("or")] }))
           }
         >
-          + AND
-        </button>
-        <button
-          type="button"
-          className={styles.chip}
-          onClick={() =>
-            onPatch((tree) =>
-              replaceNode(tree, group.id, {
-                ...group,
-                items: [...group.items, emptyGroup("or")],
-              })
-            )
-          }
-        >
-          + OR
+          + ( )
         </button>
         {!isRoot && (
-          <button
-            type="button"
-            className={styles.chip}
-            onClick={() => onPatch((tree) => removeNode(tree, group.id))}
-          >
-            Remove group
+          <button type="button" className={styles.ghost} onClick={() => onPatch((tree) => removeNode(tree, group.id))}>
+            ×
           </button>
         )}
       </div>
@@ -582,12 +561,8 @@ function Bubble({
               key={n.id}
               clause={n}
               onEdit={() => onEdit(n)}
-              onNegate={() =>
-                onPatch((root) =>
-                  replaceNode(root, n.id, { ...n, excluded: !n.excluded })
-                )
-              }
-              onRemove={() => onPatch((root) => removeNode(root, n.id))}
+              onNegate={() => onPatch((tree) => replaceNode(tree, n.id, { ...n, excluded: !n.excluded }))}
+              onRemove={() => onPatch((tree) => removeNode(tree, n.id))}
             />
           ) : (
             <div
@@ -598,12 +573,7 @@ function Bubble({
                 e.stopPropagation();
               }}
             >
-              <Bubble
-                group={n}
-                onEdit={onEdit}
-                onMove={onMove}
-                onPatch={onPatch}
-              />
+              <Bubble group={n} onEdit={onEdit} onMove={onMove} onPatch={onPatch} />
             </div>
           )
         )}
@@ -627,23 +597,20 @@ function Token({
     <div
       className={`${styles.token}${clause.excluded ? ` ${styles.tokenNot}` : ""}`}
       draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/token", clause.id);
-      }}
+      onDragStart={(e) => e.dataTransfer.setData("text/token", clause.id)}
     >
-      <code className={styles.tokenSyntax}>{serializeClause(clause)}</code>
-      <span className={styles.tokenWords}>{tokenLabel(clause)}</span>
-      <div className={styles.tokenActs}>
-        <button type="button" onClick={onNegate}>
-          {clause.excluded ? "Include" : "Negate"}
+      <code>{serializeClause(clause)}</code>
+      <span className={styles.tokenActs}>
+        <button type="button" onClick={onNegate} title="Negate">
+          −
         </button>
-        <button type="button" onClick={onEdit}>
-          Edit
+        <button type="button" onClick={onEdit} title="Edit">
+          ✎
         </button>
-        <button type="button" onClick={onRemove}>
+        <button type="button" onClick={onRemove} title="Remove">
           ×
         </button>
-      </div>
+      </span>
     </div>
   );
 }
