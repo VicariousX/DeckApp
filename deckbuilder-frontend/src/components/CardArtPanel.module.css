@@ -31,7 +31,8 @@
 .stripReveal {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s ease;
+  overflow: hidden;
+  transition: grid-template-rows 0.34s ease;
 }
 
 .stripRevealOpen {
@@ -43,10 +44,9 @@
   min-height: 0;
 }
 
-.stripRevealOpen .printGridFill {
+.printGridFill {
   resize: vertical;
   min-height: 10rem;
-  max-height: none;
   height: 16rem;
 }
 
