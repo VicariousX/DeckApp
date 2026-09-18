@@ -83,8 +83,19 @@ function removeNode(root: Group, id: string): Group {
   };
 }
 
+function containsId(node: Node, id: string): boolean {
+  if (node.id === id) return true;
+  if (node.kind !== "group") return false;
+  return node.items.some((n) => containsId(n, id));
+}
+
 function insertInto(root: Group, groupId: string, node: Node): Group {
-  if (root.id === groupId) return { ...root, items: [...root.items, node] };
+  if (node.id === groupId) return root;
+  if (node.kind === "group" && containsId(node, groupId)) return root;
+  if (root.id === groupId) {
+    if (root.items.some((n) => n.id === node.id)) return root;
+    return { ...root, items: [...root.items, node] };
+  }
   return {
     ...root,
     items: root.items.map((n) =>
@@ -164,7 +175,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
     if (draft.editId) {
       setRoot((r) => replaceNode(r, draft.editId!, clause));
     } else {
-      setRoot((r) => ({ ...r, items: [...r.items, clause] }));
+      setRoot((r) => ({ ...r, join: "and", items: [...r.items, clause] }));
     }
     setDraft(EMPTY_DRAFT);
     setStep("category");
@@ -172,7 +183,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
 
   function validateBar() {
     const next = parseQuery(bar, FIELD_TO_CATEGORY);
-    setRoot(next);
+    setRoot({ ...next, join: "and" });
     setBar(serializeQuery(next));
     setBarDirty(false);
     return serializeQuery(next);
@@ -435,18 +446,28 @@ function LogicBoard({
   onEdit,
 }: {
   root: Group;
-  onChange: (g: Group) => void;
+  onChange: (g: Group | ((prev: Group) => Group)) => void;
   onEdit: (c: Clause) => void;
 }) {
   function patch(mut: (g: Group) => Group) {
-    onChange(mut(root));
+    onChange((prev) => {
+      const next = mut(prev);
+      return { ...next, join: "and" };
+    });
   }
 
   function move(id: string, targetGroupId: string) {
-    const loc = findNode(root, id);
-    if (!loc) return;
-    const node = loc.parent.items[loc.index];
-    onChange(insertInto(removeNode(root, id), targetGroupId, node));
+    if (id === targetGroupId) return;
+    onChange((prev) => {
+      const loc = findNode(prev, id);
+      if (!loc) return prev;
+      const node = loc.parent.items[loc.index];
+      if (node.kind === "group" && containsId(node, targetGroupId)) return prev;
+      return {
+        ...insertInto(removeNode(prev, id), targetGroupId, node),
+        join: "and",
+      };
+    });
   }
 
   return (
@@ -502,26 +523,56 @@ function Bubble({
       }}
     >
       <div className={styles.bubbleBar}>
-        <span>{isRoot ? "Root" : group.join.toUpperCase()} group</span>
+        <span>{isRoot ? "AND (root)" : `${group.join.toUpperCase()} group`}</span>
+        {!isRoot && (
+          <button
+            type="button"
+            className={styles.chip}
+            onClick={() =>
+              onPatch((tree) =>
+                replaceNode(tree, group.id, {
+                  ...group,
+                  join: group.join === "and" ? "or" : "and",
+                })
+              )
+            }
+          >
+            Flip to {group.join === "and" ? "OR" : "AND"}
+          </button>
+        )}
         <button
           type="button"
           className={styles.chip}
           onClick={() =>
-            onPatch((root) =>
-              replaceNode(root, group.id, {
+            onPatch((tree) =>
+              replaceNode(tree, group.id, {
                 ...group,
-                join: group.join === "and" ? "or" : "and",
+                items: [...group.items, emptyGroup("and")],
               })
             )
           }
         >
-          Combine with {group.join === "and" ? "OR" : "AND"}
+          + AND
+        </button>
+        <button
+          type="button"
+          className={styles.chip}
+          onClick={() =>
+            onPatch((tree) =>
+              replaceNode(tree, group.id, {
+                ...group,
+                items: [...group.items, emptyGroup("or")],
+              })
+            )
+          }
+        >
+          + OR
         </button>
         {!isRoot && (
           <button
             type="button"
             className={styles.chip}
-            onClick={() => onPatch((root) => removeNode(root, group.id))}
+            onClick={() => onPatch((tree) => removeNode(tree, group.id))}
           >
             Remove group
           </button>
@@ -542,13 +593,21 @@ function Bubble({
               onRemove={() => onPatch((root) => removeNode(root, n.id))}
             />
           ) : (
-            <Bubble
+            <div
               key={n.id}
-              group={n}
-              onEdit={onEdit}
-              onMove={onMove}
-              onPatch={onPatch}
-            />
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/token", n.id);
+                e.stopPropagation();
+              }}
+            >
+              <Bubble
+                group={n}
+                onEdit={onEdit}
+                onMove={onMove}
+                onPatch={onPatch}
+              />
+            </div>
           )
         )}
       </div>

@@ -65,37 +65,18 @@ export function serializeClause(c: Clause): string {
 
 export function serializeNode(node: Node): string {
   if (node.kind === "clause") return serializeClause(node);
-  const rendered: string[] = [];
-  let usedOr = node.join === "or";
-  for (let i = 0; i < node.items.length; i += 1) {
-    const piece = serializeNode(node.items[i]).trim();
-    if (!piece) continue;
-    if (rendered.length === 0) {
-      rendered.push(piece);
-      continue;
-    }
-    const prev = node.items[i - 1];
-    const join: JoinOp =
-      prev.kind === "clause" ? prev.joinAfter : node.join;
-    if (join === "or") {
-      usedOr = true;
-      rendered.push("or", piece);
-    } else {
-      rendered.push(piece);
-    }
-  }
-  if (rendered.length === 0) return "";
-  const inner = rendered.join(" ");
-  return usedOr && rendered.filter((p) => p !== "or").length > 1
-    ? `(${inner})`
-    : inner;
+  const parts = node.items.map(serializeNode).map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return "";
+  const inner =
+    node.join === "or" ? parts.join(" or ") : parts.join(" ");
+  if (parts.length === 1) return inner;
+  return node.join === "or" ? `(${inner})` : inner;
 }
 
 export function serializeQuery(root: Group): string {
   const parts = root.items.map(serializeNode).filter(Boolean);
-  const join = root.join === "or" ? " or " : " ";
-  const inner = parts.join(join);
-  return root.join === "or" && parts.length > 1 ? `(${inner})` : inner;
+  if (parts.length === 0) return "";
+  return parts.join(" ");
 }
 
 type Tok =
@@ -209,35 +190,63 @@ function parseSeq(
   i: number,
   fieldToCategory: Record<string, string>
 ): { node: Group; next: number } {
-  const group = emptyGroup("and");
-  let join: JoinOp = "and";
+  type Piece = { join: JoinOp; node: Node };
+  const pieces: Piece[] = [];
+  let pending: JoinOp = "and";
   while (i < tokens.length) {
     const tok = tokens[i];
     if (tok.t === "rparen") break;
     if (tok.t === "or") {
-      join = "or";
-      group.join = "or";
-      const last = group.items[group.items.length - 1];
-      if (last?.kind === "clause") last.joinAfter = "or";
+      pending = "or";
       i += 1;
       continue;
     }
     if (tok.t === "lparen") {
       const inner = parseSeq(tokens, i + 1, fieldToCategory);
-      group.items.push(inner.node);
+      pieces.push({ join: pending, node: inner.node });
+      pending = "and";
       i = inner.next;
       if (tokens[i]?.t === "rparen") i += 1;
       continue;
     }
     if (tok.t === "term") {
-      group.items.push(parseTerm(tok.raw, fieldToCategory));
+      pieces.push({ join: pending, node: parseTerm(tok.raw, fieldToCategory) });
+      pending = "and";
       i += 1;
       continue;
     }
     i += 1;
   }
-  if (join === "and") group.join = "and";
-  return { node: group, next: i };
+  return { node: assemble(pieces), next: i };
+}
+
+function assemble(
+  pieces: { join: JoinOp; node: Node }[]
+): Group {
+  const root = emptyGroup("and");
+  if (pieces.length === 0) return root;
+  let orRun: Node[] = [];
+  function flushOr() {
+    if (orRun.length === 0) return;
+    if (orRun.length === 1) root.items.push(orRun[0]);
+    else root.items.push({ kind: "group", id: uid(), join: "or", items: orRun });
+    orRun = [];
+  }
+  for (let i = 0; i < pieces.length; i += 1) {
+    const { join, node } = pieces[i];
+    if (join === "or") {
+      if (orRun.length === 0 && root.items.length) {
+        const prev = root.items.pop()!;
+        orRun.push(prev);
+      }
+      orRun.push(node);
+    } else {
+      flushOr();
+      root.items.push(node);
+    }
+  }
+  flushOr();
+  return root;
 }
 
 export function parseQuery(

@@ -62,14 +62,14 @@ export function useScryfallSearch() {
   );
 
   const run = useCallback(
-    async (q: string, ord = order, direction: "asc" | "desc" = dir) => {
+    async (q: string, ord = "", direction: "asc" | "desc" = "asc") => {
       setQuery(q.trim());
       setOrder(ord);
       setDir(direction);
       setApiPage(1);
       await fetchPage(q, 1, ord, direction);
     },
-    [dir, fetchPage, order]
+    [fetchPage]
   );
 
   const goApiPage = useCallback(
