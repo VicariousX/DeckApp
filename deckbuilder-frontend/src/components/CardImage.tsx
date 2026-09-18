@@ -148,12 +148,13 @@ export function CardImage({
   const [userView, setUserView] = useState<CardFaceView | null>(null);
   const view = userView ?? defaultView;
   const [enlarged, setEnlarged] = useState<{
-    src: string;
-    alt: string;
+    face: 0 | 1;
   } | null>(null);
 
   useEffect(() => {
     if (!enlarged) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -161,9 +162,32 @@ export function CardImage({
         setEnlarged(null);
       }
     }
+    let flipLock = false;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!multi || !backSrc) return;
+      if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
+      if (flipLock) return;
+      flipLock = true;
+      setEnlarged((cur) => (cur ? { face: cur.face === 0 ? 1 : 0 } : cur));
+      window.setTimeout(() => {
+        flipLock = false;
+      }, 280);
+    }
+    function onTouch(e: TouchEvent) {
+      e.preventDefault();
+    }
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [enlarged]);
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("wheel", onWheel, true);
+      window.removeEventListener("touchmove", onTouch, true);
+    };
+  }, [enlarged, multi, backSrc]);
 
   const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
   const backSrc = multi
@@ -237,9 +261,7 @@ export function CardImage({
             <TiltFace
               enabled={tilt}
               onFaceClick={
-                tilt
-                  ? () => setEnlarged({ src: frontSrc, alt: frontName })
-                  : undefined
+                tilt ? () => setEnlarged({ face: 0 }) : undefined
               }
             >
               <img
@@ -255,9 +277,7 @@ export function CardImage({
             <TiltFace
               enabled={tilt}
               onFaceClick={
-                tilt
-                  ? () => setEnlarged({ src: backSrc, alt: backName })
-                  : undefined
+                tilt ? () => setEnlarged({ face: 1 }) : undefined
               }
             >
               <img
@@ -278,8 +298,7 @@ export function CardImage({
               tilt
                 ? () =>
                     setEnlarged({
-                      src: showBackOnly ? backSrc : frontSrc,
-                      alt: showBackOnly ? backName : frontName,
+                      face: showBackOnly ? 1 : 0,
                     })
                 : undefined
             }
@@ -330,7 +349,7 @@ export function CardImage({
             onClick={() => setEnlarged(null)}
             role="dialog"
             aria-modal="true"
-            aria-label={enlarged.alt}
+            aria-label={enlarged.face === 1 ? backName : frontName}
           >
             <div
               className={styles.enlargeStage}
@@ -338,13 +357,17 @@ export function CardImage({
             >
               <TiltFace enabled>
                 <img
-                  src={enlarged.src}
-                  alt={enlarged.alt}
+                  src={enlarged.face === 1 && backSrc ? backSrc : frontSrc}
+                  alt={enlarged.face === 1 ? backName : frontName}
                   className={styles.enlargeImage}
                   draggable={false}
                 />
               </TiltFace>
-              <p className={styles.enlargeHint}>Click outside to close</p>
+              <p className={styles.enlargeHint}>
+                {multi && backSrc
+                  ? "Scroll to flip · click outside to close"
+                  : "Click outside to close"}
+              </p>
             </div>
           </div>,
           document.body

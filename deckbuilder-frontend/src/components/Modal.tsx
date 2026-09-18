@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
 
@@ -14,10 +14,28 @@ export function Modal({
   hideClose?: boolean;
   style?: CSSProperties;
 }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onWheel(e: WheelEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-modal-root]")) return;
+      e.preventDefault();
+    }
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchmove", onWheel, { passive: false });
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchmove", onWheel);
+    };
+  }, []);
+
   return createPortal(
     <div className={styles.overlay} onClick={onClose}>
       <div
         className={styles.modal}
+        data-modal-root
         style={style}
         onClick={(e) => e.stopPropagation()}
       >
