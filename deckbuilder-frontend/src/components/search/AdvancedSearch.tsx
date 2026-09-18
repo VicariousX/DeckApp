@@ -136,7 +136,8 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const hasTokens = serialized.trim().length > 0;
 
   useEffect(() => {
-    if (!barDirty) setBar(serialized);
+    if (barDirty) return;
+    setBar((prev) => (prev === serialized ? prev : serialized));
   }, [serialized, barDirty]);
 
   const cat = CATEGORIES.find((c) => c.id === draft.category);
@@ -299,17 +300,13 @@ function ClauseTemplate({
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLSelectElement>(null);
   const [symOpen, setSymOpen] = useState(false);
-  const [suggest, setSuggest] = useState<string[]>([]);
+  const q = draft.value.toLowerCase();
+  const suggest = hints.filter((h) => !q || h.toLowerCase().includes(q)).slice(0, 8);
 
   useEffect(() => {
     if (step === "field") fieldRef.current?.focus();
     if (step === "value") inputRef.current?.focus();
   }, [step, draft.category, draft.field]);
-
-  useEffect(() => {
-    const q = draft.value.toLowerCase();
-    setSuggest(hints.filter((h) => !q || h.toLowerCase().includes(q)).slice(0, 8));
-  }, [draft.value, hints]);
 
   return (
     <section className={styles.template}>
