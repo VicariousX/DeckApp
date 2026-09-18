@@ -5,6 +5,8 @@ import { getDisplayName } from "../auth/userDisplay";
 import { fetchRandomCard } from "../lib/scryfallApi";
 import { pushRandomHistory } from "../lib/randomCardHistory";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardEnlargeOverlay } from "../components/CardImage";
+import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./LandingPage.module.css";
 import transitions from "../styles/pageTransitions.module.css";
@@ -102,7 +104,8 @@ export function LandingPage() {
     () => WELCOME_NOTES[Math.floor(Math.random() * WELCOME_NOTES.length)],
     []
   );
-  const [randomCard, setRandomCard] = useState<ScryfallCard | null>(null);
+  const [randomPreview, setRandomPreview] = useState<ScryfallCard | null>(null);
+  const [randomModal, setRandomModal] = useState<ScryfallCard | null>(null);
   const [randomBusy, setRandomBusy] = useState(false);
 
   async function openRandom() {
@@ -119,7 +122,7 @@ export function LandingPage() {
           card.card_faces?.[0]?.image_uris?.normal ||
           null,
       });
-      setRandomCard(card);
+      setRandomPreview(card);
     }
   }
 
@@ -229,15 +232,34 @@ export function LandingPage() {
         </p>
       )}
 
-      {randomCard && (
-        <CardInspectorModal
-          scryfallId={randomCard.id}
-          name={randomCard.name}
-          imageUrl={
-            randomCard.image_uris?.normal ||
-            randomCard.card_faces?.[0]?.image_uris?.normal
+      {randomPreview && (
+        <CardEnlargeOverlay
+          frontSrc={getFaceImage(randomPreview, 0)}
+          backSrc={getFaceImage(randomPreview, 1) || ""}
+          frontName={randomPreview.name}
+          backName={randomPreview.card_faces?.[1]?.name ?? "Back"}
+          multi={isMultiCard(randomPreview)}
+          onClose={() => setRandomPreview(null)}
+          onActivate={() => {
+            setRandomModal(randomPreview);
+            setRandomPreview(null);
+          }}
+          hint={
+            isMultiCard(randomPreview)
+              ? "Scroll to flip · click the card for details"
+              : "Click the card for details · click outside to close"
           }
-          onClose={() => setRandomCard(null)}
+        />
+      )}
+      {randomModal && (
+        <CardInspectorModal
+          scryfallId={randomModal.id}
+          name={randomModal.name}
+          imageUrl={
+            randomModal.image_uris?.normal ||
+            randomModal.card_faces?.[0]?.image_uris?.normal
+          }
+          onClose={() => setRandomModal(null)}
         />
       )}
     </div>

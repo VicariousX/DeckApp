@@ -129,6 +129,97 @@ function FaceSlot({ children }: { children: ReactNode }) {
   return <div className={styles.faceSlot}>{children}</div>;
 }
 
+export function CardEnlargeOverlay({
+  frontSrc,
+  backSrc,
+  frontName,
+  backName,
+  multi,
+  initialFace = 0,
+  onClose,
+  onActivate,
+  hint,
+}: {
+  frontSrc: string;
+  backSrc?: string;
+  frontName: string;
+  backName?: string;
+  multi?: boolean;
+  initialFace?: 0 | 1;
+  onClose: () => void;
+  onActivate?: () => void;
+  hint?: string;
+}) {
+  const [face, setFace] = useState<0 | 1>(initialFace);
+  const canFlip = Boolean(multi && backSrc);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        e.preventDefault();
+        onClose();
+      }
+    }
+    let flipLock = false;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!canFlip) return;
+      if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
+      if (flipLock) return;
+      flipLock = true;
+      setFace((f) => (f === 0 ? 1 : 0));
+      window.setTimeout(() => {
+        flipLock = false;
+      }, 280);
+    }
+    function onTouch(e: TouchEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("wheel", onWheel, true);
+      window.removeEventListener("touchmove", onTouch, true);
+    };
+  }, [canFlip, onClose]);
+
+  const src = face === 1 && backSrc ? backSrc : frontSrc;
+  const alt = face === 1 ? backName || "Back" : frontName;
+
+  return createPortal(
+    <div
+      className={styles.enlargeOverlay}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+    >
+      <div
+        className={styles.enlargeStage}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <TiltFace enabled onFaceClick={onActivate}>
+          <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+        </TiltFace>
+        <p className={styles.enlargeHint}>
+          {hint ??
+            (canFlip
+              ? "Scroll to flip · click outside to close"
+              : "Click outside to close")}
+        </p>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function CardImage({
   card,
   className,
@@ -342,36 +433,17 @@ export function CardImage({
         </div>
       )}
 
-      {enlarged &&
-        createPortal(
-          <div
-            className={styles.enlargeOverlay}
-            onClick={() => setEnlarged(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-label={enlarged.face === 1 ? backName : frontName}
-          >
-            <div
-              className={styles.enlargeStage}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <TiltFace enabled>
-                <img
-                  src={enlarged.face === 1 && backSrc ? backSrc : frontSrc}
-                  alt={enlarged.face === 1 ? backName : frontName}
-                  className={styles.enlargeImage}
-                  draggable={false}
-                />
-              </TiltFace>
-              <p className={styles.enlargeHint}>
-                {multi && backSrc
-                  ? "Scroll to flip · click outside to close"
-                  : "Click outside to close"}
-              </p>
-            </div>
-          </div>,
-          document.body
-        )}
+      {enlarged && (
+        <CardEnlargeOverlay
+          frontSrc={frontSrc}
+          backSrc={backSrc}
+          frontName={frontName}
+          backName={backName}
+          multi={multi}
+          initialFace={enlarged.face}
+          onClose={() => setEnlarged(null)}
+        />
+      )}
     </div>
   );
 }
