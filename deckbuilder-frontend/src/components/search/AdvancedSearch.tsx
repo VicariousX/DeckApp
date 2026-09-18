@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CATEGORIES, FIELD_TO_CATEGORY, type FieldDef } from "../../lib/search/categories";
+import { OP_LABELS } from "../../lib/search/operators";
 import {
   emptyClause,
   emptyGroup,
@@ -10,8 +12,6 @@ import {
   type Group,
   uid,
 } from "../../lib/search/syntaxModel";
-import { useScryfallSearch } from "../../hooks/useScryfallSearch";
-import type { ScryfallCard } from "../../types/scryfallCard";
 import styles from "./AdvancedSearch.module.css";
 
 const COLORS = [
@@ -23,65 +23,57 @@ const COLORS = [
   { id: "c", label: "Colorless" },
 ];
 
-type Props = {
-  onResults: (cards: ScryfallCard[]) => void;
-  initialQuery?: string;
-  onQueryChange?: (q: string) => void;
-};
+function ensureDraft(group: Group, catId: string, field: string): Group {
+  const clauses = group.items.filter((n): n is Clause => n.kind === "clause");
+  if (clauses.length === 0) {
+    return { ...group, items: [emptyClause(catId, field)] };
+  }
+  const last = clauses[clauses.length - 1];
+  if (last.value.trim()) {
+    return { ...group, items: [...group.items, emptyClause(catId, field)] };
+  }
+  return group;
+}
 
-export function AdvancedSearch({ onResults, initialQuery = "", onQueryChange }: Props) {
+export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string }) {
+  const navigate = useNavigate();
   const [root, setRoot] = useState<Group>(() =>
     parseQuery(initialQuery, FIELD_TO_CATEGORY)
   );
   const [bar, setBar] = useState(initialQuery);
+  const [barDirty, setBarDirty] = useState(false);
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({
     colors: true,
     type: true,
     text: true,
   });
-  const editingBar = useRef(false);
-  const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const serialized = useMemo(() => serializeQuery(root), [root]);
 
   useEffect(() => {
-    if (editingBar.current) return;
+    if (barDirty) return;
     setBar(serialized);
-    onQueryChange?.(serialized);
-  }, [serialized, onQueryChange]);
+  }, [serialized, barDirty]);
 
-  const { cards, isLoading, isError } = useScryfallSearch(bar);
+  function validateBar() {
+    const next = parseQuery(bar, FIELD_TO_CATEGORY);
+    setRoot(next);
+    setBar(serializeQuery(next));
+    setBarDirty(false);
+    return serializeQuery(next);
+  }
 
-  useEffect(() => {
-    onResults(cards);
-  }, [cards, onResults]);
-
-  function applyBar(next: string) {
-    setBar(next);
-    onQueryChange?.(next);
-    if (parseTimer.current) clearTimeout(parseTimer.current);
-    parseTimer.current = setTimeout(() => {
-      editingBar.current = false;
-      setRoot(parseQuery(next, FIELD_TO_CATEGORY));
-    }, 280);
+  function submit(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    navigate(
+      `/search/results?mode=advanced&q=${encodeURIComponent(trimmed)}&n=30`
+    );
   }
 
   function setCategoryGroup(catId: string, group: Group) {
+    setBarDirty(false);
     setRoot((prev) => {
-      const others = prev.items.filter((n) =>
-        n.kind === "group"
-          ? !n.items.every((i) => i.kind === "clause" && i.category === catId) &&
-            !(n.items.length && n.items.every((i) => i.kind === "clause" && i.category === catId))
-          : !(n.kind === "clause" && n.category === catId)
-      );
-      const cleaned: Group = {
-        ...prev,
-        items: others.filter((n) => {
-          if (n.kind === "clause") return n.category !== catId;
-          return true;
-        }),
-      };
-      // drop leftover clauses of this category anywhere
       const strip = (g: Group): Group => ({
         ...g,
         items: g.items
@@ -89,9 +81,12 @@ export function AdvancedSearch({ onResults, initialQuery = "", onQueryChange }: 
           .map((n) => (n.kind === "group" ? strip(n) : n))
           .filter((n) => n.kind === "clause" || n.items.length > 0),
       });
-      const base = strip(cleaned);
-      if (group.items.length === 0) return base;
-      return { ...base, items: [...base.items, { ...group, id: group.id || uid() }] };
+      const base = strip(prev);
+      const filled = group.items.filter(
+        (n) => n.kind !== "clause" || n.value.trim()
+      );
+      if (filled.length === 0) return base;
+      return { ...base, items: [...base.items, { ...group, id: group.id || uid(), items: filled }] };
     });
   }
 
@@ -99,26 +94,12 @@ export function AdvancedSearch({ onResults, initialQuery = "", onQueryChange }: 
     const map: Record<string, Group> = {};
     for (const cat of CATEGORIES) map[cat.id] = emptyGroup("and");
     function walk(n: Group) {
-      const only = n.items.filter((i) => i.kind === "clause") as Clause[];
-      if (
-        n.items.length &&
-        only.length === n.items.length &&
-        only.every((c) => c.category === only[0]?.category)
-      ) {
-        const cat = only[0].category;
-        if (map[cat] && map[cat].items.length === 0) {
-          map[cat] = n;
-          return;
-        }
-      }
       for (const item of n.items) {
         if (item.kind === "clause") {
           const g = map[item.category] ?? emptyGroup();
           g.items.push(item);
           map[item.category] = g;
-        } else {
-          walk(item);
-        }
+        } else walk(item);
       }
     }
     walk(root);
@@ -136,31 +117,45 @@ export function AdvancedSearch({ onResults, initialQuery = "", onQueryChange }: 
           className={styles.liveInput}
           value={bar}
           onChange={(e) => {
-            editingBar.current = true;
-            applyBar(e.target.value);
+            setBarDirty(true);
+            setBar(e.target.value);
           }}
-          onBlur={() => {
-            editingBar.current = false;
-            setRoot(parseQuery(bar, FIELD_TO_CATEGORY));
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const q = barDirty ? validateBar() : bar;
+            submit(q);
           }}
           placeholder='Build a query — e.g. t:creature id<=wug o:"draw a card"'
           spellCheck={false}
         />
         <button
           type="button"
+          className={`${styles.validateBtn}${barDirty ? ` ${styles.validateHot}` : ""}`}
+          onClick={() => validateBar()}
+          title="Validate syntax into the panels"
+          disabled={!barDirty}
+        >
+          ✓
+        </button>
+        <button
+          type="button"
+          className={styles.clearBtn}
+          onClick={() => submit(barDirty ? validateBar() : bar)}
+        >
+          Search
+        </button>
+        <button
+          type="button"
           className={styles.clearBtn}
           onClick={() => {
-            editingBar.current = false;
+            setBarDirty(false);
             setRoot(emptyGroup());
             setBar("");
-            onQueryChange?.("");
           }}
         >
           Clear
         </button>
-        <span className={styles.status}>
-          {isLoading ? "Searching…" : isError ? "Search failed" : bar.trim() ? `${cards.length} shown` : ""}
-        </span>
       </div>
 
       <div className={styles.cats}>
@@ -169,7 +164,11 @@ export function AdvancedSearch({ onResults, initialQuery = "", onQueryChange }: 
             <CategoryPanel
               key={cat.id}
               def={cat}
-              group={byCat[cat.id] ?? emptyGroup()}
+              group={ensureDraft(
+                byCat[cat.id] ?? emptyGroup(),
+                cat.id,
+                cat.fields[0]?.key ?? ""
+              )}
               open={Boolean(openCats[cat.id])}
               onToggle={() =>
                 setOpenCats((s) => ({ ...s, [cat.id]: !s[cat.id] }))
@@ -196,18 +195,20 @@ function CategoryPanel({
   onToggle: () => void;
   onChange: (g: Group) => void;
 }) {
-  const preview = serializeQuery(group);
+  const preview = serializeQuery({
+    ...group,
+    items: group.items.filter((n) => n.kind !== "clause" || n.value.trim()),
+  });
   const defaultField = def.fields[0]?.key ?? "";
+  const clauses = group.items.filter((n): n is Clause => n.kind === "clause");
 
-  function patchItem(id: string, next: Clause) {
-    onChange({
-      ...group,
-      items: group.items.map((n) => (n.kind === "clause" && n.id === id ? next : n)),
-    });
-  }
-
-  function removeItem(id: string) {
-    onChange({ ...group, items: group.items.filter((n) => n.id !== id) });
+  function patch(id: string, next: Clause) {
+    const items = group.items.map((n) =>
+      n.kind === "clause" && n.id === id ? next : n
+    ) as Group["items"];
+    let g: Group = { ...group, items };
+    g = ensureDraft(g, def.id, defaultField);
+    onChange(g);
   }
 
   return (
@@ -218,46 +219,40 @@ function CategoryPanel({
       </button>
       {open && (
         <div className={styles.catBody}>
-          <div className={styles.joinRow}>
-            <span>Combine with</span>
-            <button
-              type="button"
-              className={`${styles.chip}${group.join === "and" ? ` ${styles.chipOn}` : ""}`}
-              onClick={() => onChange({ ...group, join: "and" })}
-            >
-              AND
-            </button>
-            <button
-              type="button"
-              className={`${styles.chip}${group.join === "or" ? ` ${styles.chipOn}` : ""}`}
-              onClick={() => onChange({ ...group, join: "or" })}
-            >
-              OR
-            </button>
-            <button
-              type="button"
-              className={styles.addBtn}
-              onClick={() =>
-                onChange({
-                  ...group,
-                  items: [...group.items, emptyClause(def.id, defaultField)],
-                })
-              }
-            >
-              + Clause
-            </button>
-          </div>
-          {group.items
-            .filter((n): n is Clause => n.kind === "clause")
-            .map((clause) => (
+          {clauses.map((clause, i) => (
+            <div key={clause.id}>
               <ClauseRow
-                key={clause.id}
                 clause={clause}
                 fields={def.fields}
-                onChange={(c) => patchItem(clause.id, c)}
-                onRemove={() => removeItem(clause.id)}
+                onChange={(c) => patch(clause.id, c)}
+                onRemove={() =>
+                  onChange({
+                    ...group,
+                    items: group.items.filter((n) => n.id !== clause.id),
+                  })
+                }
+                canRemove={Boolean(clause.value.trim())}
               />
-            ))}
+              {i < clauses.length - 1 && (
+                <div className={styles.joinRow}>
+                  <button
+                    type="button"
+                    className={`${styles.chip}${clause.joinAfter === "and" ? ` ${styles.chipOn}` : ""}`}
+                    onClick={() => patch(clause.id, { ...clause, joinAfter: "and" })}
+                  >
+                    AND
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.chip}${clause.joinAfter === "or" ? ` ${styles.chipOn}` : ""}`}
+                    onClick={() => patch(clause.id, { ...clause, joinAfter: "or" })}
+                  >
+                    OR
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </section>
@@ -269,11 +264,13 @@ function ClauseRow({
   fields,
   onChange,
   onRemove,
+  canRemove,
 }: {
   clause: Clause;
   fields: FieldDef[];
   onChange: (c: Clause) => void;
   onRemove: () => void;
+  canRemove: boolean;
 }) {
   const field = fields.find((f) => f.key === clause.field) ?? fields[0];
   const ops: CmpOp[] = field?.ops ?? [":", "="];
@@ -284,9 +281,8 @@ function ClauseRow({
         type="button"
         className={`${styles.chip}${clause.excluded ? ` ${styles.chipOn}` : ""}`}
         onClick={() => onChange({ ...clause, excluded: !clause.excluded })}
-        title="Exclude"
       >
-        {clause.excluded ? "NOT" : "IS"}
+        {clause.excluded ? "excluding" : "including"}
       </button>
       <select
         className={styles.select}
@@ -306,7 +302,7 @@ function ClauseRow({
       >
         {ops.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {OP_LABELS.find((x) => x.op === o)?.label ?? o}
           </option>
         ))}
       </select>
@@ -336,9 +332,11 @@ function ClauseRow({
           onChange={(e) => onChange({ ...clause, value: e.target.value })}
         />
       )}
-      <button type="button" className={styles.remove} onClick={onRemove} aria-label="Remove">
-        ×
-      </button>
+      {canRemove && (
+        <button type="button" className={styles.remove} onClick={onRemove} aria-label="Remove">
+          ×
+        </button>
+      )}
     </div>
   );
 }
@@ -374,3 +372,6 @@ function ColorValue({
     </div>
   );
 }
+
+
+

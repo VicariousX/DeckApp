@@ -64,16 +64,34 @@ export function AppShell() {
           Deck<span className={styles.brandAccent}>App</span>
         </NavLink>
         <nav className={styles.nav} aria-label="Main">
-          <NavLink
-            to="/search"
-            className={({ isActive }) =>
-              isActive
-                ? `${styles.navLink} ${styles.navLinkActive}`
-                : styles.navLink
-            }
-          >
-            Search
-          </NavLink>
+          <div className={styles.searchFly}>
+            <NavLink
+              to="/search?mode=standard"
+              className={() => {
+                const onSearch = location.pathname.startsWith("/search");
+                const advanced = new URLSearchParams(location.search).get("mode") === "advanced";
+                const active = onSearch && !advanced;
+                return `${styles.navLink} ${styles.searchPrimary}${
+                  active ? ` ${styles.navLinkActive}` : ""
+                }`;
+              }}
+            >
+              <span className={styles.searchIdle}>Search</span>
+              <span className={styles.searchHover}>Standard</span>
+            </NavLink>
+            <NavLink
+              to="/search?mode=advanced"
+              className={() => {
+                const onSearch = location.pathname === "/search";
+                const advanced = new URLSearchParams(location.search).get("mode") === "advanced";
+                return `${styles.navLink} ${styles.searchAdvanced}${
+                  onSearch && advanced ? ` ${styles.navLinkActive}` : ""
+                }`;
+              }}
+            >
+              Advanced
+            </NavLink>
+          </div>
 
           {user && (
             <NavLink

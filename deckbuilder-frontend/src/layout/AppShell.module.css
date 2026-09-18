@@ -73,6 +73,39 @@
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
 }
 
+.searchFly {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.searchHover,
+.searchAdvanced {
+  display: none;
+}
+
+.searchFly:hover .searchIdle,
+.searchFly:focus-within .searchIdle {
+  display: none;
+}
+
+.searchFly:hover .searchHover,
+.searchFly:focus-within .searchHover,
+.searchFly:hover .searchAdvanced,
+.searchFly:focus-within .searchAdvanced {
+  display: inline-flex;
+  justify-content: center;
+}
+
+.searchAdvanced {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+}
+
 .main {
   position: relative;
   z-index: 0;

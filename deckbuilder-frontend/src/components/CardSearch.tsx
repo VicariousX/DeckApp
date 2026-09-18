@@ -1,22 +1,19 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 import styles from "./CardSearch.module.css";
-import { useScryfallSearch } from "../hooks/useScryfallSearch";
 import { fetchAutocomplete } from "../lib/scryfallApi";
-
-import type { ScryfallCard } from "../types/scryfallCard";
 
 const GHOST_COUNT = 5;
 
 export function CardSearch({
-  onResults,
   mode = "standard",
 }: {
-  onResults: (cards: ScryfallCard[]) => void;
   mode?: "standard" | "advanced";
 }) {
+  const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
@@ -24,12 +21,6 @@ export function CardSearch({
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const { cards, isLoading, isError } = useScryfallSearch(searchTerm);
-
-  useEffect(() => {
-    onResults(cards);
-  }, [cards, onResults]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -66,8 +57,9 @@ export function CardSearch({
     const t = term.trim();
     if (!t) return;
     setInputValue(t);
-    setSearchTerm(t);
+    setSubmitted(true);
     setSuggestOpen(false);
+    navigate(`/search/results?mode=${mode}&q=${encodeURIComponent(t)}&n=30`);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -151,12 +143,7 @@ export function CardSearch({
         </p>
       </div>
 
-      {isLoading && <p className={styles.searchStatus}>Loading…</p>}
-      {isError && (
-        <p className={styles.searchStatusError}>Something went wrong.</p>
-      )}
-
-      {searchTerm === "" && (
+      {!submitted && (
         <div className={styles.placeholderRow} aria-hidden>
           {Array.from({ length: GHOST_COUNT }).map((_, i) => (
             <div

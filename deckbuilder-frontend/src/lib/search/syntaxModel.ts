@@ -9,6 +9,8 @@ export type Clause = {
   op: CmpOp;
   value: string;
   excluded: boolean;
+  /** How this clause joins to the next one in the same group. */
+  joinAfter: JoinOp;
 };
 
 export type Group = {
@@ -37,6 +39,7 @@ export function emptyClause(category: string, field: string): Clause {
     op: ":",
     value: "",
     excluded: false,
+    joinAfter: "and",
   };
 }
 
@@ -62,14 +65,30 @@ export function serializeClause(c: Clause): string {
 
 export function serializeNode(node: Node): string {
   if (node.kind === "clause") return serializeClause(node);
-  const parts = node.items
-    .map(serializeNode)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "";
-  const join = node.join === "or" ? " or " : " ";
-  const inner = parts.join(join);
-  return parts.length > 1 && node.join === "or" ? `(${inner})` : inner;
+  const rendered: string[] = [];
+  let usedOr = node.join === "or";
+  for (let i = 0; i < node.items.length; i += 1) {
+    const piece = serializeNode(node.items[i]).trim();
+    if (!piece) continue;
+    if (rendered.length === 0) {
+      rendered.push(piece);
+      continue;
+    }
+    const prev = node.items[i - 1];
+    const join: JoinOp =
+      prev.kind === "clause" ? prev.joinAfter : node.join;
+    if (join === "or") {
+      usedOr = true;
+      rendered.push("or", piece);
+    } else {
+      rendered.push(piece);
+    }
+  }
+  if (rendered.length === 0) return "";
+  const inner = rendered.join(" ");
+  return usedOr && rendered.filter((p) => p !== "or").length > 1
+    ? `(${inner})`
+    : inner;
 }
 
 export function serializeQuery(root: Group): string {
@@ -166,6 +185,7 @@ function parseTerm(raw: string, fieldToCategory: Record<string, string>): Clause
       op,
       value,
       excluded,
+      joinAfter: "and",
     };
   }
   let value = body;
@@ -180,6 +200,7 @@ function parseTerm(raw: string, fieldToCategory: Record<string, string>): Clause
     op: ":",
     value,
     excluded,
+    joinAfter: "and",
   };
 }
 
@@ -196,6 +217,8 @@ function parseSeq(
     if (tok.t === "or") {
       join = "or";
       group.join = "or";
+      const last = group.items[group.items.length - 1];
+      if (last?.kind === "clause") last.joinAfter = "or";
       i += 1;
       continue;
     }

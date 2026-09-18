@@ -1,72 +1,68 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ScryfallCard } from "../types/scryfallCard";
 
-interface ScryfallResponse {
-  data: ScryfallCard[];
-}
+type SearchJson = {
+  data?: ScryfallCard[];
+  total_cards?: number;
+  has_more?: boolean;
+};
 
-export function useScryfallSearch(query: string) {
+export function useScryfallSearch() {
   const [cards, setCards] = useState<ScryfallCard[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMoreApi, setHasMoreApi] = useState(false);
+  const [apiPage, setApiPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [query, setQuery] = useState("");
 
-  // ✔ Handle empty query BEFORE the effect
-  const trimmed = query.trim();
-  const shouldSearch = trimmed.length > 0;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    // ✔ If no search term, do nothing (effect runs but does not set state)
-    if (!shouldSearch) {
-      return;
-    }
-
-    async function fetchCards() {
-      setIsLoading(true);
-      setIsError(false);
-
-      try {
-        const response = await fetch(
-          `http://127.0.0.1:3001/api/scryfall?q=${encodeURIComponent(trimmed)}`
-        );
-
-        if (!response.ok) {
-          throw new Error("Scryfall request failed");
-        }
-
-        const json: ScryfallResponse = await response.json();
-
-        if (!cancelled) {
-          setCards(json.data ?? []);
-        }
-      } catch {
-        if (!cancelled) {
-          setIsError(true);
-          setCards([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchCards();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [trimmed, shouldSearch]);
-
-  // ✔ Empty query resets happen here (outside the effect)
-  if (!shouldSearch && cards.length !== 0) {
+  const run = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    setQuery(trimmed);
     setCards([]);
-  }
+    setTotal(0);
+    setApiPage(1);
+    setHasMoreApi(false);
+    if (!trimmed) return;
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:3001/api/scryfall?q=${encodeURIComponent(trimmed)}&page=1`
+      );
+      if (!response.ok) throw new Error("fail");
+      const json: SearchJson = await response.json();
+      setCards(json.data ?? []);
+      setTotal(json.total_cards ?? json.data?.length ?? 0);
+      setHasMoreApi(Boolean(json.has_more));
+    } catch {
+      setIsError(true);
+      setCards([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  return {
-    cards,
-    isLoading,
-    isError
-  };
+  const loadMoreApi = useCallback(async () => {
+    if (!query || isLoading || !hasMoreApi) return;
+    const next = apiPage + 1;
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:3001/api/scryfall?q=${encodeURIComponent(query)}&page=${next}`
+      );
+      if (!response.ok) throw new Error("fail");
+      const json: SearchJson = await response.json();
+      setCards((prev) => [...prev, ...(json.data ?? [])]);
+      setHasMoreApi(Boolean(json.has_more));
+      setApiPage(next);
+      if (json.total_cards) setTotal(json.total_cards);
+    } catch {
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiPage, hasMoreApi, isLoading, query]);
+
+  return { cards, total, hasMoreApi, isLoading, isError, query, run, loadMoreApi };
 }

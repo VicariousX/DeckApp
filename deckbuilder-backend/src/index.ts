@@ -53,13 +53,14 @@ app.post("/api/scryfall/bulk/refresh", async (_req: Request, res: Response) => {
 // Full-text / name search — prefer local name index for simple queries
 app.get("/api/scryfall", async (req: Request, res: Response) => {
   const query = req.query.q as string;
+  const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
   if (!query) {
     return res.status(400).json({ error: "Missing query parameter 'q'" });
   }
   try {
     await ensureBulkData();
     const local = simpleNameSearch(query);
-    if (local.length > 0) {
+    if (local.length > 0 && page === 1) {
       return res.json({
         object: "list",
         total_cards: local.length,
@@ -68,9 +69,18 @@ app.get("/api/scryfall", async (req: Request, res: Response) => {
         source: "bulk",
       });
     }
+    if (local.length > 0 && page > 1) {
+      return res.json({
+        object: "list",
+        total_cards: local.length,
+        has_more: false,
+        data: [],
+        source: "bulk",
+      });
+    }
     // Complex Scryfall syntax → live API (rate-limited)
     const { status, data } = await liveGet(
-      `/cards/search?q=${encodeURIComponent(query)}`
+      `/cards/search?q=${encodeURIComponent(query)}&page=${page}`
     );
     res.status(status).json(data);
   } catch (error) {
