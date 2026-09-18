@@ -88,6 +88,24 @@
   padding: 0.35rem 0 0.15rem;
 }
 
+.pins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.pin {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -121,6 +139,30 @@
   border-color: var(--color-accent);
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.opOff {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.colorPick {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+.colorBtn {
+  width: 1.85rem;
+  height: 1.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
 }
 
 .symBtn {
@@ -244,6 +286,14 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--color-accent);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.joinMark:disabled {
+  cursor: default;
 }
 
 .tokens {
@@ -274,8 +324,13 @@
 }
 
 .tokenActs {
-  display: inline-flex;
+  display: none;
   gap: 0.1rem;
+}
+
+.token:hover .tokenActs,
+.token:focus-within .tokenActs {
+  display: inline-flex;
 }
 
 .tokenActs button {

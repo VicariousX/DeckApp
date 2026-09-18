@@ -15,7 +15,7 @@ export type CategoryDef = {
   fields: FieldDef[];
 };
 
-const CMP: CmpOp[] = [":", "=", ">", "<", ">=", "<=", "!="];
+const CMP: CmpOp[] = [":", "=", ">", "<", ">=", "<="];
 const COLON: CmpOp[] = [":", "="];
 
 export const CATEGORIES: CategoryDef[] = [

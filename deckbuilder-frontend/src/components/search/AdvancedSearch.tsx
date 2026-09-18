@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, FIELD_TO_CATEGORY } from "../../lib/search/categories";
 import { fieldAllowsSymbols, suggestionsFor } from "../../lib/search/autocomplete";
@@ -13,6 +20,7 @@ import {
   type Node,
   uid,
 } from "../../lib/search/syntaxModel";
+import { renderManaSymbol } from "../../utils/symbols";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -31,7 +39,49 @@ const SYMBOLS = [
   { insert: "{P}", label: "{P}" },
 ];
 
-const OPS: CmpOp[] = [":", "=", ">", "<", ">=", "<=", "!="];
+const ALL_OPS: CmpOp[] = [":", "=", ">", "<", ">=", "<="];
+const TEXT_OPS: CmpOp[] = [":"];
+const NUM_OPS: CmpOp[] = [":", "=", ">", "<", ">=", "<="];
+
+const SHORTCUTS: Record<string, string> = {
+  n: "name",
+  t: "t",
+  o: "o",
+  c: "c",
+  i: "id",
+  m: "m",
+  v: "mv",
+  p: "pow",
+  r: "r",
+  f: "f",
+  a: "a",
+  s: "s",
+  k: "kw",
+};
+
+const PINNED = ["name", "t", "c", "id", "o", "m", "mv", "r"];
+const COLORS = [
+  { id: "w", sym: "{W}" },
+  { id: "u", sym: "{U}" },
+  { id: "b", sym: "{B}" },
+  { id: "r", sym: "{R}" },
+  { id: "g", sym: "{G}" },
+  { id: "c", sym: "{C}" },
+];
+
+function opsFor(opt?: FieldOpt | null): CmpOp[] {
+  if (!opt) return TEXT_OPS;
+  if (opt.ops && opt.ops.length) return opt.ops.filter((o) => o !== "!=");
+  if (opt.category === "stats" || opt.category === "prices" || opt.category === "dates" || opt.key === "mv") {
+    return NUM_OPS;
+  }
+  if (opt.category === "colors" || opt.key === "produces") return NUM_OPS;
+  return TEXT_OPS;
+}
+
+function isColorField(opt?: FieldOpt | null) {
+  return Boolean(opt && (opt.category === "colors" || opt.key === "produces"));
+}
 
 type FieldOpt = { category: string; key: string; label: string; group: string; hint?: string; ops?: CmpOp[] };
 
@@ -172,7 +222,6 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
     if (draft.editId) setRoot((r) => replaceNode(r, draft.editId!, clause));
     else setRoot((r) => ({ ...r, join: "and", items: [...r.items, clause] }));
     setDraft(EMPTY);
-    fieldBox.current?.focus();
   }
 
   function validateBar() {
@@ -292,8 +341,10 @@ function ClauseRow({
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const [symOpen, setSymOpen] = useState(false);
+  const [valueOpen, setValueOpen] = useState(false);
 
   const selected = FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field);
+  const allowed = opsFor(selected);
   const q = query.toLowerCase();
   const filtered = FIELD_OPTS.filter(
     (f) => !q || f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || f.group.toLowerCase().includes(q)
@@ -309,14 +360,50 @@ function ClauseRow({
   }, [filtered]);
 
   const flat = filtered;
-  const ops = selected?.ops ?? OPS;
   const hints = suggestionsFor(draft.category, draft.field);
   const vq = draft.value.toLowerCase();
   const valueHints = hints.filter((h) => !vq || h.toLowerCase().includes(vq)).slice(0, 8);
   const symbols = fieldAllowsSymbols(draft.category, draft.field);
+  const colorMode = isColorField(selected);
+
+  function cycleOp(dir: 1 | -1) {
+    const i = Math.max(0, allowed.indexOf(draft.op));
+    const next = allowed[(i + dir + allowed.length) % allowed.length];
+    setDraft({ ...draft, op: next });
+  }
+
+  function onComposerKey(e: ReactKeyboardEvent) {
+    if (e.key === "ArrowLeft" && !e.altKey) {
+      e.preventDefault();
+      cycleOp(-1);
+    } else if (e.key === "ArrowRight" && !e.altKey) {
+      e.preventDefault();
+      cycleOp(1);
+    } else if (e.key === "-" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      setDraft({ ...draft, excluded: !draft.excluded });
+    }
+  }
 
   return (
     <section className={styles.composer}>
+      <div className={styles.pins}>
+        {PINNED.map((key) => {
+          const opt = FIELD_OPTS.find((f) => f.key === key);
+          if (!opt) return null;
+          const on = draft.field === opt.key && draft.category === opt.category;
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`${styles.pin}${on ? ` ${styles.opOn}` : ""}`}
+              onClick={() => onPick(opt)}
+            >
+              {opt.key || "n"}
+            </button>
+          );
+        })}
+      </div>
       <div className={styles.row}>
         <div className={styles.fieldPick}>
           <input
@@ -334,9 +421,27 @@ function ClauseRow({
               setHi(0);
             }}
             onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                const code = (query || "").trim().toLowerCase();
+                const mapped = SHORTCUTS[code];
+                const hit =
+                  (mapped && FIELD_OPTS.find((f) => f.key === mapped)) ||
+                  FIELD_OPTS.find((f) => f.key === code);
+                if (hit) {
+                  e.preventDefault();
+                  onPick(hit);
+                  setOpen(false);
+                  setQuery("");
+                  requestAnimationFrame(() => valueBox.current?.focus());
+                  return;
+                }
+                setOpen(false);
+                return;
+              }
+              onComposerKey(e);
               if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setHi((i) => Math.min(i + 1, flat.length - 1));
+                setHi((i) => Math.min(i + 1, Math.max(flat.length - 1, 0)));
               } else if (e.key === "ArrowUp") {
                 e.preventDefault();
                 setHi((i) => Math.max(i - 1, 0));
@@ -383,71 +488,123 @@ function ClauseRow({
 
         <button
           type="button"
+          tabIndex={-1}
           className={`${styles.op}${draft.excluded ? ` ${styles.opOn}` : ""}`}
           onClick={() => setDraft({ ...draft, excluded: !draft.excluded })}
-          title="Negate"
+          title="Negate (Ctrl+-)"
         >
           −
         </button>
 
         <div className={styles.ops}>
-          {ops.map((o) => (
-            <button
-              key={o}
-              type="button"
-              className={`${styles.op}${draft.op === o ? ` ${styles.opOn}` : ""}`}
-              onClick={() => setDraft({ ...draft, op: o })}
-            >
-              {o}
-            </button>
-          ))}
+          {ALL_OPS.map((o) => {
+            const ok = allowed.includes(o);
+            return (
+              <button
+                key={o}
+                type="button"
+                tabIndex={-1}
+                disabled={!ok}
+                className={`${styles.op}${draft.op === o ? ` ${styles.opOn}` : ""}${!ok ? ` ${styles.opOff}` : ""}`}
+                onClick={() => ok && setDraft({ ...draft, op: o })}
+              >
+                {o}
+              </button>
+            );
+          })}
         </div>
 
         <div className={styles.valueWrap}>
-          <input
-            ref={valueBox}
-            className={styles.value}
-            value={draft.value}
-            placeholder={selected?.hint ?? "value"}
-            onChange={(e) => setDraft({ ...draft, value: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onSubmit();
-              }
-            }}
-          />
-          {symbols && (
-            <button type="button" className={styles.symBtn} onClick={() => setSymOpen((v) => !v)}>
+          {colorMode ? (
+            <div className={styles.colorPick}>
+              {COLORS.map((c) => {
+                const on = draft.value.toLowerCase().includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`${styles.colorBtn}${on ? ` ${styles.opOn}` : ""}`}
+                    onClick={() => {
+                      const letters = COLORS.map((x) => x.id).filter((id) =>
+                        id === c.id ? !on : draft.value.toLowerCase().includes(id)
+                      );
+                      setDraft({ ...draft, value: letters.join("") });
+                    }}
+                  >
+                    {renderManaSymbol(c.sym, 18)}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <input
+              ref={valueBox}
+              className={styles.value}
+              value={draft.value}
+              placeholder={selected?.hint ?? "value"}
+              onFocus={() => setValueOpen(true)}
+              onChange={(e) => {
+                setDraft({ ...draft, value: e.target.value });
+                setValueOpen(true);
+              }}
+              onKeyDown={(e) => {
+                onComposerKey(e);
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSubmit();
+                }
+              }}
+              onBlur={() => window.setTimeout(() => setValueOpen(false), 120)}
+            />
+          )}
+          {symbols && !colorMode && (
+            <button type="button" tabIndex={-1} className={styles.symBtn} onClick={() => setSymOpen((v) => !v)}>
               {"{ }"}
             </button>
           )}
           {symOpen && (
             <div className={styles.menu}>
-              {SYMBOLS.map((s) => (
+              <button
+                type="button"
+                className={styles.menuItem}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setDraft({ ...draft, value: `${draft.value}~` });
+                  setSymOpen(false);
+                }}
+              >
+                ~ this name
+              </button>
+              {SYMBOLS.filter((s) => s.insert !== "~").map((s) => (
                 <button
                   key={s.insert}
                   type="button"
                   className={styles.menuItem}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setDraft({ ...draft, value: `${draft.value}${s.insert}` });
                     setSymOpen(false);
                     valueBox.current?.focus();
                   }}
                 >
-                  {s.label}
+                  {renderManaSymbol(s.insert, 18)}
+                  <span>{s.insert}</span>
                 </button>
               ))}
             </div>
           )}
-          {valueHints.length > 0 && draft.value && (
+          {valueOpen && valueHints.length > 0 && (
             <div className={styles.menu}>
               {valueHints.map((s) => (
                 <button
                   key={s}
                   type="button"
                   className={styles.menuItem}
-                  onClick={() => setDraft({ ...draft, value: s })}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setDraft({ ...draft, value: s });
+                    setValueOpen(false);
+                  }}
                 >
                   {s}
                 </button>
@@ -491,9 +648,6 @@ function LogicBoard({
     <section className={styles.logic}>
       <div className={styles.logicHead}>
         <h2>Board</h2>
-        <button type="button" className={styles.ghost} onClick={() => patch((g) => ({ ...g, items: [...g.items, emptyGroup("or")] }))}>
-          + ( )
-        </button>
       </div>
       <Bubble group={root} onEdit={onEdit} onMove={move} onPatch={patch} isRoot />
     </section>
@@ -525,25 +679,37 @@ function Bubble({
       }}
     >
       <div className={styles.bubbleBar}>
-        <span className={styles.joinMark}>{isRoot ? "AND" : group.join.toUpperCase()}</span>
-        {!isRoot && (
-          <button
-            type="button"
-            className={styles.ghost}
-            onClick={() =>
-              onPatch((tree) =>
-                replaceNode(tree, group.id, { ...group, join: group.join === "and" ? "or" : "and" })
-              )
-            }
-          >
-            {group.join === "and" ? "→ OR" : "→ AND"}
-          </button>
-        )}
+        <button
+          type="button"
+          className={styles.joinMark}
+          disabled={isRoot}
+          onClick={() => {
+            if (isRoot) return;
+            onPatch((tree) =>
+              replaceNode(tree, group.id, { ...group, join: group.join === "and" ? "or" : "and" })
+            );
+          }}
+        >
+          {isRoot ? "AND" : group.join.toUpperCase()}
+        </button>
         <button
           type="button"
           className={styles.ghost}
           onClick={() =>
-            onPatch((tree) => replaceNode(tree, group.id, { ...group, items: [...group.items, emptyGroup("or")] }))
+            onPatch((tree) => {
+              if (isRoot || tree.id === group.id) {
+                return { ...tree, items: [...tree.items, emptyGroup("or")] };
+              }
+              const loc = findNode(tree, group.id);
+              const cur =
+                loc && loc.parent.items[loc.index].kind === "group"
+                  ? (loc.parent.items[loc.index] as Group)
+                  : group;
+              return replaceNode(tree, group.id, {
+                ...cur,
+                items: [...cur.items, emptyGroup("or")],
+              });
+            })
           }
         >
           + ( )
@@ -561,7 +727,6 @@ function Bubble({
               key={n.id}
               clause={n}
               onEdit={() => onEdit(n)}
-              onNegate={() => onPatch((tree) => replaceNode(tree, n.id, { ...n, excluded: !n.excluded }))}
               onRemove={() => onPatch((tree) => removeNode(tree, n.id))}
             />
           ) : (
@@ -585,12 +750,10 @@ function Bubble({
 function Token({
   clause,
   onEdit,
-  onNegate,
   onRemove,
 }: {
   clause: Clause;
   onEdit: () => void;
-  onNegate: () => void;
   onRemove: () => void;
 }) {
   return (
@@ -601,9 +764,6 @@ function Token({
     >
       <code>{serializeClause(clause)}</code>
       <span className={styles.tokenActs}>
-        <button type="button" onClick={onNegate} title="Negate">
-          −
-        </button>
         <button type="button" onClick={onEdit} title="Edit">
           ✎
         </button>
