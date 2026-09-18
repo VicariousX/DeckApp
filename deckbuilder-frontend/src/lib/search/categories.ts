@@ -116,6 +116,25 @@ export const CATEGORIES: CategoryDef[] = [
     ],
   },
   {
+    id: "edhrec",
+    label: "EDHREC",
+    fields: [
+      {
+        key: "edhrec",
+        label: "EDHREC rank",
+        kind: "number",
+        ops: CMP,
+        hint: "1 is most popular. edhrec<=100 is top 100",
+      },
+      {
+        key: "edhrecrank",
+        label: "EDHREC rank (alias)",
+        kind: "number",
+        ops: CMP,
+      },
+    ],
+  },
+  {
     id: "prices",
     label: "Prices",
     fields: [

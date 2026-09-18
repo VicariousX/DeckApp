@@ -57,9 +57,32 @@ const SHORTCUTS: Record<string, string> = {
   a: "a",
   s: "s",
   k: "kw",
+  e: "edhrec",
 };
 
-const PINNED = ["name", "t", "c", "id", "o", "m", "mv", "r"];
+type Pin = { key: string; name: string };
+const DEFAULT_PINS: Pin[] = [
+  { key: "name", name: "name" },
+  { key: "t", name: "t" },
+  { key: "c", name: "c" },
+  { key: "id", name: "id" },
+  { key: "o", name: "o" },
+  { key: "m", name: "m" },
+  { key: "mv", name: "mv" },
+];
+const PIN_STORE = "deckapp.advPins";
+
+function loadPins(): Pin[] {
+  try {
+    const raw = localStorage.getItem(PIN_STORE);
+    if (!raw) return DEFAULT_PINS;
+    const parsed = JSON.parse(raw) as Pin[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_PINS;
+    return parsed.filter((p) => p && typeof p.key === "string");
+  } catch {
+    return DEFAULT_PINS;
+  }
+}
 const COLORS = [
   { id: "w", sym: "{W}" },
   { id: "u", sym: "{U}" },
@@ -72,7 +95,13 @@ const COLORS = [
 function opsFor(opt?: FieldOpt | null): CmpOp[] {
   if (!opt) return TEXT_OPS;
   if (opt.ops && opt.ops.length) return opt.ops.filter((o) => o !== "!=");
-  if (opt.category === "stats" || opt.category === "prices" || opt.category === "dates" || opt.key === "mv") {
+  if (
+    opt.category === "stats" ||
+    opt.category === "prices" ||
+    opt.category === "dates" ||
+    opt.category === "edhrec" ||
+    opt.key === "mv"
+  ) {
     return NUM_OPS;
   }
   if (opt.category === "colors" || opt.key === "produces") return NUM_OPS;
@@ -342,6 +371,13 @@ function ClauseRow({
   const [hi, setHi] = useState(0);
   const [symOpen, setSymOpen] = useState(false);
   const [valueOpen, setValueOpen] = useState(false);
+  const [pins, setPins] = useState<Pin[]>(loadPins);
+  const [editPins, setEditPins] = useState(false);
+
+  function savePins(next: Pin[]) {
+    setPins(next);
+    localStorage.setItem(PIN_STORE, JSON.stringify(next));
+  }
 
   const selected = FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field);
   const allowed = opsFor(selected);
@@ -388,21 +424,71 @@ function ClauseRow({
   return (
     <section className={styles.composer}>
       <div className={styles.pins}>
-        {PINNED.map((key) => {
-          const opt = FIELD_OPTS.find((f) => f.key === key);
+        {pins.map((pin, i) => {
+          const opt = FIELD_OPTS.find((f) => f.key === pin.key);
           if (!opt) return null;
           const on = draft.field === opt.key && draft.category === opt.category;
+          if (editPins) {
+            return (
+              <span key={`${pin.key}-${i}`} className={styles.pinEdit}>
+                <select
+                  value={pin.key}
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    const found = FIELD_OPTS.find((f) => f.key === key);
+                    savePins(
+                      pins.map((p, j) =>
+                        j === i ? { key, name: found?.key || found?.label || key } : p
+                      )
+                    );
+                  }}
+                >
+                  {FIELD_OPTS.map((f) => (
+                    <option key={`${f.category}:${f.key}`} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={pin.name}
+                  onChange={(e) =>
+                    savePins(pins.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
+                  }
+                />
+                <button type="button" onClick={() => savePins(pins.filter((_, j) => j !== i))}>
+                  ×
+                </button>
+              </span>
+            );
+          }
           return (
             <button
-              key={key}
+              key={`${pin.key}-${i}`}
               type="button"
               className={`${styles.pin}${on ? ` ${styles.opOn}` : ""}`}
               onClick={() => onPick(opt)}
             >
-              {opt.key || "n"}
+              {pin.name || opt.key || "n"}
             </button>
           );
         })}
+        {editPins && (
+          <button
+            type="button"
+            className={styles.pin}
+            onClick={() => savePins([...pins, { key: "t", name: "t" }])}
+          >
+            +
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.pinEditBtn}
+          onClick={() => setEditPins((v) => !v)}
+          title="Edit quick fields"
+        >
+          {editPins ? "Done" : "✎"}
+        </button>
       </div>
       <div className={styles.row}>
         <div className={styles.fieldPick}>
