@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
 import { fetchRandomCard } from "../lib/scryfallApi";
+import { pushRandomHistory } from "../lib/randomCardHistory";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./LandingPage.module.css";
@@ -109,7 +110,17 @@ export function LandingPage() {
     setRandomBusy(true);
     const { card } = await fetchRandomCard();
     setRandomBusy(false);
-    if (card) setRandomCard(card);
+    if (card) {
+      pushRandomHistory(user?.id, {
+        id: card.id,
+        name: card.name,
+        image:
+          card.image_uris?.normal ||
+          card.card_faces?.[0]?.image_uris?.normal ||
+          null,
+      });
+      setRandomCard(card);
+    }
   }
 
   const searchDrawer = (
@@ -119,7 +130,7 @@ export function LandingPage() {
       description="Look up any Magic card."
       delayMs={80}
       slots={[
-        { to: "/search?mode=syntax", mark: "Y", title: "Syntax" },
+        { to: "/search?mode=standard", mark: "Y", title: "Standard" },
         { to: "/search?mode=advanced", mark: "A", title: "Advanced" },
       ]}
       rail={{

@@ -9,11 +9,24 @@ import {
 import { PasswordSetForm } from "./PasswordSetForm";
 import styles from "../LoginPage.module.css";
 import { ThemePicker } from "../../components/ThemePicker";
+import {
+  clearRandomHistory,
+  readRandomHistory,
+  type RandomHistoryEntry,
+} from "../../lib/randomCardHistory";
+import { CardInspectorModal } from "../../components/CardInspectorModal";
 
-type AccountSection = "profile" | "themes" | "password";
+type AccountSection = "profile" | "themes" | "random" | "password";
 
 function sectionFromSearch(raw: string | null): AccountSection {
-  if (raw === "themes" || raw === "password" || raw === "profile") return raw;
+  if (
+    raw === "themes" ||
+    raw === "password" ||
+    raw === "profile" ||
+    raw === "random"
+  ) {
+    return raw;
+  }
   return "profile";
 }
 
@@ -32,10 +45,16 @@ export function AccountPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [randomHistory, setRandomHistory] = useState<RandomHistoryEntry[]>(() =>
+    readRandomHistory(user.id)
+  );
+  const [historyCardId, setHistoryCardId] = useState<string | null>(null);
 
   useEffect(() => {
-    setSection(sectionFromSearch(searchParams.get("tab")));
-  }, [searchParams]);
+    const next = sectionFromSearch(searchParams.get("tab"));
+    setSection(next);
+    if (next === "random") setRandomHistory(readRandomHistory(user.id));
+  }, [searchParams, user.id]);
 
   useEffect(() => {
     setDisplayName(getDisplayName(user));
@@ -137,6 +156,15 @@ export function AccountPanel() {
           <button
             type="button"
             className={`${styles.accountNavBtn} ${
+              section === "random" ? styles.accountNavBtnActive : ""
+            }`}
+            onClick={() => goSection("random")}
+          >
+            Random history
+          </button>
+          <button
+            type="button"
+            className={`${styles.accountNavBtn} ${
               section === "password" ? styles.accountNavBtnActive : ""
             }`}
             onClick={() => goSection("password")}
@@ -225,6 +253,75 @@ export function AccountPanel() {
             <div className={styles.themePickerWrap}>
               <ThemePicker />
             </div>
+          </>
+        )}
+
+        {section === "random" && (
+          <>
+            <h1 className={styles.title}>Random history</h1>
+            <p className={styles.subtitle}>
+              Cards drawn from the landing Random card rail.
+            </p>
+            {randomHistory.length === 0 ? (
+              <p className={styles.subtitle}>No random cards yet.</p>
+            ) : (
+              <ul className={styles.randomHistory}>
+                {randomHistory.map((e) => (
+                  <li key={`${e.id}-${e.at}`} className={styles.randomHistoryItem}>
+                    <button
+                      type="button"
+                      className={styles.randomHistoryOpen}
+                      onClick={() => setHistoryCardId(e.id)}
+                    >
+                      {e.image ? (
+                        <img src={e.image} alt="" className={styles.randomHistoryThumb} />
+                      ) : (
+                        <span className={styles.randomHistoryThumb} />
+                      )}
+                      <span>
+                        <strong>{e.name}</strong>
+                        <em>
+                          {new Date(e.at).toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </em>
+                      </span>
+                    </button>
+                    <Link to={`/card/${e.id}`} className={styles.inlineLink}>
+                      Card page
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {randomHistory.length > 0 && (
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => {
+                  clearRandomHistory(user.id);
+                  setRandomHistory([]);
+                }}
+              >
+                Clear history
+              </button>
+            )}
+            {historyCardId && (
+              <CardInspectorModal
+                scryfallId={historyCardId}
+                name={
+                  randomHistory.find((e) => e.id === historyCardId)?.name
+                }
+                imageUrl={
+                  randomHistory.find((e) => e.id === historyCardId)?.image ??
+                  undefined
+                }
+                onClose={() => setHistoryCardId(null)}
+              />
+            )}
           </>
         )}
 

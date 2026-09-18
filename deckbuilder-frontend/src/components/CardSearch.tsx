@@ -10,8 +10,10 @@ const GHOST_COUNT = 5;
 
 export function CardSearch({
   onResults,
+  mode = "standard",
 }: {
   onResults: (cards: ScryfallCard[]) => void;
+  mode?: "standard" | "advanced";
 }) {
   const [inputValue, setInputValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -99,7 +101,11 @@ export function CardSearch({
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={onKeyDown}
             onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
-            placeholder="Search for a card…"
+            placeholder={
+              mode === "advanced"
+                ? "Advanced search…"
+                : "Search for a card…"
+            }
             className={styles.searchInput}
             autoComplete="off"
             spellCheck={false}
