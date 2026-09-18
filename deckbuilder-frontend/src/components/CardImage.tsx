@@ -151,6 +151,11 @@ export function CardImage({
     face: 0 | 1;
   } | null>(null);
 
+  const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
+  const backSrc = multi
+    ? overrideBackSrc || getFaceImage(card, 1) || ""
+    : "";
+
   useEffect(() => {
     if (!enlarged) return;
     const prev = document.body.style.overflow;
@@ -188,11 +193,6 @@ export function CardImage({
       window.removeEventListener("touchmove", onTouch, true);
     };
   }, [enlarged, multi, backSrc]);
-
-  const frontSrc = overrideFrontSrc || getFaceImage(card, 0);
-  const backSrc = multi
-    ? overrideBackSrc || getFaceImage(card, 1) || ""
-    : "";
 
   const frontName = faces[0]?.name ?? card.name;
   const backName = faces[1]?.name ?? "Back";
