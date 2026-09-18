@@ -1,4 +1,4 @@
-import type { ScryfallImageUris } from "./scryfallCard";
+import type { ScryfallCard, ScryfallImageUris } from "./scryfallCard";
 
 /**
  * One face of a DeckApp card after resolution.
@@ -50,6 +50,19 @@ export type DeckAppCard = {
   artist?: string;
   scryfall_uri?: string;
   lang?: string;
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
+  keywords?: string[];
+  produced_mana?: string[];
+  legalities?: Record<string, string>;
+  games?: string[];
+  prices?: ScryfallCard["prices"];
+  released_at?: string;
+  border_color?: string;
+  frame?: string;
+  edhrec_rank?: number;
 
   /** Always normalized to 1+ faces (single-faced cards get one face). */
   faces: DeckAppCardFace[];
