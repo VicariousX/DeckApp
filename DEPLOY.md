@@ -10,7 +10,7 @@
 ## Backend (Render)
 
 1. New Web Service from this repo, root directory `deckbuilder-backend`.
-2. Build: `npm install && npm run build`
+2. Build: `npm install --include=dev && npm run build`
 3. Start: `npm start`
 4. Env:
 
