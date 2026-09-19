@@ -20,7 +20,7 @@ import {
   type Node,
   uid,
 } from "../../lib/search/syntaxModel";
-import { renderManaSymbol } from "../../utils/symbols";
+import { renderManaSymbol, renderTextWithSymbols } from "../../utils/symbols";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -71,6 +71,20 @@ const DEFAULT_PINS: Pin[] = [
   { key: "mv", name: "mv" },
 ];
 const PIN_STORE = "deckapp.advPins";
+const DRAWER_STORE = "deckapp.advTokenDrawer";
+
+type SavedToken = { id: string; label: string; clause: Clause; savedAt: number };
+
+function loadDrawer(): SavedToken[] {
+  try {
+    const raw = localStorage.getItem(DRAWER_STORE);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as SavedToken[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 function loadPins(): Pin[] {
   try {
@@ -194,6 +208,16 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const fieldBox = useRef<HTMLInputElement>(null);
   const valueBox = useRef<HTMLInputElement>(null);
+  const [bench, setBench] = useState<Clause[]>([]);
+  const [drawer, setDrawer] = useState<SavedToken[]>(loadDrawer);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerQ, setDrawerQ] = useState("");
+  const [drawerSort, setDrawerSort] = useState<"new" | "name">("new");
+
+  function persistDrawer(next: SavedToken[]) {
+    setDrawer(next);
+    localStorage.setItem(DRAWER_STORE, JSON.stringify(next));
+  }
 
   const serialized = useMemo(() => serializeQuery(root), [root]);
   const hasTokens = serialized.trim().length > 0;
@@ -330,22 +354,171 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
       </p>
 
-      {hasTokens && (
-        <LogicBoard
-          root={root}
-          onChange={setRoot}
-          onEdit={(c) => {
-            setDraft({
-              category: c.category,
-              field: c.field,
-              op: c.op,
-              excluded: c.excluded,
-              value: c.value,
-              editId: c.id,
-            });
-            valueBox.current?.focus();
-          }}
-        />
+      {(hasTokens || bench.length > 0 || drawer.length > 0) && (
+        <>
+          <LogicBoard
+            root={root}
+            onChange={setRoot}
+            onEdit={(c) => {
+              setDraft({
+                category: c.category,
+                field: c.field,
+                op: c.op,
+                excluded: c.excluded,
+                value: c.value,
+                editId: c.id,
+              });
+              valueBox.current?.focus();
+            }}
+            onExtract={(c) => {
+              setRoot((r) => removeNode(r, c.id));
+              setBench((list) => (list.some((x) => x.id === c.id) ? list : [...list, c]));
+            }}
+            onSave={(c) => {
+              persistDrawer([
+                {
+                  id: uid(),
+                  label: serializeClause(c),
+                  clause: { ...c, id: uid() },
+                  savedAt: Date.now(),
+                },
+                ...drawer,
+              ]);
+              setDrawerOpen(true);
+            }}
+            onAdopt={(id, groupId) => {
+              setBench((list) => {
+                const hit = list.find((x) => x.id === id);
+                if (!hit) return list;
+                setRoot((r) => ({ ...insertInto(r, groupId, hit), join: "and" }));
+                return list.filter((x) => x.id !== id);
+              });
+            }}
+          />
+          <section
+            className={styles.logic}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = e.dataTransfer.getData("text/token");
+              if (!id) return;
+              const loc = findNode(root, id);
+              if (!loc) return;
+              const node = loc.parent.items[loc.index];
+              if (node.kind !== "clause") return;
+              setRoot((r) => removeNode(r, id));
+              setBench((list) => (list.some((x) => x.id === id) ? list : [...list, node]));
+            }}
+          >
+            <div className={styles.logicHead}>
+              <h2>Bench</h2>
+              <span className={styles.hint}>Held tokens are not in the query</span>
+            </div>
+            <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
+              <div className={styles.tokens}>
+                {bench.map((c) => (
+                  <Token
+                    key={c.id}
+                    clause={c}
+                    onEdit={() => {
+                      setDraft({
+                        category: c.category,
+                        field: c.field,
+                        op: c.op,
+                        excluded: c.excluded,
+                        value: c.value,
+                        editId: c.id,
+                      });
+                    }}
+                    onRemove={() => setBench((list) => list.filter((x) => x.id !== c.id))}
+                    onSave={() => {
+                      persistDrawer([
+                        {
+                          id: uid(),
+                          label: serializeClause(c),
+                          clause: { ...c, id: uid() },
+                          savedAt: Date.now(),
+                        },
+                        ...drawer,
+                      ]);
+                      setDrawerOpen(true);
+                    }}
+                    onApply={() => {
+                      setBench((list) => list.filter((x) => x.id !== c.id));
+                      setRoot((r) => ({ ...r, items: [...r.items, c] }));
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+          <section className={styles.logic}>
+            <div className={styles.logicHead}>
+              <h2>Token drawer</h2>
+              <button type="button" className={styles.ghost} onClick={() => setDrawerOpen((v) => !v)}>
+                {drawerOpen ? "Hide" : "Show"}
+              </button>
+            </div>
+            {drawerOpen && (
+              <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
+                <div className={styles.drawerBar}>
+                  <input
+                    className={styles.value}
+                    value={drawerQ}
+                    placeholder="Filter saved tokens"
+                    onChange={(e) => setDrawerQ(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.ghost}
+                    onClick={() => setDrawerSort((s) => (s === "new" ? "name" : "new"))}
+                  >
+                    {drawerSort === "new" ? "Newest" : "Name"}
+                  </button>
+                </div>
+                <div className={styles.tokens}>
+                  {drawer
+                    .filter((s) => {
+                      const q = drawerQ.toLowerCase();
+                      if (!q) return true;
+                      return (
+                        s.label.toLowerCase().includes(q) ||
+                        serializeClause(s.clause).toLowerCase().includes(q)
+                      );
+                    })
+                    .sort((a, b) =>
+                      drawerSort === "name"
+                        ? a.label.localeCompare(b.label)
+                        : b.savedAt - a.savedAt
+                    )
+                    .map((s) => (
+                      <div key={s.id} className={styles.savedRow}>
+                        <Token
+                          clause={s.clause}
+                          onEdit={() =>
+                            setDraft({
+                              category: s.clause.category,
+                              field: s.clause.field,
+                              op: s.clause.op,
+                              excluded: s.clause.excluded,
+                              value: s.clause.value,
+                            })
+                          }
+                          onRemove={() => persistDrawer(drawer.filter((x) => x.id !== s.id))}
+                          onApply={() =>
+                            setRoot((r) => ({
+                              ...r,
+                              items: [...r.items, { ...s.clause, id: uid() }],
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );
@@ -424,6 +597,14 @@ function ClauseRow({
   return (
     <section className={styles.composer}>
       <div className={styles.pins}>
+        <button
+          type="button"
+          className={styles.pinEditBtn}
+          onClick={() => setEditPins((v) => !v)}
+          title="Edit quick fields"
+        >
+          {editPins ? "Done" : "✎"}
+        </button>
         {pins.map((pin, i) => {
           const opt = FIELD_OPTS.find((f) => f.key === pin.key);
           if (!opt) return null;
@@ -481,14 +662,6 @@ function ClauseRow({
             +
           </button>
         )}
-        <button
-          type="button"
-          className={styles.pinEditBtn}
-          onClick={() => setEditPins((v) => !v)}
-          title="Edit quick fields"
-        >
-          {editPins ? "Done" : "✎"}
-        </button>
       </div>
       <div className={styles.row}>
         <div className={styles.fieldPick}>
@@ -508,6 +681,14 @@ function ClauseRow({
             }}
             onKeyDown={(e) => {
               if (e.key === "Tab") {
+                if (flat.length === 1) {
+                  e.preventDefault();
+                  onPick(flat[0]);
+                  setOpen(false);
+                  setQuery("");
+                  requestAnimationFrame(() => valueBox.current?.focus());
+                  return;
+                }
                 const code = (query || "").trim().toLowerCase();
                 const mapped = SHORTCUTS[code];
                 const hit =
@@ -635,8 +816,19 @@ function ClauseRow({
               }}
               onKeyDown={(e) => {
                 onComposerKey(e);
+                if (e.key === "Tab" && valueHints.length === 1) {
+                  e.preventDefault();
+                  setDraft({ ...draft, value: valueHints[0] });
+                  setValueOpen(false);
+                  return;
+                }
                 if (e.key === "Enter") {
                   e.preventDefault();
+                  if (valueHints.length === 1) {
+                    setDraft({ ...draft, value: valueHints[0] });
+                    setValueOpen(false);
+                    return;
+                  }
                   onSubmit();
                 }
               }}
@@ -711,10 +903,16 @@ function LogicBoard({
   root,
   onChange,
   onEdit,
+  onExtract,
+  onSave,
+  onAdopt,
 }: {
   root: Group;
   onChange: (g: Group | ((prev: Group) => Group)) => void;
   onEdit: (c: Clause) => void;
+  onExtract: (c: Clause) => void;
+  onSave: (c: Clause) => void;
+  onAdopt?: (id: string, groupId: string) => void;
 }) {
   function patch(mut: (g: Group) => Group) {
     onChange((prev) => ({ ...mut(prev), join: "and" }));
@@ -723,7 +921,10 @@ function LogicBoard({
     if (id === target) return;
     onChange((prev) => {
       const loc = findNode(prev, id);
-      if (!loc) return prev;
+      if (!loc) {
+        onAdopt?.(id, target);
+        return prev;
+      }
       const node = loc.parent.items[loc.index];
       if (node.kind === "group" && containsId(node, target)) return prev;
       return { ...insertInto(removeNode(prev, id), target, node), join: "and" };
@@ -735,7 +936,15 @@ function LogicBoard({
       <div className={styles.logicHead}>
         <h2>Board</h2>
       </div>
-      <Bubble group={root} onEdit={onEdit} onMove={move} onPatch={patch} isRoot />
+      <Bubble
+        group={root}
+        onEdit={onEdit}
+        onMove={move}
+        onPatch={patch}
+        onExtract={onExtract}
+        onSave={onSave}
+        isRoot
+      />
     </section>
   );
 }
@@ -745,12 +954,16 @@ function Bubble({
   onEdit,
   onMove,
   onPatch,
+  onExtract,
+  onSave,
   isRoot,
 }: {
   group: Group;
   onEdit: (c: Clause) => void;
   onMove: (id: string, groupId: string) => void;
   onPatch: (mut: (g: Group) => Group) => void;
+  onExtract: (c: Clause) => void;
+  onSave: (c: Clause) => void;
   isRoot?: boolean;
 }) {
   return (
@@ -814,6 +1027,8 @@ function Bubble({
               clause={n}
               onEdit={() => onEdit(n)}
               onRemove={() => onPatch((tree) => removeNode(tree, n.id))}
+              onExtract={isRoot ? undefined : () => onExtract(n)}
+              onSave={() => onSave(n)}
             />
           ) : (
             <div
@@ -824,7 +1039,14 @@ function Bubble({
                 e.stopPropagation();
               }}
             >
-              <Bubble group={n} onEdit={onEdit} onMove={onMove} onPatch={onPatch} />
+              <Bubble
+                group={n}
+                onEdit={onEdit}
+                onMove={onMove}
+                onPatch={onPatch}
+                onExtract={onExtract}
+                onSave={onSave}
+              />
             </div>
           )
         )}
@@ -837,19 +1059,43 @@ function Token({
   clause,
   onEdit,
   onRemove,
+  onExtract,
+  onSave,
+  onApply,
 }: {
   clause: Clause;
   onEdit: () => void;
   onRemove: () => void;
+  onExtract?: () => void;
+  onSave?: () => void;
+  onApply?: () => void;
 }) {
+  const syntax = serializeClause(clause);
   return (
-    <div
-      className={`${styles.token}${clause.excluded ? ` ${styles.tokenNot}` : ""}`}
-      draggable
-      onDragStart={(e) => e.dataTransfer.setData("text/token", clause.id)}
-    >
-      <code>{serializeClause(clause)}</code>
+    <div className={styles.tokenWrap}>
+      <div
+        className={`${styles.token}${clause.excluded ? ` ${styles.tokenNot}` : ""}`}
+        draggable
+        onDragStart={(e) => e.dataTransfer.setData("text/token", clause.id)}
+      >
+        <code>{renderTextWithSymbols(syntax, 14)}</code>
+      </div>
       <span className={styles.tokenActs}>
+        {onApply && (
+          <button type="button" onClick={onApply} title="Add to query">
+            +
+          </button>
+        )}
+        {onExtract && (
+          <button type="button" onClick={onExtract} title="Move to bench">
+            ▴
+          </button>
+        )}
+        {onSave && (
+          <button type="button" onClick={onSave} title="Save to drawer">
+            ☆
+          </button>
+        )}
         <button type="button" onClick={onEdit} title="Edit">
           ✎
         </button>

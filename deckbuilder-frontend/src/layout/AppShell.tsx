@@ -69,28 +69,43 @@ export function AppShell() {
               to="/search?mode=standard"
               className={() => {
                 const onSearch = location.pathname.startsWith("/search");
-                const advanced = new URLSearchParams(location.search).get("mode") === "advanced";
-                const active = onSearch && !advanced;
                 return `${styles.navLink} ${styles.searchPrimary}${
-                  active ? ` ${styles.navLinkActive}` : ""
+                  onSearch ? ` ${styles.navLinkActive}` : ""
                 }`;
               }}
             >
-              <span className={styles.searchIdle}>Search</span>
-              <span className={styles.searchHover}>Standard</span>
+              Search
             </NavLink>
-            <NavLink
-              to="/search?mode=advanced"
-              className={() => {
-                const onSearch = location.pathname === "/search";
-                const advanced = new URLSearchParams(location.search).get("mode") === "advanced";
-                return `${styles.navLink} ${styles.searchAdvanced}${
-                  onSearch && advanced ? ` ${styles.navLinkActive}` : ""
-                }`;
-              }}
-            >
-              Advanced
-            </NavLink>
+            <div className={styles.searchMenu} role="menu">
+              <NavLink
+                to="/search?mode=standard"
+                role="menuitem"
+                className={() => {
+                  const onSearch = location.pathname.startsWith("/search");
+                  const advanced =
+                    new URLSearchParams(location.search).get("mode") === "advanced";
+                  return `${styles.searchMenuItem}${
+                    onSearch && !advanced ? ` ${styles.searchMenuOn}` : ""
+                  }`;
+                }}
+              >
+                Standard
+              </NavLink>
+              <NavLink
+                to="/search?mode=advanced"
+                role="menuitem"
+                className={() => {
+                  const onSearch = location.pathname.startsWith("/search");
+                  const advanced =
+                    new URLSearchParams(location.search).get("mode") === "advanced";
+                  return `${styles.searchMenuItem}${
+                    onSearch && advanced ? ` ${styles.searchMenuOn}` : ""
+                  }`;
+                }}
+              >
+                Advanced
+              </NavLink>
+            </div>
           </div>
 
           {user && (

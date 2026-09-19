@@ -107,7 +107,6 @@
 }
 
 .pinEditBtn {
-  margin-left: auto;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
@@ -242,6 +241,17 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-accent) color-mix(in srgb, var(--color-surface) 70%, black);
+}
+
+.menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.menu::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+  border-radius: 999px;
 }
 
 .menuGroup {
@@ -355,28 +365,46 @@
   align-items: flex-start;
 }
 
-.token {
+.tokenWrap {
   position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+}
+
+.tokenWrap:hover,
+.tokenWrap:focus-within {
+  z-index: 4;
+}
+
+.token {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.28rem 0.55rem 0.28rem;
+  padding: 0.28rem 0.55rem;
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   cursor: grab;
 }
 
-.token:hover,
-.token:focus-within {
-  padding-bottom: 1.7rem;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-}
-
 .token code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
   font-size: 0.78rem;
   color: var(--color-text);
+}
+
+.drawerBar {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.savedRow {
+  display: inline-flex;
 }
 
 .tokenNot {
@@ -386,17 +414,35 @@
 .tokenActs {
   position: absolute;
   left: 50%;
-  top: calc(100% - 1.45rem);
-  transform: translateX(-50%);
-  display: none;
+  top: calc(100% + 0.18rem);
+  transform: translate(-50%, -6px);
+  display: inline-flex;
   gap: 0.15rem;
-  padding: 0.12rem 0.2rem;
-  z-index: 2;
+  padding: 0.12rem;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 5;
 }
 
-.token:hover .tokenActs,
-.token:focus-within .tokenActs {
-  display: inline-flex;
+.tokenWrap:hover .tokenActs,
+.tokenWrap:focus-within .tokenActs {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.tokenWrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 2.1rem;
 }
 
 .tokenActs button {
