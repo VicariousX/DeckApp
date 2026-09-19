@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { apiUrl } from "../lib/apiBase";
 import type { ScryfallCard } from "../types/scryfallCard";
 
 type SearchJson = {
@@ -43,7 +44,7 @@ export function useScryfallSearch() {
           qs.set("dir", direction);
         }
         const response = await fetch(
-          `http://127.0.0.1:3001/api/scryfall?${qs.toString()}`
+          apiUrl(`/api/scryfall?${qs.toString()}`)
         );
         if (!response.ok) throw new Error("fail");
         const json: SearchJson = await response.json();

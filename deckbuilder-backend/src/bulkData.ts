@@ -15,6 +15,7 @@ import path from "node:path";
 import { createGunzip } from "node:zlib";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { BULK_ENABLED } from "./config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../data");
@@ -219,6 +220,7 @@ async function loadFromDiskIfPresent(): Promise<boolean> {
 export async function ensureBulkData(options?: {
   force?: boolean;
 }): Promise<void> {
+  if (!BULK_ENABLED) return;
   if (state.ready && !options?.force) return;
   if (state.loading) return state.loading;
 
@@ -266,12 +268,14 @@ async function refreshIfStale(): Promise<void> {
 
 export function bulkStatus(): {
   ready: boolean;
+  enabled: boolean;
   card_count: number;
   updated_at: string | null;
   downloaded_at: string | null;
 } {
   return {
     ready: state.ready,
+    enabled: BULK_ENABLED,
     card_count: state.meta?.card_count ?? state.byId.size,
     updated_at: state.meta?.updated_at ?? null,
     downloaded_at: state.meta?.downloaded_at ?? null,
@@ -409,6 +413,7 @@ async function loadRulingsFromDisk(): Promise<boolean> {
 }
 
 export async function ensureRulingsData(options?: { force?: boolean }): Promise<void> {
+  if (!BULK_ENABLED) return;
   if (rulingsState.ready && !options?.force) return;
   if (rulingsState.loading) return rulingsState.loading;
   rulingsState.loading = (async () => {

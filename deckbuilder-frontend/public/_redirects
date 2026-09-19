@@ -1,0 +1,4 @@
+# Cloudflare Pages
+# Proxy API to Render. Replace the host after you create the Render service.
+/api/*  https://deckapp-api.onrender.com/api/:splat  200
+/*      /index.html  200

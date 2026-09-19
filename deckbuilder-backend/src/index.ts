@@ -14,21 +14,38 @@ import {
   ensureRulingsData,
   simpleNameSearch,
 } from "./bulkData.js";
+import { BULK_ENABLED, CORS_ORIGINS, HOST, PORT } from "./config.js";
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: CORS_ORIGINS.length > 0 ? CORS_ORIGINS : true,
+    credentials: false,
+  })
+);
 app.use(express.json({ limit: "1mb" }));
 
-const PORT = 3001;
-const HOST = "127.0.0.1";
+if (BULK_ENABLED) {
+  void ensureBulkData().catch((e) =>
+    console.error("[bulk] initial load failed:", e)
+  );
+  void ensureRulingsData().catch((e) =>
+    console.error("[bulk] rulings load failed:", e)
+  );
+} else {
+  console.log("[bulk] disabled — live Scryfall via rate-limited proxy only");
+}
 
-// Kick off bulk load immediately (non-blocking for listen)
-void ensureBulkData().catch((e) =>
-  console.error("[bulk] initial load failed:", e)
-);
-void ensureRulingsData().catch((e) =>
-  console.error("[bulk] rulings load failed:", e)
-);
+function health(_req: Request, res: Response) {
+  res.json({
+    ok: true,
+    service: "deckapp-api",
+    bulk: bulkStatus(),
+  });
+}
+
+app.get("/health", health);
+app.get("/api/health", health);
 
 /** Live API only when bulk cannot answer — still rate-limited. */
 async function liveGet(path: string) {
@@ -305,6 +322,8 @@ app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
 app.listen(PORT, HOST, () => {
   console.log(`DeckApp API listening on http://${HOST}:${PORT}`);
   console.log(
-    "Scryfall: bulk default_cards preferred; live API rate-limited fallback only"
+    BULK_ENABLED
+      ? "Scryfall: bulk preferred; live API rate-limited fallback"
+      : "Scryfall: live API only (BULK_ENABLED=false)"
   );
 });

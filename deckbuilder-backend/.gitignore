@@ -1,3 +1,6 @@
 data/
+dist/
 *.jsonl
 *.jsonl.gz
+.env
+.env.local

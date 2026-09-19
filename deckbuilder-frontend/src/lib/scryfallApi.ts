@@ -1,6 +1,5 @@
 import type { ScryfallCard } from "../types/scryfallCard";
-
-const BASE = "http://127.0.0.1:3001";
+import { apiUrl } from "./apiBase";
 
 /** Client-side card cache (by scryfall id) — cuts repeat modal/search traffic. */
 const cardCache = new Map<string, ScryfallCard>();
@@ -24,7 +23,7 @@ export async function fetchRandomCard(): Promise<{
   error: string | null;
 }> {
   try {
-    const res = await fetch(`${BASE}/api/scryfall/random`);
+    const res = await fetch(`${apiUrl("")}/api/scryfall/random`);
     const data = await res.json();
     if (!res.ok) {
       return {
@@ -55,7 +54,7 @@ export async function fetchCardById(
   const promise = (async () => {
     try {
       const res = await fetch(
-        `${BASE}/api/scryfall/card/${encodeURIComponent(id)}`
+        `${apiUrl("")}/api/scryfall/card/${encodeURIComponent(id)}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -108,7 +107,7 @@ export async function fetchRulings(
     try {
       const q = oracleId ? `?oracle=${encodeURIComponent(oracleId)}` : "";
       const res = await fetch(
-        `${BASE}/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`
+        `${apiUrl("")}/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -138,7 +137,7 @@ export async function fetchAutocomplete(
   if (trimmed.length < 2) return { names: [], error: null };
   try {
     const res = await fetch(
-      `${BASE}/api/scryfall/autocomplete?q=${encodeURIComponent(trimmed)}`
+      `${apiUrl("")}/api/scryfall/autocomplete?q=${encodeURIComponent(trimmed)}`
     );
     const data = await res.json();
     if (!res.ok) {
@@ -157,7 +156,7 @@ export async function fetchNamedCard(
   const param = mode === "exact" ? "exact" : "fuzzy";
   try {
     const res = await fetch(
-      `${BASE}/api/scryfall/named?${param}=${encodeURIComponent(name)}`
+      `${apiUrl("")}/api/scryfall/named?${param}=${encodeURIComponent(name)}`
     );
     const data = await res.json();
     if (!res.ok) {
@@ -187,7 +186,7 @@ export async function fetchPrintings(
   const promise = (async () => {
     try {
       const res = await fetch(
-        `${BASE}/api/scryfall/prints?oracle_id=${encodeURIComponent(oracleId)}`
+        `${apiUrl("")}/api/scryfall/prints?oracle_id=${encodeURIComponent(oracleId)}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -224,7 +223,7 @@ export async function fetchCollectionByNames(
   if (names.length === 0) return { cards: [], notFound: [], error: null };
   try {
     const identifiers = names.map((name) => ({ name }));
-    const res = await fetch(`${BASE}/api/scryfall/collection`, {
+    const res = await fetch(`${apiUrl("")}/api/scryfall/collection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifiers }),
