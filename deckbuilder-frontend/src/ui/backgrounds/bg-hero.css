@@ -1,0 +1,16 @@
+/* Legacy fixed body gradients disabled — AmbientBackdrop owns atmosphere.
+   Keep a solid fallback if the React layer is unavailable. */
+body {
+  background-color: var(--color-bg);
+  background-image: none;
+  background-attachment: scroll;
+}
+
+body::before {
+  content: none;
+}
+
+:root {
+  --scroll-y: 0;
+  --scroll-t: 0;
+}

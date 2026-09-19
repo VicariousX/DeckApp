@@ -3,14 +3,14 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import "./ui/tokens/spacing.module.css";
-import "./ui/tokens/motion.module.css";
+import "./ui/tokens/spacing.css";
+import "./ui/tokens/motion.css";
 import "./ui/tokens/colors.css";
 import "./ui/themes/premium.css";
 import "./ui/themes/arcane.css";
 import "./ui/themes/all-themes.css";
-import "./ui/density/airy.module.css";
-import "./ui/backgrounds/bg-hero.module.css";
+import "./ui/density/airy.css";
+import "./ui/backgrounds/bg-hero.css";
 import "./styles/pageChrome.css";
 
 import App from "./App.tsx";
