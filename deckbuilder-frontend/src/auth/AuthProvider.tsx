@@ -133,9 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: result, error } = await supabase.auth.updateUser({
           data,
         });
-        if (!error && result.session) {
-          setSession(result.session);
-        } else if (!error && result.user) {
+        if (!error && result.user) {
           setSession((prev) =>
             prev ? { ...prev, user: result.user } : prev
           );

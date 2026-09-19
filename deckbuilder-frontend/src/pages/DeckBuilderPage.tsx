@@ -2071,10 +2071,10 @@ function CardTagPicker({
 
   useEffect(() => {
     if (!open) return;
-    function onDoc(e: MouseEvent) {
+    function onDoc(e: globalThis.MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) onOpenChange(false);
     }
-    function onKey(e: KeyboardEvent) {
+    function onKey(e: globalThis.KeyboardEvent) {
       if (e.key === "Escape") onOpenChange(false);
     }
     document.addEventListener("mousedown", onDoc);

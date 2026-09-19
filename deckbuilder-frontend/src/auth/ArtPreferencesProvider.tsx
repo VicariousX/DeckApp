@@ -354,9 +354,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
           seedFace(printing);
         } else if (normalizedArt?.preferred_scryfall_id) {
           const prefId = normId(normalizedArt.preferred_scryfall_id);
-          const pref =
-            preferredRef.current.get(prefId) ||
-            (printing && normId(printing.id) === prefId ? printing : undefined);
+          const pref = preferredRef.current.get(prefId);
           if (pref) seedFace(pref);
           else {
             void ensurePreferred(prefId).then((card) => {

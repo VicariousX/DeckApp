@@ -22,12 +22,17 @@ export function Modal({
       if (t?.closest("[data-modal-root]")) return;
       e.preventDefault();
     }
+    function onTouch(e: TouchEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-modal-root]")) return;
+      e.preventDefault();
+    }
     window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchmove", onWheel, { passive: false });
+    window.addEventListener("touchmove", onTouch, { passive: false });
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchmove", onWheel);
+      window.removeEventListener("touchmove", onTouch);
     };
   }, []);
 
