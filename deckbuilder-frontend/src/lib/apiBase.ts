@@ -9,6 +9,8 @@ export function apiBase(): string {
 }
 
 export function apiUrl(path: string): string {
-  const p = path.startsWith("/") ? path : `/${path}`;
+  const raw = path.trim();
+  if (!raw || raw === "/") return apiBase() || "";
+  const p = raw.startsWith("/") ? raw : `/${raw}`;
   return `${apiBase()}${p}`;
 }
