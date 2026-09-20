@@ -1,4 +1,2 @@
-# Cloudflare Pages
-# Proxy API to Render. Replace the host after you create the Render service.
-/api/*  https://deckapp-bwio.onrender.com/api/:splat  200
-/*      /index.html  200
+# SPA fallback only. /api/* is proxied by functions/api/[[path]].ts
+/*    /index.html  200
