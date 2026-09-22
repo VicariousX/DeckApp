@@ -46,16 +46,35 @@ function emit(next: Partial<CatalogProgress> & { phase: CatalogProgress["phase"]
 type BulkMeta = {
   updated_at?: string;
   download_uri?: string;
+  jsonl_download_uri?: string;
   size?: number;
+  compressed_size?: number;
 };
 
+function bulkFileUrl(data: BulkMeta): string | undefined {
+  return data.jsonl_download_uri || data.download_uri;
+}
+
 async function fetchBulkMeta(type: CatalogFileKind): Promise<BulkMeta> {
-  const res = await fetch(apiUrl(`/api/scryfall/bulk-data/${type}`));
-  const data = (await res.json()) as BulkMeta;
-  if (!res.ok || !data.download_uri) {
-    throw new Error((data as { error?: string }).error || `No download URI for ${type}`);
+  const paths = [
+    apiUrl(`/api/scryfall/bulk-data/${type}`),
+    `https://api.scryfall.com/bulk-data/${type}`,
+  ];
+  let lastErr = `No download URI for ${type}`;
+  for (const url of paths) {
+    try {
+      const res = await fetch(url);
+      const data = (await res.json()) as BulkMeta & { error?: string };
+      const file = bulkFileUrl(data);
+      if (res.ok && file) {
+        return { ...data, download_uri: file };
+      }
+      lastErr = data.error || lastErr;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : lastErr;
+    }
   }
-  return data;
+  throw new Error(lastErr);
 }
 
 export async function applyCatalogTier(

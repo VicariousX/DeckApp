@@ -62,14 +62,39 @@ function clearStore(db: IDBDatabase, store: "cards" | "rulings"): Promise<void> 
   });
 }
 
+async function readBulkRows(res: Response): Promise<unknown[]> {
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const gzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+  let text: string;
+  if (gzip) {
+    const stream = new Blob([buf]).stream().pipeThrough(
+      new DecompressionStream("gzip")
+    );
+    text = await new Response(stream).text();
+  } else {
+    text = new TextDecoder().decode(buf);
+  }
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error("Empty bulk file");
+  if (trimmed.startsWith("[")) {
+    const arr = JSON.parse(trimmed) as unknown;
+    if (!Array.isArray(arr)) throw new Error("Unexpected bulk format");
+    return arr;
+  }
+  const rows: unknown[] = [];
+  for (const line of trimmed.split("\n")) {
+    if (!line.trim()) continue;
+    rows.push(JSON.parse(line));
+  }
+  return rows;
+}
+
 async function ingest(msg: StartMsg) {
   postMessage({ type: "progress", phase: "download", loaded: 0, total: 1, file: msg.kind });
   const res = await fetch(msg.url);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
-  const text = await res.text();
-  postMessage({ type: "progress", phase: "index", loaded: 0, total: 1, file: msg.kind });
-  const parsed = JSON.parse(text) as unknown[];
-  if (!Array.isArray(parsed)) throw new Error("Unexpected bulk format");
+  const parsed = await readBulkRows(res);
+  postMessage({ type: "progress", phase: "index", loaded: 0, total: parsed.length, file: msg.kind });
 
   const db = await openDb();
   try {
