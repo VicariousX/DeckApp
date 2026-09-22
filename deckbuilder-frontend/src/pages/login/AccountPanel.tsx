@@ -9,6 +9,7 @@ import {
 import { PasswordSetForm } from "./PasswordSetForm";
 import styles from "../LoginPage.module.css";
 import { ThemePicker } from "../../components/ThemePicker";
+import { BulkDataPanel } from "../../components/BulkDataPanel";
 import {
   clearRandomHistory,
   readRandomHistory,
@@ -16,13 +17,14 @@ import {
 } from "../../lib/randomCardHistory";
 import { CardInspectorModal } from "../../components/CardInspectorModal";
 
-type AccountSection = "profile" | "themes" | "random" | "password";
+type AccountSection = "profile" | "themes" | "data" | "random" | "password";
 
 function sectionFromSearch(raw: string | null): AccountSection {
   if (
     raw === "themes" ||
     raw === "password" ||
     raw === "profile" ||
+    raw === "data" ||
     raw === "random"
   ) {
     return raw;
@@ -156,6 +158,15 @@ export function AccountPanel() {
           <button
             type="button"
             className={`${styles.accountNavBtn} ${
+              section === "data" ? styles.accountNavBtnActive : ""
+            }`}
+            onClick={() => goSection("data")}
+          >
+            Card data
+          </button>
+          <button
+            type="button"
+            className={`${styles.accountNavBtn} ${
               section === "random" ? styles.accountNavBtnActive : ""
             }`}
             onClick={() => goSection("random")}
@@ -253,6 +264,18 @@ export function AccountPanel() {
             <div className={styles.themePickerWrap}>
               <ThemePicker />
             </div>
+          </>
+        )}
+
+        {section === "data" && (
+          <>
+            <h1 className={styles.title}>Card data</h1>
+            <p className={styles.subtitle}>
+              Stay on the live throttled API, or download Scryfall’s official bulk
+              files onto this device. Downloads come from data.scryfall.io — we
+              do not host the catalog. Advanced syntax search always stays live.
+            </p>
+            <BulkDataPanel />
           </>
         )}
 

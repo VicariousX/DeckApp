@@ -57,6 +57,29 @@ app.get("/api/scryfall/bulk/status", (_req: Request, res: Response) => {
   res.json(bulkStatus());
 });
 
+const BULK_TYPES = new Set([
+  "oracle-cards",
+  "default-cards",
+  "unique-artwork",
+  "rulings",
+]);
+
+/** Metadata only — client downloads the file from data.scryfall.io. */
+app.get("/api/scryfall/bulk-data/:type", async (req: Request, res: Response) => {
+  const raw = req.params.type;
+  const type = Array.isArray(raw) ? raw[0] : raw;
+  if (!type || !BULK_TYPES.has(type)) {
+    return res.status(400).json({ error: "Unknown bulk type" });
+  }
+  try {
+    const { status, data } = await liveGet(`/bulk-data/${encodeURIComponent(type)}`);
+    res.status(status).json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Bulk metadata failed" });
+  }
+});
+
 app.post("/api/scryfall/bulk/refresh", async (_req: Request, res: Response) => {
   try {
     await ensureBulkData({ force: true });

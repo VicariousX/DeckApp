@@ -17,6 +17,9 @@ import App from "./App.tsx";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ArtPreferencesProvider } from "./auth/ArtPreferencesProvider";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { bootCatalog } from "./lib/catalog/manager";
+
+void bootCatalog();
 
 const queryClient = new QueryClient();
 createRoot(document.getElementById("root")!).render(

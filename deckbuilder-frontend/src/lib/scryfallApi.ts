@@ -1,5 +1,14 @@
 import type { ScryfallCard } from "../types/scryfallCard";
 import { apiUrl } from "./apiBase";
+import {
+  autocompleteLocal,
+  catalogReady,
+  getCardById as catalogCardById,
+  getCardByName as catalogCardByName,
+  getPrintsByOracle,
+  getRulingsByOracle,
+} from "./catalog/db";
+import { readCatalogTier } from "./catalog/preference";
 
 /** Client-side card cache (by scryfall id) — cuts repeat modal/search traffic. */
 const cardCache = new Map<string, ScryfallCard>();
@@ -53,6 +62,13 @@ export async function fetchCardById(
 
   const promise = (async () => {
     try {
+      if (await catalogReady()) {
+        const local = await catalogCardById(key);
+        if (local) {
+          cardCache.set(key, local);
+          return { card: local, error: null };
+        }
+      }
       const res = await fetch(
         apiUrl(`/api/scryfall/card/${encodeURIComponent(id)}`)
       );
@@ -105,6 +121,11 @@ export async function fetchRulings(
 
   const promise = (async () => {
     try {
+      if (await catalogReady()) {
+        const local = await getRulingsByOracle(key);
+        rulingsCache.set(key, local);
+        return { rulings: local, error: null };
+      }
       const q = oracleId ? `?oracle=${encodeURIComponent(oracleId)}` : "";
       const res = await fetch(
         apiUrl(`/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`)
@@ -136,6 +157,10 @@ export async function fetchAutocomplete(
   const trimmed = q.trim();
   if (trimmed.length < 2) return { names: [], error: null };
   try {
+    if (await catalogReady()) {
+      const names = await autocompleteLocal(trimmed);
+      if (names.length) return { names, error: null };
+    }
     const res = await fetch(
       apiUrl(`/api/scryfall/autocomplete?q=${encodeURIComponent(trimmed)}`)
     );
@@ -155,6 +180,13 @@ export async function fetchNamedCard(
 ): Promise<{ card: ScryfallCard | null; error: string | null }> {
   const param = mode === "exact" ? "exact" : "fuzzy";
   try {
+    if (await catalogReady()) {
+      const local = await catalogCardByName(name);
+      if (local) {
+        if (local.id) cardCache.set(normId(local.id), local);
+        return { card: local, error: null };
+      }
+    }
     const res = await fetch(
       apiUrl(`/api/scryfall/named?${param}=${encodeURIComponent(name)}`)
     );
@@ -185,6 +217,16 @@ export async function fetchPrintings(
 
   const promise = (async () => {
     try {
+      if ((await catalogReady()) && readCatalogTier() === "prints") {
+        const local = await getPrintsByOracle(oracleId);
+        if (local.length > 1) {
+          printCache.set(key, local);
+          for (const c of local) {
+            if (c.id) cardCache.set(normId(c.id), c);
+          }
+          return { cards: local, error: null };
+        }
+      }
       const res = await fetch(
         apiUrl(`/api/scryfall/prints?oracle_id=${encodeURIComponent(oracleId)}`)
       );
