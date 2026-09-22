@@ -1,8 +1,8 @@
 import type { CatalogMeta } from "./types";
 import type { ScryfallCard } from "../../types/scryfallCard";
 
-type LocalRuling = {
-  object?: string;
+export type CatalogRuling = {
+  object: "ruling";
   oracle_id?: string;
   source?: string;
   published_at?: string;
@@ -176,7 +176,7 @@ export async function autocompleteLocal(
 
 export async function getRulingsByOracle(
   oracleId: string
-): Promise<LocalRuling[]> {
+): Promise<CatalogRuling[]> {
   const key = oracleId.toLowerCase();
   const db = await openCatalogDb();
   try {
@@ -187,8 +187,16 @@ export async function getRulingsByOracle(
         .index("oracle_id");
       const req = idx.getAll(key);
       req.onsuccess = () => {
-        const rows = (req.result as LocalRuling[]) ?? [];
-        resolve(rows);
+        const rows = (req.result as CatalogRuling[]) ?? [];
+        resolve(
+          rows.map((r) => ({
+            object: "ruling" as const,
+            oracle_id: r.oracle_id,
+            source: r.source,
+            published_at: r.published_at,
+            comment: r.comment ?? "",
+          }))
+        );
       };
       req.onerror = () => reject(req.error);
     });
