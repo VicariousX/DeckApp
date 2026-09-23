@@ -280,8 +280,11 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const [drawerQ, setDrawerQ] = useState("");
   const [drawerSort, setDrawerSort] = useState<"new" | "name">("new");
   const [catalog, setCatalog] = useState<SavedSearch[]>(loadLocalCatalog);
-  const [catalogOpen, setCatalogOpen] = useState(true);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [searchName, setSearchName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editQuery, setEditQuery] = useState("");
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
@@ -489,62 +492,92 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         >
           Clear
         </button>
+        <button
+          type="button"
+          className={styles.ghost}
+          onClick={() => setCatalogOpen((v) => !v)}
+        >
+          Catalog{catalog.length ? ` (${catalog.length})` : ""}
+        </button>
       </div>
 
-      <ClauseRow
-        draft={draft}
-        setDraft={setDraft}
-        fieldBox={fieldBox}
-        valueBox={valueBox}
-        onPick={pickField}
-        onSubmit={commitDraft}
-      />
-
-      <p className={styles.hint}>
-        <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
-      </p>
-
-      <section className={styles.logic}>
-        <div className={styles.logicHead}>
-          <h2>Search catalog</h2>
-          <button type="button" className={styles.ghost} onClick={() => setCatalogOpen((v) => !v)}>
-            {catalogOpen ? "Hide" : "Show"}
-          </button>
-        </div>
-        {catalogOpen && (
-          <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
-            <div className={styles.drawerBar}>
-              <input
-                className={styles.value}
-                value={searchName}
-                placeholder="Optional name"
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-              <button
-                type="button"
-                className={styles.primary}
-                disabled={!serialized.trim()}
-                onClick={() => {
-                  const query = (barDirty ? validateBar() : serialized).trim();
-                  if (!query) return;
-                  if (catalog.some((s) => s.query === query)) return;
-                  persistCatalog([
-                    {
-                      id: uid(),
-                      name: searchName.trim() || query,
-                      query,
-                      savedAt: Date.now(),
-                    },
-                    ...catalog,
-                  ]);
-                  setSearchName("");
-                }}
-              >
-                Save search
-              </button>
-            </div>
-            <div className={styles.tokens}>
-              {catalog.map((s) => (
+      {catalogOpen && (
+        <section className={styles.logic}>
+          <div className={styles.drawerBar}>
+            <input
+              className={styles.value}
+              value={searchName}
+              placeholder="Name this search (optional)"
+              onChange={(e) => setSearchName(e.target.value)}
+            />
+            <button
+              type="button"
+              className={styles.primary}
+              disabled={!serialized.trim()}
+              onClick={() => {
+                const query = (barDirty ? validateBar() : serialized).trim();
+                if (!query) return;
+                if (catalog.some((s) => s.query === query)) return;
+                persistCatalog([
+                  {
+                    id: uid(),
+                    name: searchName.trim() || query,
+                    query,
+                    savedAt: Date.now(),
+                  },
+                  ...catalog,
+                ]);
+                setSearchName("");
+              }}
+            >
+              Save search
+            </button>
+          </div>
+          <div className={styles.tokens}>
+            {catalog.map((s) =>
+              editingId === s.id ? (
+                <div key={s.id} className={styles.drawerBar}>
+                  <input
+                    className={styles.value}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Name"
+                  />
+                  <input
+                    className={styles.value}
+                    value={editQuery}
+                    onChange={(e) => setEditQuery(e.target.value)}
+                    placeholder="Query"
+                  />
+                  <button
+                    type="button"
+                    className={styles.primary}
+                    onClick={() => {
+                      persistCatalog(
+                        catalog.map((x) =>
+                          x.id === s.id
+                            ? {
+                                ...x,
+                                name: editName.trim() || editQuery.trim() || x.name,
+                                query: editQuery.trim() || x.query,
+                              }
+                            : x
+                        )
+                      );
+                      setEditingId(null);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.ghost}
+                    onClick={() => setEditingId(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
                 <div key={s.id} className={styles.savedRow}>
                   <button
                     type="button"
@@ -564,6 +597,19 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                       type="button"
                       tabIndex={-1}
                       data-skip-tab
+                      onClick={() => {
+                        setEditingId(s.id);
+                        setEditName(s.name);
+                        setEditQuery(s.query);
+                      }}
+                      title="Edit"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      data-skip-tab
                       onClick={() => persistCatalog(catalog.filter((x) => x.id !== s.id))}
                       title="Remove"
                     >
@@ -571,11 +617,24 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                     </button>
                   </span>
                 </div>
-              ))}
-            </div>
+              )
+            )}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      <ClauseRow
+        draft={draft}
+        setDraft={setDraft}
+        fieldBox={fieldBox}
+        valueBox={valueBox}
+        onPick={pickField}
+        onSubmit={commitDraft}
+      />
+
+      <p className={styles.hint}>
+        <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
+      </p>
 
       <>
           <LogicBoard

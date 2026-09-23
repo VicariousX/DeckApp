@@ -7,12 +7,14 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type DragEvent as ReactDragEvent,
 } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
 import { fetchAutocomplete, fetchCardById, fetchNamedCard } from "../lib/scryfallApi";
+import { parseExternalCardDrop } from "../lib/cardDrag";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
@@ -1093,11 +1095,33 @@ export function DeckBuilderPage() {
     return <Navigate to="/login" replace />;
   }
 
+  async function onExternalDrop(e: ReactDragEvent) {
+    const hints = parseExternalCardDrop(e.dataTransfer);
+    if (!hints.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    for (const h of hints) {
+      await addByName(h.name);
+    }
+  }
+
   return (
     <div
       className={`${transitions.page} ${styles.page}${
         viewMode === "image" ? ` ${styles.pageStacks}` : ""
       }`}
+      onDragOver={(e) => {
+        const types = [...e.dataTransfer.types];
+        if (
+          types.includes("text/plain") ||
+          types.includes("text/uri-list") ||
+          types.includes("application/x-deckapp-card")
+        ) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }
+      }}
+      onDrop={(e) => void onExternalDrop(e)}
     >
       <div className={styles.topBar}>
         <Link to="/my-decks" className={styles.backLink}>

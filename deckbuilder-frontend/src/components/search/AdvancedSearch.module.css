@@ -10,7 +10,7 @@
   top: 4.6rem;
   z-index: 8;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   gap: 0.4rem;
   align-items: center;
   padding: 0.5rem 0 0.65rem;

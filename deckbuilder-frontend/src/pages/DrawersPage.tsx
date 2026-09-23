@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type DragEvent as ReactDragEvent } from "react";
 import { createPortal } from "react-dom";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -16,6 +16,7 @@ import {
 import type { Drawer, DrawerCardView } from "../types/drawer";
 import { ManaCost } from "../components/ManaCost";
 import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
+import { parseExternalCardDrop } from "../lib/cardDrag";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
@@ -332,7 +333,28 @@ export function DrawersPage() {
       : sortedCards.find((c) => c.id === inspectId) ?? null;
 
   return (
-    <div className={`${transitions.page} ${styles.page}`}>
+    <div
+      className={`${transitions.page} ${styles.page}`}
+      onDragOver={(e) => {
+        const types = [...e.dataTransfer.types];
+        if (
+          types.includes("text/plain") ||
+          types.includes("text/uri-list") ||
+          types.includes("application/x-deckapp-card")
+        ) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }
+      }}
+      onDrop={(e: ReactDragEvent) => {
+        const hints = parseExternalCardDrop(e.dataTransfer);
+        if (!hints.length) return;
+        e.preventDefault();
+        void (async () => {
+          for (const h of hints) await addByName(h.name);
+        })();
+      }}
+    >
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Drawers</h1>

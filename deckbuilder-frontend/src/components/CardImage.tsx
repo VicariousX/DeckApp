@@ -6,11 +6,12 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type DragEvent as ReactDragEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-
 import type { ScryfallCard } from "../types/scryfallCard";
+import { startExternalCardDrag } from "../lib/cardDrag";
 import {
   getFaceImage,
   getFaces,
@@ -35,6 +36,8 @@ type CardImageProps = {
   hideFaceBadge?: boolean;
   /** Hide Flip / Both controls (modal always-both). */
   hideControls?: boolean;
+  /** HTML5 drag payload for Scryfall/Archidekt-style drops. Default on. */
+  exportDrag?: boolean;
 };
 
 type Tilt = { rx: number; ry: number; glareX: number; glareY: number };
@@ -231,6 +234,7 @@ export function CardImage({
   tilt = false,
   hideFaceBadge = false,
   hideControls = false,
+  exportDrag = true,
 }: CardImageProps) {
   const multi = isMultiCard(card);
   const faces = getFaces(card);
@@ -332,6 +336,14 @@ export function CardImage({
   return (
     <div
       className={shellClass}
+      draggable={exportDrag}
+      onDragStart={
+        exportDrag
+          ? (e: ReactDragEvent) => {
+              startExternalCardDrag(e, card);
+            }
+          : undefined
+      }
       onClick={() => onActivate?.(card)}
       role={onActivate ? "button" : undefined}
       tabIndex={onActivate ? 0 : undefined}
