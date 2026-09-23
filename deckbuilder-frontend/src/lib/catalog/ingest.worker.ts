@@ -62,48 +62,98 @@ function clearStore(db: IDBDatabase, store: "cards" | "rulings"): Promise<void> 
   });
 }
 
-async function readBulkRows(res: Response): Promise<unknown[]> {
-  const buf = new Uint8Array(await res.arrayBuffer());
-  const gzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
-  let text: string;
+async function* iterateRows(res: Response): AsyncGenerator<unknown> {
+  const raw = new Uint8Array(await res.arrayBuffer());
+  const gzip = raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b;
+  let stream: ReadableStream<Uint8Array> = new Blob([raw]).stream();
   if (gzip) {
-    const stream = new Blob([buf]).stream().pipeThrough(
-      new DecompressionStream("gzip")
-    );
-    text = await new Response(stream).text();
-  } else {
-    text = new TextDecoder().decode(buf);
+    stream = stream.pipeThrough(new DecompressionStream("gzip"));
   }
-  const trimmed = text.trim();
-  if (!trimmed) throw new Error("Empty bulk file");
-  if (trimmed.startsWith("[")) {
-    const arr = JSON.parse(trimmed) as unknown;
+  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+  let carry = "";
+  let first = true;
+  let jsonArray = false;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (first) {
+      first = false;
+      const peek = (carry + value).trimStart();
+      jsonArray = peek.startsWith("[");
+    }
+    carry += value;
+    if (jsonArray) continue;
+    const lines = carry.split("\n");
+    carry = lines.pop() ?? "";
+    for (const line of lines) {
+      const t = line.trim();
+      if (t) yield JSON.parse(t);
+    }
+  }
+  if (jsonArray) {
+    const arr = JSON.parse(carry) as unknown;
     if (!Array.isArray(arr)) throw new Error("Unexpected bulk format");
-    return arr;
+    for (const row of arr) yield row;
+    return;
   }
-  const rows: unknown[] = [];
-  for (const line of trimmed.split("\n")) {
-    if (!line.trim()) continue;
-    rows.push(JSON.parse(line));
-  }
-  return rows;
+  const last = carry.trim();
+  if (last) yield JSON.parse(last);
 }
 
 async function ingest(msg: StartMsg) {
-  postMessage({ type: "progress", phase: "download", loaded: 0, total: 1, file: msg.kind });
+  postMessage({
+    type: "progress",
+    phase: "download",
+    loaded: 0,
+    total: 1,
+    file: msg.kind,
+  });
   const res = await fetch(msg.url);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
-  const parsed = await readBulkRows(res);
-  postMessage({ type: "progress", phase: "index", loaded: 0, total: parsed.length, file: msg.kind });
+  postMessage({
+    type: "progress",
+    phase: "index",
+    loaded: 0,
+    total: 0,
+    file: msg.kind,
+  });
 
   const db = await openDb();
   try {
-    if (msg.kind === "rulings") {
-      await clearStore(db, "rulings");
-      let buf: unknown[] = [];
-      let n = 0;
-      for (const row of parsed) {
-        const r = row as Record<string, unknown>;
+    if (msg.kind === "rulings") await clearStore(db, "rulings");
+    else if (msg.replaceCards) await clearStore(db, "cards");
+
+    const store = msg.kind === "rulings" ? "rulings" : "cards";
+    let buf: unknown[] = [];
+    let n = 0;
+
+    const flush = async () => {
+      if (!buf.length) return;
+      try {
+        await putChunk(db, store, buf);
+      } catch (err) {
+        const name = err instanceof DOMException ? err.name : "";
+        if (name === "QuotaExceededError") {
+          throw new Error(
+            "This device does not have enough browser storage for all printings. Use Unique cards + rulings instead."
+          );
+        }
+        throw err;
+      }
+      n += buf.length;
+      buf = [];
+      postMessage({
+        type: "progress",
+        phase: "index",
+        loaded: n,
+        total: Math.max(n, 1),
+        file: msg.kind,
+      });
+    };
+
+    for await (const row of iterateRows(res)) {
+      const r = row as Record<string, unknown>;
+      if (msg.kind === "rulings") {
         buf.push({
           oracle_id: String(r.oracle_id ?? "").toLowerCase(),
           source: r.source,
@@ -111,54 +161,20 @@ async function ingest(msg: StartMsg) {
           comment: r.comment,
           object: "ruling",
         });
-        if (buf.length >= CHUNK) {
-          await putChunk(db, "rulings", buf);
-          n += buf.length;
-          buf = [];
-          postMessage({
-            type: "progress",
-            phase: "index",
-            loaded: n,
-            total: parsed.length,
-            file: msg.kind,
-          });
-        }
-      }
-      await putChunk(db, "rulings", buf);
-      n += buf.length;
-      postMessage({ type: "done", kind: msg.kind, count: n });
-      return;
-    }
-
-    if (msg.replaceCards) await clearStore(db, "cards");
-    let buf: unknown[] = [];
-    let n = 0;
-    for (const row of parsed) {
-      const raw = row as Record<string, unknown>;
-      const trimmed = trimCard(raw);
-      const id = String(trimmed.id ?? "").toLowerCase();
-      if (!id) continue;
-      buf.push({
-        ...trimmed,
-        id,
-        oracle_id: String(trimmed.oracle_id ?? id).toLowerCase(),
-        name_lc: nameKey(trimmed.name),
-      });
-      if (buf.length >= CHUNK) {
-        await putChunk(db, "cards", buf);
-        n += buf.length;
-        buf = [];
-        postMessage({
-          type: "progress",
-          phase: "index",
-          loaded: n,
-          total: parsed.length,
-          file: msg.kind,
+      } else {
+        const trimmed = trimCard(r);
+        const id = String(trimmed.id ?? "").toLowerCase();
+        if (!id) continue;
+        buf.push({
+          ...trimmed,
+          id,
+          oracle_id: String(trimmed.oracle_id ?? id).toLowerCase(),
+          name_lc: nameKey(trimmed.name),
         });
       }
+      if (buf.length >= CHUNK) await flush();
     }
-    await putChunk(db, "cards", buf);
-    n += buf.length;
+    await flush();
     postMessage({ type: "done", kind: msg.kind, count: n });
   } finally {
     db.close();
