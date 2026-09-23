@@ -23,8 +23,11 @@ import {
 import { renderManaSymbol, renderTextWithSymbols } from "../../utils/symbols";
 import { useAuth } from "../../auth/AuthProvider";
 import {
+  loadSearchCatalog,
   loadSearchTokens,
+  saveSearchCatalog,
   saveSearchTokens,
+  type SavedSearch,
   type SavedToken,
 } from "../../services/searchTokenService";
 import styles from "./AdvancedSearch.module.css";
@@ -78,6 +81,22 @@ const DEFAULT_PINS: Pin[] = [
 ];
 const PIN_STORE = "deckapp.advPins";
 const DRAWER_STORE = "deckapp.advTokenDrawer";
+const CATALOG_STORE = "deckapp.searchCatalog";
+
+function tokenKey(c: Clause): string {
+  return serializeClause(c).trim().toLowerCase();
+}
+
+function loadLocalCatalog(): SavedSearch[] {
+  try {
+    const raw = localStorage.getItem(CATALOG_STORE);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as SavedSearch[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 function loadLocalDrawer(): SavedToken[] {
   try {
@@ -260,6 +279,9 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [drawerQ, setDrawerQ] = useState("");
   const [drawerSort, setDrawerSort] = useState<"new" | "name">("new");
+  const [catalog, setCatalog] = useState<SavedSearch[]>(loadLocalCatalog);
+  const [catalogOpen, setCatalogOpen] = useState(true);
+  const [searchName, setSearchName] = useState("");
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
@@ -269,6 +291,24 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
       /* ignore */
     }
     void saveSearchTokens(user?.id ?? null, next);
+  }
+
+  function addTokenToDrawer(clause: Clause) {
+    const key = tokenKey(clause);
+    if (!key) return;
+    if (drawer.some((t) => tokenKey(t.clause) === key)) return;
+    persistDrawer([makeSaved(clause), ...drawer]);
+    setDrawerOpen(true);
+  }
+
+  function persistCatalog(next: SavedSearch[]) {
+    setCatalog(next);
+    try {
+      localStorage.setItem(CATALOG_STORE, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    void saveSearchCatalog(user?.id ?? null, next);
   }
 
   useEffect(() => {
@@ -285,13 +325,40 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
           }
           return remote;
         }
-        const seen = new Set(local.map((t) => t.id));
+        const seen = new Set(local.map((t) => tokenKey(t.clause)));
         const merged = [...local];
         for (const t of remote) {
-          if (!seen.has(t.id)) merged.push(t);
+          const k = tokenKey(t.clause);
+          if (!k || seen.has(k)) continue;
+          seen.add(k);
+          merged.push(t);
         }
         try {
           localStorage.setItem(DRAWER_STORE, JSON.stringify(merged));
+        } catch {
+          /* ignore */
+        }
+        return merged;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const remote = await loadSearchCatalog(user?.id ?? null);
+      if (cancelled || remote.length === 0) return;
+      setCatalog((local) => {
+        const seen = new Set(local.map((s) => s.query));
+        const merged = [...local];
+        for (const s of remote) {
+          if (!seen.has(s.query)) merged.push(s);
+        }
+        try {
+          localStorage.setItem(CATALOG_STORE, JSON.stringify(merged));
         } catch {
           /* ignore */
         }
@@ -437,6 +504,79 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
       </p>
 
+      <section className={styles.logic}>
+        <div className={styles.logicHead}>
+          <h2>Search catalog</h2>
+          <button type="button" className={styles.ghost} onClick={() => setCatalogOpen((v) => !v)}>
+            {catalogOpen ? "Hide" : "Show"}
+          </button>
+        </div>
+        {catalogOpen && (
+          <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
+            <div className={styles.drawerBar}>
+              <input
+                className={styles.value}
+                value={searchName}
+                placeholder="Optional name"
+                onChange={(e) => setSearchName(e.target.value)}
+              />
+              <button
+                type="button"
+                className={styles.primary}
+                disabled={!serialized.trim()}
+                onClick={() => {
+                  const query = (barDirty ? validateBar() : serialized).trim();
+                  if (!query) return;
+                  if (catalog.some((s) => s.query === query)) return;
+                  persistCatalog([
+                    {
+                      id: uid(),
+                      name: searchName.trim() || query,
+                      query,
+                      savedAt: Date.now(),
+                    },
+                    ...catalog,
+                  ]);
+                  setSearchName("");
+                }}
+              >
+                Save search
+              </button>
+            </div>
+            <div className={styles.tokens}>
+              {catalog.map((s) => (
+                <div key={s.id} className={styles.savedRow}>
+                  <button
+                    type="button"
+                    className={styles.token}
+                    onClick={() => {
+                      const next = parseQuery(s.query, FIELD_TO_CATEGORY);
+                      setRoot({ ...next, join: "and" });
+                      setBar(s.query);
+                      setBarDirty(false);
+                    }}
+                    title={s.query}
+                  >
+                    <code>{s.name}</code>
+                  </button>
+                  <span className={styles.tokenActs}>
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      data-skip-tab
+                      onClick={() => persistCatalog(catalog.filter((x) => x.id !== s.id))}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
       <>
           <LogicBoard
             root={root}
@@ -457,8 +597,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               setBench((list) => (list.some((x) => x.id === c.id) ? list : [...list, c]));
             }}
             onSave={(c) => {
-              persistDrawer([makeSaved(c), ...drawer]);
-              setDrawerOpen(true);
+              addTokenToDrawer(c);
             }}
             onAdopt={(id, groupId, incoming) => {
               const fromBench = bench.find((x) => x.id === id);
@@ -519,8 +658,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               e.preventDefault();
               const clause = parseDragClause(e.dataTransfer);
               if (!clause) return;
-              persistDrawer([makeSaved(clause), ...drawer]);
-              setDrawerOpen(true);
+              addTokenToDrawer(clause);
             }}
           >
             <div className={styles.logicHead}>
@@ -1196,24 +1334,24 @@ function Token({
       </div>
       <span className={styles.tokenActs}>
         {onApply && (
-          <button type="button" onClick={onApply} title="Add to query">
+          <button type="button" tabIndex={-1} data-skip-tab onClick={onApply} title="Add to query">
             +
           </button>
         )}
         {onExtract && (
-          <button type="button" onClick={onExtract} title="Move to bench">
+          <button type="button" tabIndex={-1} data-skip-tab onClick={onExtract} title="Move to bench">
             ▴
           </button>
         )}
         {onSave && (
-          <button type="button" onClick={onSave} title="Save to drawer">
+          <button type="button" tabIndex={-1} data-skip-tab onClick={onSave} title="Save to drawer">
             ☆
           </button>
         )}
-        <button type="button" onClick={onEdit} title="Edit">
+        <button type="button" tabIndex={-1} data-skip-tab onClick={onEdit} title="Edit">
           ✎
         </button>
-        <button type="button" onClick={onRemove} title="Remove">
+        <button type="button" tabIndex={-1} data-skip-tab onClick={onRemove} title="Remove">
           ×
         </button>
       </span>

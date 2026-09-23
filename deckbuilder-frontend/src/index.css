@@ -51,6 +51,16 @@ a {
   outline-offset: 2px;
 }
 
+/* Decorative / hover chrome must stay out of the tab order */
+[data-skip-tab],
+[tabindex="-1"] {
+  outline: none;
+}
+[data-skip-tab]:focus,
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* Softer default image rendering */
 img {
   display: block;
