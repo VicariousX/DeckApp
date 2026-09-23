@@ -6,6 +6,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
+import { useDraggablePanel } from "../../hooks/useDraggablePanel";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, FIELD_TO_CATEGORY } from "../../lib/search/categories";
 import { fieldAllowsSymbols, suggestionsFor } from "../../lib/search/autocomplete";
@@ -283,8 +285,8 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [searchName, setSearchName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editQuery, setEditQuery] = useState("");
+  const [pickMode, setPickMode] = useState<"edit" | "delete" | null>(null);
+  const catalogPanel = useDraggablePanel(catalogOpen, { w: 360, h: 380 });
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
@@ -492,24 +494,26 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         >
           Clear
         </button>
-        <button
-          type="button"
-          className={styles.ghost}
-          onClick={() => setCatalogOpen((v) => !v)}
-        >
-          Catalog{catalog.length ? ` (${catalog.length})` : ""}
-        </button>
+        <span ref={catalogPanel.anchorRef}>
+          <button
+            type="button"
+            className={styles.ghost}
+            onClick={() => setCatalogOpen((v) => !v)}
+          >
+            {catalogOpen ? "Close catalog" : `Catalog${catalog.length ? ` (${catalog.length})` : ""}`}
+          </button>
+        </span>
       </div>
 
-      {catalogOpen && (
-        <section className={styles.logic}>
-          <div className={styles.drawerBar}>
-            <input
-              className={styles.value}
-              value={searchName}
-              placeholder="Name this search (optional)"
-              onChange={(e) => setSearchName(e.target.value)}
-            />
+      <div className={styles.drawerBar}>
+        <input
+          className={styles.value}
+          value={searchName}
+          placeholder={editingId ? "Name (overwrite or save as new)" : "Name this search (optional)"}
+          onChange={(e) => setSearchName(e.target.value)}
+        />
+        {editingId ? (
+          <>
             <button
               type="button"
               className={styles.primary}
@@ -517,7 +521,30 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               onClick={() => {
                 const query = (barDirty ? validateBar() : serialized).trim();
                 if (!query) return;
-                if (catalog.some((s) => s.query === query)) return;
+                persistCatalog(
+                  catalog.map((x) =>
+                    x.id === editingId
+                      ? {
+                          ...x,
+                          name: searchName.trim() || x.name,
+                          query,
+                          savedAt: Date.now(),
+                        }
+                      : x
+                  )
+                );
+                setEditingId(null);
+              }}
+            >
+              Overwrite
+            </button>
+            <button
+              type="button"
+              className={styles.ghost}
+              disabled={!serialized.trim()}
+              onClick={() => {
+                const query = (barDirty ? validateBar() : serialized).trim();
+                if (!query) return;
                 persistCatalog([
                   {
                     id: uid(),
@@ -527,97 +554,121 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                   },
                   ...catalog,
                 ]);
+                setEditingId(null);
                 setSearchName("");
               }}
             >
-              Save search
+              Save as new
             </button>
-          </div>
-          <div className={styles.tokens}>
-            {catalog.map((s) =>
-              editingId === s.id ? (
-                <div key={s.id} className={styles.drawerBar}>
-                  <input
-                    className={styles.value}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Name"
-                  />
-                  <input
-                    className={styles.value}
-                    value={editQuery}
-                    onChange={(e) => setEditQuery(e.target.value)}
-                    placeholder="Query"
-                  />
-                  <button
-                    type="button"
-                    className={styles.primary}
-                    onClick={() => {
-                      persistCatalog(
-                        catalog.map((x) =>
-                          x.id === s.id
-                            ? {
-                                ...x,
-                                name: editName.trim() || editQuery.trim() || x.name,
-                                query: editQuery.trim() || x.query,
-                              }
-                            : x
-                        )
-                      );
-                      setEditingId(null);
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.ghost}
-                    onClick={() => setEditingId(null)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div key={s.id} className={styles.savedRow}>
-                  <button
-                    type="button"
-                    className={styles.token}
-                    onClick={() => {
-                      const next = parseQuery(s.query, FIELD_TO_CATEGORY);
-                      setRoot({ ...next, join: "and" });
-                      setBar(s.query);
-                      setBarDirty(false);
-                    }}
-                    title={s.query}
-                  >
-                    <code>{s.name}</code>
-                  </button>
-                  <span className={styles.catalogActs}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(s.id);
-                        setEditName(s.name);
-                        setEditQuery(s.query);
-                      }}
-                      title="Edit"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => persistCatalog(catalog.filter((x) => x.id !== s.id))}
-                      title="Delete"
-                    >
-                      ×
-                    </button>
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-        </section>
-      )}
+          </>
+        ) : (
+          <button
+            type="button"
+            className={styles.primary}
+            disabled={!serialized.trim()}
+            onClick={() => {
+              const query = (barDirty ? validateBar() : serialized).trim();
+              if (!query) return;
+              if (catalog.some((s) => s.query === query)) return;
+              persistCatalog([
+                {
+                  id: uid(),
+                  name: searchName.trim() || query,
+                  query,
+                  savedAt: Date.now(),
+                },
+                ...catalog,
+              ]);
+              setSearchName("");
+            }}
+          >
+            Save search
+          </button>
+        )}
+      </div>
+
+      {catalogOpen &&
+        createPortal(
+          <div
+            className={styles.catalogPanel}
+            ref={catalogPanel.panelRef}
+            style={catalogPanel.panelStyle}
+          >
+            <div className={styles.catalogTop}>
+              <div
+                className={styles.catalogHandle}
+                onPointerDown={catalogPanel.onHandlePointerDown}
+              >
+                Search catalog
+              </div>
+              <button
+                type="button"
+                className={styles.ghost}
+                data-no-drag
+                onClick={() => setCatalogOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.drawerBar}>
+              <button
+                type="button"
+                className={pickMode === "edit" ? styles.primary : styles.ghost}
+                onClick={() => setPickMode((m) => (m === "edit" ? null : "edit"))}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className={pickMode === "delete" ? styles.primary : styles.ghost}
+                onClick={() => setPickMode((m) => (m === "delete" ? null : "delete"))}
+              >
+                Delete
+              </button>
+            </div>
+            <p className={styles.hint}>
+              {pickMode === "edit"
+                ? "Pick a search to load into the live bar."
+                : pickMode === "delete"
+                  ? "Pick a search to remove."
+                  : "Click a search to load it. Use Edit or Delete first to change the list."}
+            </p>
+            <div className={styles.catalogList}>
+              {catalog.length === 0 && <p className={styles.hint}>No saved searches yet.</p>}
+              {catalog.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`${styles.token} ${editingId === s.id ? styles.iconHot : ""}`}
+                  title={s.query}
+                  onClick={() => {
+                    if (pickMode === "delete") {
+                      persistCatalog(catalog.filter((x) => x.id !== s.id));
+                      if (editingId === s.id) setEditingId(null);
+                      return;
+                    }
+                    const next = parseQuery(s.query, FIELD_TO_CATEGORY);
+                    setRoot({ ...next, join: "and" });
+                    setBar(s.query);
+                    setBarDirty(false);
+                    setSearchName(s.name);
+                    if (pickMode === "edit") {
+                      setEditingId(s.id);
+                      setPickMode(null);
+                    }
+                  }}
+                >
+                  <code>{s.name}</code>
+                </button>
+              ))}
+            </div>
+            <div
+              className={styles.catalogResize}
+              onPointerDown={catalogPanel.onResizePointerDown("se")}
+            />
+          </div>,
+          document.body
+        )}
 
       <ClauseRow
         draft={draft}
