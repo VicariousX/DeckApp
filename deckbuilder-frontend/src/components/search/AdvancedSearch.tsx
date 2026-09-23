@@ -21,6 +21,12 @@ import {
   uid,
 } from "../../lib/search/syntaxModel";
 import { renderManaSymbol, renderTextWithSymbols } from "../../utils/symbols";
+import { useAuth } from "../../auth/AuthProvider";
+import {
+  loadSearchTokens,
+  saveSearchTokens,
+  type SavedToken,
+} from "../../services/searchTokenService";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -73,9 +79,7 @@ const DEFAULT_PINS: Pin[] = [
 const PIN_STORE = "deckapp.advPins";
 const DRAWER_STORE = "deckapp.advTokenDrawer";
 
-type SavedToken = { id: string; label: string; clause: Clause; savedAt: number };
-
-function loadDrawer(): SavedToken[] {
+function loadLocalDrawer(): SavedToken[] {
   try {
     const raw = localStorage.getItem(DRAWER_STORE);
     if (!raw) return [];
@@ -176,6 +180,22 @@ function containsId(node: Node, id: string): boolean {
   return node.kind === "group" && node.items.some((n) => containsId(n, id));
 }
 
+function cloneClause(c: Clause): Clause {
+  return { ...c, id: uid() };
+}
+
+function parseDragClause(dt: DataTransfer): Clause | null {
+  const raw = dt.getData("application/x-deckapp-clause");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Clause;
+    if (!parsed || parsed.kind !== "clause") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function insertInto(root: Group, groupId: string, node: Node): Group {
   if (node.id === groupId) return root;
   if (node.kind === "group" && containsId(node, groupId)) return root;
@@ -200,8 +220,35 @@ function replaceNode(root: Group, id: string, next: Node): Group {
   };
 }
 
+const STARTER_TOKENS: { field: string; category: string; op: CmpOp; value: string }[] = [
+  { field: "t", category: "type", op: ":", value: "creature" },
+  { field: "t", category: "type", op: ":", value: "instant" },
+  { field: "t", category: "type", op: ":", value: "sorcery" },
+  { field: "t", category: "type", op: ":", value: "artifact" },
+  { field: "t", category: "type", op: ":", value: "enchantment" },
+  { field: "t", category: "type", op: ":", value: "land" },
+  { field: "t", category: "type", op: ":", value: "planeswalker" },
+  { field: "is", category: "flags", op: ":", value: "commander" },
+  { field: "f", category: "format", op: ":", value: "commander" },
+  { field: "o", category: "text", op: ":", value: "draw" },
+  { field: "o", category: "text", op: ":", value: "destroy" },
+  { field: "o", category: "text", op: ":", value: "counter" },
+  { field: "mv", category: "stats", op: "<=", value: "3" },
+];
+
+function makeSaved(clause: Clause, label?: string): SavedToken {
+  const c = cloneClause(clause);
+  return {
+    id: uid(),
+    label: label || serializeClause(c),
+    clause: c,
+    savedAt: Date.now(),
+  };
+}
+
 export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [root, setRoot] = useState<Group>(() => parseQuery(initialQuery, FIELD_TO_CATEGORY));
   const [bar, setBar] = useState(initialQuery);
   const [barDirty, setBarDirty] = useState(false);
@@ -209,18 +256,54 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const fieldBox = useRef<HTMLInputElement>(null);
   const valueBox = useRef<HTMLInputElement>(null);
   const [bench, setBench] = useState<Clause[]>([]);
-  const [drawer, setDrawer] = useState<SavedToken[]>(loadDrawer);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawer, setDrawer] = useState<SavedToken[]>(loadLocalDrawer);
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [drawerQ, setDrawerQ] = useState("");
   const [drawerSort, setDrawerSort] = useState<"new" | "name">("new");
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
-    localStorage.setItem(DRAWER_STORE, JSON.stringify(next));
+    try {
+      localStorage.setItem(DRAWER_STORE, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    void saveSearchTokens(user?.id ?? null, next);
   }
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const remote = await loadSearchTokens(user?.id ?? null);
+      if (cancelled || remote.length === 0) return;
+      setDrawer((local) => {
+        if (local.length === 0) {
+          try {
+            localStorage.setItem(DRAWER_STORE, JSON.stringify(remote));
+          } catch {
+            /* ignore */
+          }
+          return remote;
+        }
+        const seen = new Set(local.map((t) => t.id));
+        const merged = [...local];
+        for (const t of remote) {
+          if (!seen.has(t.id)) merged.push(t);
+        }
+        try {
+          localStorage.setItem(DRAWER_STORE, JSON.stringify(merged));
+        } catch {
+          /* ignore */
+        }
+        return merged;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const serialized = useMemo(() => serializeQuery(root), [root]);
-  const hasTokens = serialized.trim().length > 0;
 
   useEffect(() => {
     if (barDirty) return;
@@ -354,8 +437,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
       </p>
 
-      {(hasTokens || bench.length > 0 || drawer.length > 0) && (
-        <>
+      <>
           <LogicBoard
             root={root}
             onChange={setRoot}
@@ -375,24 +457,15 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               setBench((list) => (list.some((x) => x.id === c.id) ? list : [...list, c]));
             }}
             onSave={(c) => {
-              persistDrawer([
-                {
-                  id: uid(),
-                  label: serializeClause(c),
-                  clause: { ...c, id: uid() },
-                  savedAt: Date.now(),
-                },
-                ...drawer,
-              ]);
+              persistDrawer([makeSaved(c), ...drawer]);
               setDrawerOpen(true);
             }}
-            onAdopt={(id, groupId) => {
-              setBench((list) => {
-                const hit = list.find((x) => x.id === id);
-                if (!hit) return list;
-                setRoot((r) => ({ ...insertInto(r, groupId, hit), join: "and" }));
-                return list.filter((x) => x.id !== id);
-              });
+            onAdopt={(id, groupId, incoming) => {
+              const fromBench = bench.find((x) => x.id === id);
+              const fromDrawer = drawer.find((x) => x.id === id)?.clause;
+              const src = fromBench || fromDrawer || incoming;
+              if (!src) return;
+              setRoot((r) => ({ ...insertInto(r, groupId, cloneClause(src)), join: "and" }));
             }}
           />
           <section
@@ -400,14 +473,9 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
-              const id = e.dataTransfer.getData("text/token");
-              if (!id) return;
-              const loc = findNode(root, id);
-              if (!loc) return;
-              const node = loc.parent.items[loc.index];
-              if (node.kind !== "clause") return;
-              setRoot((r) => removeNode(r, id));
-              setBench((list) => (list.some((x) => x.id === id) ? list : [...list, node]));
+              const clause = parseDragClause(e.dataTransfer);
+              if (!clause) return;
+              setBench((list) => [...list, cloneClause(clause)]);
             }}
           >
             <div className={styles.logicHead}>
@@ -432,31 +500,61 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                     }}
                     onRemove={() => setBench((list) => list.filter((x) => x.id !== c.id))}
                     onSave={() => {
-                      persistDrawer([
-                        {
-                          id: uid(),
-                          label: serializeClause(c),
-                          clause: { ...c, id: uid() },
-                          savedAt: Date.now(),
-                        },
-                        ...drawer,
-                      ]);
+                      persistDrawer([makeSaved(c), ...drawer]);
                       setDrawerOpen(true);
                     }}
                     onApply={() => {
-                      setBench((list) => list.filter((x) => x.id !== c.id));
-                      setRoot((r) => ({ ...r, items: [...r.items, c] }));
+                      setRoot((r) => ({ ...r, items: [...r.items, cloneClause(c)] }));
                     }}
+                    dragSrc="bench"
                   />
                 ))}
               </div>
             </div>
           </section>
-          <section className={styles.logic}>
+          <section
+            className={styles.logic}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const clause = parseDragClause(e.dataTransfer);
+              if (!clause) return;
+              persistDrawer([makeSaved(clause), ...drawer]);
+              setDrawerOpen(true);
+            }}
+          >
             <div className={styles.logicHead}>
               <h2>Token drawer</h2>
               <button type="button" className={styles.ghost} onClick={() => setDrawerOpen((v) => !v)}>
                 {drawerOpen ? "Hide" : "Show"}
+              </button>
+              <button
+                type="button"
+                className={styles.ghost}
+                onClick={() => {
+                  const extras: SavedToken[] = [];
+                  const have = new Set(drawer.map((t) => serializeClause(t.clause)));
+                  for (const s of STARTER_TOKENS) {
+                    const clause: Clause = {
+                      kind: "clause",
+                      id: uid(),
+                      category: s.category,
+                      field: s.field,
+                      op: s.op,
+                      value: s.value,
+                      excluded: false,
+                      joinAfter: "and",
+                    };
+                    const label = serializeClause(clause);
+                    if (have.has(label)) continue;
+                    extras.push(makeSaved(clause, label));
+                  }
+                  if (extras.length) persistDrawer([...extras, ...drawer]);
+                  setDrawerOpen(true);
+                }}
+                title="Add common type, format, and text tokens"
+              >
+                Starter tokens
               </button>
             </div>
             {drawerOpen && (
@@ -508,9 +606,10 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                           onApply={() =>
                             setRoot((r) => ({
                               ...r,
-                              items: [...r.items, { ...s.clause, id: uid() }],
+                              items: [...r.items, cloneClause(s.clause)],
                             }))
                           }
+                          dragSrc="drawer"
                         />
                       </div>
                     ))}
@@ -518,8 +617,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               </div>
             )}
           </section>
-        </>
-      )}
+      </>
     </div>
   );
 }
@@ -912,22 +1010,28 @@ function LogicBoard({
   onEdit: (c: Clause) => void;
   onExtract: (c: Clause) => void;
   onSave: (c: Clause) => void;
-  onAdopt?: (id: string, groupId: string) => void;
+  onAdopt?: (id: string, groupId: string, incoming?: Clause | null) => void;
 }) {
   function patch(mut: (g: Group) => Group) {
     onChange((prev) => ({ ...mut(prev), join: "and" }));
   }
-  function move(id: string, target: string) {
+  function move(id: string, target: string, incoming?: Clause | null, src?: string) {
     if (id === target) return;
     onChange((prev) => {
       const loc = findNode(prev, id);
-      if (!loc) {
-        onAdopt?.(id, target);
+      if (!loc || src === "bench" || src === "drawer") {
+        if (incoming) {
+          return { ...insertInto(prev, target, cloneClause(incoming)), join: "and" };
+        }
+        onAdopt?.(id, target, incoming);
         return prev;
       }
       const node = loc.parent.items[loc.index];
       if (node.kind === "group" && containsId(node, target)) return prev;
-      return { ...insertInto(removeNode(prev, id), target, node), join: "and" };
+      if (src === "board") {
+        return { ...insertInto(removeNode(prev, id), target, node), join: "and" };
+      }
+      return { ...insertInto(prev, target, node.kind === "clause" ? cloneClause(node) : node), join: "and" };
     });
   }
 
@@ -960,7 +1064,7 @@ function Bubble({
 }: {
   group: Group;
   onEdit: (c: Clause) => void;
-  onMove: (id: string, groupId: string) => void;
+  onMove: (id: string, groupId: string, incoming?: Clause | null, src?: string) => void;
   onPatch: (mut: (g: Group) => Group) => void;
   onExtract: (c: Clause) => void;
   onSave: (c: Clause) => void;
@@ -974,7 +1078,9 @@ function Bubble({
         e.preventDefault();
         e.stopPropagation();
         const id = e.dataTransfer.getData("text/token");
-        if (id) onMove(id, group.id);
+        const src = e.dataTransfer.getData("text/token-src");
+        const incoming = parseDragClause(e.dataTransfer);
+        if (id) onMove(id, group.id, incoming, src);
       }}
     >
       <div className={styles.bubbleBar}>
@@ -1029,6 +1135,7 @@ function Bubble({
               onRemove={() => onPatch((tree) => removeNode(tree, n.id))}
               onExtract={isRoot ? undefined : () => onExtract(n)}
               onSave={() => onSave(n)}
+              dragSrc="board"
             />
           ) : (
             <div
@@ -1062,6 +1169,7 @@ function Token({
   onExtract,
   onSave,
   onApply,
+  dragSrc = "board",
 }: {
   clause: Clause;
   onEdit: () => void;
@@ -1069,6 +1177,7 @@ function Token({
   onExtract?: () => void;
   onSave?: () => void;
   onApply?: () => void;
+  dragSrc?: "board" | "bench" | "drawer";
 }) {
   const syntax = serializeClause(clause);
   return (
@@ -1076,7 +1185,12 @@ function Token({
       <div
         className={`${styles.token}${clause.excluded ? ` ${styles.tokenNot}` : ""}`}
         draggable
-        onDragStart={(e) => e.dataTransfer.setData("text/token", clause.id)}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/token", clause.id);
+          e.dataTransfer.setData("text/token-src", dragSrc);
+          e.dataTransfer.setData("application/x-deckapp-clause", JSON.stringify(clause));
+          e.dataTransfer.effectAllowed = "copy";
+        }}
       >
         <code>{renderTextWithSymbols(syntax, 14)}</code>
       </div>

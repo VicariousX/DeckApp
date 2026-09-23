@@ -72,6 +72,7 @@ export function UsefulInPicker({
           const first = COLORS.find((c) => next.has(c));
           next.clear();
           if (first) next.add(first);
+          next.delete("any");
         }
         if (mode === "colored" && prev.has("multi")) next.add("multi");
         if (mode === "multi" && prev.has("colored")) next.add("colored");
@@ -92,13 +93,13 @@ export function UsefulInPicker({
       if (next.has(c)) next.delete(c);
       else {
         if (next.has("mono")) {
-          // Mono: only one color
           for (const x of COLORS) next.delete(x);
           next.add(c);
         } else {
           next.add(c);
         }
       }
+      if (COLORS.filter((x) => next.has(x)).length < 2) next.delete("any");
       return next;
     });
   }
@@ -211,6 +212,24 @@ export function UsefulInPicker({
               {c}
             </button>
           ))}
+          {colorCount >= 2 && !tags.has("mono") && (
+            <button
+              type="button"
+              className={`${styles.tag}${tags.has("any") ? ` ${styles.tagOn}` : ""}`}
+              onClick={() => {
+                setStatus(null);
+                setTags((prev) => {
+                  const next = new Set(prev);
+                  if (next.has("any")) next.delete("any");
+                  else next.add("any");
+                  return next;
+                });
+              }}
+              title="OR: useful if the deck has any selected color. Off = all selected colors."
+            >
+              {tags.has("any") ? "Any color (OR)" : "All colors (AND)"}
+            </button>
+          )}
         </div>
       </div>
 
