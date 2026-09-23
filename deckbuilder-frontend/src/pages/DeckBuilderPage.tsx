@@ -466,11 +466,15 @@ export function DeckBuilderPage() {
     });
   }
 
-  async function addByName(name: string) {
+  async function addByName(name: string, board: DeckBoard = addTargetBoard) {
     if (!id || !isOwner || !name.trim()) return;
     setAddBusy(true);
     setError(null);
-    const { card, error: fetchErr } = await fetchNamedCard(name.trim());
+    const raw = name.trim();
+    const looksId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+    const { card, error: fetchErr } = looksId
+      ? await fetchCardById(raw)
+      : await fetchNamedCard(raw);
     if (fetchErr || !card) {
       setError(fetchErr ?? "Card not found.");
       setAddBusy(false);
@@ -485,7 +489,7 @@ export function DeckBuilderPage() {
       mana_cost: card.mana_cost,
       cmc: card.cmc,
       quantity: 1,
-      board: addTargetBoard,
+      board,
     });
     setAddBusy(false);
     if (addErr || !saved) {
@@ -1095,13 +1099,24 @@ export function DeckBuilderPage() {
     return <Navigate to="/login" replace />;
   }
 
-  async function onExternalDrop(e: ReactDragEvent) {
+  const [extHover, setExtHover] = useState(false);
+
+  function isExternalCardDrag(e: ReactDragEvent) {
+    const types = [...e.dataTransfer.types];
+    return (
+      types.includes("text/plain") ||
+      types.includes("text/uri-list") ||
+      types.includes("application/x-deckapp-card")
+    );
+  }
+
+  async function placeExternal(e: ReactDragEvent, board: DeckBoard) {
     const hints = parseExternalCardDrop(e.dataTransfer);
-    if (!hints.length) return;
     e.preventDefault();
     e.stopPropagation();
+    setExtHover(false);
     for (const h of hints) {
-      await addByName(h.name);
+      await addByName(h.id || h.name, board);
     }
   }
 
@@ -1110,19 +1125,41 @@ export function DeckBuilderPage() {
       className={`${transitions.page} ${styles.page}${
         viewMode === "image" ? ` ${styles.pageStacks}` : ""
       }`}
+      onDragEnter={(e) => {
+        if (isExternalCardDrag(e)) setExtHover(true);
+      }}
       onDragOver={(e) => {
-        const types = [...e.dataTransfer.types];
-        if (
-          types.includes("text/plain") ||
-          types.includes("text/uri-list") ||
-          types.includes("application/x-deckapp-card")
-        ) {
+        if (isExternalCardDrag(e)) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
+          setExtHover(true);
         }
       }}
-      onDrop={(e) => void onExternalDrop(e)}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setExtHover(false);
+      }}
+      onDrop={(e) => void placeExternal(e, addTargetBoard)}
     >
+      {extHover && isOwner && (
+        <div className={styles.extDropBar} role="dialog" aria-label="Drop card onto a board">
+          <span>Drop onto</span>
+          {BOARDS.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              className={styles.extDropBtn}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = "copy";
+              }}
+              onDrop={(e) => void placeExternal(e, b.id)}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className={styles.topBar}>
         <Link to="/my-decks" className={styles.backLink}>
           ← My decks

@@ -404,7 +404,25 @@
 }
 
 .savedRow {
+  position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.catalogActs {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.catalogActs button {
+  min-width: 1.45rem;
+  min-height: 1.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
 }
 
 .tokenNot {

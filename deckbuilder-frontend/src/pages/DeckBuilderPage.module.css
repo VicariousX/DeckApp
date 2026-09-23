@@ -1,3 +1,30 @@
+.extDropBar {
+  position: sticky;
+  top: 4.6rem;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+  box-shadow: var(--shadow-md);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.extDropBtn {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px dashed var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 700;
+  cursor: copy;
+}
+
 .page {
   width: 100%;
   max-width: 1400px;

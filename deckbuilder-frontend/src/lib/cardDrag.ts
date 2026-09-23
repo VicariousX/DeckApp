@@ -36,8 +36,20 @@ export function startExternalCardDrag(
   } catch {
     /* some browsers reject custom types */
   }
-  e.dataTransfer.setData("text/uri-list", uri);
-  e.dataTransfer.setData("text/plain", name);
+  const apiUri = card.id
+    ? `https://api.scryfall.com/cards/${card.id}`
+    : uri;
+  e.dataTransfer.setData("text/uri-list", `${apiUri}\n${uri}`);
+  // Archidekt looks for a Scryfall printing UUID in the drop.
+  e.dataTransfer.setData("text/plain", card.id || name);
+  try {
+    e.dataTransfer.setData(
+      "text/html",
+      `<a href="${uri}" data-card-id="${card.id ?? ""}">${name}</a>`
+    );
+  } catch {
+    /* ignore */
+  }
   e.dataTransfer.effectAllowed = "copy";
 }
 
@@ -58,6 +70,11 @@ function namesFromUris(text: string): string[] {
   for (const raw of text.split(/\s+/)) {
     const url = raw.trim();
     if (!url) continue;
+    const apiId = url.match(/api\.scryfall\.com\/cards\/([0-9a-f-]{36})/i);
+    if (apiId?.[1]) {
+      out.push(apiId[1]);
+      continue;
+    }
     const scry = url.match(/scryfall\.com\/card\/[^/]+\/[^/]+\/([^/?#]+)/i);
     if (scry?.[1]) {
       out.push(decodeURIComponent(scry[1]).replace(/-/g, " "));
@@ -101,5 +118,8 @@ export function parseExternalCardDrop(dt: DataTransfer): DraggedCardHint[] {
   for (const n of namesFromPlain(dt.getData("text/plain") || dt.getData("Text"))) {
     names.add(n);
   }
-  return [...names].map((name) => ({ name }));
+  return [...names].map((name) => {
+    const id = /^[0-9a-f-]{36}$/i.test(name) ? name : undefined;
+    return { name, id };
+  });
 }

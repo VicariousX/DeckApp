@@ -592,11 +592,9 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                   >
                     <code>{s.name}</code>
                   </button>
-                  <span className={styles.tokenActs}>
+                  <span className={styles.catalogActs}>
                     <button
                       type="button"
-                      tabIndex={-1}
-                      data-skip-tab
                       onClick={() => {
                         setEditingId(s.id);
                         setEditName(s.name);
@@ -608,10 +606,8 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                     </button>
                     <button
                       type="button"
-                      tabIndex={-1}
-                      data-skip-tab
                       onClick={() => persistCatalog(catalog.filter((x) => x.id !== s.id))}
-                      title="Remove"
+                      title="Delete"
                     >
                       ×
                     </button>
