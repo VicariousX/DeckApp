@@ -278,15 +278,18 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const valueBox = useRef<HTMLInputElement>(null);
   const [bench, setBench] = useState<Clause[]>([]);
   const [drawer, setDrawer] = useState<SavedToken[]>(loadLocalDrawer);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerQ, setDrawerQ] = useState("");
   const [drawerSort, setDrawerSort] = useState<"new" | "name">("new");
   const [catalog, setCatalog] = useState<SavedSearch[]>(loadLocalCatalog);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [searchName, setSearchName] = useState("");
+  const [nameOpen, setNameOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [pickMode, setPickMode] = useState<"edit" | "delete" | null>(null);
+  const [catalogEdit, setCatalogEdit] = useState(false);
   const catalogPanel = useDraggablePanel(catalogOpen, { w: 360, h: 380 });
+  const drawerPanel = useDraggablePanel(drawerOpen, { w: 380, h: 420 });
+  const [drawerEdit, setDrawerEdit] = useState(false);
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
@@ -494,24 +497,34 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         >
           Clear
         </button>
-        <span ref={catalogPanel.anchorRef}>
+      </div>
+
+      <div className={styles.saveRow}>
+        <span ref={drawerPanel.anchorRef}>
           <button
             type="button"
             className={styles.ghost}
-            onClick={() => setCatalogOpen((v) => !v)}
+            onClick={() => setDrawerOpen((v) => !v)}
           >
-            {catalogOpen ? "Close catalog" : `Catalog${catalog.length ? ` (${catalog.length})` : ""}`}
+            {drawerOpen ? "Close tokens" : `Tokens${drawer.length ? ` (${drawer.length})` : ""}`}
           </button>
         </span>
-      </div>
-
-      <div className={styles.drawerBar}>
-        <input
-          className={styles.value}
-          value={searchName}
-          placeholder={editingId ? "Name (overwrite or save as new)" : "Name this search (optional)"}
-          onChange={(e) => setSearchName(e.target.value)}
-        />
+        <button
+          type="button"
+          className={styles.ghost}
+          onClick={() => setNameOpen((v) => !v)}
+          title="Search name"
+        >
+          {nameOpen ? "« Name" : "Name »"}
+        </button>
+        {nameOpen && (
+          <input
+            className={`${styles.value} ${styles.nameField}`}
+            value={searchName}
+            placeholder={editingId ? "Name (overwrite or save as new)" : "Name this search (optional)"}
+            onChange={(e) => setSearchName(e.target.value)}
+          />
+        )}
         {editingId ? (
           <>
             <button
@@ -585,6 +598,15 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
             Save search
           </button>
         )}
+        <span ref={catalogPanel.anchorRef}>
+          <button
+            type="button"
+            className={styles.ghost}
+            onClick={() => setCatalogOpen((v) => !v)}
+          >
+            {catalogOpen ? "Close catalog" : `Catalog${catalog.length ? ` (${catalog.length})` : ""}`}
+          </button>
+        </span>
       </div>
 
       {catalogOpen &&
@@ -613,58 +635,193 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
             <div className={styles.drawerBar}>
               <button
                 type="button"
-                className={pickMode === "edit" ? styles.primary : styles.ghost}
-                onClick={() => setPickMode((m) => (m === "edit" ? null : "edit"))}
+                className={catalogEdit ? styles.primary : styles.ghost}
+                onClick={() => setCatalogEdit((v) => !v)}
               >
-                Edit
-              </button>
-              <button
-                type="button"
-                className={pickMode === "delete" ? styles.primary : styles.ghost}
-                onClick={() => setPickMode((m) => (m === "delete" ? null : "delete"))}
-              >
-                Delete
+                {catalogEdit ? "Done" : "Edit"}
               </button>
             </div>
             <p className={styles.hint}>
-              {pickMode === "edit"
-                ? "Pick a search to load into the live bar."
-                : pickMode === "delete"
-                  ? "Pick a search to remove."
-                  : "Click a search to load it. Use Edit or Delete first to change the list."}
+              {catalogEdit
+                ? "Click a search to load it for overwrite. Use × to delete."
+                : "Click a search to load it."}
             </p>
             <div className={styles.catalogList}>
               {catalog.length === 0 && <p className={styles.hint}>No saved searches yet.</p>}
               {catalog.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`${styles.token} ${editingId === s.id ? styles.iconHot : ""}`}
-                  title={s.query}
-                  onClick={() => {
-                    if (pickMode === "delete") {
-                      persistCatalog(catalog.filter((x) => x.id !== s.id));
-                      if (editingId === s.id) setEditingId(null);
-                      return;
-                    }
-                    const next = parseQuery(s.query, FIELD_TO_CATEGORY);
-                    setRoot({ ...next, join: "and" });
-                    setBar(s.query);
-                    setBarDirty(false);
-                    setSearchName(s.name);
-                    if (pickMode === "edit") {
-                      setEditingId(s.id);
-                      setPickMode(null);
-                    }
-                  }}
-                >
-                  <code>{s.name}</code>
-                </button>
+                <div key={s.id} className={styles.savedRow}>
+                  <button
+                    type="button"
+                    className={`${styles.token} ${editingId === s.id ? styles.iconHot : ""}`}
+                    title={s.query}
+                    onClick={() => {
+                      const next = parseQuery(s.query, FIELD_TO_CATEGORY);
+                      setRoot({ ...next, join: "and" });
+                      setBar(s.query);
+                      setBarDirty(false);
+                      setSearchName(s.name);
+                      setNameOpen(true);
+                      if (catalogEdit) setEditingId(s.id);
+                    }}
+                  >
+                    <code>{s.name}</code>
+                  </button>
+                  {catalogEdit && (
+                    <button
+                      type="button"
+                      className={styles.ghost}
+                      title="Delete"
+                      onClick={() => {
+                        persistCatalog(catalog.filter((x) => x.id !== s.id));
+                        if (editingId === s.id) setEditingId(null);
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
             <div
               className={styles.catalogResize}
               onPointerDown={catalogPanel.onResizePointerDown("se")}
+            />
+          </div>,
+          document.body
+        )}
+
+      {drawerOpen &&
+        createPortal(
+          <div
+            className={styles.catalogPanel}
+            ref={drawerPanel.panelRef}
+            style={drawerPanel.panelStyle}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const clause = parseDragClause(e.dataTransfer);
+              if (clause) addTokenToDrawer(clause);
+            }}
+          >
+            <div className={styles.catalogTop}>
+              <div
+                className={styles.catalogHandle}
+                onPointerDown={drawerPanel.onHandlePointerDown}
+              >
+                Token drawer
+              </div>
+              <button
+                type="button"
+                className={styles.ghost}
+                data-no-drag
+                onClick={() => setDrawerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.drawerBar}>
+              <button
+                type="button"
+                className={drawerEdit ? styles.primary : styles.ghost}
+                onClick={() => setDrawerEdit((v) => !v)}
+              >
+                {drawerEdit ? "Done" : "Edit"}
+              </button>
+              <button
+                type="button"
+                className={styles.ghost}
+                onClick={() => {
+                  const extras: SavedToken[] = [];
+                  const have = new Set(drawer.map((t) => serializeClause(t.clause)));
+                  for (const s of STARTER_TOKENS) {
+                    const clause: Clause = {
+                      kind: "clause",
+                      id: uid(),
+                      category: s.category,
+                      field: s.field,
+                      op: s.op,
+                      value: s.value,
+                      excluded: false,
+                      joinAfter: "and",
+                    };
+                    const label = serializeClause(clause);
+                    if (have.has(label)) continue;
+                    extras.push(makeSaved(clause, label));
+                  }
+                  if (extras.length) persistDrawer([...extras, ...drawer]);
+                }}
+              >
+                Starter tokens
+              </button>
+            </div>
+            <div className={styles.drawerBar}>
+              <input
+                className={styles.value}
+                value={drawerQ}
+                placeholder="Filter saved tokens"
+                onChange={(e) => setDrawerQ(e.target.value)}
+              />
+              <button
+                type="button"
+                className={styles.ghost}
+                onClick={() => setDrawerSort((s) => (s === "new" ? "name" : "new"))}
+              >
+                {drawerSort === "new" ? "Newest" : "Name"}
+              </button>
+            </div>
+            <div className={styles.catalogList}>
+              {drawer
+                .filter((s) => {
+                  const q = drawerQ.toLowerCase();
+                  if (!q) return true;
+                  return (
+                    s.label.toLowerCase().includes(q) ||
+                    serializeClause(s.clause).toLowerCase().includes(q)
+                  );
+                })
+                .sort((a, b) =>
+                  drawerSort === "name"
+                    ? a.label.localeCompare(b.label)
+                    : b.savedAt - a.savedAt
+                )
+                .map((s) => (
+                  <div key={s.id} className={styles.savedRow}>
+                    <Token
+                      clause={s.clause}
+                      onEdit={() =>
+                        setDraft({
+                          category: s.clause.category,
+                          field: s.clause.field,
+                          op: s.clause.op,
+                          excluded: s.clause.excluded,
+                          value: s.clause.value,
+                        })
+                      }
+                      onRemove={() => persistDrawer(drawer.filter((x) => x.id !== s.id))}
+                      onApply={() =>
+                        setRoot((r) => ({
+                          ...r,
+                          items: [...r.items, cloneClause(s.clause)],
+                        }))
+                      }
+                      dragSrc="drawer"
+                    />
+                    {drawerEdit && (
+                      <button
+                        type="button"
+                        className={styles.ghost}
+                        title="Delete"
+                        onClick={() => persistDrawer(drawer.filter((x) => x.id !== s.id))}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+            <div
+              className={styles.catalogResize}
+              onPointerDown={drawerPanel.onResizePointerDown("se")}
             />
           </div>,
           document.body
@@ -757,110 +914,6 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
               </div>
             </div>
           </section>
-          <section
-            className={styles.logic}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const clause = parseDragClause(e.dataTransfer);
-              if (!clause) return;
-              addTokenToDrawer(clause);
-            }}
-          >
-            <div className={styles.logicHead}>
-              <h2>Token drawer</h2>
-              <button type="button" className={styles.ghost} onClick={() => setDrawerOpen((v) => !v)}>
-                {drawerOpen ? "Hide" : "Show"}
-              </button>
-              <button
-                type="button"
-                className={styles.ghost}
-                onClick={() => {
-                  const extras: SavedToken[] = [];
-                  const have = new Set(drawer.map((t) => serializeClause(t.clause)));
-                  for (const s of STARTER_TOKENS) {
-                    const clause: Clause = {
-                      kind: "clause",
-                      id: uid(),
-                      category: s.category,
-                      field: s.field,
-                      op: s.op,
-                      value: s.value,
-                      excluded: false,
-                      joinAfter: "and",
-                    };
-                    const label = serializeClause(clause);
-                    if (have.has(label)) continue;
-                    extras.push(makeSaved(clause, label));
-                  }
-                  if (extras.length) persistDrawer([...extras, ...drawer]);
-                  setDrawerOpen(true);
-                }}
-                title="Add common type, format, and text tokens"
-              >
-                Starter tokens
-              </button>
-            </div>
-            {drawerOpen && (
-              <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
-                <div className={styles.drawerBar}>
-                  <input
-                    className={styles.value}
-                    value={drawerQ}
-                    placeholder="Filter saved tokens"
-                    onChange={(e) => setDrawerQ(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className={styles.ghost}
-                    onClick={() => setDrawerSort((s) => (s === "new" ? "name" : "new"))}
-                  >
-                    {drawerSort === "new" ? "Newest" : "Name"}
-                  </button>
-                </div>
-                <div className={styles.tokens}>
-                  {drawer
-                    .filter((s) => {
-                      const q = drawerQ.toLowerCase();
-                      if (!q) return true;
-                      return (
-                        s.label.toLowerCase().includes(q) ||
-                        serializeClause(s.clause).toLowerCase().includes(q)
-                      );
-                    })
-                    .sort((a, b) =>
-                      drawerSort === "name"
-                        ? a.label.localeCompare(b.label)
-                        : b.savedAt - a.savedAt
-                    )
-                    .map((s) => (
-                      <div key={s.id} className={styles.savedRow}>
-                        <Token
-                          clause={s.clause}
-                          onEdit={() =>
-                            setDraft({
-                              category: s.clause.category,
-                              field: s.clause.field,
-                              op: s.clause.op,
-                              excluded: s.clause.excluded,
-                              value: s.clause.value,
-                            })
-                          }
-                          onRemove={() => persistDrawer(drawer.filter((x) => x.id !== s.id))}
-                          onApply={() =>
-                            setRoot((r) => ({
-                              ...r,
-                              items: [...r.items, cloneClause(s.clause)],
-                            }))
-                          }
-                          dragSrc="drawer"
-                        />
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </section>
       </>
     </div>
   );
@@ -888,6 +941,7 @@ function ClauseRow({
   const [valueOpen, setValueOpen] = useState(false);
   const [pins, setPins] = useState<Pin[]>(loadPins);
   const [editPins, setEditPins] = useState(false);
+  const pinPanel = useDraggablePanel(editPins, { w: 340, h: 320 });
 
   function savePins(next: Pin[]) {
     setPins(next);
@@ -939,51 +993,20 @@ function ClauseRow({
   return (
     <section className={styles.composer}>
       <div className={styles.pins}>
-        <button
-          type="button"
-          className={styles.pinEditBtn}
-          onClick={() => setEditPins((v) => !v)}
-          title="Edit quick fields"
-        >
-          {editPins ? "Done" : "✎"}
-        </button>
+        <span ref={pinPanel.anchorRef}>
+          <button
+            type="button"
+            className={styles.pinEditBtn}
+            onClick={() => setEditPins((v) => !v)}
+            title="Edit quick fields"
+          >
+            ✎
+          </button>
+        </span>
         {pins.map((pin, i) => {
           const opt = FIELD_OPTS.find((f) => f.key === pin.key);
           if (!opt) return null;
           const on = draft.field === opt.key && draft.category === opt.category;
-          if (editPins) {
-            return (
-              <span key={`${pin.key}-${i}`} className={styles.pinEdit}>
-                <select
-                  value={pin.key}
-                  onChange={(e) => {
-                    const key = e.target.value;
-                    const found = FIELD_OPTS.find((f) => f.key === key);
-                    savePins(
-                      pins.map((p, j) =>
-                        j === i ? { key, name: found?.key || found?.label || key } : p
-                      )
-                    );
-                  }}
-                >
-                  {FIELD_OPTS.map((f) => (
-                    <option key={`${f.category}:${f.key}`} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={pin.name}
-                  onChange={(e) =>
-                    savePins(pins.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
-                  }
-                />
-                <button type="button" onClick={() => savePins(pins.filter((_, j) => j !== i))}>
-                  ×
-                </button>
-              </span>
-            );
-          }
           return (
             <button
               key={`${pin.key}-${i}`}
@@ -995,16 +1018,66 @@ function ClauseRow({
             </button>
           );
         })}
-        {editPins && (
-          <button
-            type="button"
-            className={styles.pin}
-            onClick={() => savePins([...pins, { key: "t", name: "t" }])}
-          >
-            +
-          </button>
-        )}
       </div>
+      {editPins &&
+        createPortal(
+          <div
+            className={styles.catalogPanel}
+            ref={pinPanel.panelRef}
+            style={pinPanel.panelStyle}
+          >
+            <div className={styles.catalogTop}>
+              <div className={styles.catalogHandle} onPointerDown={pinPanel.onHandlePointerDown}>
+                Quick fields
+              </div>
+              <button type="button" className={styles.ghost} data-no-drag onClick={() => setEditPins(false)}>
+                ×
+              </button>
+            </div>
+            <div className={styles.catalogList}>
+              {pins.map((pin, i) => (
+                <div key={`${pin.key}-${i}`} className={styles.pinEdit}>
+                  <select
+                    value={pin.key}
+                    onChange={(e) => {
+                      const key = e.target.value;
+                      const found = FIELD_OPTS.find((f) => f.key === key);
+                      savePins(
+                        pins.map((p, j) =>
+                          j === i ? { key, name: found?.key || found?.label || key } : p
+                        )
+                      );
+                    }}
+                  >
+                    {FIELD_OPTS.map((f) => (
+                      <option key={`${f.category}:${f.key}`} value={f.key}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={pin.name}
+                    onChange={(e) =>
+                      savePins(pins.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
+                    }
+                  />
+                  <button type="button" onClick={() => savePins(pins.filter((_, j) => j !== i))}>
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className={styles.pin}
+                onClick={() => savePins([...pins, { key: "t", name: "t" }])}
+              >
+                +
+              </button>
+            </div>
+            <div className={styles.catalogResize} onPointerDown={pinPanel.onResizePointerDown("se")} />
+          </div>,
+          document.body
+        )}
       <div className={styles.row}>
         <div className={styles.fieldPick}>
           <input

@@ -474,6 +474,18 @@
   font-size: 0.78rem;
 }
 
+.saveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nameField {
+  min-width: 10rem;
+  flex: 1;
+}
+
 .catalogPanel {
   position: fixed;
   z-index: 40;
