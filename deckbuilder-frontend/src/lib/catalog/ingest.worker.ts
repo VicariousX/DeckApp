@@ -65,11 +65,14 @@ function clearStore(db: IDBDatabase, store: "cards" | "rulings"): Promise<void> 
 async function* iterateRows(res: Response): AsyncGenerator<unknown> {
   const raw = new Uint8Array(await res.arrayBuffer());
   const gzip = raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b;
-  let stream: ReadableStream<Uint8Array> = new Blob([raw]).stream();
+  // DOM stream generics disagree across TS lib versions; runtime is fine.
+  let stream: ReadableStream = new Blob([raw]).stream();
   if (gzip) {
-    stream = stream.pipeThrough(new DecompressionStream("gzip"));
+    stream = stream.pipeThrough(new DecompressionStream("gzip") as never);
   }
-  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+  const reader = stream
+    .pipeThrough(new TextDecoderStream() as never)
+    .getReader() as ReadableStreamDefaultReader<string>;
   let carry = "";
   let first = true;
   let jsonArray = false;
