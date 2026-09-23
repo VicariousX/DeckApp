@@ -217,7 +217,7 @@ export async function fetchPrintings(
 
   const promise = (async () => {
     try {
-      if ((await catalogReady()) && readCatalogTier() === "prints") {
+      if (await catalogReady()) {
         const local = await getPrintsByOracle(oracleId);
         if (local.length > 1) {
           printCache.set(key, local);

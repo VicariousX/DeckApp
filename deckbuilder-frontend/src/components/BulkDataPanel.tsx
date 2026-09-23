@@ -14,7 +14,7 @@ import {
 import type { CatalogMeta } from "../lib/catalog/types";
 import styles from "./BulkDataPanel.module.css";
 
-const TIERS: CatalogTier[] = ["live", "core", "prints"];
+const TIERS: CatalogTier[] = ["live", "core"];
 
 export function BulkDataPanel() {
   const [tier, setTier] = useState<CatalogTier>(() => readCatalogTier());

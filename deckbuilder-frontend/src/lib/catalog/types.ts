@@ -1,6 +1,6 @@
-export type CatalogTier = "live" | "core" | "prints";
+export type CatalogTier = "live" | "core";
 
-export type CatalogFileKind = "oracle-cards" | "default-cards" | "rulings";
+export type CatalogFileKind = "oracle-cards" | "rulings";
 
 export type CatalogMeta = {
   key: string;
@@ -23,7 +23,6 @@ export type CatalogProgress = {
 export const TIER_FILES: Record<CatalogTier, CatalogFileKind[]> = {
   live: [],
   core: ["oracle-cards", "rulings"],
-  prints: ["default-cards", "rulings"],
 };
 
 export const TIER_COPY: Record<
@@ -41,11 +40,5 @@ export const TIER_COPY: Record<
     size: "~40–80 MB on disk",
     blurb:
       "One printing per unique card (oracle-cards) plus official rulings. Name lookup, autocomplete, card pages, and rulings stay local. The print picker still uses the live API.",
-  },
-  prints: {
-    label: "All English printings + rulings",
-    size: "~150–250 MB on disk",
-    blurb:
-      "Every English printing (default-cards) plus rulings. Print picker, preferred-art matching, and card-by-id are local. Largest option we recommend; we do not offer the multi-language dump.",
   },
 };

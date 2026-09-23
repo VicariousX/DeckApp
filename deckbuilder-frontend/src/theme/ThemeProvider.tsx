@@ -27,7 +27,7 @@ function readStoredTheme(): AppThemeId {
   } catch {
     /* ignore */
   }
-  return "premium";
+  return "arcane";
 }
 
 function applyTheme(theme: AppThemeId) {
@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       applyTheme(initial);
       return initial;
     }
-    return "premium";
+    return "arcane";
   });
 
   useEffect(() => {

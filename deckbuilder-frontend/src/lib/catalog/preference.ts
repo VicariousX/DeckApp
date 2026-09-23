@@ -5,7 +5,8 @@ const KEY = "deckapp.catalogTier";
 export function readCatalogTier(): CatalogTier {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw === "core" || raw === "prints" || raw === "live") return raw;
+    if (raw === "core" || raw === "live") return raw;
+    if (raw === "prints") return "core";
   } catch {
     /* ignore */
   }

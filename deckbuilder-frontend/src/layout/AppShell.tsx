@@ -11,8 +11,10 @@ export function AppShell() {
   const name = getDisplayName(user);
   const location = useLocation();
   const [decksOpen, setDecksOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
   const decksRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const decksActive =
     location.pathname === "/decks" ||
@@ -21,25 +23,42 @@ export function AppShell() {
 
   useEffect(() => {
     setDecksOpen(false);
-    // Refresh last-viewed when route changes (deck builder writes localStorage)
+    setSearchOpen(false);
     setLastDeck(getLastViewedDeck());
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
+
+  const searchMode =
+    location.pathname.startsWith("/search") &&
+    new URLSearchParams(location.search).get("mode") === "advanced"
+      ? "advanced"
+      : location.pathname.startsWith("/search")
+        ? "standard"
+        : null;
+  const searchLabel =
+    searchMode === "advanced"
+      ? "Advanced"
+      : searchMode === "standard"
+        ? "Standard"
+        : "Search";
 
   useEffect(() => {
-    if (!decksOpen) return;
+    if (!decksOpen && !searchOpen) return;
 
     let remove: (() => void) | undefined;
 
     // Defer so the opening click does not immediately close the menu
     const timer = window.setTimeout(() => {
       function onPointerDown(e: MouseEvent) {
-        if (!decksRef.current?.contains(e.target as Node)) {
-          setDecksOpen(false);
-        }
+        const t = e.target as Node;
+        if (!decksRef.current?.contains(t)) setDecksOpen(false);
+        if (!searchRef.current?.contains(t)) setSearchOpen(false);
       }
 
       function onKey(e: KeyboardEvent) {
-        if (e.key === "Escape") setDecksOpen(false);
+        if (e.key === "Escape") {
+          setDecksOpen(false);
+          setSearchOpen(false);
+        }
       }
 
       document.addEventListener("mousedown", onPointerDown);
@@ -54,7 +73,7 @@ export function AppShell() {
       window.clearTimeout(timer);
       remove?.();
     };
-  }, [decksOpen]);
+  }, [decksOpen, searchOpen]);
 
   return (
     <div className={styles.shell}>
@@ -64,48 +83,62 @@ export function AppShell() {
           Deck<span className={styles.brandAccent}>App</span>
         </NavLink>
         <nav className={styles.nav} aria-label="Main">
-          <div className={styles.searchFly}>
-            <NavLink
-              to="/search?mode=standard"
-              className={() => {
-                const onSearch = location.pathname.startsWith("/search");
-                return `${styles.navLink} ${styles.searchPrimary}${
-                  onSearch ? ` ${styles.navLinkActive}` : ""
-                }`;
+          <div className={styles.decksMenu} ref={searchRef}>
+            <button
+              type="button"
+              className={`${styles.navLink} ${styles.decksTrigger} ${
+                searchMode || searchOpen ? styles.navLinkActive : ""
+              }`}
+              aria-haspopup="menu"
+              aria-expanded={searchOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchOpen((v) => !v);
+                setDecksOpen(false);
               }}
             >
-              Search
-            </NavLink>
-            <div className={styles.searchMenu} role="menu">
-              <NavLink
-                to="/search?mode=standard"
-                role="menuitem"
-                className={() => {
-                  const onSearch = location.pathname.startsWith("/search");
-                  const advanced =
-                    new URLSearchParams(location.search).get("mode") === "advanced";
-                  return `${styles.searchMenuItem}${
-                    onSearch && !advanced ? ` ${styles.searchMenuOn}` : ""
-                  }`;
-                }}
+              {searchLabel}
+              <span
+                className={`${styles.chevron} ${
+                  searchOpen ? styles.chevronOpen : ""
+                }`}
+                aria-hidden
               >
-                Standard
-              </NavLink>
-              <NavLink
-                to="/search?mode=advanced"
-                role="menuitem"
-                className={() => {
-                  const onSearch = location.pathname.startsWith("/search");
-                  const advanced =
-                    new URLSearchParams(location.search).get("mode") === "advanced";
-                  return `${styles.searchMenuItem}${
-                    onSearch && advanced ? ` ${styles.searchMenuOn}` : ""
-                  }`;
-                }}
+                ▾
+              </span>
+            </button>
+            {searchOpen && (
+              <div
+                className={styles.decksDropdown}
+                role="menu"
+                onMouseDown={(e) => e.stopPropagation()}
               >
-                Advanced
-              </NavLink>
-            </div>
+                <NavLink
+                  to="/search?mode=standard"
+                  role="menuitem"
+                  className={() =>
+                    searchMode === "standard"
+                      ? `${styles.decksItem} ${styles.decksItemActive}`
+                      : styles.decksItem
+                  }
+                  onClick={() => setSearchOpen(false)}
+                >
+                  Standard
+                </NavLink>
+                <NavLink
+                  to="/search?mode=advanced"
+                  role="menuitem"
+                  className={() =>
+                    searchMode === "advanced"
+                      ? `${styles.decksItem} ${styles.decksItemActive}`
+                      : styles.decksItem
+                  }
+                  onClick={() => setSearchOpen(false)}
+                >
+                  Advanced
+                </NavLink>
+              </div>
+            )}
           </div>
 
           {user && (

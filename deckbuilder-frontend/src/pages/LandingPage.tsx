@@ -147,14 +147,14 @@ export function LandingPage() {
   const myDrawer = user ? (
     <LandingDrawer
       mark={(displayName || "M").charAt(0).toUpperCase()}
-      title="My..."
+      title="My"
       description="Your collection space."
       delayMs={150}
       slots={[
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
       ]}
-      rail={{ kind: "link", to: "/login?tab=themes", label: "My themes" }}
+      rail={{ kind: "link", to: "/login", label: "Profile" }}
     />
   ) : (
     <Link
