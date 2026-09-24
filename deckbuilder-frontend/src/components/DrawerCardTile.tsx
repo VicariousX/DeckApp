@@ -80,6 +80,7 @@ type Props = {
   onOpen: () => void;
   onRemove: () => void;
   onTier: (next: number) => void;
+  onContextMenu?: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
 };
 
 export function DrawerCardTile({
@@ -88,6 +89,7 @@ export function DrawerCardTile({
   onOpen,
   onRemove,
   onTier,
+  onContextMenu,
 }: Props) {
   const id = useId();
   const { awake, wake: wakeField, scheduleSleep: sleepField } =
@@ -189,6 +191,11 @@ export function DrawerCardTile({
       onPointerEnter={wake}
       onPointerMove={onMove}
       onPointerLeave={scheduleSleep}
+      onContextMenu={(e) => {
+        if (!onContextMenu) return;
+        e.preventDefault();
+        onContextMenu(e);
+      }}
     >
       <Link
         className={`${styles.slide} ${styles.nameSlide}`}

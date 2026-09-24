@@ -9,6 +9,10 @@ import type { CardFaceView } from "./CardImage";
 import styles from "./CardResult.module.css";
 import { CardEnlargeOverlay, CardImage } from "./CardImage";
 import { CardInspectorModal } from "./CardInspectorModal";
+import {
+  CardContextMenu,
+  type ModalJump,
+} from "./CardContextMenu";
 import { getFaceImage } from "../utils/scryfall";
 
 type CardResultProps = {
@@ -22,10 +26,12 @@ function ResultCard({
   display,
   originalId,
   onSelect,
+  onContext,
 }: {
   display: ScryfallCard;
   originalId: string;
   onSelect: (card: ScryfallCard) => void;
+  onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
 }) {
   const faces = getFaces(display);
   const [view, setView] = useState<CardFaceView>("front");
@@ -36,6 +42,10 @@ function ResultCard({
       className={`${styles.cardWrapper} ${
         expanded ? styles.cardWrapperExpanded : ""
       }`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContext(e);
+      }}
     >
       <CardImage
         card={display}
@@ -70,6 +80,10 @@ export function CardResult({
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [modalJump, setModalJump] = useState<ModalJump>("info");
+  const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
+    null
+  );
 
   const list = useMemo(
     () =>
@@ -112,6 +126,10 @@ export function CardResult({
                 onClick={() =>
                   previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
                 }
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setCtx({ x: e.clientX, y: e.clientY, index: i });
+                }}
               >
                 <span className={styles.textName}>{item.display.name}</span>
                 <span className={styles.textType}>{item.display.type_line}</span>
@@ -128,6 +146,9 @@ export function CardResult({
               originalId={item.originalId}
               onSelect={() =>
                 previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
+              }
+              onContext={(e) =>
+                setCtx({ x: e.clientX, y: e.clientY, index: i })
               }
             />
           ))}
@@ -150,8 +171,44 @@ export function CardResult({
         />
       )}
 
+      {ctx && list[ctx.index] && (
+        <CardContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          target={{
+            scryfallId: list[ctx.index].originalId,
+            oracleId: list[ctx.index].display.oracle_id,
+            name: list[ctx.index].display.name,
+            typeLine: list[ctx.index].display.type_line,
+            imageUrl: getFaceImage(list[ctx.index].display, 0),
+            imageUrlBack: getFaceImage(list[ctx.index].display, 1) || undefined,
+          }}
+          onClose={() => setCtx(null)}
+          onEnhance={() => {
+            setPreviewIndex(ctx.index);
+            setCtx(null);
+          }}
+          onOpenModal={(jump) => {
+            setModalJump(jump);
+            setSelectedIndex(ctx.index);
+          }}
+        />
+      )}
+
       {selected && selectedIndex != null && (
         <CardInspectorModal
+          key={`${selected.originalId}-${modalJump}`}
+          initialTab={
+            modalJump.startsWith("artwork")
+              ? "artwork"
+              : modalJump.startsWith("info")
+                ? "info"
+                : modalJump === "deck" || modalJump === "drawers"
+                  ? modalJump
+                  : "info"
+          }
+          initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
+          initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
           scryfallId={selected.originalId}
           name={selected.display.name}
           onClose={() => setSelectedIndex(null)}

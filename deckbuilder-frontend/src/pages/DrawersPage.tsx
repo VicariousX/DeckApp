@@ -36,6 +36,11 @@ import {
   type DrawerViewMode,
 } from "../lib/deckPreferences";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardEnlargeOverlay } from "../components/CardImage";
+import {
+  CardContextMenu,
+  type ModalJump,
+} from "../components/CardContextMenu";
 import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
@@ -54,6 +59,13 @@ export function DrawersPage() {
   const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
   const [showTiers, setShowTiers] = useState(() => getDrawerShowTiers());
   const [inspectId, setInspectId] = useState<string | null>(null);
+  const [modalJump, setModalJump] = useState<ModalJump>("info");
+  const [ctxCard, setCtxCard] = useState<{
+    x: number;
+    y: number;
+    card: DrawerCardView;
+  } | null>(null);
+  const [enhanceCard, setEnhanceCard] = useState<DrawerCardView | null>(null);
   const [sortKey, setSortKey] = useState<CardSortKey>(() => {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
@@ -780,6 +792,9 @@ export function DrawersPage() {
                       }}
                       onRemove={() => void onRemoveCard(c.oracle_id)}
                       onTier={(n) => void onTier(c.id, n)}
+                      onContextMenu={(e) =>
+                        setCtxCard({ x: e.clientX, y: e.clientY, card: c })
+                      }
                     />
                   ))}
                 </div>
@@ -794,6 +809,10 @@ export function DrawersPage() {
                       className={styles.cardRow}
                       onClick={() => {
                         if (c.scryfall_id) setInspectId(c.id);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setCtxCard({ x: e.clientX, y: e.clientY, card: c });
                       }}
                     >
                       <div className={styles.cardMeta}>
@@ -861,8 +880,60 @@ export function DrawersPage() {
           )}
         </section>
       </div>
+      {ctxCard && ctxCard.card.scryfall_id && (
+        <CardContextMenu
+          x={ctxCard.x}
+          y={ctxCard.y}
+          target={{
+            scryfallId: ctxCard.card.scryfall_id,
+            oracleId: ctxCard.card.oracle_id,
+            name: ctxCard.card.name,
+            typeLine: ctxCard.card.type_line,
+            imageUrl: ctxCard.card.image_url ?? undefined,
+          }}
+          tier={
+            (cards.find((x) => x.id === ctxCard.card.id) ?? ctxCard.card).tier ??
+            1
+          }
+          onClose={() => setCtxCard(null)}
+          onEnhance={() => setEnhanceCard(ctxCard.card)}
+          onOpenModal={(jump) => {
+            setModalJump(jump);
+            setInspectId(ctxCard.card.id);
+          }}
+          onTier={(d) => {
+            const live =
+              cards.find((x) => x.id === ctxCard.card.id) ?? ctxCard.card;
+            void onTier(live.id, Math.max(1, (live.tier ?? 1) + d));
+          }}
+          onRemove={() => void onRemoveCard(ctxCard.card.oracle_id)}
+        />
+      )}
+      {enhanceCard?.image_url && (
+        <CardEnlargeOverlay
+          frontSrc={enhanceCard.image_url}
+          frontName={enhanceCard.name}
+          onClose={() => setEnhanceCard(null)}
+          onActivate={() => {
+            if (enhanceCard.scryfall_id) setInspectId(enhanceCard.id);
+            setEnhanceCard(null);
+          }}
+        />
+      )}
       {inspectCard && inspectCard.scryfall_id && (
         <CardInspectorModal
+          key={`${inspectCard.id}-${modalJump}`}
+          initialTab={
+            modalJump.startsWith("artwork")
+              ? "artwork"
+              : modalJump.startsWith("info")
+                ? "info"
+                : modalJump === "deck" || modalJump === "drawers"
+                  ? modalJump
+                  : "info"
+          }
+          initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
+          initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
           scryfallId={inspectCard.scryfall_id}
           name={inspectCard.name}
           imageUrl={inspectCard.image_url ?? undefined}

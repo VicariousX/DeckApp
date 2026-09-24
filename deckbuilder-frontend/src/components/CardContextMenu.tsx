@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -25,7 +25,7 @@ export type CardContextTarget = {
   imageUrlBack?: string;
 };
 
-type Flyout = "modal" | "decks" | "share" | null;
+type Flyout = "decks" | "share" | null;
 
 type Props = {
   x: number;
@@ -68,6 +68,8 @@ export function CardContextMenu({
   const [decks, setDecks] = useState<Deck[] | null>(null);
   const [fly, setFly] = useState<Flyout>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [pos, setPos] = useState({ left: x, top: y });
+  const boxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -90,8 +92,23 @@ export function CardContextMenu({
     void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
   }, [user, fly, decks]);
 
-  const left = Math.min(x, window.innerWidth - 240);
-  const top = Math.min(y, window.innerHeight - 280);
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const pad = 8;
+    const r = el.getBoundingClientRect();
+    let left = x;
+    let top = y;
+    if (left + r.width > window.innerWidth - pad) {
+      left = window.innerWidth - r.width - pad;
+    }
+    if (top + r.height > window.innerHeight - pad) {
+      top = window.innerHeight - r.height - pad;
+    }
+    left = Math.max(pad, left);
+    top = Math.max(pad, top);
+    setPos({ left, top });
+  }, [x, y, fly, quantity, tier, status]);
 
   async function addTo(deckId: string) {
     const { error } = await addCardToDeck(deckId, {
@@ -151,16 +168,15 @@ export function CardContextMenu({
       setStatus("Image saved");
       return;
     }
-    if (target.imageUrl) {
-      window.open(target.imageUrl, "_blank", "noopener");
-    }
+    if (target.imageUrl) window.open(target.imageUrl, "_blank", "noopener");
   }
 
   return createPortal(
     <div
       id="card-ctx-menu"
+      ref={boxRef}
       className={styles.menu}
-      style={{ left, top }}
+      style={{ left: pos.left, top: pos.top }}
       role="menu"
     >
       <div className={styles.pair}>
@@ -184,29 +200,20 @@ export function CardContextMenu({
         </button>
       </div>
 
-      <button
-        type="button"
-        className={fly === "modal" ? styles.active : undefined}
-        onClick={() => setFly((v) => (v === "modal" ? null : "modal"))}
-      >
-        Open modal ▸
-      </button>
-      {fly === "modal" && (
-        <div className={styles.fly}>
-          {MODAL_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                onOpenModal(item.id);
-                onClose();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={styles.fly}>
+        {MODAL_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              onOpenModal(item.id);
+              onClose();
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       {onQty && (
         <div className={styles.stepper}>
