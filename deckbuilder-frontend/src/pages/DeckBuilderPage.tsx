@@ -34,6 +34,11 @@ import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
 import { CardHoverPreview } from "../components/CardHoverPreview";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardEnlargeOverlay } from "../components/CardImage";
+import {
+  CardContextMenu,
+  type ModalJump,
+} from "../components/CardContextMenu";
 import {
   ImageDndProvider,
   DraggableStackCard,
@@ -242,6 +247,13 @@ export function DeckBuilderPage() {
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<DeckCard | null>(null);
+  const [modalJump, setModalJump] = useState<ModalJump>("info");
+  const [ctxMenu, setCtxMenu] = useState<{
+    x: number;
+    y: number;
+    card: DeckCard;
+  } | null>(null);
+  const [enhanceCard, setEnhanceCard] = useState<DeckCard | null>(null);
   /** stack face flip: card id → front|back */
   const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
   /** cached back-face image URLs for multi-face cards */
@@ -1149,8 +1161,14 @@ export function DeckBuilderPage() {
     }
   }
 
-  function openCardModal(card: DeckCard) {
+  function openCardModal(card: DeckCard, jump: ModalJump = "info") {
+    setModalJump(jump);
     setModalCard(card);
+  }
+
+  function onCardContext(e: { preventDefault: () => void; clientX: number; clientY: number }, card: DeckCard) {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, card });
   }
 
   const modalNavList = panel === "tokens" ? tokenCards : detail?.cards ?? [];
@@ -1712,6 +1730,7 @@ export function DeckBuilderPage() {
                               className={styles.commanderCard}
                               style={{ zIndex: cardIdx + 1 }}
                               onClick={() => openCardModal(c)}
+                              onContextMenu={(e) => onCardContext(e, c)}
                             >
                               <div
                                 className={styles.stackCardLink}
@@ -1801,6 +1820,7 @@ export function DeckBuilderPage() {
                               disabled={!isOwner || panel === "tokens"}
                               className={styles.gridCard}
                               onClick={() => openCardModal(c)}
+                              onContextMenu={(e) => onCardContext(e, c)}
                             >
                               <div className={styles.stackCardLink} title={c.name}>
                                 {src ? (
@@ -1909,6 +1929,7 @@ export function DeckBuilderPage() {
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
+                              onContextMenu={(e) => onCardContext(e, c)}
                                     >
                                       <div
                                         className={styles.stackCardLink}
@@ -2039,6 +2060,7 @@ export function DeckBuilderPage() {
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
+                              onContextMenu={(e) => onCardContext(e, c)}
                                     >
                                       <div
                                         className={styles.stackCardLink}
@@ -2158,6 +2180,7 @@ export function DeckBuilderPage() {
                                       onMouseMove={onNameMove}
                                       onMouseLeave={onNameLeave}
                                       onClick={() => openCardModal(c)}
+                              onContextMenu={(e) => onCardContext(e, c)}
                                     >
                                       {c.name}
                                     </button>
@@ -2240,8 +2263,60 @@ export function DeckBuilderPage() {
         </>
       )}
 
+      {ctxMenu && (
+        <CardContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          target={{
+            scryfallId: ctxMenu.card.scryfall_id,
+            oracleId: ctxMenu.card.oracle_id,
+            name: ctxMenu.card.name,
+            typeLine: ctxMenu.card.type_line,
+            imageUrl: stackImageSrc(ctxMenu.card),
+          }}
+          onClose={() => setCtxMenu(null)}
+          onEnhance={() => setEnhanceCard(ctxMenu.card)}
+          onOpenModal={(jump) => openCardModal(ctxMenu.card, jump)}
+          onQty={isOwner ? (d) => void onQty(ctxMenu.card, d) : undefined}
+          onRemove={
+            isOwner
+              ? () => {
+                  if (panel === "tokens" || deckTokens.some((t) => t.id === ctxMenu.card.id)) {
+                    void applyQuantity(ctxMenu.card, 0);
+                  } else {
+                    void onRemove(ctxMenu.card);
+                  }
+                }
+              : undefined
+          }
+        />
+      )}
+      {enhanceCard && (
+        <CardEnlargeOverlay
+          frontSrc={stackImageSrc(enhanceCard) || ""}
+          frontName={enhanceCard.name}
+          onClose={() => setEnhanceCard(null)}
+          onActivate={() => {
+            openCardModal(enhanceCard);
+            setEnhanceCard(null);
+          }}
+          hint="Click the card for details · click outside to close"
+        />
+      )}
       {modalCard && (
         <CardInspectorModal
+          key={`${modalCard.id}-${modalJump}`}
+          initialTab={
+            modalJump.startsWith("artwork")
+              ? "artwork"
+              : modalJump.startsWith("info")
+                ? "info"
+                : modalJump === "deck" || modalJump === "drawers"
+                  ? modalJump
+                  : "info"
+          }
+          initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
+          initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
           scryfallId={
             (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard)
               .scryfall_id

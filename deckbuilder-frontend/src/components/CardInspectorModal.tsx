@@ -40,6 +40,9 @@ export type CardInspectorDeckControls = {
   onCreateTag?: (name: string) => Promise<void> | void;
 };
 
+export type InspectorTabId = "info" | "deck" | "drawer" | "drawers" | "artwork";
+type TabId = InspectorTabId;
+
 type Props = {
   scryfallId: string;
   name?: string;
@@ -52,9 +55,10 @@ type Props = {
   hasNext?: boolean;
   deck?: CardInspectorDeckControls;
   drawer?: CardInspectorDrawerControls;
+  initialTab?: TabId;
+  initialInfoSub?: "details" | "rulings";
+  initialArtSub?: "upload" | "prints";
 };
-
-type TabId = "info" | "deck" | "drawer" | "drawers" | "artwork";
 
 export type CardInspectorDrawerControls = {
   drawerName: string;
@@ -179,15 +183,18 @@ export function CardInspectorModal({
   hasNext = false,
   deck,
   drawer,
+  initialTab = "info",
+  initialInfoSub = "details",
+  initialArtSub = "prints",
 }: Props) {
   const { artByOracleId, preferredPrintings, artRevision } = useArtPreferences();
   const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
   const [displayCard, setDisplayCard] = useState<ScryfallCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [active, setActive] = useState<TabId>("info");
-  const [artSub, setArtSub] = useState<"upload" | "prints">("prints");
-  const [infoSub, setInfoSub] = useState<"details" | "rulings">("details");
+  const [active, setActive] = useState<TabId>(initialTab);
+  const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
+  const [infoSub, setInfoSub] = useState<"details" | "rulings">(initialInfoSub);
   const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);

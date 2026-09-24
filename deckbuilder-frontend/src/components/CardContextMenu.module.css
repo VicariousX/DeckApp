@@ -1,0 +1,82 @@
+.menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 11.5rem;
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  padding: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.menu button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.menu button:hover {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.sep {
+  height: 1px;
+  margin: 0.25rem 0.2rem;
+  background: var(--color-border);
+}
+
+.group {
+  margin: 0.15rem 0.55rem 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.82rem;
+}
+
+.row span {
+  flex: 1;
+}
+
+.row button {
+  min-width: 1.6rem;
+  text-align: center;
+  border: 1px solid var(--color-border);
+}
+
+.danger {
+  color: #e57373;
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  max-height: 8rem;
+  overflow: auto;
+  margin-left: 0.4rem;
+}
+
+.hint {
+  margin: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
