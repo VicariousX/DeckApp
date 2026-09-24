@@ -652,7 +652,7 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
                 <div key={s.id} className={styles.savedRow}>
                   <button
                     type="button"
-                    className={`${styles.token} ${editingId === s.id ? styles.iconHot : ""}`}
+                    className={`${styles.catalogItem} ${editingId === s.id ? styles.catalogItemHot : ""}`}
                     title={s.query}
                     onClick={() => {
                       const next = parseQuery(s.query, FIELD_TO_CATEGORY);

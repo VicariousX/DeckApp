@@ -523,12 +523,31 @@
 
 .catalogList {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  flex-direction: column;
+  gap: 0.2rem;
   overflow: auto;
   flex: 1;
   min-height: 0;
   padding-bottom: 0.35rem;
+}
+
+.catalogItem {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--color-bg) 40%, var(--color-surface));
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.84rem;
+}
+
+.catalogItem:hover,
+.catalogItemHot {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
 }
 
 .catalogResize {

@@ -51,6 +51,9 @@ import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
+import { DeckStatsPanel } from "../components/DeckStatsPanel";
+import { DeckTokensPanel } from "../components/DeckTokensPanel";
+import { loadDeckTokens, type DeckToken } from "../lib/deck/deckTokens";
 import type { ExportSection } from "../lib/cards/exportCardList";
 import type { DrawerCardView } from "../types/drawer";
 import {
@@ -181,6 +184,12 @@ export function DeckBuilderPage() {
   const [groupMode, setGroupMode] = useState<GroupMode>(() => getDeckGroupMode());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => getDeckViewMode());
   const [panel, setPanel] = useState<PanelTab>("deck");
+  const [deckTokens, setDeckTokens] = useState<DeckToken[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    setDeckTokens(loadDeckTokens(id));
+  }, [id]);
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
@@ -1298,6 +1307,20 @@ export function DeckBuilderPage() {
                 <TextExportMenu
                   sections={exportSections}
                   fileBaseName={detail.deck.name}
+                  extraSections={
+                    deckTokens.length
+                      ? [
+                          {
+                            title: "Tokens",
+                            items: deckTokens.map((t) => ({
+                              name: t.name,
+                              quantity: t.quantity,
+                            })),
+                          },
+                        ]
+                      : undefined
+                  }
+                  extraLabel="Include tokens"
                 />
               </div>
             </section>
@@ -1400,35 +1423,21 @@ export function DeckBuilderPage() {
           )}
 
           {panel === "stats" && (
-            <section className={styles.placeholderPanel}>
-              <h2 className={styles.sectionLabel}>Deck stats</h2>
-              <p className={styles.hint}>
-                Mana curve, color distribution, and type counts will live here.
-              </p>
-              <ul className={styles.statsList}>
-                {BOARDS.map((b) => (
-                  <li key={b.id}>
-                    <strong>{b.label}</strong>: {boardCounts[b.id]} cards
-                  </li>
-                ))}
-                <li>
-                  <strong>Total</strong>: {totalCards} cards (
-                  {detail.cards.length} unique)
-                </li>
-                <li>
-                  <strong>Tags</strong>: {detail.tags.length}
-                </li>
-              </ul>
-            </section>
+            <DeckStatsPanel
+              deckId={detail.deck.id}
+              cards={detail.cards}
+              tags={detail.tags}
+              totalCards={totalCards}
+              boardCounts={boardCounts}
+            />
           )}
 
           {panel === "tokens" && (
-            <section className={styles.placeholderPanel}>
-              <h2 className={styles.sectionLabel}>Tokens</h2>
-              <p className={styles.hint}>
-                Token selection and tracking for this deck is coming soon.
-              </p>
-            </section>
+            <DeckTokensPanel
+              deckId={detail.deck.id}
+              cards={detail.cards}
+              onTokensChange={setDeckTokens}
+            />
           )}
 
           {panel === "deck" && viewMode === "image" && (

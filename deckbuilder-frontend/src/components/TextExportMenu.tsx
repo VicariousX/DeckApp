@@ -18,6 +18,8 @@ type Props = {
   label?: string;
   /** When set, export can switch between filtered and full lists. */
   allSections?: ExportSection[];
+  extraSections?: ExportSection[];
+  extraLabel?: string;
   triggerClassName?: string;
 };
 
@@ -27,15 +29,22 @@ export function TextExportMenu({
   options,
   label = "Export",
   allSections,
+  extraSections,
+  extraLabel = "Include extras",
   triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [useFilter, setUseFilter] = useState(true);
+  const [includeExtra, setIncludeExtra] = useState(false);
   const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 380, h: 360 });
   const [status, setStatus] = useState<string | null>(null);
 
-  const activeSections =
+  const baseSections =
     allSections && !useFilter ? allSections : sections;
+  const activeSections =
+    includeExtra && extraSections?.length
+      ? [...baseSections, ...extraSections]
+      : baseSections;
 
   const text = useMemo(
     () => formatTextExport(activeSections, options),
@@ -112,6 +121,16 @@ export function TextExportMenu({
                 onChange={(e) => setUseFilter(e.target.checked)}
               />{" "}
               Use current filters
+            </label>
+          )}
+          {extraSections && extraSections.length > 0 && (
+            <label className={styles.meta}>
+              <input
+                type="checkbox"
+                checked={includeExtra}
+                onChange={(e) => setIncludeExtra(e.target.checked)}
+              />{" "}
+              {extraLabel}
             </label>
           )}
           <pre className={styles.preview}>{text}</pre>
