@@ -254,6 +254,49 @@ export async function fetchPrintings(
   return promise;
 }
 
+export async function fetchCollectionByIds(
+  ids: string[]
+): Promise<{ cards: ScryfallCard[]; error: string | null }> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return { cards: [], error: null };
+  const out: ScryfallCard[] = [];
+  const missing: string[] = [];
+  for (const id of unique) {
+    const cached = cardCache.get(id.toLowerCase());
+    if (cached) out.push(cached);
+    else if (await catalogReady()) {
+      const local = await catalogCardById(id);
+      if (local) {
+        cardCache.set(id.toLowerCase(), local);
+        out.push(local);
+      } else missing.push(id);
+    } else missing.push(id);
+  }
+  for (let i = 0; i < missing.length; i += 75) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 600));
+    const chunk = missing.slice(i, i + 75);
+    try {
+      const res = await fetch(apiUrl("/api/scryfall/collection"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers: chunk.map((id) => ({ id })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { cards: out, error: data?.details ?? data?.error ?? "Collection lookup failed" };
+      }
+      const cards = (data.data as ScryfallCard[]) ?? [];
+      for (const c of cards) {
+        if (c.id) cardCache.set(c.id.toLowerCase(), c);
+        out.push(c);
+      }
+    } catch {
+      return { cards: out, error: "Network error" };
+    }
+  }
+  return { cards: out, error: null };
+}
+
 /** Resolve up to 75 card names via Scryfall /cards/collection (batched by caller). */
 export async function fetchCollectionByNames(
   names: string[]

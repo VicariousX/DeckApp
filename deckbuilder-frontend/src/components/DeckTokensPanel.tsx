@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { fetchNamedCard } from "../lib/scryfallApi";
+import { useEffect, useMemo, useState } from "react";
+import { fetchCardsByNames, fetchCollectionByIds, fetchNamedCard } from "../lib/scryfallApi";
 import {
   loadDeckTokens,
-  mergeAutoTokens,
-  parseTokensFromOracle,
+  mergePieces,
+  partsFromCard,
   saveDeckTokens,
+  tokenImage,
   type DeckToken,
 } from "../lib/deck/deckTokens";
 import type { DeckCard } from "../types/deck";
@@ -21,6 +22,8 @@ export function DeckTokensPanel({ deckId, cards, onTokensChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"token" | "extra">("token");
+  const [openSources, setOpenSources] = useState<string | null>(null);
 
   useEffect(() => {
     setTokens(loadDeckTokens(deckId));
@@ -31,53 +34,95 @@ export function DeckTokensPanel({ deckId, cards, onTokensChange }: Props) {
     onTokensChange?.(tokens);
   }, [deckId, tokens, onTokensChange]);
 
-  async function generate(mergeManual = true) {
+  async function generate() {
     setBusy(true);
     setError(null);
-    const unique = [...new Map(cards.map((c) => [c.name, c])).values()];
-    const auto: DeckToken[] = [];
+    const names = [...new Set(cards.map((c) => c.name))];
     try {
-      await Promise.all(
-        unique.map(async (c) => {
-          const { card } = await fetchNamedCard(c.name, "fuzzy");
-          const text = [
-            card?.oracle_text ?? "",
-            ...(card?.card_faces ?? []).map((f) => f.oracle_text ?? ""),
-          ].join(" ");
-          if (!text) return;
-          auto.push(...parseTokensFromOracle(text, c.name));
-        })
-      );
-      const manualKeep = mergeManual ? tokens.filter((t) => t.source === "manual") : [];
-      setTokens(mergeAutoTokens(auto, manualKeep));
+      const { byName, error: nErr } = await fetchCardsByNames(names);
+      if (nErr && byName.size === 0) {
+        setError(nErr);
+        setBusy(false);
+        return;
+      }
+      const sources = new Map<string, { name: string; type_line: string; kind: "token" | "extra"; from: string[] }>();
+      for (const deckCard of cards) {
+        const full = byName.get(deckCard.name.toLowerCase());
+        if (!full) continue;
+        for (const part of partsFromCard(full)) {
+          const cur = sources.get(part.id);
+          if (cur) {
+            if (!cur.from.includes(deckCard.name)) cur.from.push(deckCard.name);
+          } else {
+            sources.set(part.id, {
+              name: part.name,
+              type_line: part.type_line,
+              kind: part.kind,
+              from: [deckCard.name],
+            });
+          }
+        }
+      }
+      const ids = [...sources.keys()];
+      const { cards: parts, error: pErr } = await fetchCollectionByIds(ids);
+      if (pErr && parts.length === 0 && ids.length) setError(pErr);
+      const byId = new Map(parts.map((c) => [c.id, c]));
+      const auto: DeckToken[] = ids.map((id) => {
+        const meta = sources.get(id)!;
+        const card = byId.get(id);
+        return {
+          id,
+          name: card?.name ?? meta.name,
+          type_line: card?.type_line ?? meta.type_line,
+          image: card ? tokenImage(card) : undefined,
+          quantity: 1,
+          kind: meta.kind,
+          sources: meta.from,
+          included: true,
+          source: "auto",
+        };
+      });
+      setTokens((prev) => mergePieces(auto, prev));
     } catch {
-      setError("Could not scan cards for tokens.");
+      setError("Could not load related tokens.");
     }
     setBusy(false);
   }
 
   useEffect(() => {
     if (!cards.length) return;
-    const t = window.setTimeout(() => {
-      void generate(true);
-    }, 400);
+    const t = window.setTimeout(() => void generate(), 500);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards.map((c) => `${c.name}:${c.quantity}`).join("|")]);
+  }, [cards.map((c) => c.name).sort().join("|")]);
 
   async function addManual() {
     const name = manual.trim();
     if (!name) return;
-    const { card } = await fetchNamedCard(name, "fuzzy");
-    const resolved = card?.name ?? name;
+    const { card, error: err } = await fetchNamedCard(name, "fuzzy");
+    if (err || !card) {
+      setError(err ?? "Token not found.");
+      return;
+    }
     setTokens((prev) => {
-      if (prev.some((t) => t.name.toLowerCase() === resolved.toLowerCase())) return prev;
+      if (prev.some((t) => t.id === card.id)) {
+        return prev.map((t) => (t.id === card.id ? { ...t, included: true } : t));
+      }
+      const kind =
+        (card.type_line || "").toLowerCase().includes("token") || card.layout === "token"
+          ? "token"
+          : "extra";
       return [
         ...prev,
         {
-          id: `man-${Date.now()}`,
-          name: resolved,
+          id: card.id,
+          name: card.name,
+          type_line: card.type_line,
+          image: tokenImage(card),
           quantity: 1,
+          kind,
+          sources: [],
+          included: true,
           source: "manual",
         },
       ];
@@ -85,27 +130,41 @@ export function DeckTokensPanel({ deckId, cards, onTokensChange }: Props) {
     setManual("");
   }
 
+  const shown = useMemo(
+    () => tokens.filter((t) => t.kind === tab),
+    [tokens, tab]
+  );
+
   return (
     <section className={styles.placeholderPanel}>
-      <h2 className={styles.sectionLabel}>Tokens</h2>
+      <h2 className={styles.sectionLabel}>Tokens & extras</h2>
       <p className={styles.hint}>
-        Auto-filled from card text when the list changes. Add extras by name.
+        Official printings linked on Scryfall as faces, tokens, and other parts.
       </p>
       <div className={styles.toolRow}>
+        <button type="button" className={styles.primaryBtn} disabled={busy} onClick={() => void generate()}>
+          {busy ? "Scanning…" : "Refresh from deck"}
+        </button>
         <button
           type="button"
-          className={styles.primaryBtn}
-          disabled={busy}
-          onClick={() => void generate(true)}
+          className={tab === "token" ? styles.primaryBtn : styles.ghostBtn}
+          onClick={() => setTab("token")}
         >
-          {busy ? "Scanning…" : "Generate deck tokens"}
+          Tokens ({tokens.filter((t) => t.kind === "token").length})
+        </button>
+        <button
+          type="button"
+          className={tab === "extra" ? styles.primaryBtn : styles.ghostBtn}
+          onClick={() => setTab("extra")}
+        >
+          Extras ({tokens.filter((t) => t.kind === "extra").length})
         </button>
       </div>
       <div className={styles.addRow}>
         <input
           className={styles.input}
           value={manual}
-          placeholder="Add token by name"
+          placeholder="Add token or extra by name"
           onChange={(e) => setManual(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -119,51 +178,60 @@ export function DeckTokensPanel({ deckId, cards, onTokensChange }: Props) {
         </button>
       </div>
       {error && <p className={styles.error}>{error}</p>}
-      <ul className={styles.statsList}>
-        {tokens.length === 0 && <li className={styles.hint}>No tokens yet.</li>}
-        {tokens.map((t) => (
-          <li key={t.id} className={styles.tokenRow}>
-            <span>
-              {t.name}{" "}
-              <em className={styles.hint}>
-                ×{t.quantity}
-                {t.source === "auto" ? " · auto" : " · manual"}
-                {t.from ? ` · ${t.from}` : ""}
-              </em>
-            </span>
-            <span className={styles.qtyBtns}>
-              <button
-                type="button"
-                onClick={() =>
-                  setTokens((prev) =>
-                    prev.map((x) =>
-                      x.id === t.id ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x
+      <div className={styles.tokenGrid}>
+        {shown.length === 0 && (
+          <p className={styles.hint}>{busy ? "Looking up related printings…" : "None yet."}</p>
+        )}
+        {shown.map((t) => (
+          <article
+            key={t.id}
+            className={`${styles.tokenTile}${t.included ? "" : ` ${styles.tokenTileOff}`}`}
+          >
+            {t.image ? (
+              <img src={t.image} alt={t.name} className={styles.tokenImg} draggable={false} />
+            ) : (
+              <div className={styles.tokenImgPh}>{t.name}</div>
+            )}
+            <div className={styles.tokenMeta}>
+              <strong>{t.name}</strong>
+              <small>{t.type_line}</small>
+              <div className={styles.qtyBtns}>
+                <button
+                  type="button"
+                  title={t.included ? "Exclude" : "Include"}
+                  onClick={() =>
+                    setTokens((prev) =>
+                      prev.map((x) => (x.id === t.id ? { ...x, included: !x.included } : x))
                     )
-                  )
-                }
-              >
-                −
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setTokens((prev) =>
-                    prev.map((x) => (x.id === t.id ? { ...x, quantity: x.quantity + 1 } : x))
-                  )
-                }
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={() => setTokens((prev) => prev.filter((x) => x.id !== t.id))}
-              >
-                ×
-              </button>
-            </span>
-          </li>
+                  }
+                >
+                  {t.included ? "−" : "+"}
+                </button>
+                {t.sources.length > 0 && (
+                  <button
+                    type="button"
+                    title="Generated by"
+                    onClick={() => setOpenSources((id) => (id === t.id ? null : t.id))}
+                  >
+                    ?
+                  </button>
+                )}
+                {t.source === "manual" && (
+                  <button
+                    type="button"
+                    onClick={() => setTokens((prev) => prev.filter((x) => x.id !== t.id))}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              {openSources === t.id && (
+                <p className={styles.hint}>From: {t.sources.join(", ")}</p>
+              )}
+            </div>
+          </article>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }

@@ -1,99 +1,79 @@
+import type { ScryfallCard } from "../../types/scryfallCard";
+
+export type TokenKind = "token" | "extra";
+
 export type DeckToken = {
   id: string;
   name: string;
+  type_line: string;
+  image?: string;
   quantity: number;
+  kind: TokenKind;
+  sources: string[];
+  included: boolean;
   source: "auto" | "manual";
-  from?: string;
 };
 
 const STORE = "deckapp.deckTokens.";
 
-const WORD_QTY: Record<string, number> = {
-  a: 1,
-  an: 1,
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-};
+export function classifyPart(
+  component: string,
+  typeLine: string
+): TokenKind | null {
+  const t = (typeLine || "").toLowerCase();
+  if (component === "token" || t.includes("token")) return "token";
+  if (
+    t.includes("emblem") ||
+    t.includes("dungeon") ||
+    t.includes("the monarch") ||
+    t.includes("the initiative") ||
+    t.includes("plane ") ||
+    t.includes("phenomenon")
+  ) {
+    return "extra";
+  }
+  return null;
+}
 
-const TOKEN_RE =
-  /\bcreates?\s+(?:(\d+|x|a|an|one|two|three|four|five|six|seven|eight|nine|ten)\s+)?([^.]{2,72}?)\s+tokens?\b/gi;
-
-export function parseTokensFromOracle(
-  oracle: string,
-  fromCard: string
-): DeckToken[] {
-  const out: DeckToken[] = [];
-  const text = oracle.replace(/\n/g, " ");
-  let m: RegExpExecArray | null;
-  const re = new RegExp(TOKEN_RE.source, "gi");
-  while ((m = re.exec(text))) {
-    const qtyRaw = (m[1] ?? "1").toLowerCase();
-    const qty =
-      qtyRaw === "x" ? 1 : WORD_QTY[qtyRaw] ?? (parseInt(qtyRaw, 10) || 1);
-    let body = m[2].trim();
-    body = body.replace(/^(that are copies of|that's a copy of)\s+/i, "Copy of ");
-    body = body.replace(/\s+/g, " ").replace(/[,;]+$/, "");
-    if (/^token'?s? a copy/i.test(body)) body = "Copy";
-    const name = titleToken(body);
-    if (!name || name.length < 2) continue;
+export function partsFromCard(card: ScryfallCard): {
+  id: string;
+  name: string;
+  type_line: string;
+  kind: TokenKind;
+}[] {
+  const out: { id: string; name: string; type_line: string; kind: TokenKind }[] = [];
+  for (const p of card.all_parts ?? []) {
+    if (p.id === card.id) continue;
+    const kind = classifyPart(p.component, p.type_line);
+    if (!kind) continue;
     out.push({
-      id: `auto-${slug(name)}`,
-      name,
-      quantity: qty,
-      source: "auto",
-      from: fromCard,
+      id: p.id,
+      name: p.name,
+      type_line: p.type_line,
+      kind,
     });
   }
   return out;
 }
 
-function titleToken(raw: string): string {
-  const cleaned = raw
-    .replace(/^(a|an|the)\s+/i, "")
-    .replace(/\bwith\b.+$/i, "")
-    .trim();
-  if (!cleaned) return raw.trim();
-  if (/treasure|food|clue|blood|map|powerstone|junk/i.test(cleaned) && cleaned.split(" ").length <= 3) {
-    const noun = cleaned.replace(/^(?:\d+\/\d+\s+)?/i, "");
-    return noun.replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-  return cleaned
-    .split(" ")
-    .map((w) => (w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(" ");
-}
-
-function slug(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
-export function mergeAutoTokens(auto: DeckToken[], manual: DeckToken[]): DeckToken[] {
-  const byName = new Map<string, DeckToken>();
+export function mergePieces(
+  auto: DeckToken[],
+  previous: DeckToken[]
+): DeckToken[] {
+  const prevById = new Map(previous.map((t) => [t.id, t]));
+  const byId = new Map<string, DeckToken>();
   for (const t of auto) {
-    const key = t.name.toLowerCase();
-    const prev = byName.get(key);
-    if (prev) {
-      prev.quantity = Math.max(prev.quantity, t.quantity);
-      if (t.from && prev.from && !prev.from.includes(t.from)) {
-        prev.from = `${prev.from}, ${t.from}`;
-      }
-    } else {
-      byName.set(key, { ...t });
-    }
+    const prev = prevById.get(t.id);
+    byId.set(t.id, {
+      ...t,
+      included: prev?.included ?? true,
+      quantity: prev?.quantity ?? 1,
+    });
   }
-  for (const t of manual) {
-    const key = t.name.toLowerCase();
-    if (!byName.has(key)) byName.set(key, t);
+  for (const t of previous) {
+    if (t.source === "manual" && !byId.has(t.id)) byId.set(t.id, t);
   }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function loadDeckTokens(deckId: string): DeckToken[] {
@@ -101,7 +81,8 @@ export function loadDeckTokens(deckId: string): DeckToken[] {
     const raw = localStorage.getItem(STORE + deckId);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as DeckToken[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((t) => t && typeof t.id === "string" && Array.isArray(t.sources));
   } catch {
     return [];
   }
@@ -113,4 +94,13 @@ export function saveDeckTokens(deckId: string, tokens: DeckToken[]): void {
   } catch {
     /* ignore */
   }
+}
+
+export function tokenImage(card: ScryfallCard): string | undefined {
+  return (
+    card.image_uris?.normal ||
+    card.image_uris?.small ||
+    card.card_faces?.[0]?.image_uris?.normal ||
+    card.card_faces?.[0]?.image_uris?.small
+  );
 }

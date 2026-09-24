@@ -1308,14 +1308,16 @@ export function DeckBuilderPage() {
                   sections={exportSections}
                   fileBaseName={detail.deck.name}
                   extraSections={
-                    deckTokens.length
+                    deckTokens.some((t) => t.included)
                       ? [
                           {
                             title: "Tokens",
-                            items: deckTokens.map((t) => ({
-                              name: t.name,
-                              quantity: t.quantity,
-                            })),
+                            items: deckTokens
+                              .filter((t) => t.included)
+                              .map((t) => ({
+                                name: t.name,
+                                quantity: t.quantity || 1,
+                              })),
                           },
                         ]
                       : undefined

@@ -48,6 +48,16 @@ export function trimCard(raw: Record<string, unknown>): Record<string, unknown> 
     reprint: raw.reprint,
     variation: raw.variation,
     card_faces: faces,
+    all_parts: Array.isArray(raw.all_parts)
+      ? (raw.all_parts as Record<string, unknown>[]).map((p) => ({
+          object: "related_card",
+          id: p.id,
+          component: p.component,
+          name: p.name,
+          type_line: p.type_line,
+          uri: p.uri,
+        }))
+      : undefined,
     power: raw.power,
     toughness: raw.toughness,
     loyalty: raw.loyalty,

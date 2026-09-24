@@ -49,6 +49,15 @@ export interface ScryfallCard {
 
   image_uris?: ScryfallImageUris | null;
   card_faces?: ScryfallCardFace[];
+  /** Related printings: tokens, meld parts, combo pieces. */
+  all_parts?: {
+    object?: string;
+    id: string;
+    component: string;
+    name: string;
+    type_line: string;
+    uri: string;
+  }[];
 
   set: string;
   set_name: string;
