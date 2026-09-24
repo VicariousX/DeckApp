@@ -268,6 +268,7 @@ type DraggableCardProps = {
   style?: CSSProperties;
   children: ReactNode;
   onClick?: () => void;
+  onContextMenu?: (e: ReactMouseEvent) => void;
   /** Index within its StackCards (0 = back of stack). */
   stackIndex?: number;
 };
@@ -279,6 +280,7 @@ export function DraggableStackCard({
   style,
   children,
   onClick,
+  onContextMenu,
   stackIndex,
 }: DraggableCardProps) {
   const hoverIdx = useStackHoverIndex();
@@ -334,6 +336,7 @@ export function DraggableStackCard({
       }`}
       style={dragStyle}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       {...listeners}
       {...attributes}
     >
