@@ -58,6 +58,7 @@ import {
   saveDeckTokens,
   tokenImage,
   type DeckToken,
+  type TokenKind,
 } from "../lib/deck/deckTokens";
 import type { ExportSection } from "../lib/cards/exportCardList";
 import type { DrawerCardView } from "../types/drawer";
@@ -555,7 +556,7 @@ export function DeckBuilderPage() {
         if (prev.some((t) => t.id === card.id)) {
           return prev.map((t) => (t.id === card.id ? { ...t, included: true } : t));
         }
-        const kind =
+        const kind: TokenKind =
           (card.type_line || "").toLowerCase().includes("token") ||
           card.layout === "token" ||
           card.layout === "double_faced_token"
