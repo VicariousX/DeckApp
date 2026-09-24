@@ -13,7 +13,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
-import { fetchAutocomplete, fetchCardById, fetchNamedCard } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchCardById, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
 import { parseExternalCardDrop } from "../lib/cardDrag";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
@@ -52,8 +52,13 @@ import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
 import { DeckStatsPanel } from "../components/DeckStatsPanel";
-import { DeckTokensPanel } from "../components/DeckTokensPanel";
-import { loadDeckTokens, type DeckToken } from "../lib/deck/deckTokens";
+import {
+  generateDeckTokens,
+  loadDeckTokens,
+  saveDeckTokens,
+  tokenImage,
+  type DeckToken,
+} from "../lib/deck/deckTokens";
 import type { ExportSection } from "../lib/cards/exportCardList";
 import type { DrawerCardView } from "../types/drawer";
 import {
@@ -190,6 +195,25 @@ export function DeckBuilderPage() {
     if (!id) return;
     setDeckTokens(loadDeckTokens(id));
   }, [id]);
+
+  const [tokenBusy, setTokenBusy] = useState(false);
+
+  async function refreshTokens() {
+    if (!detail) return;
+    setTokenBusy(true);
+    const { tokens, error: err } = await generateDeckTokens(detail.cards, deckTokens);
+    if (err) setError(err);
+    setDeckTokens(tokens);
+    saveDeckTokens(detail.deck.id, tokens);
+    setTokenBusy(false);
+  }
+
+  useEffect(() => {
+    if (panel !== "tokens" || !detail?.cards.length) return;
+    if (deckTokens.length) return;
+    void refreshTokens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, detail?.deck.id]);
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
@@ -241,14 +265,17 @@ export function DeckBuilderPage() {
       return;
     }
     debounceRef.current = setTimeout(async () => {
-      const { names } = await fetchAutocomplete(q);
+      const { names } =
+        panel === "tokens"
+          ? await fetchTokenAutocomplete(q)
+          : await fetchAutocomplete(q);
       setSuggestions(names.slice(0, 10));
       setSuggestOpen(names.length > 0);
     }, 200);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, panel]);
 
 
   useEffect(() => {
@@ -382,6 +409,40 @@ export function DeckBuilderPage() {
     });
   }, [detail, groupMode]);
 
+  const tokenCards: DeckCard[] = useMemo(() => {
+    if (!detail) return [];
+    return deckTokens.map((t) => ({
+      id: t.id,
+      deck_id: detail.deck.id,
+      oracle_id: t.id,
+      scryfall_id: t.id,
+      name: t.name,
+      type_line: t.type_line,
+      mana_cost: null,
+      cmc: 0,
+      quantity: t.quantity || 1,
+      board: "maybe" as const,
+      sort_order: 0,
+      notes: t.sources.join(", ") || null,
+      created_at: "",
+      updated_at: "",
+      tag_ids: [],
+    }));
+  }, [detail, deckTokens]);
+
+  const displaySections = useMemo(() => {
+    if (panel !== "tokens") return boardSections;
+    return [
+      {
+        id: "main" as DeckBoard,
+        label: "Tokens & extras",
+        cards: tokenCards,
+        groups: buildGroups(tokenCards, groupMode, detail?.tags ?? []),
+        count: tokenCards.reduce((n, c) => n + c.quantity, 0),
+      },
+    ];
+  }, [panel, boardSections, tokenCards, groupMode, detail?.tags]);
+
   /** Best-effort commander identity from commander-board cards (mana cost until full CI cached). */
   const deckQtyByOracle = useMemo(() => {
     const map: Record<string, number> = {};
@@ -489,6 +550,39 @@ export function DeckBuilderPage() {
       setAddBusy(false);
       return;
     }
+    if (panel === "tokens") {
+      setDeckTokens((prev) => {
+        if (prev.some((t) => t.id === card.id)) {
+          return prev.map((t) => (t.id === card.id ? { ...t, included: true } : t));
+        }
+        const kind =
+          (card.type_line || "").toLowerCase().includes("token") ||
+          card.layout === "token" ||
+          card.layout === "double_faced_token"
+            ? "token"
+            : "extra";
+        const next = [
+          ...prev,
+          {
+            id: card.id,
+            name: card.name,
+            type_line: card.type_line,
+            image: tokenImage(card),
+            quantity: 1,
+            kind,
+            sources: [],
+            included: true,
+            source: "manual" as const,
+          },
+        ];
+        saveDeckTokens(id, next);
+        return next;
+      });
+      setQuery("");
+      setSuggestOpen(false);
+      setAddBusy(false);
+      return;
+    }
     const oracleId = card.oracle_id ?? card.id;
     const { card: saved, error: addErr } = await addCardToDeck(id, {
       oracle_id: oracleId,
@@ -539,6 +633,17 @@ export function DeckBuilderPage() {
 
   async function applyQuantity(card: DeckCard, next: number) {
     if (!isOwner) return;
+    if (panel === "tokens" || deckTokens.some((t) => t.id === card.id)) {
+      setDeckTokens((prev) => {
+        const nextList =
+          next <= 0
+            ? prev.filter((t) => t.id !== card.id)
+            : prev.map((t) => (t.id === card.id ? { ...t, quantity: next } : t));
+        if (id) saveDeckTokens(id, nextList);
+        return nextList;
+      });
+      return;
+    }
     const prevQty = card.quantity;
     if (next <= 0) {
       patchCard(card.id, null);
@@ -753,6 +858,8 @@ export function DeckBuilderPage() {
   }
 
   function stackImageSrc(card: DeckCard): string | undefined {
+    const tok = deckTokens.find((t) => t.id === card.id);
+    if (tok?.image) return tok.image;
     if ((faceView[card.id] ?? "front") === "back" && backUrls[card.id]) {
       return backUrls[card.id];
     }
@@ -997,7 +1104,7 @@ export function DeckBuilderPage() {
     setModalCard(card);
   }
 
-  const modalNavList = detail?.cards ?? [];
+  const modalNavList = panel === "tokens" ? tokenCards : detail?.cards ?? [];
   const modalIndex = modalCard
     ? modalNavList.findIndex((c) => c.id === modalCard.id)
     : -1;
@@ -1230,9 +1337,11 @@ export function DeckBuilderPage() {
             ))}
           </div>
 
-          {panel === "deck" && isOwner && (
+          {(panel === "deck" || panel === "tokens") && isOwner && (
             <section className={styles.addSection}>
-              <h2 className={styles.sectionLabel}>Add card</h2>
+              <h2 className={styles.sectionLabel}>
+                {panel === "tokens" ? "Add token" : "Add card"}
+              </h2>
               <div className={styles.addRow} ref={wrapRef}>
                 <div className={styles.inputWrap}>
                   <input
@@ -1245,7 +1354,7 @@ export function DeckBuilderPage() {
                         void addByName(query.trim());
                       }
                     }}
-                    placeholder="Card name…"
+                    placeholder={panel === "tokens" ? "Token name…" : "Card name…"}
                     autoComplete="off"
                   />
                   {suggestOpen && suggestions.length > 0 && (
@@ -1265,6 +1374,7 @@ export function DeckBuilderPage() {
                     </ul>
                   )}
                 </div>
+                {panel === "deck" && (
                 <select
                   className={styles.boardSelect}
                   value={addTargetBoard}
@@ -1279,6 +1389,17 @@ export function DeckBuilderPage() {
                     </option>
                   ))}
                 </select>
+                )}
+                {panel === "tokens" && (
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    disabled={tokenBusy}
+                    onClick={() => void refreshTokens()}
+                  >
+                    {tokenBusy ? "Refreshing…" : "Refresh tokens"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={styles.primaryBtn}
@@ -1288,6 +1409,7 @@ export function DeckBuilderPage() {
                   {addBusy ? "Adding…" : "Add"}
                 </button>
               </div>
+              {panel === "deck" && (
               <div className={styles.toolRow}>
                 <BulkCardImport
                   title="Bulk import"
@@ -1325,10 +1447,11 @@ export function DeckBuilderPage() {
                   extraLabel="Include tokens"
                 />
               </div>
+              )}
             </section>
           )}
 
-          {panel === "deck" && (
+          {(panel === "deck" || panel === "tokens") && (
             <div className={styles.toolbar}>
               <div className={styles.groupToggle} role="group" aria-label="Group by">
                 {(
@@ -1434,20 +1557,14 @@ export function DeckBuilderPage() {
             />
           )}
 
-          {panel === "tokens" && (
-            <DeckTokensPanel
-              deckId={detail.deck.id}
-              cards={detail.cards}
-              onTokensChange={setDeckTokens}
-            />
-          )}
-
-          {panel === "deck" && viewMode === "image" && (
+          {(panel === "deck" || panel === "tokens") && viewMode === "image" && (
             <ImageDndProvider
-              enabled={isOwner}
+              enabled={isOwner && panel === "deck"}
               onDropCard={handleImageDrop}
               renderOverlay={(cardId) => {
-                const c = detail.cards.find((x) => x.id === cardId);
+                const c =
+                  detail.cards.find((x) => x.id === cardId) ??
+                  tokenCards.find((x) => x.id === cardId);
                 if (!c) return null;
                 const src = stackImageSrc(c);
                 return src ? (
@@ -1463,8 +1580,8 @@ export function DeckBuilderPage() {
               }}
             >
             <div className={styles.imageBoardLayout}>
-              {boardSections.map((board) => {
-                const isCommander = board.id === "commander";
+              {displaySections.map((board) => {
+                const isCommander = panel === "deck" && board.id === "commander";
                 const useListCols = groupMode === "none";
                 const layout =
                   listLayouts[board.id] ??
@@ -1862,9 +1979,9 @@ export function DeckBuilderPage() {
             </ImageDndProvider>
           )}
 
-          {panel === "deck" && viewMode === "text" && (
+          {(panel === "deck" || panel === "tokens") && viewMode === "text" && (
             <div className={styles.boardZones}>
-              {boardSections.map((board) => (
+              {displaySections.map((board) => (
                 <section
                   key={board.id}
                   className={styles.boardZone}

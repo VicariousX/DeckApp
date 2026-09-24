@@ -96,6 +96,56 @@ export function saveDeckTokens(deckId: string, tokens: DeckToken[]): void {
   }
 }
 
+export async function generateDeckTokens(
+  deckCards: { name: string }[],
+  previous: DeckToken[]
+): Promise<{ tokens: DeckToken[]; error: string | null }> {
+  const { fetchCardsByNames, fetchCollectionByIds } = await import("../scryfallApi");
+  const names = [...new Set(deckCards.map((c) => c.name))];
+  const { byName, error: nErr } = await fetchCardsByNames(names);
+  if (nErr && byName.size === 0) return { tokens: previous, error: nErr };
+  const sources = new Map<
+    string,
+    { name: string; type_line: string; kind: TokenKind; from: string[] }
+  >();
+  for (const deckCard of deckCards) {
+    const full = byName.get(deckCard.name.toLowerCase());
+    if (!full) continue;
+    for (const part of partsFromCard(full)) {
+      const cur = sources.get(part.id);
+      if (cur) {
+        if (!cur.from.includes(deckCard.name)) cur.from.push(deckCard.name);
+      } else {
+        sources.set(part.id, {
+          name: part.name,
+          type_line: part.type_line,
+          kind: part.kind,
+          from: [deckCard.name],
+        });
+      }
+    }
+  }
+  const ids = [...sources.keys()];
+  const { cards: parts, error: pErr } = await fetchCollectionByIds(ids);
+  const byId = new Map(parts.map((c) => [c.id, c]));
+  const auto: DeckToken[] = ids.map((id) => {
+    const meta = sources.get(id)!;
+    const card = byId.get(id);
+    return {
+      id,
+      name: card?.name ?? meta.name,
+      type_line: card?.type_line ?? meta.type_line,
+      image: card ? tokenImage(card) : undefined,
+      quantity: 1,
+      kind: meta.kind,
+      sources: meta.from,
+      included: true,
+      source: "auto" as const,
+    };
+  });
+  return { tokens: mergePieces(auto, previous), error: pErr };
+}
+
 export function tokenImage(card: ScryfallCard): string | undefined {
   return (
     card.image_uris?.normal ||

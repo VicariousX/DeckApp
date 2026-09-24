@@ -151,6 +151,29 @@ export async function fetchRulings(
   return promise;
 }
 
+export async function fetchTokenAutocomplete(
+  q: string
+): Promise<{ names: string[]; error: string | null }> {
+  const trimmed = q.trim();
+  if (trimmed.length < 2) return { names: [], error: null };
+  try {
+    const query = `is:token ${trimmed}`;
+    const res = await fetch(
+      apiUrl(`/api/scryfall?q=${encodeURIComponent(query)}`)
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      return { names: [], error: data?.error ?? "Token search failed" };
+    }
+    const names = ((data.data as ScryfallCard[]) ?? [])
+      .map((c) => c.name)
+      .filter(Boolean);
+    return { names: [...new Set(names)].slice(0, 12), error: null };
+  } catch {
+    return { names: [], error: "Network error" };
+  }
+}
+
 export async function fetchAutocomplete(
   q: string
 ): Promise<{ names: string[]; error: string | null }> {
