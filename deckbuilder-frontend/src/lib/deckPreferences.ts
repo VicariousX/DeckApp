@@ -6,7 +6,7 @@ const LAST_DECK_KEY = "deckapp.lastViewedDeck";
 const LIST_COLS_PREFIX = "deckapp.listColumns.";
 
 export type DeckViewMode = "text" | "image";
-export type DeckGroupMode = "type" | "tag" | "none";
+export type DeckGroupMode = "type" | "tag" | "none" | "grid";
 
 export type LastViewedDeck = {
   id: string;
@@ -45,7 +45,7 @@ export function setDeckViewMode(mode: DeckViewMode): void {
 export function getDeckGroupMode(): DeckGroupMode {
   try {
     const v = localStorage.getItem(GROUP_MODE_KEY);
-    if (v === "tag" || v === "none" || v === "type") return v;
+    if (v === "tag" || v === "none" || v === "type" || v === "grid") return v;
     return "type";
   } catch {
     return "type";

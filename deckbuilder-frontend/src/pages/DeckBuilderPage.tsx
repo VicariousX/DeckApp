@@ -83,7 +83,7 @@ import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
-type GroupMode = "type" | "tag" | "none";
+type GroupMode = "type" | "tag" | "none" | "grid";
 type PanelTab = "deck" | "stats" | "tokens" | "tags";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
@@ -122,7 +122,7 @@ function buildGroups(
   tags: DeckTag[]
 ): CardGroup[] {
   const sorted = sortCards(cards);
-  if (groupMode === "none") {
+  if (groupMode === "none" || groupMode === "grid") {
     return [{ key: "all", label: "All cards", cards: sorted }];
   }
   if (groupMode === "type") {
@@ -216,6 +216,7 @@ export function DeckBuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, detail?.deck.id]);
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<DeckCard | null>(null);
@@ -252,7 +253,10 @@ export function DeckBuilderPage() {
 
   useEffect(() => {
     function onDoc(e: globalThis.MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setSuggestOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setSuggestOpen(false);
+        setBoardMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -1376,29 +1380,57 @@ export function DeckBuilderPage() {
                   )}
                 </div>
                 {panel === "deck" && (
-                <select
-                  className={styles.boardSelect}
-                  value={addTargetBoard}
-                  aria-label="Add to board"
-                  onChange={(e) =>
-                    setAddTargetBoard(e.target.value as DeckBoard)
-                  }
-                >
-                  {BOARDS.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
+                  <div className={styles.boardCycleWrap}>
+                    <button
+                      type="button"
+                      className={styles.addRowBtn}
+                      aria-label="Add to board. Click to cycle, right-click to choose."
+                      title="Click to cycle boards. Right-click to choose."
+                      onClick={() => {
+                        const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
+                        setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
+                        setBoardMenuOpen(false);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setBoardMenuOpen((v) => !v);
+                      }}
+                    >
+                      {BOARDS.find((b) => b.id === addTargetBoard)?.label ?? "Mainboard"}
+                    </button>
+                    {boardMenuOpen && (
+                      <ul className={styles.boardCycleMenu} role="menu">
+                        {BOARDS.map((b) => (
+                          <li key={b.id}>
+                            <button
+                              type="button"
+                              className={
+                                b.id === addTargetBoard
+                                  ? `${styles.suggestItem} ${styles.groupBtnActive}`
+                                  : styles.suggestItem
+                              }
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setAddTargetBoard(b.id);
+                                setBoardMenuOpen(false);
+                              }}
+                            >
+                              {b.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 )}
                 {panel === "tokens" && (
                   <button
                     type="button"
-                    className={styles.ghostBtn}
+                    className={styles.addRowBtn}
                     disabled={tokenBusy}
                     onClick={() => void refreshTokens()}
                   >
-                    {tokenBusy ? "Refreshing…" : "Refresh tokens"}
+                    {tokenBusy ? "Refreshing…" : "Refresh"}
                   </button>
                 )}
                 <button
@@ -1460,6 +1492,7 @@ export function DeckBuilderPage() {
                     ["type", "Type"],
                     ["tag", "Tags"],
                     ["none", "List"],
+                    ["grid", "Grid"],
                   ] as const
                 ).map(([mode, label]) => (
                   <button
@@ -1685,6 +1718,48 @@ export function DeckBuilderPage() {
                         )}
                       </div>
                     </DroppableRegion>
+                  );
+                }
+
+                if (groupMode === "grid") {
+                  return (
+                    <section key={board.id} className={styles.boardZone}>
+                      <header className={styles.boardZoneHeader}>
+                        <h2 className={styles.boardZoneTitle}>{board.label}</h2>
+                        <span className={styles.boardZoneCount}>{board.count}</span>
+                      </header>
+                      <div className={styles.imageGrid}>
+                        {board.cards.map((c) => {
+                          const src = stackImageSrc(c);
+                          return (
+                            <DraggableStackCard
+                              key={c.id}
+                              card={c}
+                              disabled={!isOwner || panel === "tokens"}
+                              className={styles.gridCard}
+                              onClick={() => openCardModal(c)}
+                            >
+                              <div className={styles.stackCardLink} title={c.name}>
+                                {src ? (
+                                  <RateLimitedImg
+                                    src={src}
+                                    alt={c.name}
+                                    className={styles.gridCardImg}
+                                    loading="lazy"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <div className={styles.stackCardPlaceholder}>{c.name}</div>
+                                )}
+                              </div>
+                              {c.quantity > 1 && (
+                                <span className={styles.stackQty}>×{c.quantity}</span>
+                              )}
+                            </DraggableStackCard>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 }
 

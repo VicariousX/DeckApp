@@ -321,6 +321,48 @@
   text-align: center;
 }
 
+.addRowBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.65rem 1.1rem;
+  font-weight: 650;
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-surface-alt) 90%, transparent);
+}
+
+.addRowBtn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.addRowBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.boardCycleWrap {
+  position: relative;
+}
+
+.boardCycleMenu {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+}
+
 .boardSelect {
   appearance: none;
   border: 1px solid var(--color-border);
@@ -839,6 +881,19 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: 0.65rem;
+}
+
+.gridCard {
+  position: relative;
+  border-radius: 8px;
+}
+
+.gridCardImg {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
 }
 
 @media (min-width: 1200px) {

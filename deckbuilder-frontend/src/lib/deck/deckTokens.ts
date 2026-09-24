@@ -56,20 +56,40 @@ export function partsFromCard(card: ScryfallCard): {
   return out;
 }
 
+/** Collapse printings of the same token (Treasure, Soldier, …). */
+export function tokenDedupeKey(t: { name: string }): string {
+  return t.name
+    .toLowerCase()
+    .replace(/\s+token$/i, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 export function mergePieces(
   auto: DeckToken[],
   previous: DeckToken[]
 ): DeckToken[] {
   const prevById = new Map(previous.map((t) => [t.id, t]));
-  const byId = new Map<string, DeckToken>();
+  const byKey = new Map<string, DeckToken>();
   for (const t of auto) {
+    const key = tokenDedupeKey(t);
+    const existing = byKey.get(key);
+    if (existing) {
+      for (const s of t.sources) {
+        if (!existing.sources.includes(s)) existing.sources.push(s);
+      }
+      if (!existing.image && t.image) existing.image = t.image;
+      continue;
+    }
     const prev = prevById.get(t.id);
-    byId.set(t.id, {
+    byKey.set(key, {
       ...t,
       included: prev?.included ?? true,
       quantity: prev?.quantity ?? 1,
     });
   }
+  const byId = new Map<string, DeckToken>();
+  for (const t of byKey.values()) byId.set(t.id, t);
   for (const t of previous) {
     if (t.source === "manual" && !byId.has(t.id)) byId.set(t.id, t);
   }
