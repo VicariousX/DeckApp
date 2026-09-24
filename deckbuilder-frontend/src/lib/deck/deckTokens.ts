@@ -4,6 +4,7 @@ export type TokenKind = "token" | "extra";
 
 export type DeckToken = {
   id: string;
+  oracle_id?: string;
   name: string;
   type_line: string;
   image?: string;
@@ -153,6 +154,7 @@ export async function generateDeckTokens(
     const card = byId.get(id);
     return {
       id,
+      oracle_id: card?.oracle_id ?? id,
       name: card?.name ?? meta.name,
       type_line: card?.type_line ?? meta.type_line,
       image: card ? tokenImage(card) : undefined,

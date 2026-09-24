@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { primaryTypeGroup } from "../lib/cards/cardTypes";
+import { fetchCardsByNames } from "../lib/scryfallApi";
 import {
+  CARD_TYPES,
+  SUPERTYPES,
   colorBalance,
   columnCount,
   copies,
-  drawAtLeastOne,
+  drawAtLeast,
   loadColumns,
   loadRecord,
   mainboard,
@@ -12,6 +15,7 @@ import {
   matchColumn,
   saveColumns,
   saveRecord,
+  subtypesOf,
   typeCounts,
   type RecordBook,
   type StatColumn,
@@ -31,9 +35,9 @@ type Props = {
 const KINDS: { id: StatKind; label: string }[] = [
   { id: "type", label: "Type" },
   { id: "subtype", label: "Subtype" },
-  { id: "text", label: "Name / notes" },
+  { id: "supertype", label: "Supertype" },
   { id: "tag", label: "Deck tag" },
-  { id: "name", label: "Name contains" },
+  { id: "oracle", label: "Oracle text" },
 ];
 
 export function DeckStatsPanel({
@@ -55,8 +59,42 @@ export function DeckStatsPanel({
   const [rec, setRec] = useState<RecordBook>(() => loadRecord(deckId));
   const [kind, setKind] = useState<StatKind>("type");
   const [value, setValue] = useState("");
-  const [drawCat, setDrawCat] = useState("type:Creature");
+  const [drawKind, setDrawKind] = useState<StatKind>("type");
+  const [drawValue, setDrawValue] = useState("Creature");
+  const [drawNeed, setDrawNeed] = useState(1);
   const [drawN, setDrawN] = useState(7);
+  const [oracleByName, setOracleByName] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const names = [...new Set(cards.map((c) => c.name))];
+    if (!names.length) return;
+    let cancelled = false;
+    void fetchCardsByNames(names).then(({ byName }) => {
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const [k, card] of byName) {
+        map[k] = [card.oracle_text ?? "", ...(card.card_faces ?? []).map((f) => f.oracle_text ?? "")].join(" ");
+      }
+      setOracleByName(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cards]);
+
+  const subtypeOpts = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of cards) for (const s of subtypesOf(c.type_line || "")) set.add(s);
+    return [...set].sort();
+  }, [cards]);
+
+  function suggestionsFor(k: StatKind): string[] {
+    if (k === "type") return [...CARD_TYPES];
+    if (k === "subtype") return subtypeOpts;
+    if (k === "supertype") return [...SUPERTYPES];
+    if (k === "tag") return tags.map((t) => t.name);
+    return [];
+  }
 
   function persistCols(next: StatColumn[]) {
     setCols(next);
@@ -67,25 +105,14 @@ export function DeckStatsPanel({
     saveRecord(deckId, next);
   }
 
-  const drawOptions = [
-    ...types.map((t) => ({ id: `type:${t.label}`, label: `Type · ${t.label}`, count: t.count })),
-    ...tags.map((t) => {
-      const count = mainboard(cards)
-        .filter((c) => (c.tag_ids ?? []).includes(t.id))
-        .reduce((n, c) => n + (c.quantity || 1), 0);
-      return { id: `tag:${t.id}`, label: `Tag · ${t.name}`, count };
-    }),
-    ...cols.map((c) => ({
-      id: `col:${c.id}`,
-      label: `Col · ${c.label || c.value}`,
-      count: columnCount(cards, c, tags),
-    })),
-  ];
-
-  const selectedDraw = drawOptions.find((o) => o.id === drawCat) ?? drawOptions[0];
-  const pDraw = selectedDraw
-    ? drawAtLeastOne(N, selectedDraw.count, Math.max(1, drawN))
-    : 0;
+  const drawCol: StatColumn = {
+    id: "draw",
+    label: drawValue,
+    kind: drawKind,
+    value: drawValue,
+  };
+  const drawK = columnCount(cards, drawCol, tags, oracleByName);
+  const pDraw = drawAtLeast(N, drawK, Math.max(1, drawN), Math.max(1, drawNeed));
 
   return (
     <section className={styles.placeholderPanel}>
@@ -149,18 +176,40 @@ export function DeckStatsPanel({
       <h3 className={styles.sectionLabel}>Draw odds</h3>
       <div className={styles.addRow}>
         <select
-          className={styles.boardSelect}
-          value={selectedDraw?.id ?? ""}
-          onChange={(e) => setDrawCat(e.target.value)}
+          className={styles.addRowBtn}
+          value={drawKind}
+          onChange={(e) => setDrawKind(e.target.value as StatKind)}
         >
-          {drawOptions.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label} ({o.count})
+          {KINDS.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.label}
             </option>
           ))}
         </select>
+        <input
+          className={styles.input}
+          list="draw-suggest"
+          value={drawValue}
+          placeholder="Value"
+          onChange={(e) => setDrawValue(e.target.value)}
+        />
+        <datalist id="draw-suggest">
+          {suggestionsFor(drawKind).map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
         <label className={styles.hint}>
-          Cards seen
+          At least
+          <input
+            className={styles.qtyInput}
+            type="number"
+            min={1}
+            value={drawNeed}
+            onChange={(e) => setDrawNeed(Math.max(1, Number(e.target.value) || 1))}
+          />
+        </label>
+        <label className={styles.hint}>
+          Seen
           <input
             className={styles.qtyInput}
             type="number"
@@ -172,14 +221,15 @@ export function DeckStatsPanel({
         </label>
       </div>
       <p>
-        Chance of at least one: <strong>{(pDraw * 100).toFixed(1)}%</strong>
-        {selectedDraw ? ` (${selectedDraw.count} of ${N})` : ""}
+        Chance of at least {drawNeed} in {drawN}:{" "}
+        <strong>{(pDraw * 100).toFixed(1)}%</strong>
+        {` (${drawK} of ${N})`}
       </p>
 
       <h3 className={styles.sectionLabel}>Attribute columns</h3>
       <div className={styles.addRow}>
         <select
-          className={styles.boardSelect}
+          className={styles.addRowBtn}
           value={kind}
           onChange={(e) => setKind(e.target.value as StatKind)}
         >
@@ -189,42 +239,18 @@ export function DeckStatsPanel({
             </option>
           ))}
         </select>
-        {kind === "tag" ? (
-          <select
-            className={styles.boardSelect}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          >
-            <option value="">Tag…</option>
-            {tags.map((t) => (
-              <option key={t.id} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        ) : kind === "type" ? (
-          <select
-            className={styles.boardSelect}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          >
-            <option value="">Type…</option>
-            {["creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "land", "battle"].map(
-              (t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              )
-            )}
-          </select>
-        ) : (
-          <input
-            className={styles.input}
-            value={value}
-            placeholder="Value"
-            onChange={(e) => setValue(e.target.value)}
-          />
-        )}
+        <input
+          className={styles.input}
+          list="col-suggest"
+          value={value}
+          placeholder="Value"
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <datalist id="col-suggest">
+          {suggestionsFor(kind).map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
         <button
           type="button"
           className={styles.ghostBtn}
@@ -257,10 +283,10 @@ export function DeckStatsPanel({
                 ×
               </button>
             </header>
-            <strong>{columnCount(cards, c, tags)}</strong>
+            <strong>{columnCount(cards, c, tags, oracleByName)}</strong>
             <small>
               {mainboard(cards)
-                .filter((card) => matchColumn(card, c, tags))
+                .filter((card) => matchColumn(card, c, tags, oracleByName))
                 .slice(0, 4)
                 .map((card) => card.name)
                 .join(", ") || "—"}

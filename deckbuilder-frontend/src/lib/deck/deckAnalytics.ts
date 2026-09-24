@@ -1,7 +1,7 @@
 import { primaryTypeGroup } from "../cards/cardTypes";
 import type { DeckCard, DeckTag } from "../../types/deck";
 
-export type StatKind = "type" | "subtype" | "text" | "tag" | "name";
+export type StatKind = "type" | "subtype" | "supertype" | "tag" | "oracle";
 
 export type StatColumn = {
   id: string;
@@ -63,6 +63,21 @@ export function typeCounts(cards: DeckCard[]): { label: string; count: number }[
     .sort((a, b) => b.count - a.count);
 }
 
+export const SUPERTYPES = ["Basic", "Legendary", "Snow", "World", "Ongoing", "Host", "Elite"] as const;
+
+export const CARD_TYPES = [
+  "Creature",
+  "Instant",
+  "Sorcery",
+  "Artifact",
+  "Enchantment",
+  "Planeswalker",
+  "Land",
+  "Battle",
+  "Tribal",
+  "Kindred",
+] as const;
+
 export function subtypesOf(typeLine: string): string[] {
   const part = typeLine.split("—")[1] ?? typeLine.split("-")[1] ?? "";
   return part
@@ -74,18 +89,23 @@ export function subtypesOf(typeLine: string): string[] {
 export function matchColumn(
   card: DeckCard,
   col: StatColumn,
-  tags: DeckTag[]
+  tags: DeckTag[],
+  oracleByName?: Record<string, string>
 ): boolean {
   const q = col.value.trim().toLowerCase();
   if (!q) return false;
-  if (col.kind === "type") return (card.type_line || "").toLowerCase().includes(q);
+  const tl = card.type_line || "";
+  if (col.kind === "type") return CARD_TYPES.some((t) => t.toLowerCase() === q && tl.toLowerCase().includes(q));
   if (col.kind === "subtype") {
-    return subtypesOf(card.type_line || "").some((s) => s.toLowerCase() === q);
+    return subtypesOf(tl).some((s) => s.toLowerCase() === q);
   }
-  if (col.kind === "text") {
-    return (card.notes || "").toLowerCase().includes(q) || card.name.toLowerCase().includes(q);
+  if (col.kind === "supertype") {
+    return SUPERTYPES.some((s) => s.toLowerCase() === q) && new RegExp(`\\b${q}\\b`, "i").test(tl);
   }
-  if (col.kind === "name") return card.name.toLowerCase().includes(q);
+  if (col.kind === "oracle") {
+    const text = (oracleByName?.[card.name.toLowerCase()] ?? card.notes ?? "").toLowerCase();
+    return text.includes(q);
+  }
   if (col.kind === "tag") {
     const tag = tags.find((t) => t.name.toLowerCase() === q || t.id === col.value);
     if (!tag) return false;
@@ -97,26 +117,40 @@ export function matchColumn(
 export function columnCount(
   cards: DeckCard[],
   col: StatColumn,
-  tags: DeckTag[]
+  tags: DeckTag[],
+  oracleByName?: Record<string, string>
 ): number {
   return mainboard(cards)
-    .filter((c) => matchColumn(c, col, tags))
+    .filter((c) => matchColumn(c, col, tags, oracleByName))
     .reduce((n, c) => n + (c.quantity || 1), 0);
 }
 
-/** P(at least one success in n draws) via hypergeometric. */
-export function drawAtLeastOne(N: number, K: number, n: number): number {
-  if (N <= 0 || n <= 0 || K <= 0) return 0;
-  if (K >= N) return 1;
-  let miss = 1;
-  for (let i = 0; i < n; i++) {
-    const remain = N - i;
-    const missLeft = N - K - i;
-    if (remain <= 0) break;
-    if (missLeft <= 0) return 1;
-    miss *= missLeft / remain;
+function logFact(n: number): number {
+  let s = 0;
+  for (let i = 2; i <= n; i++) s += Math.log(i);
+  return s;
+}
+
+function logComb(n: number, k: number): number {
+  if (k < 0 || k > n) return -Infinity;
+  return logFact(n) - logFact(k) - logFact(n - k);
+}
+
+/** P(at least `need` hits in `seen` draws) via hypergeometric. */
+export function drawAtLeast(N: number, K: number, seen: number, need: number): number {
+  if (need <= 0) return 1;
+  if (N <= 0 || seen <= 0 || K <= 0) return 0;
+  if (need > K || need > seen) return 0;
+  let p = 0;
+  const max = Math.min(K, seen);
+  for (let i = need; i <= max; i++) {
+    p += Math.exp(logComb(K, i) + logComb(N - K, seen - i) - logComb(N, seen));
   }
-  return 1 - miss;
+  return Math.min(1, Math.max(0, p));
+}
+
+export function drawAtLeastOne(N: number, K: number, n: number): number {
+  return drawAtLeast(N, K, n, 1);
 }
 
 export function loadColumns(deckId: string): StatColumn[] {

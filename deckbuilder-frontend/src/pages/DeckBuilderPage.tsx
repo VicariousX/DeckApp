@@ -18,14 +18,14 @@ import { parseExternalCardDrop } from "../lib/cardDrag";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
-  getDeckGroupMode,
-  getDeckViewMode,
+  getTabViewPrefs,
+  setTabViewPrefs,
   getListColumnLayout,
   newListColumnId,
-  setDeckGroupMode,
-  setDeckViewMode,
   setLastViewedDeck,
   setListColumnLayout,
+  type BuilderTabKey,
+  type CardSortKey,
   type DeckGroupMode,
   type DeckViewMode,
   type ListColumnLayout,
@@ -102,12 +102,27 @@ const PANEL_TABS: { id: PanelTab; label: string }[] = [
 
 type CardGroup = { key: string; label: string; cards: DeckCard[] };
 
-function sortCards(cards: DeckCard[]): DeckCard[] {
+function sortCards(cards: DeckCard[], sort: CardSortKey = "default"): DeckCard[] {
   return [...cards].sort((a, b) => {
+    if (sort === "name") return a.name.localeCompare(b.name);
+    if (sort === "cmc") return (a.cmc ?? 0) - (b.cmc ?? 0) || a.name.localeCompare(b.name);
+    if (sort === "type") return (a.type_line || "").localeCompare(b.type_line || "") || a.name.localeCompare(b.name);
+    if (sort === "qty") return (b.quantity || 0) - (a.quantity || 0) || a.name.localeCompare(b.name);
     const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
     if (so !== 0) return so;
     return a.name.localeCompare(b.name);
   });
+}
+
+function filterCards(cards: DeckCard[], q: string): DeckCard[] {
+  const s = q.trim().toLowerCase();
+  if (!s) return cards;
+  return cards.filter(
+    (c) =>
+      c.name.toLowerCase().includes(s) ||
+      (c.type_line || "").toLowerCase().includes(s) ||
+      (c.notes || "").toLowerCase().includes(s)
+  );
 }
 
 /** Image-view qty controls only for basic lands (repeatable). */
@@ -187,9 +202,16 @@ export function DeckBuilderPage() {
   const [detail, setDetail] = useState<DeckDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [groupMode, setGroupMode] = useState<GroupMode>(() => getDeckGroupMode());
-  const [viewMode, setViewMode] = useState<DeckViewMode>(() => getDeckViewMode());
   const [panel, setPanel] = useState<PanelTab>("deck");
+  const [tabPrefs, setTabPrefs] = useState(() => ({
+    deck: getTabViewPrefs("deck"),
+    tokens: getTabViewPrefs("tokens"),
+  }));
+  const viewKey: BuilderTabKey = panel === "tokens" ? "tokens" : "deck";
+  const groupMode = tabPrefs[viewKey].group as GroupMode;
+  const viewMode = tabPrefs[viewKey].view;
+  const cardSort = tabPrefs[viewKey].sort;
+  const cardFilter = tabPrefs[viewKey].filter;
   const [deckTokens, setDeckTokens] = useState<DeckToken[]>([]);
 
   useEffect(() => {
@@ -306,12 +328,13 @@ export function DeckBuilderPage() {
 
   // Resolve preferred/custom art URLs for image view
   useEffect(() => {
-    if (!detail?.cards?.length || viewMode !== "image") return;
+    const source = panel === "tokens" ? tokenCards : detail?.cards ?? [];
+    if (!source.length || viewMode !== "image") return;
     let cancelled = false;
     async function load() {
       const next: Record<string, string> = {};
       await Promise.all(
-        detail!.cards.map(async (c) => {
+        source.map(async (c) => {
           const url = await resolveImageUrl(
             c.oracle_id || c.scryfall_id,
             c.scryfall_id
@@ -325,16 +348,21 @@ export function DeckBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [detail, viewMode, resolveImageUrl, artRevision]);
+  }, [detail, tokenCards, panel, viewMode, resolveImageUrl, artRevision]);
+
+  function patchTab(partial: Partial<typeof tabPrefs.deck>) {
+    const key = viewKey;
+    const next = { ...tabPrefs[key], ...partial };
+    setTabPrefs((p) => ({ ...p, [key]: next }));
+    setTabViewPrefs(key, next);
+  }
 
   function changeViewMode(mode: DeckViewMode) {
-    setViewMode(mode);
-    setDeckViewMode(mode);
+    patchTab({ view: mode });
   }
 
   function changeGroupMode(mode: GroupMode) {
-    setGroupMode(mode);
-    setDeckGroupMode(mode as DeckGroupMode);
+    patchTab({ group: mode as DeckGroupMode });
   }
 
 
@@ -403,7 +431,10 @@ export function DeckBuilderPage() {
       count: number;
     }[];
     return BOARDS.map((b) => {
-      const cards = sortCards(detail.cards.filter((c) => c.board === b.id));
+      const cards = filterCards(
+        sortCards(detail.cards.filter((c) => c.board === b.id), cardSort),
+        cardFilter
+      );
       return {
         id: b.id,
         label: b.label,
@@ -412,14 +443,16 @@ export function DeckBuilderPage() {
         count: cards.reduce((n, c) => n + c.quantity, 0),
       };
     });
-  }, [detail, groupMode]);
+  }, [detail, groupMode, cardSort, cardFilter]);
 
   const tokenCards: DeckCard[] = useMemo(() => {
     if (!detail) return [];
-    return deckTokens.map((t) => ({
+    return filterCards(
+      sortCards(
+    deckTokens.map((t) => ({
       id: t.id,
       deck_id: detail.deck.id,
-      oracle_id: t.id,
+      oracle_id: t.oracle_id ?? t.id,
       scryfall_id: t.id,
       name: t.name,
       type_line: t.type_line,
@@ -432,8 +465,12 @@ export function DeckBuilderPage() {
       created_at: "",
       updated_at: "",
       tag_ids: [],
-    }));
-  }, [detail, deckTokens]);
+    })),
+        cardSort
+      ),
+      cardFilter
+    );
+  }, [detail, deckTokens, cardSort, cardFilter]);
 
   const displaySections = useMemo(() => {
     if (panel !== "tokens") return boardSections;
@@ -863,12 +900,12 @@ export function DeckBuilderPage() {
   }
 
   function stackImageSrc(card: DeckCard): string | undefined {
-    const tok = deckTokens.find((t) => t.id === card.id);
-    if (tok?.image) return tok.image;
     if ((faceView[card.id] ?? "front") === "back" && backUrls[card.id]) {
       return backUrls[card.id];
     }
-    return imageUrls[card.id];
+    if (imageUrls[card.id]) return imageUrls[card.id];
+    const tok = deckTokens.find((t) => t.id === card.id);
+    return tok?.image;
   }
 
   function cardsForListColumn(
@@ -1509,6 +1546,25 @@ export function DeckBuilderPage() {
                   </button>
                 ))}
               </div>
+              <input
+                className={styles.input}
+                style={{ maxWidth: "12rem" }}
+                placeholder="Filter…"
+                value={cardFilter}
+                onChange={(e) => patchTab({ filter: e.target.value })}
+              />
+              <select
+                className={styles.addRowBtn}
+                value={cardSort}
+                aria-label="Sort"
+                onChange={(e) => patchTab({ sort: e.target.value as CardSortKey })}
+              >
+                <option value="default">Sort: default</option>
+                <option value="name">Sort: name</option>
+                <option value="cmc">Sort: mana value</option>
+                <option value="type">Sort: type</option>
+                <option value="qty">Sort: quantity</option>
+              </select>
               <div
                 className={styles.groupToggle}
                 role="group"

@@ -60,6 +60,62 @@ export function setDeckGroupMode(mode: DeckGroupMode): void {
   }
 }
 
+export type BuilderTabKey = "deck" | "tokens";
+export type CardSortKey = "default" | "name" | "cmc" | "type" | "qty";
+
+export type TabViewPrefs = {
+  view: DeckViewMode;
+  group: DeckGroupMode;
+  sort: CardSortKey;
+  filter: string;
+};
+
+const TAB_VIEW_PREFIX = "deckapp.tabView.";
+
+export function getTabViewPrefs(tab: BuilderTabKey): TabViewPrefs {
+  try {
+    const raw = localStorage.getItem(TAB_VIEW_PREFIX + tab);
+    if (!raw) {
+      if (tab === "deck") {
+        return {
+          view: getDeckViewMode(),
+          group: getDeckGroupMode(),
+          sort: "default",
+          filter: "",
+        };
+      }
+      return { view: "text", group: "grid", sort: "default", filter: "" };
+    }
+    const p = JSON.parse(raw) as Partial<TabViewPrefs>;
+    return {
+      view: p.view === "image" ? "image" : "text",
+      group:
+        p.group === "tag" || p.group === "none" || p.group === "grid" || p.group === "type"
+          ? p.group
+          : "type",
+      sort:
+        p.sort === "name" || p.sort === "cmc" || p.sort === "type" || p.sort === "qty"
+          ? p.sort
+          : "default",
+      filter: typeof p.filter === "string" ? p.filter : "",
+    };
+  } catch {
+    return { view: "text", group: "type", sort: "default", filter: "" };
+  }
+}
+
+export function setTabViewPrefs(tab: BuilderTabKey, prefs: TabViewPrefs): void {
+  try {
+    localStorage.setItem(TAB_VIEW_PREFIX + tab, JSON.stringify(prefs));
+    if (tab === "deck") {
+      setDeckViewMode(prefs.view);
+      setDeckGroupMode(prefs.group);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getLastViewedDeck(): LastViewedDeck | null {
   try {
     const raw = localStorage.getItem(LAST_DECK_KEY);
