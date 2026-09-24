@@ -36,7 +36,8 @@ export function parseTokensFromOracle(
   const re = new RegExp(TOKEN_RE.source, "gi");
   while ((m = re.exec(text))) {
     const qtyRaw = (m[1] ?? "1").toLowerCase();
-    const qty = qtyRaw === "x" ? 1 : WORD_QTY[qtyRaw] ?? parseInt(qtyRaw, 10) || 1;
+    const qty =
+      qtyRaw === "x" ? 1 : WORD_QTY[qtyRaw] ?? (parseInt(qtyRaw, 10) || 1);
     let body = m[2].trim();
     body = body.replace(/^(that are copies of|that's a copy of)\s+/i, "Copy of ");
     body = body.replace(/\s+/g, " ").replace(/[,;]+$/, "");
