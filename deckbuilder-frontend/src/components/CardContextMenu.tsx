@@ -25,6 +25,8 @@ export type CardContextTarget = {
   imageUrlBack?: string;
 };
 
+type Flyout = "modal" | "decks" | "share" | null;
+
 type Props = {
   x: number;
   y: number;
@@ -35,7 +37,8 @@ type Props = {
   onQty?: (delta: number) => void;
   onTier?: (delta: number) => void;
   onRemove?: () => void;
-  qtyLabel?: string;
+  quantity?: number;
+  tier?: number;
 };
 
 const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
@@ -57,12 +60,13 @@ export function CardContextMenu({
   onQty,
   onTier,
   onRemove,
-  qtyLabel = "Quantity",
+  quantity,
+  tier,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[] | null>(null);
-  const [deckOpen, setDeckOpen] = useState(false);
+  const [fly, setFly] = useState<Flyout>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,28 +86,12 @@ export function CardContextMenu({
   }, [onClose]);
 
   useEffect(() => {
-    if (!user || !deckOpen || decks) return;
+    if (!user || fly !== "decks" || decks) return;
     void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
-  }, [user, deckOpen, decks]);
+  }, [user, fly, decks]);
 
-  const left = Math.min(x, window.innerWidth - 220);
-  const top = Math.min(y, window.innerHeight - 320);
-
-  async function share() {
-    const url = `${window.location.origin}/card/${target.scryfallId}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: target.name, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setStatus("Link copied");
-        setTimeout(() => setStatus(null), 1500);
-      }
-    } catch {
-      await navigator.clipboard.writeText(url);
-      setStatus("Link copied");
-    }
-  }
+  const left = Math.min(x, window.innerWidth - 240);
+  const top = Math.min(y, window.innerHeight - 280);
 
   async function addTo(deckId: string) {
     const { error } = await addCardToDeck(deckId, {
@@ -115,7 +103,57 @@ export function CardContextMenu({
       board: "maybe",
     });
     setStatus(error ?? "Added to maybeboard");
-    if (!error) setTimeout(onClose, 700);
+  }
+
+  async function copyUrl() {
+    const url = `${window.location.origin}/card/${target.scryfallId}`;
+    await navigator.clipboard.writeText(url);
+    setStatus("URL copied");
+  }
+
+  async function fetchImageBlob(): Promise<Blob | null> {
+    if (!target.imageUrl) return null;
+    try {
+      const res = await fetch(target.imageUrl);
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  }
+
+  async function copyImage() {
+    const blob = await fetchImageBlob();
+    if (!blob) {
+      setStatus("Could not copy image");
+      return;
+    }
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type || "image/png"]: blob }),
+      ]);
+      setStatus("Image copied");
+    } catch {
+      setStatus("Clipboard blocked image copy");
+    }
+  }
+
+  async function saveImage() {
+    const blob = await fetchImageBlob();
+    const name = `${target.name.replace(/[^\w-]+/g, "_")}.png`;
+    if (blob) {
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(href);
+      setStatus("Image saved");
+      return;
+    }
+    if (target.imageUrl) {
+      window.open(target.imageUrl, "_blank", "noopener");
+    }
   }
 
   return createPortal(
@@ -125,51 +163,87 @@ export function CardContextMenu({
       style={{ left, top }}
       role="menu"
     >
-      <button type="button" onClick={() => { onEnhance(); onClose(); }}>
-        Enhance
-      </button>
-      <div className={styles.sep} />
-      <p className={styles.group}>Open modal</p>
-      {MODAL_ITEMS.map((item) => (
+      <div className={styles.pair}>
         <button
-          key={item.id}
           type="button"
           onClick={() => {
-            onOpenModal(item.id);
+            onEnhance();
             onClose();
           }}
         >
-          {item.label}
+          Enhance
         </button>
-      ))}
-      {(onQty || onTier) && <div className={styles.sep} />}
+        <button
+          type="button"
+          onClick={() => {
+            navigate(`/card/${target.scryfallId}`);
+            onClose();
+          }}
+        >
+          Card page
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className={fly === "modal" ? styles.active : undefined}
+        onClick={() => setFly((v) => (v === "modal" ? null : "modal"))}
+      >
+        Open modal ▸
+      </button>
+      {fly === "modal" && (
+        <div className={styles.fly}>
+          {MODAL_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                onOpenModal(item.id);
+                onClose();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {onQty && (
-        <div className={styles.row}>
-          <span>{qtyLabel}</span>
-          <button type="button" onClick={() => onQty(-1)}>−</button>
-          <button type="button" onClick={() => onQty(1)}>+</button>
+        <div className={styles.stepper}>
+          <span>Qty</span>
+          <button type="button" onClick={() => onQty(-1)}>
+            −
+          </button>
+          <strong>{quantity ?? "–"}</strong>
+          <button type="button" onClick={() => onQty(1)}>
+            +
+          </button>
         </div>
       )}
       {onTier && (
-        <div className={styles.row}>
+        <div className={styles.stepper}>
           <span>Tier</span>
-          <button type="button" onClick={() => onTier(-1)}>−</button>
-          <button type="button" onClick={() => onTier(1)}>+</button>
+          <button type="button" onClick={() => onTier(-1)}>
+            −
+          </button>
+          <strong>{tier ?? "–"}</strong>
+          <button type="button" onClick={() => onTier(1)}>
+            +
+          </button>
         </div>
       )}
-      {onRemove && (
-        <button type="button" className={styles.danger} onClick={() => { onRemove(); onClose(); }}>
-          Remove
-        </button>
-      )}
+
       {user && (
         <>
-          <div className={styles.sep} />
-          <button type="button" onClick={() => setDeckOpen((v) => !v)}>
-            Add to deck…
+          <button
+            type="button"
+            className={fly === "decks" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "decks" ? null : "decks"))}
+          >
+            Add to deck ▸
           </button>
-          {deckOpen && (
-            <div className={styles.sub}>
+          {fly === "decks" && (
+            <div className={styles.fly}>
               {!decks && <p className={styles.hint}>Loading…</p>}
               {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
               {decks?.map((d) => (
@@ -181,19 +255,40 @@ export function CardContextMenu({
           )}
         </>
       )}
-      <div className={styles.sep} />
-      <button type="button" onClick={() => void share()}>
-        Share
-      </button>
+
       <button
         type="button"
-        onClick={() => {
-          navigate(`/card/${target.scryfallId}`);
-          onClose();
-        }}
+        className={fly === "share" ? styles.active : undefined}
+        onClick={() => setFly((v) => (v === "share" ? null : "share"))}
       >
-        Card page
+        Share ▸
       </button>
+      {fly === "share" && (
+        <div className={styles.fly}>
+          <button type="button" onClick={() => void copyImage()}>
+            Copy image
+          </button>
+          <button type="button" onClick={() => void saveImage()}>
+            Save image
+          </button>
+          <button type="button" onClick={() => void copyUrl()}>
+            Copy card page URL
+          </button>
+        </div>
+      )}
+
+      {onRemove && (
+        <button
+          type="button"
+          className={styles.danger}
+          onClick={() => {
+            onRemove();
+            onClose();
+          }}
+        >
+          Remove
+        </button>
+      )}
       {status && <p className={styles.hint}>{status}</p>}
     </div>,
     document.body

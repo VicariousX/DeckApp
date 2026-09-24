@@ -2274,17 +2274,38 @@ export function DeckBuilderPage() {
             typeLine: ctxMenu.card.type_line,
             imageUrl: stackImageSrc(ctxMenu.card),
           }}
+          quantity={
+            (
+              detail?.cards.find((c) => c.id === ctxMenu.card.id) ??
+              tokenCards.find((c) => c.id === ctxMenu.card.id) ??
+              ctxMenu.card
+            ).quantity
+          }
           onClose={() => setCtxMenu(null)}
           onEnhance={() => setEnhanceCard(ctxMenu.card)}
           onOpenModal={(jump) => openCardModal(ctxMenu.card, jump)}
-          onQty={isOwner ? (d) => void onQty(ctxMenu.card, d) : undefined}
+          onQty={
+            isOwner
+              ? (d) => {
+                  const live =
+                    detail?.cards.find((c) => c.id === ctxMenu.card.id) ??
+                    tokenCards.find((c) => c.id === ctxMenu.card.id) ??
+                    ctxMenu.card;
+                  void onQty(live, d);
+                }
+              : undefined
+          }
           onRemove={
             isOwner
               ? () => {
-                  if (panel === "tokens" || deckTokens.some((t) => t.id === ctxMenu.card.id)) {
-                    void applyQuantity(ctxMenu.card, 0);
+                  const live =
+                    detail?.cards.find((c) => c.id === ctxMenu.card.id) ??
+                    tokenCards.find((c) => c.id === ctxMenu.card.id) ??
+                    ctxMenu.card;
+                  if (panel === "tokens" || deckTokens.some((t) => t.id === live.id)) {
+                    void applyQuantity(live, 0);
                   } else {
-                    void onRemove(ctxMenu.card);
+                    void onRemove(live);
                   }
                 }
               : undefined
