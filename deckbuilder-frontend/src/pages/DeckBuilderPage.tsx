@@ -328,7 +328,14 @@ export function DeckBuilderPage() {
 
   // Resolve preferred/custom art URLs for image view
   useEffect(() => {
-    const source = panel === "tokens" ? tokenCards : detail?.cards ?? [];
+    const source =
+      panel === "tokens"
+        ? deckTokens.map((t) => ({
+            id: t.id,
+            oracle_id: t.oracle_id ?? t.id,
+            scryfall_id: t.id,
+          }))
+        : detail?.cards ?? [];
     if (!source.length || viewMode !== "image") return;
     let cancelled = false;
     async function load() {
@@ -348,7 +355,7 @@ export function DeckBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [detail, tokenCards, panel, viewMode, resolveImageUrl, artRevision]);
+  }, [detail, deckTokens, panel, viewMode, resolveImageUrl, artRevision]);
 
   function patchTab(partial: Partial<typeof tabPrefs.deck>) {
     const key = viewKey;
