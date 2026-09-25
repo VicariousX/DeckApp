@@ -30,8 +30,8 @@ function cardFromNamed(card: {
   oracle_id?: string;
   name: string;
   type_line?: string;
-  image_uris?: { normal?: string; small?: string };
-  card_faces?: { image_uris?: { normal?: string; small?: string } }[];
+  image_uris?: { normal?: string; small?: string } | null;
+  card_faces?: { image_uris?: { normal?: string; small?: string } | null }[] | null;
 }): ComboCard {
   return {
     id: card.id,
