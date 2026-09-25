@@ -153,6 +153,7 @@ export function LandingPage() {
       slots={[
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
+        { to: "/combos", mark: "C", title: "Combos" },
       ]}
       rail={{ kind: "link", to: "/login", label: "Profile" }}
     />

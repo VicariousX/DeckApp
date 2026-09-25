@@ -1,0 +1,465 @@
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 750;
+}
+
+.subtitle {
+  margin: 0.3rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  max-width: 40rem;
+}
+
+.viewToggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
+  gap: 2px;
+}
+
+.viewBtn,
+.viewBtnActive {
+  padding: 0.32rem 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.viewBtnActive {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-accent);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 820px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.comboList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.comboItem,
+.comboItemActive {
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  color: inherit;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.comboItem small,
+.comboItemActive small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.comboItemActive {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+}
+
+.stage {
+  min-width: 0;
+}
+
+.comboHead {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.comboName {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  padding: 0.2rem 0;
+}
+
+.pairings {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.lock {
+  position: relative;
+  padding-top: 1.4rem;
+}
+
+.shackle {
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 18%;
+  height: 1.35rem;
+  border: 2px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 30%);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
+}
+
+.lockBody {
+  display: flex;
+  align-items: stretch;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding: 0.85rem 0.7rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-surface-highlight) 55%, transparent),
+      color-mix(in srgb, var(--color-surface) 94%, #000 6%)
+    );
+  box-shadow: var(--shadow-md);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 50%, transparent) transparent;
+}
+
+.wheel {
+  flex: 0 0 10.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.wheelCap {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.colLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.15rem;
+}
+
+.iconBtn,
+.textBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.iconBtn {
+  width: 1.4rem;
+  font-size: 1.1rem;
+}
+
+.textBtn {
+  font-size: 0.72rem;
+}
+
+.tumbler {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--color-accent) 20%);
+  background: color-mix(in srgb, #000 18%, var(--color-surface));
+}
+
+.peek {
+  height: 2.7rem;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  background: color-mix(in srgb, #000 28%, transparent);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.peek:disabled {
+  cursor: default;
+  opacity: 0.2;
+}
+
+.peek img {
+  width: 100%;
+  display: block;
+}
+
+.peekTop img {
+  transform: translateY(-72%);
+}
+
+.peekBot img {
+  transform: translateY(-8%);
+}
+
+.window {
+  aspect-ratio: 63 / 88;
+  background: color-mix(in srgb, #000 12%, var(--color-surface));
+}
+
+.faceBtn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.faceBtn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.faceName,
+.emptyFace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.emptyFace {
+  font-size: 2rem;
+  border: 1.5px dashed color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  margin: 0.35rem;
+  border-radius: 10px;
+}
+
+.faceCaption {
+  margin: 0;
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  min-height: 1.1em;
+}
+
+.addWrap {
+  position: relative;
+}
+
+.addInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.32rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.suggest {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 0.15rem 0 0;
+  padding: 0.2rem;
+  list-style: none;
+  max-height: 8rem;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  scrollbar-width: thin;
+}
+
+.suggest button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0.28rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.suggest button:hover {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.addColumn {
+  flex: 0 0 6.4rem;
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 2.1rem 0 2.4rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.addColumnGhost {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+  border-radius: 16px;
+  font-size: 1.6rem;
+  opacity: 0.7;
+}
+
+.addColumnPlus {
+  display: flex;
+  align-items: center;
+  font-size: 1.6rem;
+  padding: 0 0.15rem;
+}
+
+.addColumn:hover .addColumnGhost,
+.addColumn:hover .addColumnPlus {
+  color: var(--color-accent);
+}
+
+.primaryBtn {
+  appearance: none;
+  border: 1px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: #e57373;
+  font-size: 0.85rem;
+}
+
+.mesh {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding: 0.4rem 0.2rem 0.8rem;
+}
+
+.meshCol {
+  position: relative;
+  flex: 0 0 11rem;
+}
+
+.meshCol h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.meshCol ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.meshCard {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.meshCard img {
+  width: 2.2rem;
+  height: auto;
+  border-radius: 4px;
+}
+
+.meshLink {
+  position: absolute;
+  right: -0.85rem;
+  top: 40%;
+  color: var(--color-accent);
+  font-size: 1.1rem;
+  pointer-events: none;
+}

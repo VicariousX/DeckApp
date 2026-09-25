@@ -9,6 +9,7 @@ import { MyDecksPage } from "./pages/MyDecksPage";
 import { DeckBuilderPage } from "./pages/DeckBuilderPage";
 import { CardPage } from "./pages/CardPage";
 import { DrawersPage } from "./pages/DrawersPage";
+import { CombosPage } from "./pages/CombosPage";
 import "./index.css";
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/decks" element={<PublicDecksPage />} />
           <Route path="/my-decks" element={<MyDecksPage />} />
           <Route path="/drawers" element={<DrawersPage />} />
+          <Route path="/combos" element={<CombosPage />} />
           <Route path="/deck/:id" element={<DeckBuilderPage />} />
         </Route>
       </Routes>

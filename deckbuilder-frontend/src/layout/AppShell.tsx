@@ -153,6 +153,16 @@ export function AppShell() {
               Drawers
             </NavLink>
           )}
+          <NavLink
+            to="/combos"
+            className={({ isActive }) =>
+              isActive
+                ? `${styles.navLink} ${styles.navLinkActive}`
+                : styles.navLink
+            }
+          >
+            Combos
+          </NavLink>
 
           {user ? (
             <div className={styles.decksMenu} ref={decksRef}>
