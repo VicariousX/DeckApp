@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useAuth } from "../auth/AuthProvider";
-import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchCardsByNames, fetchNamedCard } from "../lib/scryfallApi";
+import { SynergyMap } from "../components/SynergyMap";
+import type { SynergyCard } from "../lib/synergy/engine";
 import {
   loadCombos,
   newColumn,
@@ -21,7 +23,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./CombosPage.module.css";
 
-type ViewMode = "lock" | "mesh";
+type ViewMode = "lock" | "mesh" | "map";
 
 function cardFromNamed(card: {
   id: string;
@@ -242,6 +244,40 @@ function Wheel({
   );
 }
 
+function ComboSynergyBody({
+  combo,
+  oracleByName,
+  kwByName,
+  onSelect,
+}: {
+  combo: ComboLock;
+  oracleByName: Record<string, string>;
+  kwByName: Record<string, string[]>;
+  onSelect: (key: string) => void;
+}) {
+  const cards: SynergyCard[] = combo.columns.flatMap((col) =>
+    col.cards.map((c) => ({
+      key: c.oracle_id || c.id,
+      name: c.name,
+      oracle: oracleByName[c.name.toLowerCase()] ?? "",
+      keywords: kwByName[c.name.toLowerCase()],
+    }))
+  );
+  const extra = [];
+  for (let i = 0; i < combo.columns.length - 1; i++) {
+    for (const a of combo.columns[i].cards) {
+      for (const b of combo.columns[i + 1].cards) {
+        extra.push({
+          a: a.oracle_id || a.id,
+          b: b.oracle_id || b.id,
+          label: "lock",
+        });
+      }
+    }
+  }
+  return <SynergyMap cards={cards} extraEdges={extra} onSelect={onSelect} />;
+}
+
 export function CombosPage() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -261,6 +297,8 @@ export function CombosPage() {
     y: number;
     card: ComboCard;
   } | null>(null);
+  const [oracleByName, setOracleByName] = useState<Record<string, string>>({});
+  const [kwByName, setKwByName] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const loaded = loadCombos(userId);
@@ -308,6 +346,36 @@ export function CombosPage() {
 
   const pairs = active ? pairingCount(active) : 0;
 
+  const comboNames = useMemo(
+    () =>
+      active
+        ? [...new Set(active.columns.flatMap((c) => c.cards.map((x) => x.name)))]
+        : [],
+    [active]
+  );
+
+  useEffect(() => {
+    if (view !== "map" || !comboNames.length) return;
+    let cancel = false;
+    void fetchCardsByNames(comboNames).then(({ byName }) => {
+      if (cancel) return;
+      const text: Record<string, string> = {};
+      const kw: Record<string, string[]> = {};
+      for (const [k, card] of byName) {
+        text[k] = [
+          card.oracle_text ?? "",
+          ...(card.card_faces ?? []).map((f) => f.oracle_text ?? ""),
+        ].join(" ");
+        kw[k] = card.keywords ?? [];
+      }
+      setOracleByName(text);
+      setKwByName(kw);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [view, comboNames]);
+
   return (
     <div className={`${styles.page} ${transitions.page}`}>
       <header className={styles.header}>
@@ -332,6 +400,13 @@ export function CombosPage() {
             onClick={() => setView("mesh")}
           >
             Mesh
+          </button>
+          <button
+            type="button"
+            className={view === "map" ? styles.viewBtnActive : styles.viewBtn}
+            onClick={() => setView("map")}
+          >
+            Map
           </button>
         </div>
       </header>
@@ -397,7 +472,7 @@ export function CombosPage() {
                 </button>
               </div>
 
-              {view === "lock" ? (
+              {view === "lock" && (
                 <div className={styles.lock}>
                   <div className={styles.shackle} aria-hidden />
                   <div className={styles.lockBody}>
@@ -469,7 +544,8 @@ export function CombosPage() {
                     </button>
                   </div>
                 </div>
-              ) : (
+              )}
+              {view === "mesh" && (
                 <div className={styles.mesh}>
                   {active.columns.map((col, i) => (
                     <div key={col.id} className={styles.meshCol}>
@@ -499,6 +575,25 @@ export function CombosPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+              {view === "map" && (
+                <div className={styles.mapPane}>
+                  <p className={styles.muted}>
+                    Solid lines are shared mechanics. Dashed lines are lock
+                    pairings (any card in one wheel with any card in the next).
+                  </p>
+                  <ComboSynergyBody
+                    combo={active}
+                    oracleByName={oracleByName}
+                    kwByName={kwByName}
+                    onSelect={(key) => {
+                      const card = active.columns
+                        .flatMap((c) => c.cards)
+                        .find((c) => c.oracle_id === key || c.id === key);
+                      if (card) setEnhance(card);
+                    }}
+                  />
                 </div>
               )}
               {error && <p className={styles.error}>{error}</p>}

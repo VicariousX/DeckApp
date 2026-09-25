@@ -1,0 +1,82 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.chip,
+.chipOn {
+  appearance: none;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.18rem 0.55rem;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+}
+
+.svg {
+  width: 100%;
+  max-height: 28rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, #000 8%);
+}
+
+.edge {
+  stroke: var(--color-accent);
+  stroke-width: 1.2;
+  fill: none;
+}
+
+.lockEdge {
+  stroke: color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  fill: none;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.node circle {
+  fill: var(--color-accent);
+  stroke: var(--color-surface);
+  stroke-width: 1;
+}
+
+.node text {
+  fill: var(--color-text);
+  font-size: 7.5px;
+}
+
+.node:hover circle {
+  fill: var(--color-text);
+}
+
+.legend,
+.lonely {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}

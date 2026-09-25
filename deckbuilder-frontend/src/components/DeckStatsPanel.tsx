@@ -22,6 +22,8 @@ import {
   type StatKind,
 } from "../lib/deck/deckAnalytics";
 import type { DeckCard, DeckTag } from "../types/deck";
+import { SynergyMap } from "./SynergyMap";
+import type { SynergyCard } from "../lib/synergy/engine";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type Props = {
@@ -64,6 +66,17 @@ export function DeckStatsPanel({
   const [drawNeed, setDrawNeed] = useState(1);
   const [drawN, setDrawN] = useState(7);
   const [oracleByName, setOracleByName] = useState<Record<string, string>>({});
+  const [kwByName, setKwByName] = useState<Record<string, string[]>>({});
+  const synergyCards: SynergyCard[] = useMemo(
+    () =>
+      mainboard(cards).map((c) => ({
+        key: c.oracle_id || c.id,
+        name: c.name,
+        oracle: oracleByName[c.name.toLowerCase()] ?? "",
+        keywords: kwByName[c.name.toLowerCase()],
+      })),
+    [cards, oracleByName, kwByName]
+  );
 
   useEffect(() => {
     const names = [...new Set(cards.map((c) => c.name))];
@@ -72,10 +85,13 @@ export function DeckStatsPanel({
     void fetchCardsByNames(names).then(({ byName }) => {
       if (cancelled) return;
       const map: Record<string, string> = {};
+      const kw: Record<string, string[]> = {};
       for (const [k, card] of byName) {
         map[k] = [card.oracle_text ?? "", ...(card.card_faces ?? []).map((f) => f.oracle_text ?? "")].join(" ");
+        kw[k] = card.keywords ?? [];
       }
       setOracleByName(map);
+      setKwByName(kw);
     });
     return () => {
       cancelled = true;
@@ -172,6 +188,14 @@ export function DeckStatsPanel({
           </div>
         ))}
       </div>
+
+      <h3 className={styles.sectionLabel}>Synergy map</h3>
+      <p className={styles.hint}>
+        Links form when cards share a mechanic in oracle text or keywords
+        (tokens, sacrifice, graveyard, and so on). Filter a tag to inspect one
+        engine.
+      </p>
+      <SynergyMap cards={synergyCards} />
 
       <h3 className={styles.sectionLabel}>Draw odds</h3>
       <div className={styles.addRow}>
