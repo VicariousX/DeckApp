@@ -143,22 +143,48 @@ export type SynergyEdge = {
   weight: number;
 };
 
+export type CommunityMark = {
+  key: string;
+  mechanic: string;
+  economy: "producer" | "payoff" | "both";
+};
+
 export function buildSynergyGraph(
   cards: SynergyCard[],
-  minShared = 1
+  minShared = 1,
+  community: CommunityMark[] = []
 ): { nodes: TaggedCard[]; edges: SynergyEdge[] } {
   const nodes = cards.map(tagCard);
+  const marks = new Map<string, CommunityMark[]>();
+  for (const m of community) {
+    const list = marks.get(m.key) ?? [];
+    list.push(m);
+    marks.set(m.key, list);
+  }
   const edges: SynergyEdge[] = [];
+  const seen = new Set<string>();
+  function push(a: string, b: string, tag: string, weight: number) {
+    const k = a < b ? `${a}|${b}|${tag}` : `${b}|${a}|${tag}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    edges.push({ a, b, tags: [tag as SynergyTagId], weight });
+  }
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const shared = nodes[i].tags.filter((t) => nodes[j].tags.includes(t));
       if (shared.length >= minShared) {
-        edges.push({
-          a: nodes[i].key,
-          b: nodes[j].key,
-          tags: shared,
-          weight: shared.length,
-        });
+        for (const t of shared) push(nodes[i].key, nodes[j].key, t, shared.length);
+      }
+      for (const x of marks.get(nodes[i].key) ?? []) {
+        for (const y of marks.get(nodes[j].key) ?? []) {
+          if (x.mechanic !== y.mechanic) continue;
+          const pair =
+            x.economy === "both" ||
+            y.economy === "both" ||
+            (x.economy === "producer" && y.economy === "payoff") ||
+            (x.economy === "payoff" && y.economy === "producer");
+          push(nodes[i].key, nodes[j].key, x.mechanic, pair ? 3 : 1);
+        }
       }
     }
   }

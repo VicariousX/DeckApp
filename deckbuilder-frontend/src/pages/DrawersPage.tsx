@@ -928,7 +928,7 @@ export function DrawersPage() {
               ? "artwork"
               : modalJump.startsWith("info")
                 ? "info"
-                : modalJump === "deck" || modalJump === "drawers"
+                : modalJump === "deck" || modalJump === "drawers" || modalJump === "mechanics"
                   ? modalJump
                   : "info"
           }

@@ -4,6 +4,8 @@ import {
   buildSynergyGraph,
   isolatedKeys,
   tagCounts,
+  type CommunityMark,
+  type CommunityMark,
   type SynergyCard,
   type SynergyTagId,
 } from "../lib/synergy/engine";
@@ -11,6 +13,7 @@ import styles from "./SynergyMap.module.css";
 
 type Props = {
   cards: SynergyCard[];
+  community?: CommunityMark[];
   extraEdges?: { a: string; b: string; label?: string }[];
   onSelect?: (key: string) => void;
 };
@@ -47,9 +50,12 @@ function layout(
   return out;
 }
 
-export function SynergyMap({ cards, extraEdges = [], onSelect }: Props) {
+export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }: Props) {
   const [filter, setFilter] = useState<SynergyTagId | "all">("all");
-  const { nodes, edges } = useMemo(() => buildSynergyGraph(cards, 1), [cards]);
+  const { nodes, edges } = useMemo(
+    () => buildSynergyGraph(cards, 1, community),
+    [cards, community]
+  );
   const counts = useMemo(() => tagCounts(nodes), [nodes]);
   const lonely = useMemo(() => isolatedKeys(nodes, edges), [nodes, edges]);
 

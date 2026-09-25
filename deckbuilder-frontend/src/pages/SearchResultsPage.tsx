@@ -3,6 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { useScryfallSearch } from "../hooks/useScryfallSearch";
+import { extractMechanicTerms } from "../lib/mechanics/search";
+import { oracleIdsForMechanic } from "../services/mechanicMarkService";
+import { fetchCollectionByIds } from "../lib/scryfallApi";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./SearchPage.module.css";
@@ -87,6 +90,10 @@ function attr(card: ScryfallCard, key: string): string | number {
 export function SearchResultsPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
+  const mechParsed = useMemo(() => extractMechanicTerms(q), [q]);
+  const scryfallQ = mechParsed.rest || (mechParsed.terms.length ? "" : q);
+  const [mechCards, setMechCards] = useState<ScryfallCard[]>([]);
+  const [mechIds, setMechIds] = useState<Set<string> | null>(null);
   const mode = params.get("mode") === "advanced" ? "advanced" : "standard";
   const nParam = parseInt(params.get("n") ?? "30", 10);
   const pageSize = PAGE_SIZES.includes(nParam) ? nParam : 30;
@@ -101,11 +108,47 @@ export function SearchResultsPage() {
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
 
   useEffect(() => {
-    void run(q, apiOrder, sortDir);
-  }, [q, apiOrder, sortDir, run]);
+    if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
+  }, [scryfallQ, apiOrder, sortDir, run]);
+
+  useEffect(() => {
+    if (!mechParsed.terms.length) {
+      setMechIds(null);
+      setMechCards([]);
+      return;
+    }
+    let cancel = false;
+    void (async () => {
+      const sets: string[][] = [];
+      for (const t of mechParsed.terms) {
+        const { ids } = await oracleIdsForMechanic(t.id, t.economy);
+        sets.push(ids);
+      }
+      if (cancel) return;
+      let acc = new Set(sets[0] ?? []);
+      mechParsed.terms.forEach((t, i) => {
+        const s = new Set(sets[i] ?? []);
+        if (t.negate) acc = new Set([...acc].filter((id) => !s.has(id)));
+        else if (i > 0) acc = new Set([...acc].filter((id) => s.has(id)));
+      });
+      setMechIds(acc);
+      if (!scryfallQ && acc.size) {
+        const { cards: found } = await fetchCollectionByIds([...acc].slice(0, 75));
+        if (!cancel) setMechCards(found);
+      } else setMechCards([]);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [mechParsed, scryfallQ]);
 
   const sorted = useMemo(() => {
-    const copy = [...cards];
+    const source = scryfallQ ? cards : mechCards.length ? mechCards : cards;
+    const filtered =
+      mechIds && scryfallQ
+        ? source.filter((c) => mechIds.has((c.oracle_id || c.id).toLowerCase()) || mechIds.has(c.oracle_id || c.id))
+        : source;
+    const copy = [...filtered];
     copy.sort((a, b) => {
       const av = attr(a, sortKey);
       const bv = attr(b, sortKey);
@@ -117,7 +160,7 @@ export function SearchResultsPage() {
       return sortDir === "desc" ? -cmp : cmp;
     });
     return copy;
-  }, [cards, sortDir, sortKey]);
+  }, [cards, mechCards, mechIds, scryfallQ, sortDir, sortKey]);
 
   const pagesHere = Math.max(1, Math.ceil(sorted.length / pageSize) || 1);
   const safePage = Math.min(viewPage, pagesHere);

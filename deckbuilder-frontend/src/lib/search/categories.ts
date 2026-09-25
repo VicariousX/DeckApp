@@ -1,4 +1,5 @@
 import type { CmpOp } from "./syntaxModel";
+import { MECHANICS } from "../mechanics/catalog";
 
 export type FieldDef = {
   key: string;
@@ -219,6 +220,19 @@ export const CATEGORIES: CategoryDef[] = [
         { value: "art", label: "Art" },
         { value: "prints", label: "Prints" },
       ]},
+    ],
+  },
+  {
+    id: "mechanic",
+    label: "Community mechanic",
+    fields: [
+      {
+        key: "mech",
+        label: "Mechanic",
+        kind: "select",
+        hint: "DeckApp marks. mech:tokens or mech:tokens:producer",
+        options: MECHANICS.map((m) => ({ value: m.id, label: m.name })),
+      },
     ],
   },
   {

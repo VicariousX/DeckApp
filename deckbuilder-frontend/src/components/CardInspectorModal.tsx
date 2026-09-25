@@ -19,6 +19,7 @@ import { CardImage } from "./CardImage";
 import { CardArtPanel } from "./CardArtPanel";
 import { DrawerPicker } from "./DrawerPicker";
 import { UsefulInPicker } from "./UsefulInPicker";
+import { MechanicMarkPicker } from "./MechanicMarkPicker";
 import { Modal } from "./Modal";
 import styles from "./CardInspectorModal.module.css";
 
@@ -40,7 +41,7 @@ export type CardInspectorDeckControls = {
   onCreateTag?: (name: string) => Promise<void> | void;
 };
 
-export type InspectorTabId = "info" | "deck" | "drawer" | "drawers" | "artwork";
+export type InspectorTabId = "info" | "deck" | "drawer" | "drawers" | "mechanics" | "artwork";
 type TabId = InspectorTabId;
 
 type Props = {
@@ -230,6 +231,7 @@ export function CardInspectorModal({
     if (deck) list.push({ id: "deck", label: "Deck" });
     list.push(
       { id: "drawers", label: "Drawers" },
+      { id: "mechanics", label: "Mechanics" },
       { id: "artwork", label: "Artwork" }
     );
     return list;
@@ -1064,6 +1066,21 @@ export function CardInspectorModal({
                   <p className={styles.muted}>Load card to manage drawers.</p>
                 )}
               </div>
+
+              {active === "mechanics" && (
+                <div className={styles.panelScroll}>
+                  {(displayCard ?? baseCard)?.oracle_id || (displayCard ?? baseCard)?.id ? (
+                    <MechanicMarkPicker
+                      oracleId={(
+                        (displayCard ?? baseCard)!.oracle_id ??
+                        (displayCard ?? baseCard)!.id
+                      ).toLowerCase()}
+                    />
+                  ) : (
+                    <p className={styles.muted}>Load card to mark mechanics.</p>
+                  )}
+                </div>
+              )}
 
               {active === "artwork" && (
                 <div className={styles.panelScroll}>

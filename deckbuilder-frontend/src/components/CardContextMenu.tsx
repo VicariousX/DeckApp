@@ -12,6 +12,7 @@ export type ModalJump =
   | "info:rulings"
   | "deck"
   | "drawers"
+  | "mechanics"
   | "artwork"
   | "artwork:prints"
   | "artwork:upload";
@@ -46,6 +47,7 @@ const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
   { id: "info:rulings", label: "Rulings" },
   { id: "deck", label: "Deck" },
   { id: "drawers", label: "Drawers" },
+  { id: "mechanics", label: "Mechanics" },
   { id: "artwork:prints", label: "Printings" },
   { id: "artwork:upload", label: "Upload art" },
 ];

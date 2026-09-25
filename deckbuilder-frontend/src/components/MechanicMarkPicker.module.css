@@ -1,0 +1,111 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.lead,
+.hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 10rem;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.row strong {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.row span,
+.row em {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-style: normal;
+  margin-right: 0.4rem;
+}
+
+.votes {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.votes button,
+.lock,
+.submit,
+.chip,
+.chipOn {
+  appearance: none;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.18rem 0.5rem;
+  cursor: pointer;
+}
+
+.chipOn,
+.submit {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.submit {
+  align-self: flex-start;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+}
+
+.compose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.search {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.fams,
+.axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.axes span {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  min-width: 4.2rem;
+}

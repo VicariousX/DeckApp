@@ -23,7 +23,8 @@ import {
 } from "../lib/deck/deckAnalytics";
 import type { DeckCard, DeckTag } from "../types/deck";
 import { SynergyMap } from "./SynergyMap";
-import type { SynergyCard } from "../lib/synergy/engine";
+import type { CommunityMark, SynergyCard } from "../lib/synergy/engine";
+import { listMarksForOracles } from "../services/mechanicMarkService";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type Props = {
@@ -67,6 +68,7 @@ export function DeckStatsPanel({
   const [drawN, setDrawN] = useState(7);
   const [oracleByName, setOracleByName] = useState<Record<string, string>>({});
   const [kwByName, setKwByName] = useState<Record<string, string[]>>({});
+  const [community, setCommunity] = useState<CommunityMark[]>([]);
   const synergyCards: SynergyCard[] = useMemo(
     () =>
       mainboard(cards).map((c) => ({
@@ -95,6 +97,29 @@ export function DeckStatsPanel({
     });
     return () => {
       cancelled = true;
+    };
+  }, [cards]);
+
+  useEffect(() => {
+    const ids = [
+      ...new Set(mainboard(cards).map((c) => c.oracle_id).filter(Boolean)),
+    ];
+    if (!ids.length) return;
+    let cancel = false;
+    void listMarksForOracles(ids).then(({ marks }) => {
+      if (cancel) return;
+      setCommunity(
+        marks
+          .filter((m) => m.status === "accepted" || m.status === "locked")
+          .map((m) => ({
+            key: m.oracle_id,
+            mechanic: m.mechanic_id,
+            economy: m.economy,
+          }))
+      );
+    });
+    return () => {
+      cancel = true;
     };
   }, [cards]);
 
@@ -195,7 +220,7 @@ export function DeckStatsPanel({
         (tokens, sacrifice, graveyard, and so on). Filter a tag to inspect one
         engine.
       </p>
-      <SynergyMap cards={synergyCards} />
+      <SynergyMap cards={synergyCards} community={community} />
 
       <h3 className={styles.sectionLabel}>Draw odds</h3>
       <div className={styles.addRow}>
