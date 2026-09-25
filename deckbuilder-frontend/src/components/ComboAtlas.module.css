@@ -1,0 +1,50 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.head p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.svg {
+  width: 100%;
+  height: min(28rem, 62vh);
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, #000 10%);
+  touch-action: none;
+  cursor: grab;
+}
+
+.edge {
+  stroke: var(--color-accent);
+  stroke-width: 1.2;
+  stroke-opacity: 0.55;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.node circle {
+  fill: var(--color-accent);
+}
+
+.node text {
+  fill: var(--color-text);
+  font-size: 8px;
+  pointer-events: none;
+}
+
+.node image {
+  stroke: var(--color-border);
+}

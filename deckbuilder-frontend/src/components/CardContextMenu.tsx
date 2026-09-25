@@ -40,6 +40,9 @@ type Props = {
   onRemove?: () => void;
   quantity?: number;
   tier?: number;
+  tabs?: ModalJump[];
+  hideAddToDeck?: boolean;
+  linkChoices?: { id: string; name: string; on: boolean; onToggle: () => void }[];
 };
 
 const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
@@ -64,6 +67,9 @@ export function CardContextMenu({
   onRemove,
   quantity,
   tier,
+  tabs,
+  hideAddToDeck,
+  linkChoices,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -202,8 +208,28 @@ export function CardContextMenu({
         </button>
       </div>
 
+      {linkChoices && linkChoices.length > 0 && (
+        <div className={styles.fly}>
+          <p className={styles.hint}>Works with</p>
+          {linkChoices.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={c.on ? styles.active : undefined}
+              onClick={c.onToggle}
+            >
+              {c.on ? "● " : "○ "}
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.fly}>
-        {MODAL_ITEMS.map((item) => (
+        {(tabs
+          ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
+          : MODAL_ITEMS
+        ).map((item) => (
           <button
             key={item.id}
             type="button"
@@ -242,7 +268,7 @@ export function CardContextMenu({
         </div>
       )}
 
-      {user && (
+      {user && !hideAddToDeck && (
         <>
           <button
             type="button"
