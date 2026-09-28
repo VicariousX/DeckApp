@@ -293,7 +293,15 @@ function makeSaved(clause: Clause, label?: string): SavedToken {
   };
 }
 
-export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string }) {
+export function AdvancedSearch({
+  initialQuery = "",
+  onSearch,
+  compact = false,
+}: {
+  initialQuery?: string;
+  onSearch?: (query: string) => void;
+  compact?: boolean;
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [root, setRoot] = useState<Group>(() => parseQuery(initialQuery, FIELD_TO_CATEGORY));
@@ -501,11 +509,15 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   function submit(q: string) {
     const trimmed = q.trim();
     if (!trimmed) return;
+    if (onSearch) {
+      onSearch(trimmed);
+      return;
+    }
     navigate(`/search/results?mode=advanced&q=${encodeURIComponent(trimmed)}&n=30`);
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap}${compact ? ` ${styles.wrapCompact}` : ""}`}>
       <div className={styles.liveBar}>
         <label className={styles.liveLabel} htmlFor="adv-live">
           Syntax
@@ -1156,11 +1168,6 @@ function ClauseRow({
           );
         })}
       </div>
-      )}
-      {locked && (
-        <div className={styles.pins}>
-          <span className={styles.pin}>{locked.name || locked.key}</span>
-        </div>
       )}
       {!locked && editPins && savePins &&
         createPortal(

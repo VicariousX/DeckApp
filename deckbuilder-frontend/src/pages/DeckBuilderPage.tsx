@@ -56,6 +56,12 @@ import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
+import {
+  DeckSearchDock,
+  DeckSearchModeToggle,
+  type AddSearchMode,
+} from "../components/search/DeckSearchDock";
+import type { ScryfallCard } from "../types/scryfallCard";
 import { DeckStatsPanel } from "../components/DeckStatsPanel";
 import {
   generateDeckTokens,
@@ -243,6 +249,7 @@ export function DeckBuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, detail?.deck.id]);
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
+  const [addSearchMode, setAddSearchMode] = useState<AddSearchMode>("quick");
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
@@ -593,6 +600,58 @@ export function DeckBuilderPage() {
         cards: prev.cards.map((c) =>
           c.id === cardId ? { ...c, ...patch } : c
         ),
+      };
+    });
+  }
+
+  async function addScryfallCard(
+    card: ScryfallCard,
+    board: DeckBoard = addTargetBoard
+  ) {
+    if (!id || !isOwner) return;
+    setAddBusy(true);
+    setError(null);
+    const oracleId = card.oracle_id ?? card.id;
+    const { card: saved, error: addErr } = await addCardToDeck(id, {
+      oracle_id: oracleId,
+      scryfall_id: card.id,
+      name: card.name,
+      type_line: card.type_line,
+      mana_cost: card.mana_cost,
+      cmc: card.cmc,
+      quantity: 1,
+      board,
+    });
+    setAddBusy(false);
+    if (addErr || !saved) {
+      setError(addErr ?? "Could not add card.");
+      return;
+    }
+    if (user) void ensureUserCardFromScryfall(user.id, card);
+    setDetail((prev) => {
+      if (!prev) return prev;
+      const existing = prev.cards.find((c) => c.id === saved.id);
+      if (existing) {
+        return {
+          ...prev,
+          cards: sortCards(
+            prev.cards.map((c) =>
+              c.id === saved.id
+                ? { ...c, quantity: saved.quantity, tag_ids: c.tag_ids }
+                : c
+            )
+          ),
+        };
+      }
+      return {
+        ...prev,
+        cards: sortCards([
+          ...prev.cards,
+          {
+            ...saved,
+            tag_ids: saved.tag_ids ?? [],
+          },
+        ]),
       };
     });
   }
@@ -1485,6 +1544,12 @@ export function DeckBuilderPage() {
                     )}
                   </div>
                 )}
+                {panel === "deck" && (
+                  <DeckSearchModeToggle
+                    mode={addSearchMode}
+                    onMode={setAddSearchMode}
+                  />
+                )}
                 {panel === "tokens" && (
                   <button
                     type="button"
@@ -1504,6 +1569,12 @@ export function DeckBuilderPage() {
                   {addBusy ? "Adding…" : "Add"}
                 </button>
               </div>
+              {panel === "deck" && (
+                <DeckSearchDock
+                  mode={addSearchMode}
+                  onAddCard={(c) => void addScryfallCard(c)}
+                />
+              )}
               {panel === "deck" && (
               <div className={styles.toolRow}>
                 <BulkCardImport

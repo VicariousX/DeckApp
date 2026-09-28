@@ -5,6 +5,19 @@
   padding: 0.2rem 0 2rem;
 }
 
+.wrapCompact {
+  padding: 0.15rem 0 0.4rem;
+  gap: 0.45rem;
+}
+
+.wrapCompact .liveBar {
+  position: static;
+  top: auto;
+  padding: 0.25rem 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
 .liveBar {
   position: sticky;
   top: 4.6rem;

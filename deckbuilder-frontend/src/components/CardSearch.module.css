@@ -6,6 +6,16 @@
   gap: var(--space-lg);
 }
 
+.compact {
+  padding: 0.2rem 0 0.4rem;
+  align-items: stretch;
+}
+
+.compact .searchBar {
+  max-width: none;
+  align-items: stretch;
+}
+
 .searchBar {
   display: flex;
   flex-direction: column;

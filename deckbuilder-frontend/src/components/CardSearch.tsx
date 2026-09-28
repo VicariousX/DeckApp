@@ -8,8 +8,12 @@ const GHOST_COUNT = 5;
 
 export function CardSearch({
   mode = "standard",
+  onSearch,
+  compact = false,
 }: {
   mode?: "standard" | "advanced";
+  onSearch?: (query: string) => void;
+  compact?: boolean;
 }) {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
@@ -59,7 +63,8 @@ export function CardSearch({
     setInputValue(t);
     setSubmitted(true);
     setSuggestOpen(false);
-    navigate(`/search/results?mode=${mode}&q=${encodeURIComponent(t)}&n=30`);
+    if (onSearch) onSearch(t);
+    else navigate(`/search/results?mode=${mode}&q=${encodeURIComponent(t)}&n=30`);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -85,7 +90,7 @@ export function CardSearch({
   }
 
   return (
-    <div className={styles.searchContainer}>
+    <div className={`${styles.searchContainer}${compact ? ` ${styles.compact}` : ""}`}>
       <div className={styles.searchBar} ref={wrapRef}>
         <div className={styles.inputWrap}>
           <input
@@ -143,7 +148,7 @@ export function CardSearch({
         </p>
       </div>
 
-      {!submitted && (
+      {!compact && !submitted && (
         <div className={styles.placeholderRow} aria-hidden>
           {Array.from({ length: GHOST_COUNT }).map((_, i) => (
             <div

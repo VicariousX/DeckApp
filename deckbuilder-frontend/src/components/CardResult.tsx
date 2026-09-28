@@ -20,6 +20,7 @@ type CardResultProps = {
   cardSize?: number;
   viewMode?: "image" | "text";
   previewFirst?: boolean;
+  onAddToDeck?: (card: ScryfallCard) => void;
 };
 
 function ResultCard({
@@ -27,11 +28,13 @@ function ResultCard({
   originalId,
   onSelect,
   onContext,
+  onAddToDeck,
 }: {
   display: ScryfallCard;
   originalId: string;
   onSelect: (card: ScryfallCard) => void;
   onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
+  onAddToDeck?: (card: ScryfallCard) => void;
 }) {
   const faces = getFaces(display);
   const [view, setView] = useState<CardFaceView>("front");
@@ -60,13 +63,27 @@ function ResultCard({
         )}
       </div>
 
-      <Link
-        to={`/card/${originalId}`}
-        className={styles.cardPageMiniLink}
-        onClick={(e) => e.stopPropagation()}
-      >
-        Card page
-      </Link>
+      <div className={styles.cardActions}>
+        {onAddToDeck && (
+          <button
+            type="button"
+            className={styles.addDeckBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToDeck(display);
+            }}
+          >
+            Add to deck
+          </button>
+        )}
+        <Link
+          to={`/card/${originalId}`}
+          className={styles.cardPageMiniLink}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Card page
+        </Link>
+      </div>
     </div>
   );
 }
@@ -76,6 +93,7 @@ export function CardResult({
   cardSize = 240,
   viewMode = "image",
   previewFirst = false,
+  onAddToDeck,
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -120,6 +138,7 @@ export function CardResult({
         <ul className={styles.textList}>
           {list.map((item, i) => (
             <li key={item.originalId}>
+              <div className={styles.textRowWrap}>
               <button
                 type="button"
                 className={styles.textRow}
@@ -134,6 +153,16 @@ export function CardResult({
                 <span className={styles.textName}>{item.display.name}</span>
                 <span className={styles.textType}>{item.display.type_line}</span>
               </button>
+              {onAddToDeck && (
+                <button
+                  type="button"
+                  className={styles.addDeckBtn}
+                  onClick={() => onAddToDeck(item.display)}
+                >
+                  Add
+                </button>
+              )}
+              </div>
             </li>
           ))}
         </ul>
@@ -150,6 +179,7 @@ export function CardResult({
               onContext={(e) =>
                 setCtx({ x: e.clientX, y: e.clientY, index: i })
               }
+              onAddToDeck={onAddToDeck}
             />
           ))}
         </div>

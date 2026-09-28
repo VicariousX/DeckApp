@@ -44,8 +44,39 @@
   font-weight: 500;
 }
 
-.cardPageMiniLink {
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: center;
   margin-top: 0.35rem;
+}
+
+.addDeckBtn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.addDeckBtn:hover {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.textRowWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cardPageMiniLink {
+  margin-top: 0;
   font-size: 0.78rem;
   font-weight: 650;
   color: var(--color-accent);
