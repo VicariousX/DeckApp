@@ -26,7 +26,8 @@ import {
   type ComboLock,
 } from "../lib/combos";
 import { ComboAtlas } from "../components/ComboAtlas";
-import { CardEnlargeOverlay } from "../components/CardImage";
+import { loadRemoteCombos, saveRemoteCombos } from "../services/comboService";
+import { CardEnlargeOverlay, TiltFace } from "../components/CardImage";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import {
   CardContextMenu,
@@ -162,6 +163,7 @@ function Wheel({
   busy: boolean;
 }) {
   const addRef = useRef<HTMLInputElement | null>(null);
+  const tumblerRef = useRef<HTMLDivElement | null>(null);
   const acc = useRef(0);
   const cards = column.cards;
   const face =
@@ -174,6 +176,23 @@ function Wheel({
     if (cards.length < 2) return;
     onFace((face + dir + cards.length) % cards.length);
   }
+
+  useEffect(() => {
+    const el = tumblerRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (cards.length < 2) return;
+      acc.current += e.deltaY;
+      if (Math.abs(acc.current) > 36) {
+        cycle(acc.current > 0 ? 1 : -1);
+        acc.current = 0;
+      }
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
 
   return (
     <div className={styles.wheel}>
@@ -193,18 +212,7 @@ function Wheel({
           ×
         </button>
       </div>
-      <div
-        className={styles.tumbler}
-        onWheel={(e) => {
-          if (cards.length < 2) return;
-          e.preventDefault();
-          acc.current += e.deltaY;
-          if (Math.abs(acc.current) > 36) {
-            cycle(acc.current > 0 ? 1 : -1);
-            acc.current = 0;
-          }
-        }}
-      >
+      <div className={styles.tumbler} ref={tumblerRef}>
         <button
           type="button"
           className={`${styles.peek} ${styles.peekTop}`}
@@ -216,18 +224,18 @@ function Wheel({
         </button>
         <div className={styles.window}>
           {current ? (
-            <button
-              type="button"
+            <div
               className={`${styles.faceBtn}${dimmed ? ` ${styles.faceDim}` : ""}`}
-              onClick={() => onEnhance(current)}
               onContextMenu={(e) => onContext(e, current)}
             >
-              {current.image ? (
-                <img src={current.image} alt={current.name} />
-              ) : (
-                <span className={styles.faceName}>{current.name}</span>
-              )}
-            </button>
+              <TiltFace enabled onFaceClick={() => onEnhance(current)}>
+                {current.image ? (
+                  <img src={current.image} alt={current.name} />
+                ) : (
+                  <span className={styles.faceName}>{current.name}</span>
+                )}
+              </TiltFace>
+            </div>
           ) : (
             <button
               type="button"
@@ -318,14 +326,32 @@ export function CombosPage() {
   const [kwByName, setKwByName] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    const loaded = loadCombos(userId);
-    setCombos(loaded);
-    setActiveId(loaded[0]?.id ?? null);
+    const local = loadCombos(userId);
+    setCombos(local);
+    setActiveId(local[0]?.id ?? null);
+    if (!userId) return;
+    let cancel = false;
+    void loadRemoteCombos(userId).then((remote) => {
+      if (cancel || !remote) return;
+      if (remote.length === 0 && local.length) {
+        void saveRemoteCombos(userId, local);
+        return;
+      }
+      setCombos(remote);
+      saveCombos(userId, remote);
+      setActiveId((id) =>
+        remote.some((c) => c.id === id) ? id : remote[0]?.id ?? null
+      );
+    });
+    return () => {
+      cancel = true;
+    };
   }, [userId]);
 
   function persist(next: ComboLock[]) {
     setCombos(next);
     saveCombos(userId, next);
+    void saveRemoteCombos(userId, next);
   }
 
   const active = combos.find((c) => c.id === activeId) ?? null;

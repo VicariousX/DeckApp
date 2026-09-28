@@ -225,17 +225,19 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 0.38rem;
   border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--color-accent) 20%);
-  background: color-mix(in srgb, #000 18%, var(--color-surface));
+  overflow: visible;
+  border: none;
+  background: transparent;
 }
 
 .peek {
-  height: 2.7rem;
+  height: 2.55rem;
   overflow: hidden;
   border: none;
   padding: 0;
+  border-radius: 8px;
   background: color-mix(in srgb, #000 28%, transparent);
   cursor: pointer;
   opacity: 0.55;
@@ -261,7 +263,10 @@
 
 .window {
   aspect-ratio: 63 / 88;
+  border-radius: 12px;
+  overflow: visible;
   background: color-mix(in srgb, #000 12%, var(--color-surface));
+  box-shadow: 0 8px 18px color-mix(in srgb, #000 28%, transparent);
 }
 
 .faceBtn {
@@ -271,6 +276,12 @@
   border: none;
   background: transparent;
   cursor: pointer;
+  border-radius: 12px;
+}
+
+.faceBtn > * {
+  height: 100%;
+  margin: 0;
 }
 
 .faceBtn img {

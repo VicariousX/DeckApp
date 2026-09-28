@@ -43,7 +43,7 @@ type CardImageProps = {
 type Tilt = { rx: number; ry: number; glareX: number; glareY: number };
 
 /** Owns its own ref so parent never reads ref.current during render. */
-function TiltFace({
+export function TiltFace({
   enabled,
   children,
   className,

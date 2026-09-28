@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   resolvedLinks,
   type ComboCard,
@@ -16,6 +16,23 @@ export function ComboAtlas({ combos, onSelect }: Props) {
   const drag = useRef<{ x: number; y: number; cx: number; cy: number } | null>(
     null
   );
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const camRef = useRef(cam);
+  camRef.current = cam;
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      const cur = camRef.current;
+      const next = e.deltaY > 0 ? cur.s * 0.92 : cur.s * 1.08;
+      setCam({ ...cur, s: Math.min(2.4, Math.max(0.45, next)) });
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   const { nodes, edges } = useMemo(() => {
     const byId = new Map<string, ComboCard>();
@@ -63,13 +80,9 @@ export function ComboAtlas({ combos, onSelect }: Props) {
         <p>Every stored link across your combos. Scroll to zoom, drag to pan.</p>
       </header>
       <svg
+        ref={svgRef}
         className={styles.svg}
         viewBox="0 0 640 440"
-        onWheel={(e) => {
-          e.preventDefault();
-          const next = e.deltaY > 0 ? cam.s * 0.92 : cam.s * 1.08;
-          setCam((c) => ({ ...c, s: Math.min(2.4, Math.max(0.45, next)) }));
-        }}
         onPointerDown={(e) => {
           (e.currentTarget as SVGSVGElement).setPointerCapture(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y };

@@ -32,6 +32,7 @@ import {
   type SavedSearch,
   type SavedToken,
 } from "../../services/searchTokenService";
+import { loadRemotePins, saveRemotePins } from "../../services/comboService";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -71,15 +72,15 @@ const SHORTCUTS: Record<string, string> = {
   e: "edhrec",
 };
 
-type Pin = { key: string; name: string };
+type Pin = { key: string; name: string; category?: string };
 const DEFAULT_PINS: Pin[] = [
-  { key: "name", name: "name" },
-  { key: "t", name: "t" },
-  { key: "c", name: "c" },
-  { key: "id", name: "id" },
-  { key: "o", name: "o" },
-  { key: "m", name: "m" },
-  { key: "mv", name: "mv" },
+  { key: "name", name: "name", category: "name" },
+  { key: "t", name: "t", category: "type" },
+  { key: "c", name: "c", category: "colors" },
+  { key: "id", name: "id", category: "colors" },
+  { key: "o", name: "o", category: "text" },
+  { key: "m", name: "m", category: "mana" },
+  { key: "mv", name: "mv", category: "mana" },
 ];
 const PIN_STORE = "deckapp.advPins";
 const DRAWER_STORE = "deckapp.advTokenDrawer";
@@ -939,13 +940,27 @@ function ClauseRow({
   const [hi, setHi] = useState(0);
   const [symOpen, setSymOpen] = useState(false);
   const [valueOpen, setValueOpen] = useState(false);
+  const { user } = useAuth();
   const [pins, setPins] = useState<Pin[]>(loadPins);
   const [editPins, setEditPins] = useState(false);
-  const pinPanel = useDraggablePanel(editPins, { w: 340, h: 320 });
+  const pinPanel = useDraggablePanel(editPins, { w: 360, h: 360 });
+
+  useEffect(() => {
+    if (!user) return;
+    void loadRemotePins(user.id).then((remote) => {
+      if (remote && remote.length) {
+        setPins(remote);
+        localStorage.setItem(PIN_STORE, JSON.stringify(remote));
+      } else {
+        void saveRemotePins(user.id, loadPins());
+      }
+    });
+  }, [user]);
 
   function savePins(next: Pin[]) {
     setPins(next);
     localStorage.setItem(PIN_STORE, JSON.stringify(next));
+    void saveRemotePins(user?.id ?? null, next);
   }
 
   const selected = FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field);
@@ -1004,7 +1019,9 @@ function ClauseRow({
           </button>
         </span>
         {pins.map((pin, i) => {
-          const opt = FIELD_OPTS.find((f) => f.key === pin.key);
+          const opt = FIELD_OPTS.find(
+            (f) => f.key === pin.key && (!pin.category || f.category === pin.category)
+          );
           if (!opt) return null;
           const on = draft.field === opt.key && draft.category === opt.category;
           return (
@@ -1038,20 +1055,31 @@ function ClauseRow({
               {pins.map((pin, i) => (
                 <div key={`${pin.key}-${i}`} className={styles.pinEdit}>
                   <select
-                    value={pin.key}
+                    value={`${pin.category ?? ""}:${pin.key}`}
                     onChange={(e) => {
-                      const key = e.target.value;
-                      const found = FIELD_OPTS.find((f) => f.key === key);
+                      const [category, key] = e.target.value.split(":");
+                      const found = FIELD_OPTS.find(
+                        (f) => f.key === key && f.category === category
+                      );
                       savePins(
                         pins.map((p, j) =>
-                          j === i ? { key, name: found?.key || found?.label || key } : p
+                          j === i
+                            ? {
+                                key,
+                                category,
+                                name: found?.key || found?.label || key,
+                              }
+                            : p
                         )
                       );
                     }}
                   >
                     {FIELD_OPTS.map((f) => (
-                      <option key={`${f.category}:${f.key}`} value={f.key}>
-                        {f.label}
+                      <option
+                        key={`${f.category}:${f.key}`}
+                        value={`${f.category}:${f.key}`}
+                      >
+                        {f.group} — {f.label}
                       </option>
                     ))}
                   </select>
@@ -1061,6 +1089,28 @@ function ClauseRow({
                       savePins(pins.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
                     }
                   />
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => {
+                      const next = [...pins];
+                      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                      savePins(next);
+                    }}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === pins.length - 1}
+                    onClick={() => {
+                      const next = [...pins];
+                      [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                      savePins(next);
+                    }}
+                  >
+                    ↓
+                  </button>
                   <button type="button" onClick={() => savePins(pins.filter((_, j) => j !== i))}>
                     ×
                   </button>

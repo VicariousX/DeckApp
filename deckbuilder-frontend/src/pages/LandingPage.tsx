@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
@@ -50,7 +50,15 @@ function LandingDrawer({
   delayMs: number;
 }) {
   return (
-    <div className={styles.drawer} style={{ animationDelay: `${delayMs}ms` }}>
+    <div
+      className={styles.drawer}
+      style={
+        {
+          animationDelay: `${delayMs}ms`,
+          ["--slots" as string]: String(Math.max(1, slots.length)),
+        } as CSSProperties
+      }
+    >
       <div className={styles.drawerInner}>
         {slots.map((s) => (
           <Link key={s.to} to={s.to} className={styles.drawerSlot}>
