@@ -88,6 +88,13 @@
   padding: 0.35rem 0 0.15rem;
 }
 
+.dockedPins {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.55rem;
+}
+
 .pins {
   display: flex;
   flex-wrap: wrap;
@@ -121,12 +128,13 @@
 }
 
 .pinEdit {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.4rem 0.4rem 0.45rem;
   border-radius: 8px;
   border: 1px dashed var(--color-border);
+  min-width: 0;
 }
 
 .pinEdit select,
@@ -136,11 +144,60 @@
   color: var(--color-text);
   border-radius: 6px;
   font-size: 0.75rem;
-  padding: 0.12rem 0.25rem;
+  padding: 0.18rem 0.3rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.pinEdit input {
-  width: 4.2rem;
+.pinEditRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.pinEditRow input {
+  flex: 1;
+  width: auto;
+}
+
+.pinToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.pinToggle input {
+  width: auto;
+  accent-color: var(--color-accent);
+}
+
+.layoutPick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.layoutPick button {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 7px;
+  padding: 0.22rem 0.4rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.layoutPick button[data-on="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .pinEdit button {
@@ -489,9 +546,10 @@
 .catalogPanel {
   position: fixed;
   z-index: 40;
-  width: min(360px, 92vw);
-  min-width: 240px;
+  width: min(300px, 92vw);
+  min-width: 220px;
   min-height: 180px;
+  max-width: 92vw;
   padding: 0.75rem 0.75rem 1rem;
   border-radius: var(--radius-lg, 14px);
   border: 1px solid var(--color-border);
@@ -500,7 +558,8 @@
   color: var(--color-text);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .catalogTop {
@@ -524,8 +583,9 @@
 .catalogList {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  overflow: auto;
+  gap: 0.35rem;
+  overflow-x: hidden;
+  overflow-y: auto;
   flex: 1;
   min-height: 0;
   padding-bottom: 0.35rem;

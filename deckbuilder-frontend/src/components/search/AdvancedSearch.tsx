@@ -72,7 +72,8 @@ const SHORTCUTS: Record<string, string> = {
   e: "edhrec",
 };
 
-type Pin = { key: string; name: string; category?: string };
+type Pin = { key: string; name: string; category?: string; docked?: boolean };
+type PinLayout = "pins-first" | "board-first";
 const DEFAULT_PINS: Pin[] = [
   { key: "name", name: "name", category: "name" },
   { key: "t", name: "t", category: "type" },
@@ -83,6 +84,7 @@ const DEFAULT_PINS: Pin[] = [
   { key: "mv", name: "mv", category: "mana" },
 ];
 const PIN_STORE = "deckapp.advPins";
+const PIN_LAYOUT_STORE = "deckapp.advPinLayout";
 const DRAWER_STORE = "deckapp.advTokenDrawer";
 const CATALOG_STORE = "deckapp.searchCatalog";
 
@@ -122,6 +124,29 @@ function loadPins(): Pin[] {
   } catch {
     return DEFAULT_PINS;
   }
+}
+
+function loadPinLayout(): PinLayout {
+  try {
+    const raw = localStorage.getItem(PIN_LAYOUT_STORE);
+    return raw === "board-first" ? "board-first" : "pins-first";
+  } catch {
+    return "pins-first";
+  }
+}
+
+function pinKey(p: Pin, i: number) {
+  return `${p.category ?? ""}:${p.key}:${i}`;
+}
+
+function draftFromPin(p: Pin): Draft {
+  return {
+    category: p.category ?? "",
+    field: p.key,
+    op: ":",
+    excluded: false,
+    value: "",
+  };
 }
 const COLORS = [
   { id: "w", sym: "{W}" },
@@ -291,6 +316,33 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
   const catalogPanel = useDraggablePanel(catalogOpen, { w: 360, h: 380 });
   const drawerPanel = useDraggablePanel(drawerOpen, { w: 380, h: 420 });
   const [drawerEdit, setDrawerEdit] = useState(false);
+  const [pins, setPins] = useState<Pin[]>(loadPins);
+  const [pinLayout, setPinLayout] = useState<PinLayout>(loadPinLayout);
+  const [pinDrafts, setPinDrafts] = useState<Record<string, Draft>>({});
+  const [editPins, setEditPins] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadRemotePins(user.id).then((remote) => {
+      if (remote && remote.length) {
+        setPins(remote);
+        localStorage.setItem(PIN_STORE, JSON.stringify(remote));
+      } else {
+        void saveRemotePins(user.id, loadPins());
+      }
+    });
+  }, [user]);
+
+  function savePins(next: Pin[]) {
+    setPins(next);
+    localStorage.setItem(PIN_STORE, JSON.stringify(next));
+    void saveRemotePins(user?.id ?? null, next);
+  }
+
+  function savePinLayout(next: PinLayout) {
+    setPinLayout(next);
+    localStorage.setItem(PIN_LAYOUT_STORE, next);
+  }
 
   function persistDrawer(next: SavedToken[]) {
     setDrawer(next);
@@ -835,12 +887,64 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
         valueBox={valueBox}
         onPick={pickField}
         onSubmit={commitDraft}
+        pins={pins}
+        savePins={savePins}
+        editPins={editPins}
+        setEditPins={setEditPins}
+        pinLayout={pinLayout}
+        onPinLayout={savePinLayout}
       />
 
       <p className={styles.hint}>
         <kbd>/</kbd> field · <kbd>Enter</kbd> add token · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> search · drag tokens into groups
       </p>
 
+      {(() => {
+        const docked = pins.filter((p) => p.docked);
+        const pinBlock = (
+          <div className={styles.dockedPins}>
+            {docked.map((pin, i) => {
+              const id = pinKey(pin, i);
+              const d = pinDrafts[id] ?? draftFromPin(pin);
+              return (
+                <ClauseRow
+                  key={id}
+                  draft={d}
+                  setDraft={(next) =>
+                    setPinDrafts((prev) => ({ ...prev, [id]: next }))
+                  }
+                  fieldBox={{ current: null }}
+                  valueBox={{ current: null }}
+                  onPick={() => undefined}
+                  onSubmit={() => {
+                    if (!d.category || !d.value.trim()) return;
+                    const clause: Clause = {
+                      kind: "clause",
+                      id: uid(),
+                      category: d.category,
+                      field: d.field,
+                      op: d.op,
+                      value: d.value.trim(),
+                      excluded: d.excluded,
+                      joinAfter: "and",
+                    };
+                    setRoot((r) => ({
+                      ...r,
+                      join: "and",
+                      items: [...r.items, clause],
+                    }));
+                    setPinDrafts((prev) => ({
+                      ...prev,
+                      [id]: { ...d, value: "", editId: undefined },
+                    }));
+                  }}
+                  locked={pin}
+                />
+              );
+            })}
+          </div>
+        );
+        const boardBlock = (
       <>
           <LogicBoard
             root={root}
@@ -916,6 +1020,19 @@ export function AdvancedSearch({ initialQuery = "" }: { initialQuery?: string })
             </div>
           </section>
       </>
+        );
+        return pinLayout === "board-first" ? (
+          <>
+            {boardBlock}
+            {pinBlock}
+          </>
+        ) : (
+          <>
+            {pinBlock}
+            {boardBlock}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -927,6 +1044,13 @@ function ClauseRow({
   valueBox,
   onPick,
   onSubmit,
+  pins,
+  savePins,
+  editPins,
+  setEditPins,
+  pinLayout,
+  onPinLayout,
+  locked,
 }: {
   draft: Draft;
   setDraft: (d: Draft) => void;
@@ -934,36 +1058,31 @@ function ClauseRow({
   valueBox: RefObject<HTMLInputElement | null>;
   onPick: (opt: FieldOpt) => void;
   onSubmit: () => void;
+  pins?: Pin[];
+  savePins?: (next: Pin[]) => void;
+  editPins?: boolean;
+  setEditPins?: (v: boolean | ((p: boolean) => boolean)) => void;
+  pinLayout?: PinLayout;
+  onPinLayout?: (v: PinLayout) => void;
+  locked?: Pin;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const [symOpen, setSymOpen] = useState(false);
   const [valueOpen, setValueOpen] = useState(false);
-  const { user } = useAuth();
-  const [pins, setPins] = useState<Pin[]>(loadPins);
-  const [editPins, setEditPins] = useState(false);
-  const pinPanel = useDraggablePanel(editPins, { w: 360, h: 360 });
+  const pinPanel = useDraggablePanel(Boolean(editPins), { w: 280, h: 440 });
+  const pinList = pins ?? [];
 
-  useEffect(() => {
-    if (!user) return;
-    void loadRemotePins(user.id).then((remote) => {
-      if (remote && remote.length) {
-        setPins(remote);
-        localStorage.setItem(PIN_STORE, JSON.stringify(remote));
-      } else {
-        void saveRemotePins(user.id, loadPins());
-      }
-    });
-  }, [user]);
-
-  function savePins(next: Pin[]) {
-    setPins(next);
-    localStorage.setItem(PIN_STORE, JSON.stringify(next));
-    void saveRemotePins(user?.id ?? null, next);
-  }
-
-  const selected = FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field);
+  const selected =
+    FIELD_OPTS.find((f) => f.category === draft.category && f.key === draft.field) ??
+    (locked
+      ? FIELD_OPTS.find(
+          (f) =>
+            f.key === locked.key &&
+            (!locked.category || f.category === locked.category)
+        )
+      : undefined);
   const allowed = opsFor(selected);
   const q = query.toLowerCase();
   const filtered = FIELD_OPTS.filter(
@@ -1007,18 +1126,19 @@ function ClauseRow({
 
   return (
     <section className={styles.composer}>
+      {!locked && (
       <div className={styles.pins}>
         <span ref={pinPanel.anchorRef}>
           <button
             type="button"
             className={styles.pinEditBtn}
-            onClick={() => setEditPins((v) => !v)}
+            onClick={() => setEditPins?.((v) => !v)}
             title="Edit quick fields"
           >
             ✎
           </button>
         </span>
-        {pins.map((pin, i) => {
+        {pinList.map((pin, i) => {
           const opt = FIELD_OPTS.find(
             (f) => f.key === pin.key && (!pin.category || f.category === pin.category)
           );
@@ -1028,7 +1148,7 @@ function ClauseRow({
             <button
               key={`${pin.key}-${i}`}
               type="button"
-              className={`${styles.pin}${on ? ` ${styles.opOn}` : ""}`}
+              className={`${styles.pin}${on ? ` ${styles.opOn}` : ""}${pin.docked ? ` ${styles.opOn}` : ""}`}
               onClick={() => onPick(opt)}
             >
               {pin.name || opt.key || "n"}
@@ -1036,7 +1156,13 @@ function ClauseRow({
           );
         })}
       </div>
-      {editPins &&
+      )}
+      {locked && (
+        <div className={styles.pins}>
+          <span className={styles.pin}>{locked.name || locked.key}</span>
+        </div>
+      )}
+      {!locked && editPins && savePins &&
         createPortal(
           <div
             className={styles.catalogPanel}
@@ -1047,12 +1173,29 @@ function ClauseRow({
               <div className={styles.catalogHandle} onPointerDown={pinPanel.onHandlePointerDown}>
                 Quick fields
               </div>
-              <button type="button" className={styles.ghost} data-no-drag onClick={() => setEditPins(false)}>
+              <button type="button" className={styles.ghost} data-no-drag onClick={() => setEditPins?.(false)}>
                 ×
               </button>
             </div>
+            <div className={styles.layoutPick}>
+              <span>Board position</span>
+              <button
+                type="button"
+                data-on={pinLayout !== "board-first"}
+                onClick={() => onPinLayout?.("pins-first")}
+              >
+                Board below pin rows
+              </button>
+              <button
+                type="button"
+                data-on={pinLayout === "board-first"}
+                onClick={() => onPinLayout?.("board-first")}
+              >
+                Board above pin rows
+              </button>
+            </div>
             <div className={styles.catalogList}>
-              {pins.map((pin, i) => (
+              {pinList.map((pin, i) => (
                 <div key={`${pin.key}-${i}`} className={styles.pinEdit}>
                   <select
                     value={`${pin.category ?? ""}:${pin.key}`}
@@ -1062,9 +1205,10 @@ function ClauseRow({
                         (f) => f.key === key && f.category === category
                       );
                       savePins(
-                        pins.map((p, j) =>
+                        pinList.map((p, j) =>
                           j === i
                             ? {
+                                ...p,
                                 key,
                                 category,
                                 name: found?.key || found?.label || key,
@@ -1083,43 +1227,59 @@ function ClauseRow({
                       </option>
                     ))}
                   </select>
-                  <input
-                    value={pin.name}
-                    onChange={(e) =>
-                      savePins(pins.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
-                    }
-                  />
-                  <button
-                    type="button"
-                    disabled={i === 0}
-                    onClick={() => {
-                      const next = [...pins];
-                      [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                      savePins(next);
-                    }}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    disabled={i === pins.length - 1}
-                    onClick={() => {
-                      const next = [...pins];
-                      [next[i + 1], next[i]] = [next[i], next[i + 1]];
-                      savePins(next);
-                    }}
-                  >
-                    ↓
-                  </button>
-                  <button type="button" onClick={() => savePins(pins.filter((_, j) => j !== i))}>
-                    ×
-                  </button>
+                  <div className={styles.pinEditRow}>
+                    <input
+                      value={pin.name}
+                      onChange={(e) =>
+                        savePins(pinList.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
+                      }
+                    />
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => {
+                        const next = [...pinList];
+                        [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                        savePins(next);
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === pinList.length - 1}
+                      onClick={() => {
+                        const next = [...pinList];
+                        [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                        savePins(next);
+                      }}
+                    >
+                      ↓
+                    </button>
+                    <button type="button" onClick={() => savePins(pinList.filter((_, j) => j !== i))}>
+                      ×
+                    </button>
+                  </div>
+                  <label className={styles.pinToggle}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(pin.docked)}
+                      onChange={() =>
+                        savePins(
+                          pinList.map((p, j) =>
+                            j === i ? { ...p, docked: !p.docked } : p
+                          )
+                        )
+                      }
+                    />
+                    Dedicated row
+                  </label>
                 </div>
               ))}
               <button
                 type="button"
                 className={styles.pin}
-                onClick={() => savePins([...pins, { key: "t", name: "t" }])}
+                onClick={() => savePins([...pinList, { key: "t", name: "t", category: "type" }])}
               >
                 +
               </button>
@@ -1129,6 +1289,9 @@ function ClauseRow({
           document.body
         )}
       <div className={styles.row}>
+        {locked ? (
+          <span className={styles.pin}>{selected?.label || locked.name}</span>
+        ) : (
         <div className={styles.fieldPick}>
           <input
             ref={fieldBox}
@@ -1217,6 +1380,7 @@ function ClauseRow({
             </div>
           )}
         </div>
+        )}
 
         <button
           type="button"
