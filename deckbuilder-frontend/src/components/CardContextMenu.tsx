@@ -236,7 +236,7 @@ export function CardContextMenu({
   }
 
   async function saveImage() {
-    const blob = await fetchImageBlob();
+    const blob = await fetchImagePng();
     const name = `${target.name.replace(/[^\w-]+/g, "_")}.png`;
     if (blob) {
       const href = URL.createObjectURL(blob);
