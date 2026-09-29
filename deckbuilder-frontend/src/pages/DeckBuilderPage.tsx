@@ -1406,6 +1406,11 @@ export function DeckBuilderPage() {
         <Link to="/my-decks" className={styles.backLink}>
           ← My decks
         </Link>
+        {id && (
+          <Link to={`/play/${id}`} className={styles.backLink}>
+            Playtest
+          </Link>
+        )}
       </div>
 
       {initialLoading && <p className={styles.status}>Loading deck…</p>}

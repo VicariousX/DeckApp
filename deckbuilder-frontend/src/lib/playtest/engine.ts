@@ -1,0 +1,332 @@
+import type { DeckCard, DeckDetail } from "../../types/deck";
+import type {
+  PlayAction,
+  PlayCard,
+  PlayZone,
+  SeatState,
+  TableState,
+} from "./types";
+
+const ZONES: PlayZone[] = [
+  "library",
+  "hand",
+  "battlefield",
+  "graveyard",
+  "exile",
+  "command",
+  "sideboard",
+  "stack",
+];
+
+export function uid(prefix = "p"): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a += 0x6d2b79f5;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function shuffleInPlace<T>(list: T[], rng: () => number): T[] {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+function emptyZones(): SeatState["zones"] {
+  return {
+    library: [],
+    hand: [],
+    battlefield: [],
+    graveyard: [],
+    exile: [],
+    command: [],
+    sideboard: [],
+    stack: [],
+  };
+}
+
+function startingLife(format: string): number {
+  const f = format.toLowerCase();
+  if (f.includes("commander") || f.includes("edh") || f.includes("brawl")) return 40;
+  if (f.includes("oathbreaker")) return 20;
+  return 20;
+}
+
+function expandDeckCards(
+  cards: DeckCard[],
+  images: Record<string, { front?: string; back?: string }>,
+  seatId: string
+): { main: PlayCard[]; command: PlayCard[]; side: PlayCard[] } {
+  const main: PlayCard[] = [];
+  const command: PlayCard[] = [];
+  const side: PlayCard[] = [];
+  for (const c of cards) {
+    if (c.board === "maybe") continue;
+    const n = Math.max(1, c.quantity || 1);
+    for (let i = 0; i < n; i++) {
+      const pc: PlayCard = {
+        instanceId: uid("c"),
+        oracleId: c.oracle_id,
+        scryfallId: c.scryfall_id,
+        name: c.name,
+        typeLine: c.type_line || "",
+        manaCost: c.mana_cost || "",
+        image: images[c.scryfall_id]?.front || images[c.id]?.front,
+        imageBack: images[c.scryfall_id]?.back || images[c.id]?.back,
+        face: 0,
+        tapped: false,
+        facedown: false,
+        counters: {},
+        token: false,
+        ownerSeat: seatId,
+      };
+      if (c.board === "commander") command.push(pc);
+      else if (c.board === "side") side.push(pc);
+      else main.push(pc);
+    }
+  }
+  return { main, command, side };
+}
+
+export function createTableFromDeck(
+  detail: DeckDetail,
+  images: Record<string, { front?: string; back?: string }>,
+  opts?: { userId?: string; name?: string; seed?: number }
+): TableState {
+  const seatId = uid("seat");
+  const seed = opts?.seed ?? (Date.now() % 1_000_000_000);
+  const rng = mulberry32(seed);
+  const expanded = expandDeckCards(detail.cards, images, seatId);
+  shuffleInPlace(expanded.main, rng);
+  const zones = emptyZones();
+  zones.library = expanded.main;
+  zones.command = expanded.command;
+  zones.sideboard = expanded.side;
+  const seat: SeatState = {
+    id: seatId,
+    userId: opts?.userId,
+    name: opts?.name || "You",
+    life: startingLife(detail.deck.format || ""),
+    poison: 0,
+    energy: 0,
+    experience: 0,
+    commanderDamage: {},
+    zones,
+    mulligans: 0,
+    maxHand: 7,
+  };
+  const hand = zones.library.splice(0, 7);
+  zones.hand = hand;
+  return {
+    id: uid("table"),
+    deckId: detail.deck.id,
+    deckName: detail.deck.name,
+    format: detail.deck.format || "casual",
+    seed,
+    turn: 1,
+    activeSeat: seatId,
+    seats: [seat],
+    started: true,
+    log: [
+      { at: Date.now(), text: `Started playtest of ${detail.deck.name}` },
+      { at: Date.now(), text: `Drew opening 7` },
+    ],
+  };
+}
+
+function clone<T>(v: T): T {
+  return structuredClone(v);
+}
+
+function findCard(
+  state: TableState,
+  instanceId: string
+): { seat: SeatState; zone: PlayZone; index: number; card: PlayCard } | null {
+  for (const seat of state.seats) {
+    for (const zone of ZONES) {
+      const index = seat.zones[zone].findIndex((c) => c.instanceId === instanceId);
+      if (index >= 0) return { seat, zone, index, card: seat.zones[zone][index] };
+    }
+  }
+  return null;
+}
+
+function seatOf(state: TableState, seatId: string): SeatState | undefined {
+  return state.seats.find((s) => s.id === seatId);
+}
+
+function pushLog(state: TableState, text: string) {
+  state.log = [...state.log.slice(-80), { at: Date.now(), text }];
+}
+
+export function reducePlay(state: TableState, action: PlayAction): TableState {
+  if (action.type === "hydrate") return action.state;
+  const next = clone(state);
+
+  switch (action.type) {
+    case "shuffle": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      shuffleInPlace(seat.zones.library, Math.random);
+      pushLog(next, `${seat.name} shuffled library`);
+      break;
+    }
+    case "draw": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const n = action.n ?? 1;
+      const taken = seat.zones.library.splice(0, n);
+      seat.zones.hand.push(...taken);
+      pushLog(next, `${seat.name} drew ${taken.length}`);
+      break;
+    }
+    case "mulligan": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat.zones.library.push(...seat.zones.hand);
+      seat.zones.hand = [];
+      shuffleInPlace(seat.zones.library, Math.random);
+      seat.mulligans += 1;
+      const keep = Math.max(0, 7 - seat.mulligans);
+      const drawn = seat.zones.library.splice(0, 7);
+      seat.zones.hand = drawn;
+      const bottom = drawn.splice(keep);
+      seat.zones.library.push(...bottom);
+      pushLog(next, `${seat.name} mulliganed to ${keep}`);
+      break;
+    }
+    case "keep": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      pushLog(next, `${seat.name} kept a hand of ${seat.zones.hand.length}`);
+      break;
+    }
+    case "move": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+      if (action.to !== "battlefield") {
+        card.tapped = false;
+      }
+      const destSeat = seatOf(next, action.seatId) ?? found.seat;
+      const dest = destSeat.zones[action.to];
+      const idx = action.index ?? dest.length;
+      dest.splice(idx, 0, card);
+      pushLog(next, `${card.name} → ${action.to}`);
+      break;
+    }
+    case "tap": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      found.card.tapped = action.tapped ?? !found.card.tapped;
+      break;
+    }
+    case "flip": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      found.card.face = found.card.face === 0 ? 1 : 0;
+      break;
+    }
+    case "facedown": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      found.card.facedown = !found.card.facedown;
+      break;
+    }
+    case "counter": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      const cur = found.card.counters[action.key] ?? 0;
+      const nextVal = cur + action.delta;
+      if (nextVal === 0) delete found.card.counters[action.key];
+      else found.card.counters[action.key] = nextVal;
+      break;
+    }
+    case "life": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat.life += action.delta;
+      pushLog(next, `${seat.name} life ${action.delta > 0 ? "+" : ""}${action.delta} (${seat.life})`);
+      break;
+    }
+    case "stat": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat[action.key] = Math.max(0, seat[action.key] + action.delta);
+      break;
+    }
+    case "untapAll": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      for (const c of seat.zones.battlefield) c.tapped = false;
+      break;
+    }
+    case "nextTurn": {
+      const seat = seatOf(next, next.activeSeat);
+      if (seat) {
+        for (const c of seat.zones.battlefield) c.tapped = false;
+        const drawn = seat.zones.library.splice(0, 1);
+        seat.zones.hand.push(...drawn);
+        pushLog(next, `Turn ${next.turn + 1}: untap + draw`);
+      }
+      next.turn += 1;
+      break;
+    }
+    case "mill": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const milled = seat.zones.library.splice(0, action.n);
+      seat.zones.graveyard.push(...milled);
+      pushLog(next, `${seat.name} milled ${milled.length}`);
+      break;
+    }
+    case "scry": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const byId = new Map(seat.zones.library.map((c) => [c.instanceId, c]));
+      const rest = seat.zones.library.filter(
+        (c) => !action.keepTop.includes(c.instanceId) && !action.bottom.includes(c.instanceId)
+      );
+      seat.zones.library = [
+        ...action.keepTop.map((id) => byId.get(id)!).filter(Boolean),
+        ...rest,
+        ...action.bottom.map((id) => byId.get(id)!).filter(Boolean),
+      ];
+      pushLog(next, `${seat.name} scried`);
+      break;
+    }
+    case "addToken": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat.zones.battlefield.push({
+        ...action.card,
+        instanceId: uid("tok"),
+        ownerSeat: seat.id,
+        token: true,
+      });
+      pushLog(next, `${seat.name} created ${action.card.name}`);
+      break;
+    }
+    case "log":
+      pushLog(next, action.text);
+      break;
+    default:
+      break;
+  }
+  return next;
+}
+
+export function cardImage(card: PlayCard): string | undefined {
+  if (card.facedown) return undefined;
+  if (card.face === 1 && card.imageBack) return card.imageBack;
+  return card.image;
+}

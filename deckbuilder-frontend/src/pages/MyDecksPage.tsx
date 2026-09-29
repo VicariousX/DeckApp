@@ -122,6 +122,9 @@ export function MyDecksPage() {
                 {d.is_public ? " · public" : " · private"}
               </span>
             </Link>
+            <Link to={`/play/${d.id}`} className={styles.deckLink}>
+              Playtest
+            </Link>
             <button
               type="button"
               className={styles.deleteBtn}
