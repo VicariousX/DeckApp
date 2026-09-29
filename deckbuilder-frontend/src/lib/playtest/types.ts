@@ -57,7 +57,7 @@ export type PlayAction =
   | { type: "hydrate"; state: TableState }
   | { type: "shuffle"; seatId: string }
   | { type: "draw"; seatId: string; n?: number }
-  | { type: "mulligan"; seatId: string }
+  | { type: "mulligan"; seatId: string; kind?: "london" | "paris" | "free" }
   | { type: "keep"; seatId: string }
   | { type: "move"; seatId: string; instanceId: string; to: PlayZone; index?: number }
   | { type: "tap"; instanceId: string; tapped?: boolean }
@@ -66,7 +66,7 @@ export type PlayAction =
   | { type: "counter"; instanceId: string; key: string; delta: number }
   | { type: "life"; seatId: string; delta: number }
   | { type: "stat"; seatId: string; key: "poison" | "energy" | "experience"; delta: number }
-  | { type: "nextTurn" }
+  | { type: "nextTurn"; untap?: boolean; draw?: number }
   | { type: "scry"; seatId: string; keepTop: string[]; bottom: string[] }
   | { type: "mill"; seatId: string; n: number }
   | { type: "untapAll"; seatId: string }

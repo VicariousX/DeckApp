@@ -100,7 +100,13 @@ function expandDeckCards(
 export function createTableFromDeck(
   detail: DeckDetail,
   images: Record<string, { front?: string; back?: string }>,
-  opts?: { userId?: string; name?: string; seed?: number }
+  opts?: {
+    userId?: string;
+    name?: string;
+    seed?: number;
+    openingHand?: number;
+    startingLife?: number;
+  }
 ): TableState {
   const seatId = uid("seat");
   const seed = opts?.seed ?? (Date.now() % 1_000_000_000);
@@ -115,16 +121,16 @@ export function createTableFromDeck(
     id: seatId,
     userId: opts?.userId,
     name: opts?.name || "You",
-    life: startingLife(detail.deck.format || ""),
+    life: opts?.startingLife ?? startingLife(detail.deck.format || ""),
     poison: 0,
     energy: 0,
     experience: 0,
     commanderDamage: {},
     zones,
     mulligans: 0,
-    maxHand: 7,
+    maxHand: opts?.openingHand ?? 7,
   };
-  const hand = zones.library.splice(0, 7);
+  const hand = zones.library.splice(0, seat.maxHand);
   zones.hand = hand;
   return {
     id: uid("table"),
@@ -138,7 +144,7 @@ export function createTableFromDeck(
     started: true,
     log: [
       { at: Date.now(), text: `Started playtest of ${detail.deck.name}` },
-      { at: Date.now(), text: `Drew opening 7` },
+      { at: Date.now(), text: `Drew opening ${hand.length}` },
     ],
   };
 }
@@ -192,16 +198,28 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     case "mulligan": {
       const seat = seatOf(next, action.seatId);
       if (!seat) break;
+      const kind = action.kind ?? "london";
       seat.zones.library.push(...seat.zones.hand);
       seat.zones.hand = [];
       shuffleInPlace(seat.zones.library, Math.random);
       seat.mulligans += 1;
-      const keep = Math.max(0, 7 - seat.mulligans);
-      const drawn = seat.zones.library.splice(0, 7);
-      seat.zones.hand = drawn;
-      const bottom = drawn.splice(keep);
-      seat.zones.library.push(...bottom);
-      pushLog(next, `${seat.name} mulliganed to ${keep}`);
+      const full = seat.maxHand || 7;
+      if (kind === "free") {
+        seat.zones.hand = seat.zones.library.splice(0, full);
+        pushLog(next, `${seat.name} free-mulliganed to ${full}`);
+        break;
+      }
+      if (kind === "paris") {
+        const keep = Math.max(0, full - seat.mulligans);
+        seat.zones.hand = seat.zones.library.splice(0, keep);
+        pushLog(next, `${seat.name} Paris mulliganed to ${keep}`);
+        break;
+      }
+      const drawn = seat.zones.library.splice(0, full);
+      const keep = Math.max(0, full - seat.mulligans);
+      seat.zones.hand = drawn.slice(0, keep);
+      seat.zones.library.push(...drawn.slice(keep));
+      pushLog(next, `${seat.name} London mulliganed to ${keep}`);
       break;
     }
     case "keep": {
@@ -272,11 +290,16 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     }
     case "nextTurn": {
       const seat = seatOf(next, next.activeSeat);
+      const doUntap = action.untap !== false;
+      const drawN = action.draw ?? 1;
       if (seat) {
-        for (const c of seat.zones.battlefield) c.tapped = false;
-        const drawn = seat.zones.library.splice(0, 1);
+        if (doUntap) for (const c of seat.zones.battlefield) c.tapped = false;
+        const drawn = drawN > 0 ? seat.zones.library.splice(0, drawN) : [];
         seat.zones.hand.push(...drawn);
-        pushLog(next, `Turn ${next.turn + 1}: untap + draw`);
+        pushLog(
+          next,
+          `Turn ${next.turn + 1}${doUntap ? ": untap" : ""}${drawN ? ` + draw ${drawn.length}` : ""}`
+        );
       }
       next.turn += 1;
       break;
