@@ -1,3 +1,5 @@
+import type { TableState } from "./types";
+
 export type MulliganKind = "london" | "paris" | "free";
 
 export type PlaySettings = {
@@ -63,4 +65,28 @@ export function loadPlaySettings(): PlaySettings {
 
 export function savePlaySettings(s: PlaySettings) {
   localStorage.setItem(KEY, JSON.stringify(s));
+}
+
+const TABLE_KEY = "deckapp.playTable.";
+
+export function loadLiveTable(deckId: string): TableState | null {
+  try {
+    const raw = localStorage.getItem(TABLE_KEY + deckId);
+    if (!raw) return null;
+    return JSON.parse(raw) as TableState;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLiveTable(deckId: string, state: TableState) {
+  try {
+    localStorage.setItem(TABLE_KEY + deckId, JSON.stringify(state));
+  } catch {
+    /* quota */
+  }
+}
+
+export function clearLiveTable(deckId: string) {
+  localStorage.removeItem(TABLE_KEY + deckId);
 }

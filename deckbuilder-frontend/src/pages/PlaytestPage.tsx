@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
@@ -35,7 +36,10 @@ import {
 } from "../lib/playtest/engine";
 import {
   DEFAULT_PLAY_SETTINGS,
+  clearLiveTable,
+  loadLiveTable,
   loadPlaySettings,
+  saveLiveTable,
   savePlaySettings,
   type PlaySettings,
 } from "../lib/playtest/settings";
@@ -58,27 +62,32 @@ function roll(sides: number) {
   return 1 + Math.floor(Math.random() * sides);
 }
 
+function stepFromEvent(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean }) {
+  if (e.altKey) return 10;
+  if (e.ctrlKey || e.metaKey) return 5;
+  return 1;
+}
+
 function PlayFace({
   card,
   selected,
-  onSelect,
   onTap,
+  onEnhance,
   onMenu,
-  onCounter,
+  style,
 }: {
   card: PlayCard;
   selected: boolean;
-  onSelect: () => void;
   onTap: () => void;
+  onEnhance: () => void;
   onMenu: (e: ReactMouseEvent) => void;
-  onCounter: (delta: number) => void;
+  style?: CSSProperties;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.instanceId,
     data: { card },
   });
   const src = cardImage(card);
-  const plus = Object.values(card.counters).reduce((a, b) => a + b, 0);
   return (
     <button
       type="button"
@@ -86,56 +95,43 @@ function PlayFace({
       className={`${styles.card}${card.tapped ? ` ${styles.tapped}` : ""}${
         selected ? ` ${styles.selected}` : ""
       }${isDragging ? ` ${styles.dragging}` : ""}`}
-      style={isDragging ? { opacity: 0.35 } : undefined}
+      style={{ ...style, opacity: isDragging ? 0.35 : style?.opacity }}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect();
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onTap();
+        if (e.altKey) onEnhance();
+        else onTap();
       }}
       onContextMenu={onMenu}
       {...listeners}
       {...attributes}
     >
-      <TiltFace enabled={!isDragging}>
-        {src ? (
+      <TiltFace enabled={!isDragging && !card.facedown}>
+        {card.facedown ? (
+          <span className={styles.sleeve} title="Facedown" />
+        ) : src ? (
           <RateLimitedImg src={src} alt={card.name} className={styles.cardImg} />
         ) : (
-          <span className={styles.cardFace}>{card.facedown ? "Facedown" : card.name}</span>
+          <span className={styles.cardFace}>{card.name}</span>
         )}
       </TiltFace>
-      <span
-        className={styles.badge}
-        onClick={(e) => {
-          e.stopPropagation();
-          onCounter(1);
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onCounter(-1);
-        }}
-      >
-        {plus || "+"}
-      </span>
     </button>
   );
 }
 
 function ZoneDrop({
   zone,
+  row,
   className,
   children,
 }: {
   zone: PlayZone;
+  row?: "field" | "lands";
   className?: string;
   children: ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: `zone:${zone}`,
-    data: { zone },
+    id: `zone:${zone}:${row ?? "any"}`,
+    data: { zone, row },
   });
   return (
     <div
@@ -162,8 +158,12 @@ export function PlaytestPage() {
   const [filter, setFilter] = useState("");
   const [settings, setSettings] = useState<PlaySettings>(DEFAULT_PLAY_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [stepper, setStepper] = useState<"draw" | "scry" | "mill" | null>(null);
+  const [countsOpen, setCountsOpen] = useState(false);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
+  const [enhance, setEnhance] = useState<PlayCard | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+  const bfRef = useRef<HTMLDivElement | null>(null);
+  const ptrRef = useRef({ x: 0, y: 0 });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -185,15 +185,27 @@ export function PlaytestPage() {
       if (action.type !== "hydrate") {
         history.current = [...history.current.slice(-39), cur!];
       }
-      return reducePlay(base, action);
+      const next = reducePlay(base, action);
+      if (next.deckId) saveLiveTable(next.deckId, next);
+      return next;
     });
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (fresh = false) => {
     if (!id) return;
     setLoading(true);
     setError(null);
     const prefs = loadPlaySettings();
+    if (!fresh) {
+      const live = loadLiveTable(id);
+      if (live?.started) {
+        dispatch({ type: "hydrate", state: live });
+        setLoading(false);
+        return;
+      }
+    } else {
+      clearLiveTable(id);
+    }
     const { detail, error: err } = await fetchDeckDetail(id);
     if (err || !detail) {
       setError(err ?? "Deck not found");
@@ -227,11 +239,18 @@ export function PlaytestPage() {
   useEffect(() => {
     function close() {
       setMenu(null);
-      setStepper(null);
     }
-    if (menu || stepper) window.addEventListener("click", close);
+    if (menu) window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
-  }, [menu, stepper]);
+  }, [menu]);
+
+  useEffect(() => {
+    function move(e: PointerEvent) {
+      ptrRef.current = { x: e.clientX, y: e.clientY };
+    }
+    window.addEventListener("pointermove", move);
+    return () => window.removeEventListener("pointermove", move);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -274,26 +293,41 @@ export function PlaytestPage() {
     setActiveDrag(null);
     const card = e.active.data.current?.card as PlayCard | undefined;
     const zone = e.over?.data.current?.zone as PlayZone | undefined;
+    const row = e.over?.data.current?.row as "field" | "lands" | undefined;
     if (!card || !zone || !seat) return;
     dispatch({ type: "move", seatId: seat.id, instanceId: card.instanceId, to: zone });
+    if (zone === "battlefield") {
+      const rect = bfRef.current?.getBoundingClientRect();
+      let x = card.x;
+      let y = card.y;
+      if (rect && row !== "lands") {
+        x = Math.max(2, Math.min(88, ((ptrRef.current.x - rect.left) / rect.width) * 100));
+        y = Math.max(2, Math.min(70, ((ptrRef.current.y - rect.top) / rect.height) * 100));
+      }
+      dispatch({
+        type: "place",
+        instanceId: card.instanceId,
+        x,
+        y,
+        row: row ?? "field",
+      });
+    }
   }
 
-  function CardView({ card }: { card: PlayCard }) {
+  function CardView({ card, style }: { card: PlayCard; style?: CSSProperties }) {
     return (
       <PlayFace
         card={card}
         selected={selected === card.instanceId}
-        onSelect={() => setSelected(card.instanceId)}
+        style={style}
         onTap={() => dispatch({ type: "tap", instanceId: card.instanceId })}
+        onEnhance={() => setEnhance(card)}
         onMenu={(ev) => {
           ev.preventDefault();
           ev.stopPropagation();
           setSelected(card.instanceId);
           setMenu({ x: ev.clientX, y: ev.clientY, card });
         }}
-        onCounter={(delta) =>
-          dispatch({ type: "counter", instanceId: card.instanceId, key: "+1/+1", delta })
-        }
       />
     );
   }
@@ -370,36 +404,34 @@ export function PlaytestPage() {
                 ["XP", "experience", "stat"],
               ] as const
             ).map(([label, key, kind]) => (
-              <span key={key} className={styles.stat}>
+              <button
+                key={key}
+                type="button"
+                className={styles.stat}
+                onClick={(e) => {
+                  const d = stepFromEvent(e);
+                  if (kind === "life") dispatch({ type: "life", seatId: seat.id, delta: d });
+                  else dispatch({ type: "stat", seatId: seat.id, key, delta: d });
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const d = -stepFromEvent(e);
+                  if (kind === "life") dispatch({ type: "life", seatId: seat.id, delta: d });
+                  else dispatch({ type: "stat", seatId: seat.id, key, delta: d });
+                }}
+              >
                 {label} {kind === "life" ? seat.life : seat[key]}
-                <button
-                  type="button"
-                  onClick={() =>
-                    kind === "life"
-                      ? dispatch({ type: "life", seatId: seat.id, delta: -1 })
-                      : dispatch({ type: "stat", seatId: seat.id, key, delta: -1 })
-                  }
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    kind === "life"
-                      ? dispatch({ type: "life", seatId: seat.id, delta: 1 })
-                      : dispatch({ type: "stat", seatId: seat.id, key, delta: 1 })
-                  }
-                >
-                  +
-                </button>
-              </span>
+              </button>
             ))}
+            <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
+              {logOpen ? "Hide log" : "Log"}
+            </button>
           </div>
         </div>
 
         <div className={styles.toolbar}>
           {settings.show.newGame && (
-            <button type="button" className={styles.primary} onClick={() => void start()}>
+            <button type="button" className={styles.primary} onClick={() => void start(true)}>
               New game
             </button>
           )}
@@ -411,7 +443,7 @@ export function PlaytestPage() {
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setStepper("draw");
+                setCountsOpen(true);
               }}
             >
               Draw {settings.drawCount > 1 ? settings.drawCount : ""}
@@ -460,7 +492,7 @@ export function PlaytestPage() {
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setStepper("mill");
+                setCountsOpen(true);
               }}
             >
               Mill {settings.millCount > 1 ? settings.millCount : ""}
@@ -474,7 +506,7 @@ export function PlaytestPage() {
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setStepper("scry");
+                setCountsOpen(true);
               }}
             >
               Scry {settings.scryCount}
@@ -486,7 +518,10 @@ export function PlaytestPage() {
               className={styles.btn}
               onClick={() => {
                 const prev = history.current.pop();
-                if (prev) setTable(prev);
+                if (prev) {
+                  setTable(prev);
+                  if (prev.deckId) saveLiveTable(prev.deckId, prev);
+                }
               }}
             >
               Undo
@@ -510,36 +545,40 @@ export function PlaytestPage() {
               </button>
             </>
           )}
-          <span className={styles.hint}>Right-click Draw / Scry / Mill to change count</span>
+          <span className={styles.hint}>
+            Click tap · Alt-click enhance · Ctrl/Alt on counters = 5/10
+          </span>
         </div>
 
-        {stepper && (
-          <div className={styles.stepper} onClick={(e) => e.stopPropagation()}>
-            {stepper}{" "}
+        {countsOpen && (
+          <div className={styles.countsRow}>
+            {(["drawCount", "scryCount", "millCount"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={styles.stat}
+                onClick={(e) =>
+                  persist({ ...settings, [key]: settings[key] + stepFromEvent(e) })
+                }
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  persist({
+                    ...settings,
+                    [key]: Math.max(1, settings[key] - stepFromEvent(e)),
+                  });
+                }}
+              >
+                {key.replace("Count", "")} {settings[key]}
+              </button>
+            ))}
             <button
               type="button"
               className={styles.ghost}
               onClick={() =>
-                persist({
-                  ...settings,
-                  [`${stepper}Count`]: Math.max(1, settings[`${stepper}Count`] - 1),
-                } as PlaySettings)
+                persist({ ...settings, drawCount: 1, scryCount: 1, millCount: 1 })
               }
             >
-              −
-            </button>
-            <strong>{settings[`${stepper}Count`]}</strong>
-            <button
-              type="button"
-              className={styles.ghost}
-              onClick={() =>
-                persist({
-                  ...settings,
-                  [`${stepper}Count`]: settings[`${stepper}Count`] + 1,
-                } as PlaySettings)
-              }
-            >
-              +
+              Reset all
             </button>
           </div>
         )}
@@ -550,25 +589,56 @@ export function PlaytestPage() {
             <Pile zone="graveyard" label="Graveyard" />
             <Pile zone="sideboard" label="Side" />
           </div>
-          <ZoneDrop zone="battlefield" className={styles.battlefield}>
+          <div className={styles.battlefield} ref={bfRef}>
             <div className={styles.pileHead}>
               <span>Battlefield</span>
               <span>{seat.zones.battlefield.length}</span>
             </div>
-            <div className={styles.bfGrid}>
-              {seat.zones.battlefield.map((c) => (
+            <ZoneDrop zone="battlefield" row="field" className={styles.bfField}>
+              {seat.zones.battlefield
+                .filter((c) => c.row !== "lands")
+                .map((c) => (
+                  <CardView
+                    key={c.instanceId}
+                    card={c}
+                    style={
+                      c.x != null && c.y != null
+                        ? {
+                            position: "absolute",
+                            left: `${c.x}%`,
+                            top: `${c.y}%`,
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              {seat.zones.stack.map((c) => (
                 <CardView key={c.instanceId} card={c} />
               ))}
-              {seat.zones.stack.length > 0 && (
-                <ZoneDrop zone="stack">
-                  <div className={styles.pileHead}>Stack</div>
-                  {seat.zones.stack.map((c) => (
-                    <CardView key={c.instanceId} card={c} />
+            </ZoneDrop>
+            <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
+              <span className={styles.railLabel}>Lands</span>
+              {Object.values(
+                seat.zones.battlefield
+                  .filter((c) => c.row === "lands")
+                  .reduce<Record<string, PlayCard[]>>((acc, c) => {
+                    const k = c.oracleId || c.name;
+                    (acc[k] ??= []).push(c);
+                    return acc;
+                  }, {})
+              ).map((stack) => (
+                <div key={stack[0].instanceId} className={styles.landStack}>
+                  {stack.map((c, i) => (
+                    <CardView
+                      key={c.instanceId}
+                      card={c}
+                      style={{ marginLeft: i ? -42 : 0, zIndex: i }}
+                    />
                   ))}
-                </ZoneDrop>
-              )}
-            </div>
-          </ZoneDrop>
+                </div>
+              ))}
+            </ZoneDrop>
+          </div>
           <div className={styles.col}>
             <Pile zone="command" label="Command" />
             <Pile zone="exile" label="Exile" />
@@ -623,22 +693,30 @@ export function PlaytestPage() {
           </div>
         </ZoneDrop>
 
-        <div className={styles.log}>
-          {[...table.log].reverse().map((l, i) => (
-            <div key={`${l.at}-${i}`}>{l.text}</div>
-          ))}
-        </div>
+        {logOpen && (
+          <aside className={styles.logPop}>
+            <div className={styles.pileHead}>
+              <span>Event log</span>
+              <button type="button" className={styles.ghost} onClick={() => setLogOpen(false)}>
+                Close
+              </button>
+            </div>
+            {[...table.log].reverse().map((l, i) => (
+              <div key={`${l.at}-${i}`}>{l.text}</div>
+            ))}
+          </aside>
+        )}
 
         {menu && (
           <div className={styles.menu} style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
             <button type="button" onClick={() => { dispatch({ type: "tap", instanceId: menu.card.instanceId }); setMenu(null); }}>
               Tap / untap
             </button>
-            <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>
-              Flip face
-            </button>
             <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>
-              Face down
+              Flip card
+            </button>
+            <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>
+              Switch face
             </button>
             {MOVE_ZONES.map((z) => (
               <button
@@ -830,6 +908,24 @@ export function PlaytestPage() {
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close
               </button>
+            </div>
+          </div>
+        )}
+
+        {enhance && (
+          <div className={styles.overlay} onClick={() => setEnhance(null)}>
+            <div className={styles.enhance} onClick={(e) => e.stopPropagation()}>
+              <TiltFace enabled>
+                {enhance.facedown ? (
+                  <span className={styles.sleeveBig} />
+                ) : (
+                  <img
+                    src={cardImage(enhance) || enhance.image}
+                    alt={enhance.name}
+                    className={styles.enhanceImg}
+                  />
+                )}
+              </TiltFace>
             </div>
           </div>
         )}

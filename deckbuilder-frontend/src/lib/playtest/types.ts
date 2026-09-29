@@ -24,6 +24,9 @@ export type PlayCard = {
   attachedTo?: string;
   token: boolean;
   ownerSeat: string;
+  x?: number;
+  y?: number;
+  row?: "field" | "lands";
 };
 
 export type SeatState = {
@@ -71,4 +74,11 @@ export type PlayAction =
   | { type: "mill"; seatId: string; n: number }
   | { type: "untapAll"; seatId: string }
   | { type: "addToken"; seatId: string; card: Omit<PlayCard, "instanceId" | "ownerSeat"> }
+  | {
+      type: "place";
+      instanceId: string;
+      x?: number;
+      y?: number;
+      row?: "field" | "lands";
+    }
   | { type: "log"; text: string };

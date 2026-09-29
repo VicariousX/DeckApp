@@ -234,6 +234,11 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       const [card] = found.seat.zones[found.zone].splice(found.index, 1);
       if (action.to !== "battlefield") {
         card.tapped = false;
+        card.row = undefined;
+        card.x = undefined;
+        card.y = undefined;
+      } else if (!card.row) {
+        card.row = "field";
       }
       const destSeat = seatOf(next, action.seatId) ?? found.seat;
       const dest = destSeat.zones[action.to];
@@ -325,6 +330,14 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
         ...action.bottom.map((id) => byId.get(id)!).filter(Boolean),
       ];
       pushLog(next, `${seat.name} scried`);
+      break;
+    }
+    case "place": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      if (action.x != null) found.card.x = action.x;
+      if (action.y != null) found.card.y = action.y;
+      if (action.row) found.card.row = action.row;
       break;
     }
     case "addToken": {
