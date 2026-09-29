@@ -62,6 +62,31 @@ function roll(sides: number) {
   return 1 + Math.floor(Math.random() * sides);
 }
 
+function clampMenu(x: number, y: number, w = 188, h = 260) {
+  const pad = 8;
+  const left = Math.min(window.innerWidth - w - pad, Math.max(pad, x));
+  const top = Math.min(window.innerHeight - h - pad, Math.max(pad, y));
+  const flyLeft = left + w + 168 > window.innerWidth;
+  return { x: left, y: top, flyLeft };
+}
+
+function useHScroll() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (!el) return;
+      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+  return ref;
+}
+
 function stepFromEvent(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean }) {
   if (e.altKey) return 10;
   if (e.ctrlKey || e.metaKey) return 5;
@@ -151,7 +176,7 @@ export function PlaytestPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; card: PlayCard } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; flyLeft?: boolean; card: PlayCard } | null>(null);
   const [inspect, setInspect] = useState<PlayCard | null>(null);
   const [searchZone, setSearchZone] = useState<PlayZone | null>(null);
   const [scryN, setScryN] = useState<PlayCard[] | null>(null);
@@ -159,11 +184,17 @@ export function PlaytestPage() {
   const [settings, setSettings] = useState<PlaySettings>(DEFAULT_PLAY_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
+  const [countsLocked, setCountsLocked] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [libMenu, setLibMenu] = useState<{ x: number; y: number } | null>(null);
+  const [gridHover, setGridHover] = useState<{ gx: number; gy: number } | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [enhance, setEnhance] = useState<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
   const ptrRef = useRef({ x: 0, y: 0 });
+  const handScroll = useHScroll();
+  const landScroll = useHScroll();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -239,10 +270,13 @@ export function PlaytestPage() {
   useEffect(() => {
     function close() {
       setMenu(null);
+      setMoveOpen(false);
+      setLibMenu(null);
+      if (!countsLocked) setCountsOpen(false);
     }
-    if (menu) window.addEventListener("click", close);
+    window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
-  }, [menu]);
+  }, [countsLocked]);
 
   useEffect(() => {
     function move(e: PointerEvent) {
@@ -283,6 +317,23 @@ export function PlaytestPage() {
   const seat = table?.seats[0];
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
 
+  function snapField() {
+    const rect = bfRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const cellW = Math.max(22, rect.width / 36);
+    const cellH = Math.max(16, rect.height / 20);
+    const gx = Math.max(0, Math.round((ptrRef.current.x - rect.left) / cellW - 1.5));
+    const gy = Math.max(0, Math.round((ptrRef.current.y - rect.top) / cellH - 2));
+    return {
+      gx,
+      gy,
+      cellW,
+      cellH,
+      x: Math.min(88, (gx * cellW) / rect.width * 100),
+      y: Math.min(68, (gy * cellH) / rect.height * 100),
+    };
+  }
+
   function onDragStart(e: DragStartEvent) {
     const card = e.active.data.current?.card as PlayCard | undefined;
     setActiveDrag(card ?? null);
@@ -290,25 +341,20 @@ export function PlaytestPage() {
   }
 
   function onDragEnd(e: DragEndEvent) {
+    const snap = snapField();
     setActiveDrag(null);
+    setGridHover(null);
     const card = e.active.data.current?.card as PlayCard | undefined;
     const zone = e.over?.data.current?.zone as PlayZone | undefined;
     const row = e.over?.data.current?.row as "field" | "lands" | undefined;
     if (!card || !zone || !seat) return;
     dispatch({ type: "move", seatId: seat.id, instanceId: card.instanceId, to: zone });
     if (zone === "battlefield") {
-      const rect = bfRef.current?.getBoundingClientRect();
-      let x = card.x;
-      let y = card.y;
-      if (rect && row !== "lands") {
-        x = Math.max(2, Math.min(88, ((ptrRef.current.x - rect.left) / rect.width) * 100));
-        y = Math.max(2, Math.min(70, ((ptrRef.current.y - rect.top) / rect.height) * 100));
-      }
       dispatch({
         type: "place",
         instanceId: card.instanceId,
-        x,
-        y,
+        x: row === "lands" ? undefined : snap?.x,
+        y: row === "lands" ? undefined : snap?.y,
         row: row ?? "field",
       });
     }
@@ -326,7 +372,7 @@ export function PlaytestPage() {
           ev.preventDefault();
           ev.stopPropagation();
           setSelected(card.instanceId);
-          setMenu({ x: ev.clientX, y: ev.clientY, card });
+          setMenu({ ...clampMenu(ev.clientX, ev.clientY), card });
         }}
       />
     );
@@ -340,17 +386,28 @@ export function PlaytestPage() {
       <ZoneDrop zone={zone} className={styles.pile}>
         <div className={styles.pileHead}>
           <span>{label}</span>
-          <button type="button" className={styles.ghost} onClick={() => setSearchZone(zone)}>
-            {cards.length}
-          </button>
+          <span>{cards.length}</span>
         </div>
-        <div className={styles.pileBody}>
+        <div
+          className={styles.pileBody}
+          onClick={(e) => {
+            if (zone !== "library") return;
+            e.stopPropagation();
+            dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount });
+          }}
+          onContextMenu={(e) => {
+            if (zone !== "library") return;
+            e.preventDefault();
+            e.stopPropagation();
+            setLibMenu(clampMenu(e.clientX, e.clientY, 180, 120));
+          }}
+        >
           {zone === "library" && top ? (
-            <CardView card={{ ...top, facedown: true }} />
+            <span className={styles.sleeve} title="Library" />
           ) : zone === "library" ? (
             <span className={styles.hint}>Empty</span>
           ) : (
-            cards.slice(-4).map((c) => <CardView key={c.instanceId} card={c} />)
+            cards.slice(-3).map((c) => <CardView key={c.instanceId} card={c} />)
           )}
         </div>
       </ZoneDrop>
@@ -380,8 +437,15 @@ export function PlaytestPage() {
       sensors={sensors}
       collisionDetection={pointerWithin}
       onDragStart={onDragStart}
+      onDragMove={() => {
+        const snap = snapField();
+        if (snap) setGridHover({ gx: snap.gx, gy: snap.gy });
+      }}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveDrag(null)}
+      onDragCancel={() => {
+        setActiveDrag(null);
+        setGridHover(null);
+      }}
     >
       <div className={`${transitions.page} ${styles.page}`}>
         <div className={styles.top}>
@@ -436,18 +500,37 @@ export function PlaytestPage() {
             </button>
           )}
           {settings.show.draw && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount })}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCountsOpen(true);
-              }}
-            >
-              Draw {settings.drawCount > 1 ? settings.drawCount : ""}
-            </button>
+            <div className={styles.toolCell}>
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount })}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCountsOpen(true);
+                }}
+              >
+                Draw
+              </button>
+              {countsOpen && (
+                <button
+                  type="button"
+                  className={styles.countChip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    persist({ ...settings, drawCount: settings.drawCount + stepFromEvent(e) });
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    persist({ ...settings, drawCount: Math.max(1, settings.drawCount - stepFromEvent(e)) });
+                  }}
+                >
+                  {settings.drawCount}
+                </button>
+              )}
+            </div>
           )}
           {settings.show.mulligan && (
             <button
@@ -485,32 +568,70 @@ export function PlaytestPage() {
             </button>
           )}
           {settings.show.mill && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => dispatch({ type: "mill", seatId: seat.id, n: settings.millCount })}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCountsOpen(true);
-              }}
-            >
-              Mill {settings.millCount > 1 ? settings.millCount : ""}
-            </button>
+            <div className={styles.toolCell}>
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => dispatch({ type: "mill", seatId: seat.id, n: settings.millCount })}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCountsOpen(true);
+                }}
+              >
+                Mill
+              </button>
+              {countsOpen && (
+                <button
+                  type="button"
+                  className={styles.countChip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    persist({ ...settings, millCount: settings.millCount + stepFromEvent(e) });
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    persist({ ...settings, millCount: Math.max(1, settings.millCount - stepFromEvent(e)) });
+                  }}
+                >
+                  {settings.millCount}
+                </button>
+              )}
+            </div>
           )}
           {settings.show.scry && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => setScryN(seat.zones.library.slice(0, settings.scryCount))}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCountsOpen(true);
-              }}
-            >
-              Scry {settings.scryCount}
-            </button>
+            <div className={styles.toolCell}>
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => setScryN(seat.zones.library.slice(0, settings.scryCount))}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCountsOpen(true);
+                }}
+              >
+                Scry
+              </button>
+              {countsOpen && (
+                <button
+                  type="button"
+                  className={styles.countChip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    persist({ ...settings, scryCount: settings.scryCount + stepFromEvent(e) });
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    persist({ ...settings, scryCount: Math.max(1, settings.scryCount - stepFromEvent(e)) });
+                  }}
+                >
+                  {settings.scryCount}
+                </button>
+              )}
+            </div>
           )}
           {settings.show.undo && (
             <button
@@ -545,43 +666,34 @@ export function PlaytestPage() {
               </button>
             </>
           )}
+          {countsOpen && (
+            <>
+              <button
+                type="button"
+                className={`${styles.ghost}${countsLocked ? ` ${styles.locked}` : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCountsLocked((v) => !v);
+                }}
+              >
+                {countsLocked ? "Unlock counts" : "Lock counts"}
+              </button>
+              <button
+                type="button"
+                className={styles.ghost}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  persist({ ...settings, drawCount: 1, scryCount: 1, millCount: 1 });
+                }}
+              >
+                Reset all
+              </button>
+            </>
+          )}
           <span className={styles.hint}>
             Click tap · Alt-click enhance · Ctrl/Alt on counters = 5/10
           </span>
         </div>
-
-        {countsOpen && (
-          <div className={styles.countsRow}>
-            {(["drawCount", "scryCount", "millCount"] as const).map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={styles.stat}
-                onClick={(e) =>
-                  persist({ ...settings, [key]: settings[key] + stepFromEvent(e) })
-                }
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  persist({
-                    ...settings,
-                    [key]: Math.max(1, settings[key] - stepFromEvent(e)),
-                  });
-                }}
-              >
-                {key.replace("Count", "")} {settings[key]}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={styles.ghost}
-              onClick={() =>
-                persist({ ...settings, drawCount: 1, scryCount: 1, millCount: 1 })
-              }
-            >
-              Reset all
-            </button>
-          </div>
-        )}
 
         <div className={styles.board}>
           <div className={styles.col}>
@@ -592,9 +704,20 @@ export function PlaytestPage() {
           <div className={styles.battlefield} ref={bfRef}>
             <div className={styles.pileHead}>
               <span>Battlefield</span>
-              <span>{seat.zones.battlefield.length}</span>
+              <span>
+                {seat.zones.battlefield.filter((c) => c.row !== "lands").length}
+              </span>
             </div>
             <ZoneDrop zone="battlefield" row="field" className={styles.bfField}>
+              {activeDrag && gridHover && (
+                <span
+                  className={styles.gridGhost}
+                  style={{
+                    left: `${gridHover.gx * (100 / 36)}%`,
+                    top: `${gridHover.gy * (100 / 20)}%`,
+                  }}
+                />
+              )}
               {seat.zones.battlefield
                 .filter((c) => c.row !== "lands")
                 .map((c) => (
@@ -617,26 +740,30 @@ export function PlaytestPage() {
               ))}
             </ZoneDrop>
             <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
-              <span className={styles.railLabel}>Lands</span>
-              {Object.values(
-                seat.zones.battlefield
-                  .filter((c) => c.row === "lands")
-                  .reduce<Record<string, PlayCard[]>>((acc, c) => {
-                    const k = c.oracleId || c.name;
-                    (acc[k] ??= []).push(c);
-                    return acc;
-                  }, {})
-              ).map((stack) => (
-                <div key={stack[0].instanceId} className={styles.landStack}>
-                  {stack.map((c, i) => (
-                    <CardView
-                      key={c.instanceId}
-                      card={c}
-                      style={{ marginLeft: i ? -42 : 0, zIndex: i }}
-                    />
-                  ))}
-                </div>
-              ))}
+              <span className={styles.railLabel}>
+                Lands {seat.zones.battlefield.filter((c) => c.row === "lands").length}
+              </span>
+              <div className={styles.railScroll} ref={landScroll}>
+                {Object.values(
+                  seat.zones.battlefield
+                    .filter((c) => c.row === "lands")
+                    .reduce<Record<string, PlayCard[]>>((acc, c) => {
+                      const k = c.oracleId || c.name;
+                      (acc[k] ??= []).push(c);
+                      return acc;
+                    }, {})
+                ).map((stack) => (
+                  <div key={stack[0].instanceId} className={styles.landStack}>
+                    {stack.map((c, i) => (
+                      <CardView
+                        key={c.instanceId}
+                        card={c}
+                        style={{ marginLeft: i ? -36 : 0, zIndex: i }}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </ZoneDrop>
           </div>
           <div className={styles.col}>
@@ -686,7 +813,7 @@ export function PlaytestPage() {
             <span>Hand</span>
             <span>{seat.zones.hand.length}</span>
           </div>
-          <div className={styles.handRow}>
+          <div className={styles.handRow} ref={handScroll}>
             {seat.zones.hand.map((c) => (
               <CardView key={c.instanceId} card={c} />
             ))}
@@ -708,9 +835,16 @@ export function PlaytestPage() {
         )}
 
         {menu && (
-          <div className={styles.menu} style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.menu}
+            style={{ left: menu.x, top: menu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button type="button" onClick={() => { dispatch({ type: "tap", instanceId: menu.card.instanceId }); setMenu(null); }}>
               Tap / untap
+            </button>
+            <button type="button" onClick={() => { setEnhance(menu.card); setMenu(null); }}>
+              Enhance
             </button>
             <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>
               Flip card
@@ -718,20 +852,68 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>
               Switch face
             </button>
-            {MOVE_ZONES.map((z) => (
-              <button
-                key={z.id}
-                type="button"
-                onClick={() => {
-                  dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: z.id });
-                  setMenu(null);
+            <button
+              type="button"
+              onMouseEnter={() => setMoveOpen(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMoveOpen((v) => !v);
+              }}
+            >
+              Move to ▸
+            </button>
+            {moveOpen && (
+              <div
+                className={styles.flyout}
+                style={{
+                  left: "flyLeft" in menu && menu.flyLeft ? "auto" : "100%",
+                  right: "flyLeft" in menu && menu.flyLeft ? "100%" : "auto",
                 }}
               >
-                Move to {z.label}
-              </button>
-            ))}
+                {MOVE_ZONES.map((z) => (
+                  <button
+                    key={z.id}
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: z.id });
+                      setMenu(null);
+                      setMoveOpen(false);
+                    }}
+                  >
+                    {z.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <button type="button" onClick={() => { setInspect(menu.card); setMenu(null); }}>
               Inspect
+            </button>
+          </div>
+        )}
+
+        {libMenu && (
+          <div
+            className={styles.menu}
+            style={{ left: libMenu.x, top: libMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setSearchZone("library");
+                setLibMenu(null);
+              }}
+            >
+              Search library
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setScryN(seat.zones.library.slice(0, settings.scryCount));
+                setLibMenu(null);
+              }}
+            >
+              Search top {settings.scryCount}
             </button>
           </div>
         )}
