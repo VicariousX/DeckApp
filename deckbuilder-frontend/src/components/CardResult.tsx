@@ -11,6 +11,7 @@ import { CardEnlargeOverlay, CardImage } from "./CardImage";
 import { CardInspectorModal } from "./CardInspectorModal";
 import {
   CardContextMenu,
+  modalJumpFromState,
   type ModalJump,
 } from "./CardContextMenu";
 import { getFaceImage } from "../utils/scryfall";
@@ -142,9 +143,7 @@ export function CardResult({
               <button
                 type="button"
                 className={styles.textRow}
-                onClick={() =>
-                  previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
-                }
+                onClick={() => setSelectedIndex(i)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setCtx({ x: e.clientX, y: e.clientY, index: i });
@@ -173,9 +172,7 @@ export function CardResult({
               key={item.originalId}
               display={item.display}
               originalId={item.originalId}
-              onSelect={() =>
-                previewFirst ? setPreviewIndex(i) : setSelectedIndex(i)
-              }
+              onSelect={() => setSelectedIndex(i)}
               onContext={(e) =>
                 setCtx({ x: e.clientX, y: e.clientY, index: i })
               }
@@ -227,7 +224,7 @@ export function CardResult({
 
       {selected && selectedIndex != null && (
         <CardInspectorModal
-          key={`${selected.originalId}-${modalJump}`}
+          key={selected.originalId}
           initialTab={
             modalJump.startsWith("artwork")
               ? "artwork"
@@ -239,6 +236,9 @@ export function CardResult({
           }
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
+          onTabChange={(tab, infoSub, artSub) =>
+            setModalJump(modalJumpFromState(tab, infoSub, artSub))
+          }
           scryfallId={selected.originalId}
           name={selected.display.name}
           onClose={() => setSelectedIndex(null)}

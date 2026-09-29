@@ -39,8 +39,14 @@ import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
+  modalJumpFromState,
   type ModalJump,
 } from "../components/CardContextMenu";
+import {
+  DeckSearchDock,
+  DeckSearchToggle,
+} from "../components/search/DeckSearchDock";
+import type { ScryfallCard } from "../types/scryfallCard";
 import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
@@ -66,6 +72,7 @@ export function DrawersPage() {
     card: DrawerCardView;
   } | null>(null);
   const [enhanceCard, setEnhanceCard] = useState<DrawerCardView | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [sortKey, setSortKey] = useState<CardSortKey>(() => {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
@@ -227,6 +234,15 @@ export function DrawersPage() {
       setError(fetchErr ?? "Card not found.");
       setAddBusy(false);
       return;
+    }
+    await addScryfallCard(card, false);
+  }
+
+  async function addScryfallCard(card: ScryfallCard, manageBusy = true) {
+    if (!user || !selectedId) return;
+    if (manageBusy) {
+      setAddBusy(true);
+      setError(null);
     }
     const { card: uc, error: uErr } = await ensureUserCardFromScryfall(user.id, card);
     if (uErr || !uc) {
@@ -560,7 +576,15 @@ export function DrawersPage() {
                   >
                     {addBusy ? "Adding…" : "Add"}
                   </button>
+                  <DeckSearchToggle
+                    open={searchOpen}
+                    onToggle={() => setSearchOpen((v) => !v)}
+                  />
                 </div>
+                <DeckSearchDock
+                  open={searchOpen}
+                  onAddCard={(c) => void addScryfallCard(c)}
+                />
                 <div className={styles.toolRow}>
                   <BulkCardImport
                     title="Bulk Import"
@@ -922,7 +946,7 @@ export function DrawersPage() {
       )}
       {inspectCard && inspectCard.scryfall_id && (
         <CardInspectorModal
-          key={`${inspectCard.id}-${modalJump}`}
+          key={inspectCard.id}
           initialTab={
             modalJump.startsWith("artwork")
               ? "artwork"
@@ -934,6 +958,9 @@ export function DrawersPage() {
           }
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
+          onTabChange={(tab, infoSub, artSub) =>
+            setModalJump(modalJumpFromState(tab, infoSub, artSub))
+          }
           scryfallId={inspectCard.scryfall_id}
           name={inspectCard.name}
           imageUrl={inspectCard.image_url ?? undefined}

@@ -31,6 +31,7 @@ import { CardEnlargeOverlay, TiltFace } from "../components/CardImage";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import {
   CardContextMenu,
+  modalJumpFromState,
   type ModalJump,
 } from "../components/CardContextMenu";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -604,7 +605,7 @@ export function CombosPage() {
                           e.preventDefault();
                           setCtx({ x: e.clientX, y: e.clientY, card });
                         }}
-                        onEnhance={setEnhance}
+                        onEnhance={setModalCard}
                       />
                       );
                     })}
@@ -638,7 +639,7 @@ export function CombosPage() {
                             <button
                               type="button"
                               className={styles.meshCard}
-                              onClick={() => setEnhance(card)}
+                              onClick={() => setModalCard(card)}
                               onContextMenu={(e) => {
                                 e.preventDefault();
                                 setCtx({ x: e.clientX, y: e.clientY, card });
@@ -673,13 +674,13 @@ export function CombosPage() {
                       const card = active.columns
                         .flatMap((c) => c.cards)
                         .find((c) => c.oracle_id === key || c.id === key);
-                      if (card) setEnhance(card);
+                      if (card) setModalCard(card);
                     }}
                   />
                 </div>
               )}
               {view === "atlas" && (
-                <ComboAtlas combos={combos} onSelect={setEnhance} />
+                <ComboAtlas combos={combos} onSelect={setModalCard} />
               )}
               {error && <p className={styles.error}>{error}</p>}
             </>
@@ -760,7 +761,7 @@ export function CombosPage() {
       )}
       {modalCard && (
         <CardInspectorModal
-          key={`${modalCard.id}-${modalJump}`}
+          key={modalCard.id}
           initialTab={
             modalJump.startsWith("artwork")
               ? "artwork"
@@ -772,6 +773,9 @@ export function CombosPage() {
           }
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
+          onTabChange={(tab, infoSub, artSub) =>
+            setModalJump(modalJumpFromState(tab, infoSub, artSub))
+          }
           scryfallId={modalCard.scryfall_id}
           name={modalCard.name}
           imageUrl={modalCard.image}

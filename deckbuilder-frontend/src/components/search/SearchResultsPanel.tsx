@@ -210,7 +210,6 @@ export function SearchResultsPanel({
         cards={visible}
         cardSize={180}
         viewMode={viewMode}
-        previewFirst
         onAddToDeck={onAddToDeck}
       />
       <div className={resultStyles.moreRow}>

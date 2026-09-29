@@ -59,6 +59,11 @@ type Props = {
   initialTab?: TabId;
   initialInfoSub?: "details" | "rulings";
   initialArtSub?: "upload" | "prints";
+  onTabChange?: (
+    tab: TabId,
+    infoSub: "details" | "rulings",
+    artSub: "upload" | "prints"
+  ) => void;
 };
 
 export type CardInspectorDrawerControls = {
@@ -187,6 +192,7 @@ export function CardInspectorModal({
   initialTab = "info",
   initialInfoSub = "details",
   initialArtSub = "prints",
+  onTabChange,
 }: Props) {
   const { artByOracleId, preferredPrintings, artRevision } = useArtPreferences();
   const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
@@ -196,6 +202,10 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>(initialTab);
   const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
   const [infoSub, setInfoSub] = useState<"details" | "rulings">(initialInfoSub);
+
+  useEffect(() => {
+    onTabChange?.(active, infoSub, artSub);
+  }, [active, infoSub, artSub, onTabChange]);
   const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);

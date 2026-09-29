@@ -17,6 +17,25 @@ export type ModalJump =
   | "artwork:prints"
   | "artwork:upload";
 
+export type InspectorTabName =
+  | "info"
+  | "deck"
+  | "drawer"
+  | "drawers"
+  | "mechanics"
+  | "artwork";
+
+export function modalJumpFromState(
+  tab: InspectorTabName,
+  infoSub: "details" | "rulings" = "details",
+  artSub: "upload" | "prints" = "prints"
+): ModalJump {
+  if (tab === "info") return infoSub === "rulings" ? "info:rulings" : "info";
+  if (tab === "artwork") return artSub === "upload" ? "artwork:upload" : "artwork";
+  if (tab === "drawer") return "drawers";
+  return tab;
+}
+
 export type CardContextTarget = {
   scryfallId: string;
   oracleId?: string;
@@ -136,31 +155,84 @@ export function CardContextMenu({
     setStatus("URL copied");
   }
 
-  async function fetchImageBlob(): Promise<Blob | null> {
+  async function fetchImagePng(): Promise<Blob | null> {
     if (!target.imageUrl) return null;
     try {
-      const res = await fetch(target.imageUrl);
-      if (!res.ok) return null;
-      return await res.blob();
+      const res = await fetch(target.imageUrl, { mode: "cors" });
+      if (res.ok) {
+        const raw = await res.blob();
+        if (raw.type === "image/png") return raw;
+        const bmp = await createImageBitmap(raw);
+        const canvas = document.createElement("canvas");
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return raw;
+        ctx.drawImage(bmp, 0, 0);
+        bmp.close();
+        const png = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob((b) => resolve(b), "image/png")
+        );
+        return png ?? raw;
+      }
+    } catch {
+      /* try element decode */
+    }
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.crossOrigin = "anonymous";
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("img"));
+        el.src = target.imageUrl!;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0);
+      return await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/png")
+      );
     } catch {
       return null;
     }
   }
 
   async function copyImage() {
-    const blob = await fetchImageBlob();
-    if (!blob) {
-      setStatus("Could not copy image");
-      return;
+    const blob = await fetchImagePng();
+    if (blob && navigator.clipboard?.write) {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "image/png": Promise.resolve(blob),
+          }),
+        ]);
+        setStatus("Image copied");
+        return;
+      } catch {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob }),
+          ]);
+          setStatus("Image copied");
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
     }
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type || "image/png"]: blob }),
-      ]);
-      setStatus("Image copied");
-    } catch {
-      setStatus("Clipboard blocked image copy");
+    if (target.imageUrl && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(target.imageUrl);
+        setStatus("Image URL copied");
+        return;
+      } catch {
+        /* fall through */
+      }
     }
+    setStatus("Could not copy image");
   }
 
   async function saveImage() {

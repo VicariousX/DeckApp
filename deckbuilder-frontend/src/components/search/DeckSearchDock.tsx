@@ -5,22 +5,16 @@ import { SearchResultsPanel } from "./SearchResultsPanel";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import styles from "./DeckSearchDock.module.css";
 
-export type AddSearchMode = "quick" | "standard" | "advanced";
+export type SearchKind = "standard" | "advanced";
 
 type Tab = {
   id: string;
-  mode: "standard" | "advanced";
+  mode: SearchKind;
   query: string;
   title: string;
 };
 
-const MODES: { id: AddSearchMode; label: string }[] = [
-  { id: "quick", label: "Quick add" },
-  { id: "standard", label: "Standard" },
-  { id: "advanced", label: "Advanced" },
-];
-
-function newTab(mode: "standard" | "advanced", query = ""): Tab {
+function newTab(mode: SearchKind, query = ""): Tab {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     mode,
@@ -29,70 +23,54 @@ function newTab(mode: "standard" | "advanced", query = ""): Tab {
   };
 }
 
-export function DeckSearchModeToggle({
-  mode,
-  onMode,
+export function DeckSearchToggle({
+  open,
+  onToggle,
 }: {
-  mode: AddSearchMode;
-  onMode: (m: AddSearchMode) => void;
+  open: boolean;
+  onToggle: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  function cycle() {
-    const i = MODES.findIndex((m) => m.id === mode);
-    onMode(MODES[(i + 1) % MODES.length].id);
-    setMenuOpen(false);
-  }
   return (
-    <div className={styles.cycleWrap}>
-      <button
-        type="button"
-        className={styles.cycleBtn}
-        title="Click to cycle. Right-click to choose."
-        onClick={cycle}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setMenuOpen((v) => !v);
-        }}
-      >
-        {MODES.find((m) => m.id === mode)?.label ?? "Quick add"}
-      </button>
-      {menuOpen && (
-        <ul className={styles.menu} role="menu">
-          {MODES.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                className={m.id === mode ? styles.menuOn : undefined}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onMode(m.id);
-                  setMenuOpen(false);
-                }}
-              >
-                {m.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <button
+      type="button"
+      className={styles.cycleBtn}
+      onClick={onToggle}
+    >
+      {open ? "Close search" : "Open search"}
+    </button>
   );
 }
 
 export function DeckSearchDock({
-  mode,
+  open,
   onAddCard,
 }: {
-  mode: AddSearchMode;
-  onAddCard: (card: ScryfallCard) => void;
+  open: boolean;
+  onAddCard?: (card: ScryfallCard) => void;
 }) {
-  const [tabs, setTabs] = useState<Tab[]>([newTab(mode === "advanced" ? "advanced" : "standard")]);
+  const [tabs, setTabs] = useState<Tab[]>([newTab("standard")]);
   const [activeId, setActiveId] = useState(tabs[0].id);
+  const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
 
-  if (mode === "quick") return null;
+  if (!open) return null;
 
-  function runQuery(q: string, tabMode: "standard" | "advanced") {
+  function setActiveMode(mode: SearchKind) {
+    setTabs((list) =>
+      list.map((t) =>
+        t.id === active.id
+          ? {
+              ...t,
+              mode,
+              title: t.query ? t.title : mode === "advanced" ? "Advanced" : "Standard",
+            }
+          : t
+      )
+    );
+    setModeMenu(false);
+  }
+
+  function runQuery(q: string, tabMode: SearchKind) {
     const trimmed = q.trim();
     if (!trimmed) return;
     setTabs((list) =>
@@ -123,9 +101,7 @@ export function DeckSearchDock({
                   setTabs((list) => {
                     const next = list.filter((x) => x.id !== t.id);
                     if (activeId === t.id) setActiveId(next[0]?.id ?? "");
-                    return next.length
-                      ? next
-                      : [newTab(mode === "advanced" ? "advanced" : "standard")];
+                    return next.length ? next : [newTab("standard")];
                   });
                 }}
               >
@@ -138,13 +114,45 @@ export function DeckSearchDock({
           type="button"
           className={styles.tabAdd}
           onClick={() => {
-            const t = newTab(mode === "advanced" ? "advanced" : "standard");
+            const t = newTab(active.mode);
             setTabs((list) => [...list, t]);
             setActiveId(t.id);
           }}
         >
           +
         </button>
+        <div className={styles.cycleWrap}>
+          <button
+            type="button"
+            className={styles.tabMode}
+            title="Click to cycle. Right-click to choose."
+            onClick={() =>
+              setActiveMode(active.mode === "advanced" ? "standard" : "advanced")
+            }
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setModeMenu((v) => !v);
+            }}
+          >
+            {active.mode === "advanced" ? "Advanced" : "Standard"}
+          </button>
+          {modeMenu && (
+            <ul className={styles.menu} role="menu">
+              {(["standard", "advanced"] as const).map((m) => (
+                <li key={m}>
+                  <button
+                    type="button"
+                    className={m === active.mode ? styles.menuOn : undefined}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setActiveMode(m)}
+                  >
+                    {m === "advanced" ? "Advanced" : "Standard"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
       {active.mode === "advanced" ? (
         <AdvancedSearch

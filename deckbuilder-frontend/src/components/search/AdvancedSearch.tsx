@@ -76,12 +76,12 @@ type Pin = { key: string; name: string; category?: string; docked?: boolean };
 type PinLayout = "pins-first" | "board-first";
 const DEFAULT_PINS: Pin[] = [
   { key: "name", name: "name", category: "name" },
-  { key: "t", name: "t", category: "type" },
+  { key: "t", name: "t", category: "type", docked: true },
   { key: "c", name: "c", category: "colors" },
-  { key: "id", name: "id", category: "colors" },
-  { key: "o", name: "o", category: "text" },
+  { key: "id", name: "id", category: "colors", docked: true },
+  { key: "o", name: "o", category: "text", docked: true },
   { key: "m", name: "m", category: "mana" },
-  { key: "mv", name: "mv", category: "mana" },
+  { key: "mv", name: "mv", category: "mana", docked: true },
 ];
 const PIN_STORE = "deckapp.advPins";
 const PIN_LAYOUT_STORE = "deckapp.advPinLayout";
@@ -129,9 +129,9 @@ function loadPins(): Pin[] {
 function loadPinLayout(): PinLayout {
   try {
     const raw = localStorage.getItem(PIN_LAYOUT_STORE);
-    return raw === "board-first" ? "board-first" : "pins-first";
+    return raw === "pins-first" ? "pins-first" : "board-first";
   } catch {
-    return "pins-first";
+    return "board-first";
   }
 }
 
@@ -1188,17 +1188,17 @@ function ClauseRow({
               <span>Board position</span>
               <button
                 type="button"
-                data-on={pinLayout !== "board-first"}
-                onClick={() => onPinLayout?.("pins-first")}
-              >
-                Board below pin rows
-              </button>
-              <button
-                type="button"
                 data-on={pinLayout === "board-first"}
                 onClick={() => onPinLayout?.("board-first")}
               >
                 Board above pin rows
+              </button>
+              <button
+                type="button"
+                data-on={pinLayout !== "board-first"}
+                onClick={() => onPinLayout?.("pins-first")}
+              >
+                Board below pin rows
               </button>
             </div>
             <div className={styles.catalogList}>

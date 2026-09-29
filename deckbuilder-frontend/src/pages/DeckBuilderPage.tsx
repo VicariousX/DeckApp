@@ -37,6 +37,7 @@ import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
+  modalJumpFromState,
   type ModalJump,
 } from "../components/CardContextMenu";
 import {
@@ -58,8 +59,7 @@ import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardIm
 import { TextExportMenu } from "../components/TextExportMenu";
 import {
   DeckSearchDock,
-  DeckSearchModeToggle,
-  type AddSearchMode,
+  DeckSearchToggle,
 } from "../components/search/DeckSearchDock";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { DeckStatsPanel } from "../components/DeckStatsPanel";
@@ -249,7 +249,7 @@ export function DeckBuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel, detail?.deck.id]);
   const [addTargetBoard, setAddTargetBoard] = useState<DeckBoard>("main");
-  const [addSearchMode, setAddSearchMode] = useState<AddSearchMode>("quick");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
@@ -1545,9 +1545,9 @@ export function DeckBuilderPage() {
                   </div>
                 )}
                 {panel === "deck" && (
-                  <DeckSearchModeToggle
-                    mode={addSearchMode}
-                    onMode={setAddSearchMode}
+                  <DeckSearchToggle
+                    open={searchOpen}
+                    onToggle={() => setSearchOpen((v) => !v)}
                   />
                 )}
                 {panel === "tokens" && (
@@ -1571,7 +1571,7 @@ export function DeckBuilderPage() {
               </div>
               {panel === "deck" && (
                 <DeckSearchDock
-                  mode={addSearchMode}
+                  open={searchOpen}
                   onAddCard={(c) => void addScryfallCard(c)}
                 />
               )}
@@ -2397,7 +2397,7 @@ export function DeckBuilderPage() {
       )}
       {modalCard && (
         <CardInspectorModal
-          key={`${modalCard.id}-${modalJump}`}
+          key={modalCard.id}
           initialTab={
             modalJump.startsWith("artwork")
               ? "artwork"
@@ -2409,6 +2409,9 @@ export function DeckBuilderPage() {
           }
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
+          onTabChange={(tab, infoSub, artSub) =>
+            setModalJump(modalJumpFromState(tab, infoSub, artSub))
+          }
           scryfallId={
             (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard)
               .scryfall_id

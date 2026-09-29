@@ -275,7 +275,6 @@ export function SearchResultsPage() {
         cards={visible}
         cardSize={cardSize}
         viewMode={viewMode}
-        previewFirst
       />
       <div className={resultStyles.moreRow}>
         <button
