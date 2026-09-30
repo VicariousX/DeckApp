@@ -23,8 +23,9 @@ import {
 } from "@dnd-kit/core";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchDeckDetail } from "../services/deckService";
-import { fetchCollectionByIds } from "../lib/scryfallApi";
+import { fetchCollectionByIds, fetchNamedCard } from "../lib/scryfallApi";
 import { getFaceImage } from "../utils/scryfall";
+import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { loadDeckTokens } from "../lib/deck/deckTokens";
 import { TiltFace } from "../components/CardImage";
 import { RateLimitedImg } from "../components/RateLimitedImg";
@@ -87,8 +88,8 @@ function useHScroll() {
   return ref;
 }
 
-function stepFromEvent(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean }) {
-  if (e.altKey) return 10;
+function stepFromEvent(e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) {
+  if (e.shiftKey) return 10;
   if (e.ctrlKey || e.metaKey) return 5;
   return 1;
 }
@@ -96,15 +97,13 @@ function stepFromEvent(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean 
 function PlayFace({
   card,
   selected,
-  onTap,
-  onEnhance,
+  onActivate,
   onMenu,
   style,
 }: {
   card: PlayCard;
   selected: boolean;
-  onTap: () => void;
-  onEnhance: () => void;
+  onActivate: (e: ReactMouseEvent) => void;
   onMenu: (e: ReactMouseEvent) => void;
   style?: CSSProperties;
 }) {
@@ -123,8 +122,7 @@ function PlayFace({
       style={{ ...style, opacity: isDragging ? 0.35 : style?.opacity }}
       onClick={(e) => {
         e.stopPropagation();
-        if (e.altKey) onEnhance();
-        else onTap();
+        onActivate(e);
       }}
       onContextMenu={onMenu}
       {...listeners}
@@ -171,11 +169,17 @@ function ZoneDrop({
 export function PlaytestPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { resolveImageUrl } = useArtPreferences();
   const [table, setTable] = useState<TableState | null>(null);
   const history = useRef<TableState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [kit, setKit] = useState<null | { kind: "tokens" | "side" | "spawn"; tab: "tokens" | "side" | "spawn" }>(null);
+  const [navHidden, setNavHidden] = useState(() => localStorage.getItem("deckapp.playHideNav") === "1");
+  const [libX, setLibX] = useState(1);
+  const [spawnQ, setSpawnQ] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; flyLeft?: boolean; card: PlayCard } | null>(null);
   const [inspect, setInspect] = useState<PlayCard | null>(null);
   const [searchZone, setSearchZone] = useState<PlayZone | null>(null);
@@ -187,7 +191,7 @@ export function PlaytestPage() {
   const [countsLocked, setCountsLocked] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [libMenu, setLibMenu] = useState<{ x: number; y: number } | null>(null);
-  const [gridHover, setGridHover] = useState<{ gx: number; gy: number } | null>(null);
+  const [gridHover, setGridHover] = useState<{ left: number; top: number; cardW: number; cardH: number } | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [enhance, setEnhance] = useState<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
@@ -247,10 +251,12 @@ export function PlaytestPage() {
     const { cards } = await fetchCollectionByIds(ids);
     const images: Record<string, { front?: string; back?: string }> = {};
     for (const c of cards) {
-      images[c.id] = {
-        front: getFaceImage(c, 0) || undefined,
-        back: getFaceImage(c, 1) || undefined,
-      };
+      const oid = c.oracle_id || c.id;
+      const front =
+        (await resolveImageUrl(oid, c.id, 0)) || getFaceImage(c, 0) || undefined;
+      const back =
+        (await resolveImageUrl(oid, c.id, 1)) || getFaceImage(c, 1) || undefined;
+      images[c.id] = { front, back };
     }
     const next = createTableFromDeck(detail, images, {
       userId: user?.id,
@@ -261,11 +267,17 @@ export function PlaytestPage() {
     history.current = [];
     dispatch({ type: "hydrate", state: next });
     setLoading(false);
-  }, [dispatch, id, user]);
+  }, [dispatch, id, resolveImageUrl, user]);
 
   useEffect(() => {
     void start();
   }, [start]);
+
+  useEffect(() => {
+    document.body.classList.toggle("play-nav-hidden", navHidden);
+    localStorage.setItem("deckapp.playHideNav", navHidden ? "1" : "0");
+    return () => document.body.classList.remove("play-nav-hidden");
+  }, [navHidden]);
 
   useEffect(() => {
     function close() {
@@ -320,18 +332,27 @@ export function PlaytestPage() {
   function snapField() {
     const rect = bfRef.current?.getBoundingClientRect();
     if (!rect) return null;
-    const cellW = Math.max(22, rect.width / 36);
-    const cellH = Math.max(16, rect.height / 20);
-    const gx = Math.max(0, Math.round((ptrRef.current.x - rect.left) / cellW - 1.5));
-    const gy = Math.max(0, Math.round((ptrRef.current.y - rect.top) / cellH - 2));
+    const cardW = 4.8 * 16;
+    const cardH = cardW * (88 / 63);
+    const cellW = cardW / 3;
+    const cellH = cardH / 4;
+    const gx = Math.max(0, Math.round((ptrRef.current.x - rect.left - cardW / 2) / cellW));
+    const gy = Math.max(0, Math.round((ptrRef.current.y - rect.top - cardH / 2) / cellH));
     return {
       gx,
       gy,
-      cellW,
-      cellH,
+      left: gx * cellW,
+      top: gy * cellH,
+      cardW,
+      cardH,
       x: Math.min(88, (gx * cellW) / rect.width * 100),
       y: Math.min(68, (gy * cellH) / rect.height * 100),
     };
+  }
+
+  function targets(id: string) {
+    if (picked.includes(id) && picked.length > 1) return picked;
+    return [id];
   }
 
   function onDragStart(e: DragStartEvent) {
@@ -348,31 +369,51 @@ export function PlaytestPage() {
     const zone = e.over?.data.current?.zone as PlayZone | undefined;
     const row = e.over?.data.current?.row as "field" | "lands" | undefined;
     if (!card || !zone || !seat) return;
-    dispatch({ type: "move", seatId: seat.id, instanceId: card.instanceId, to: zone });
-    if (zone === "battlefield") {
-      dispatch({
-        type: "place",
-        instanceId: card.instanceId,
-        x: row === "lands" ? undefined : snap?.x,
-        y: row === "lands" ? undefined : snap?.y,
-        row: row ?? "field",
-      });
-    }
+    const ids = targets(card.instanceId);
+    ids.forEach((instanceId, i) => {
+      dispatch({ type: "move", seatId: seat.id, instanceId, to: zone });
+      if (zone === "battlefield") {
+        dispatch({
+          type: "place",
+          instanceId,
+          x: row === "lands" ? undefined : snap ? snap.x + i * 2 : undefined,
+          y: row === "lands" ? undefined : snap?.y,
+          row: row ?? "field",
+        });
+      }
+    });
   }
 
   function CardView({ card, style }: { card: PlayCard; style?: CSSProperties }) {
     return (
       <PlayFace
         card={card}
-        selected={selected === card.instanceId}
+        selected={selected === card.instanceId || picked.includes(card.instanceId)}
         style={style}
-        onTap={() => dispatch({ type: "tap", instanceId: card.instanceId })}
-        onEnhance={() => setEnhance(card)}
+        onActivate={(ev) => {
+          if (ev.altKey) {
+            setEnhance(card);
+            return;
+          }
+          if (ev.ctrlKey || ev.metaKey) {
+            setPicked((cur) =>
+              cur.includes(card.instanceId)
+                ? cur.filter((id) => id !== card.instanceId)
+                : [...cur, card.instanceId]
+            );
+            setSelected(card.instanceId);
+            return;
+          }
+          setPicked([card.instanceId]);
+          setSelected(card.instanceId);
+          dispatch({ type: "tap", instanceId: card.instanceId });
+        }}
         onMenu={(ev) => {
           ev.preventDefault();
           ev.stopPropagation();
           setSelected(card.instanceId);
-          setMenu({ ...clampMenu(ev.clientX, ev.clientY), card });
+          if (!picked.includes(card.instanceId)) setPicked([card.instanceId]);
+          setMenu({ ...clampMenu(ev.clientX, ev.clientY, 200, 320), card });
         }}
       />
     );
@@ -381,9 +422,10 @@ export function PlaytestPage() {
   function Pile({ zone, label }: { zone: PlayZone; label: string }) {
     if (!seat) return null;
     const cards = seat.zones[zone];
-    const top = zone === "library" ? cards[0] : undefined;
+    const top = cards[cards.length - 1] ?? cards[0];
+    const stacked = zone === "library" || zone === "graveyard" || zone === "exile" || zone === "command";
     return (
-      <ZoneDrop zone={zone} className={styles.pile}>
+      <ZoneDrop zone={zone} className={`${styles.pile} ${styles.pileCompact}`}>
         <div className={styles.pileHead}>
           <span>{label}</span>
           <span>{cards.length}</span>
@@ -396,15 +438,17 @@ export function PlaytestPage() {
             dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount });
           }}
           onContextMenu={(e) => {
-            if (zone !== "library") return;
             e.preventDefault();
             e.stopPropagation();
-            setLibMenu(clampMenu(e.clientX, e.clientY, 180, 120));
+            if (zone === "library") setLibMenu(clampMenu(e.clientX, e.clientY, 210, 360));
+            else setSearchZone(zone);
           }}
         >
-          {zone === "library" && top ? (
+          {stacked && top && zone === "library" ? (
             <span className={styles.sleeve} title="Library" />
-          ) : zone === "library" ? (
+          ) : stacked && top ? (
+            <CardView card={top} />
+          ) : stacked ? (
             <span className={styles.hint}>Empty</span>
           ) : (
             cards.slice(-3).map((c) => <CardView key={c.instanceId} card={c} />)
@@ -439,7 +483,7 @@ export function PlaytestPage() {
       onDragStart={onDragStart}
       onDragMove={() => {
         const snap = snapField();
-        if (snap) setGridHover({ gx: snap.gx, gy: snap.gy });
+        if (snap) setGridHover({ left: snap.left, top: snap.top, cardW: snap.cardW, cardH: snap.cardH });
       }}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
@@ -448,6 +492,11 @@ export function PlaytestPage() {
       }}
     >
       <div className={`${transitions.page} ${styles.page}`}>
+        {navHidden && (
+          <button type="button" className={styles.navTab} onClick={() => setNavHidden(false)}>
+            Menu
+          </button>
+        )}
         <div className={styles.top}>
           <Link to={`/deck/${id}`} className={styles.back}>
             ← {table.deckName}
@@ -691,15 +740,25 @@ export function PlaytestPage() {
             </>
           )}
           <span className={styles.hint}>
-            Click tap · Alt-click enhance · Ctrl/Alt on counters = 5/10
+            Click tap · Alt enhance · Ctrl select · Shift counters ×10
           </span>
         </div>
 
         <div className={styles.board}>
           <div className={styles.col}>
             <Pile zone="library" label="Library" />
-            <Pile zone="graveyard" label="Graveyard" />
-            <Pile zone="sideboard" label="Side" />
+            <Pile zone="graveyard" label="GY" />
+            <div className={styles.actionCol}>
+              <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
+                Tokens
+              </button>
+              <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
+                Sideboard
+              </button>
+              <button type="button" className={styles.btn} onClick={() => setNavHidden((v) => !v)}>
+                {navHidden ? "Show nav" : "Hide nav"}
+              </button>
+            </div>
           </div>
           <div className={styles.battlefield} ref={bfRef}>
             <div className={styles.pileHead}>
@@ -713,8 +772,10 @@ export function PlaytestPage() {
                 <span
                   className={styles.gridGhost}
                   style={{
-                    left: `${gridHover.gx * (100 / 36)}%`,
-                    top: `${gridHover.gy * (100 / 20)}%`,
+                    left: gridHover.left,
+                    top: gridHover.top,
+                    width: gridHover.cardW,
+                    height: gridHover.cardH,
                   }}
                 />
               )}
@@ -740,9 +801,12 @@ export function PlaytestPage() {
               ))}
             </ZoneDrop>
             <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
-              <span className={styles.railLabel}>
-                Lands {seat.zones.battlefield.filter((c) => c.row === "lands").length}
-              </span>
+              <div className={styles.railHead}>
+                <span className={styles.railCount}>
+                  {seat.zones.battlefield.filter((c) => c.row === "lands").length}
+                </span>
+                <span className={styles.railLabel}>Lands</span>
+              </div>
               <div className={styles.railScroll} ref={landScroll}>
                 {Object.values(
                   seat.zones.battlefield
@@ -769,42 +833,6 @@ export function PlaytestPage() {
           <div className={styles.col}>
             <Pile zone="command" label="Command" />
             <Pile zone="exile" label="Exile" />
-            <section className={styles.pile}>
-              <div className={styles.pileHead}>Tokens</div>
-              <div className={styles.pileBody}>
-                {tokens
-                  .filter((t) => t.included)
-                  .slice(0, 8)
-                  .map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={styles.ghost}
-                      onClick={() =>
-                        dispatch({
-                          type: "addToken",
-                          seatId: seat.id,
-                          card: {
-                            oracleId: t.oracle_id || t.id,
-                            scryfallId: t.id,
-                            name: t.name,
-                            typeLine: t.type_line,
-                            manaCost: "",
-                            image: t.image,
-                            face: 0,
-                            tapped: false,
-                            facedown: false,
-                            counters: {},
-                            token: true,
-                          },
-                        })
-                      }
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-              </div>
-            </section>
           </div>
         </div>
 
@@ -840,7 +868,10 @@ export function PlaytestPage() {
             style={{ left: menu.x, top: menu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button type="button" onClick={() => { dispatch({ type: "tap", instanceId: menu.card.instanceId }); setMenu(null); }}>
+            <button type="button" onClick={() => {
+              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
+              setMenu(null);
+            }}>
               Tap / untap
             </button>
             <button type="button" onClick={() => { setEnhance(menu.card); setMenu(null); }}>
@@ -852,9 +883,21 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>
               Switch face
             </button>
+            <button type="button" onClick={() => {
+              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "clone", instanceId: id }));
+              setMenu(null);
+            }}>
+              Make Token Copy
+            </button>
+            <button type="button" onClick={() => {
+              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "remove", instanceId: id }));
+              setPicked([]);
+              setMenu(null);
+            }}>
+              Remove from table
+            </button>
             <button
               type="button"
-              onMouseEnter={() => setMoveOpen(true)}
               onClick={(e) => {
                 e.stopPropagation();
                 setMoveOpen((v) => !v);
@@ -897,24 +940,58 @@ export function PlaytestPage() {
             style={{ left: libMenu.x, top: libMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setSearchZone("library");
-                setLibMenu(null);
-              }}
-            >
-              Search library
+            <div className={styles.menuRow}>
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch({ type: "draw", seatId: seat.id, n: libX });
+                  setLibMenu(null);
+                }}
+              >
+                Draw {libX}
+              </button>
+              <button type="button" className={styles.countChip} onClick={(e) => { e.stopPropagation(); setLibX((n) => n + stepFromEvent(e)); }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibX((n) => Math.max(1, n - stepFromEvent(e))); }}>
+                {libX}
+              </button>
+            </div>
+            <button type="button" onClick={() => { setSearchZone("library"); setLibMenu(null); }}>
+              Search
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setScryN(seat.zones.library.slice(0, settings.scryCount));
-                setLibMenu(null);
-              }}
-            >
-              Search top {settings.scryCount}
+            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
+              Search {libX}
             </button>
+            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setLibMenu(null); }}>
+              Mill {libX}
+            </button>
+            <button type="button" onClick={() => { dispatch({ type: "exileTop", seatId: seat.id, n: libX }); setLibMenu(null); }}>
+              Exile {libX}
+            </button>
+            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
+              Cascade / delve {libX}
+            </button>
+            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>
+              Shuffle
+            </button>
+            {["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"]
+              .map((name) =>
+                Object.values(seat.zones)
+                  .flat()
+                  .find((c) => c.name === name)
+              )
+              .filter((c): c is PlayCard => Boolean(c))
+              .map((land) => (
+                <button
+                  key={land.oracleId}
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: "move", seatId: seat.id, instanceId: land.instanceId, to: "battlefield" });
+                    dispatch({ type: "place", instanceId: land.instanceId, row: "lands" });
+                    setLibMenu(null);
+                  }}
+                >
+                  Get {land.name}
+                </button>
+              ))}
           </div>
         )}
 
@@ -983,6 +1060,105 @@ export function PlaytestPage() {
                 Done
               </button>
             </div>
+          </div>
+        )}
+
+        {kit && (
+          <div className={styles.kit} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.pileHead}>
+              <span>Table kit</span>
+              <button type="button" className={styles.ghost} onClick={() => setKit(null)}>Close</button>
+            </div>
+            <div className={styles.kitTabs}>
+              {(["tokens", "side", "spawn"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={kit.tab === tab ? styles.primary : styles.btn}
+                  onClick={() => setKit({ kind: tab, tab })}
+                >
+                  {tab === "side" ? "Sideboard" : tab === "spawn" ? "Spawn" : "Tokens"}
+                </button>
+              ))}
+            </div>
+            {kit.tab === "tokens" &&
+              tokens.filter((t) => t.included).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={styles.ghost}
+                  onClick={() =>
+                    dispatch({
+                      type: "addToken",
+                      seatId: seat.id,
+                      card: {
+                        oracleId: t.oracle_id || t.id,
+                        scryfallId: t.id,
+                        name: t.name,
+                        typeLine: t.type_line,
+                        manaCost: "",
+                        image: t.image,
+                        face: 0,
+                        tapped: false,
+                        facedown: false,
+                        counters: {},
+                        token: true,
+                      },
+                    })
+                  }
+                >
+                  {t.name}
+                </button>
+              ))}
+            {kit.tab === "side" &&
+              seat.zones.sideboard.map((c) => (
+                <button
+                  key={c.instanceId}
+                  type="button"
+                  className={styles.ghost}
+                  onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" })}
+                >
+                  {c.name}
+                </button>
+              ))}
+            {kit.tab === "spawn" && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!spawnQ.trim()) return;
+                  const { card } = await fetchNamedCard(spawnQ.trim());
+                  if (!card) return;
+                  const oid = card.oracle_id || card.id;
+                  const front = (await resolveImageUrl(oid, card.id, 0)) || getFaceImage(card, 0);
+                  dispatch({
+                    type: "addToken",
+                    seatId: seat.id,
+                    card: {
+                      oracleId: oid,
+                      scryfallId: card.id,
+                      name: card.name,
+                      typeLine: card.type_line || "",
+                      manaCost: card.mana_cost || "",
+                      image: front || undefined,
+                      face: 0,
+                      tapped: false,
+                      facedown: false,
+                      counters: {},
+                      token: false,
+                    },
+                  });
+                  setSpawnQ("");
+                }}
+              >
+                <input
+                  className={styles.btn}
+                  placeholder="Card name…"
+                  value={spawnQ}
+                  onChange={(e) => setSpawnQ(e.target.value)}
+                />
+                <button type="submit" className={styles.primary}>Spawn</button>
+              </form>
+            )}
           </div>
         )}
 

@@ -74,6 +74,9 @@ export type PlayAction =
   | { type: "mill"; seatId: string; n: number }
   | { type: "untapAll"; seatId: string }
   | { type: "addToken"; seatId: string; card: Omit<PlayCard, "instanceId" | "ownerSeat"> }
+  | { type: "remove"; instanceId: string }
+  | { type: "clone"; instanceId: string }
+  | { type: "exileTop"; seatId: string; n: number }
   | {
       type: "place";
       instanceId: string;

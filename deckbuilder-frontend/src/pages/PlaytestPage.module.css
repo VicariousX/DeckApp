@@ -186,10 +186,80 @@
   display: flex;
   align-items: stretch;
   gap: 0.35rem;
-  min-height: 5.6rem;
-  max-height: 6.2rem;
-  padding: 0.2rem 0.2rem 0.15rem;
+  min-height: 7.4rem;
+  padding: 0.25rem 0.3rem 0.2rem;
   border-top: 1px dashed var(--color-border);
+}
+
+.railHead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  flex: 0 0 auto;
+}
+
+.railCount {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.actionCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.pileCompact {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.navTab {
+  position: fixed;
+  top: 0.35rem;
+  right: 0.6rem;
+  z-index: 50;
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border-radius: 0 0 8px 8px;
+  padding: 0.28rem 0.7rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.kit {
+  position: fixed;
+  right: 0.75rem;
+  top: 5.5rem;
+  width: min(18rem, 90vw);
+  max-height: 70vh;
+  overflow: auto;
+  z-index: 30;
+  padding: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kitTabs {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .railScroll {
@@ -208,8 +278,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
 }
 
 .landStack {
@@ -280,13 +348,11 @@
 
 .gridGhost {
   position: absolute;
-  width: 8.33%;
-  height: 20%;
-  border-radius: 8px;
+  border-radius: 10px;
   pointer-events: none;
   border: 2px solid var(--color-accent);
   box-shadow: 0 0 16px color-mix(in srgb, var(--color-accent) 55%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
   z-index: 3;
 }
 

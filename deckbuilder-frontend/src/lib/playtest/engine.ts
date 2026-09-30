@@ -352,6 +352,36 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       pushLog(next, `${seat.name} created ${action.card.name}`);
       break;
     }
+    case "remove": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      found.seat.zones[found.zone].splice(found.index, 1);
+      pushLog(next, `Removed ${found.card.name}`);
+      break;
+    }
+    case "clone": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      const copy: PlayCard = {
+        ...structuredClone(found.card),
+        instanceId: uid("tok"),
+        token: true,
+        tapped: false,
+        x: found.card.x != null ? found.card.x + 3 : undefined,
+        y: found.card.y != null ? found.card.y + 3 : undefined,
+      };
+      found.seat.zones.battlefield.push(copy);
+      pushLog(next, `Token copy of ${found.card.name}`);
+      break;
+    }
+    case "exileTop": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const taken = seat.zones.library.splice(0, action.n);
+      seat.zones.exile.push(...taken);
+      pushLog(next, `${seat.name} exiled top ${taken.length}`);
+      break;
+    }
     case "log":
       pushLog(next, action.text);
       break;
