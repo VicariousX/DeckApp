@@ -115,6 +115,7 @@ function PlayFace({
     data: { card },
   });
   const src = cardImage(card);
+  const { onPointerDown: dndPointerDown, ...dndListeners } = listeners;
   return (
     <button
       type="button"
@@ -128,8 +129,11 @@ function PlayFace({
         onActivate(e);
       }}
       onContextMenu={onMenu}
-      onPointerDown={(e) => onGrab?.(e as unknown as ReactMouseEvent)}
-      {...listeners}
+      onPointerDown={(e) => {
+        onGrab?.(e as unknown as ReactMouseEvent);
+        dndPointerDown?.(e);
+      }}
+      {...dndListeners}
       {...attributes}
     >
       <TiltFace enabled={!isDragging && !card.facedown}>
@@ -373,7 +377,9 @@ export function PlaytestPage() {
     setActiveDrag(card ?? null);
     if (card) setSelected(card.instanceId);
     const ev = e.activatorEvent as PointerEvent | MouseEvent | undefined;
-    const rect = e.active.rect.current.initial;
+    const target = (ev as Event | undefined)?.target as HTMLElement | undefined;
+    const node = target?.closest?.("button") ?? target;
+    const rect = node?.getBoundingClientRect?.();
     if (ev && rect) {
       grabRef.current = {
         dx: ev.clientX - rect.left,
@@ -522,10 +528,19 @@ export function PlaytestPage() {
       sensors={sensors}
       collisionDetection={pointerWithin}
       onDragStart={onDragStart}
-      onDragMove={() => {
-        const snap = snapField();
+      onDragMove={(e) => {
         const el = ghostRef.current;
-        if (!el || !snap) return;
+        if (!el) return;
+        const over = e.over?.data.current as { zone?: PlayZone; row?: string } | undefined;
+        if (over?.zone !== "battlefield" || over?.row !== "field") {
+          el.style.display = "none";
+          return;
+        }
+        const snap = snapField();
+        if (!snap) {
+          el.style.display = "none";
+          return;
+        }
         el.style.display = "block";
         el.style.left = `${snap.left}px`;
         el.style.top = `${snap.top}px`;
