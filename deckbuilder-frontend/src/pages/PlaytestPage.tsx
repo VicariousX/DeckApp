@@ -143,6 +143,32 @@ function bumpX(n: number, e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boo
   return Math.max(1, n + dir * stepFromEvent(e));
 }
 
+function plusKey(card: PlayCard) {
+  return /\bplaneswalker\b/i.test(card.typeLine) ? "loyalty" : "+1/+1";
+}
+
+function tokenStackKey(c: PlayCard) {
+  return `${c.oracleId || c.name}|${c.tapped ? 1 : 0}|${c.facedown ? 1 : 0}|${JSON.stringify(c.counters)}`;
+}
+
+function groupFieldCards(cards: PlayCard[]) {
+  const shown: { card: PlayCard; stack: PlayCard[] }[] = [];
+  const used = new Set<string>();
+  for (const c of cards) {
+    if (used.has(c.instanceId)) continue;
+    if (c.token) {
+      const key = tokenStackKey(c);
+      const stack = cards.filter((x) => x.token && tokenStackKey(x) === key);
+      stack.forEach((x) => used.add(x.instanceId));
+      shown.push({ card: c, stack });
+    } else {
+      used.add(c.instanceId);
+      shown.push({ card: c, stack: [c] });
+    }
+  }
+  return shown;
+}
+
 function PlayFace({
   card,
   selected,
@@ -152,6 +178,8 @@ function PlayFace({
   onHover,
   onDoubleClick,
   style,
+  stackCount,
+  onCounter,
 }: {
   card: PlayCard;
   selected: boolean;
@@ -161,6 +189,8 @@ function PlayFace({
   onHover?: (card: PlayCard | null) => void;
   onDoubleClick?: (e: ReactMouseEvent) => void;
   style?: CSSProperties;
+  stackCount?: number;
+  onCounter?: (key: string, delta: number, e: ReactMouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.instanceId,
@@ -207,6 +237,26 @@ function PlayFace({
           <span className={styles.cardFace}>{card.name}</span>
         )}
       </TiltFace>
+      {stackCount && stackCount > 1 ? <span className={styles.stackBadge}>×{stackCount}</span> : null}
+      {onCounter && !card.facedown ? (
+        <button
+          type="button"
+          className={styles.counterChip}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCounter(plusKey(card), 1, e);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCounter(plusKey(card), -1, e);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {/\bplaneswalker\b/i.test(card.typeLine) ? "L" : "+"}
+          {card.counters[plusKey(card)] ?? 0}
+        </button>
+      ) : null}
     </button>
   );
 }
@@ -417,47 +467,75 @@ export function PlaytestPage() {
   }, [marquee ? 1 : 0]);
 
   useEffect(() => {
+    function selectionIds(): string[] {
+      if (!table) return [];
+      const seat = table.seats[0];
+      const hover = hoverRef.current;
+      if (hover && picked.includes(hover.instanceId) && picked.length > 1) return picked;
+      if (hover) return [hover.instanceId];
+      if (selected && picked.includes(selected) && picked.length > 1) return picked;
+      if (selected) return [selected];
+      return [];
+    }
     function onKey(e: KeyboardEvent) {
       if (!table) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       const seat = table.seats[0];
-      if (e.key === "d" || e.key === "D") {
+      const ids = selectionIds();
+      const key = e.key;
+      if (key === "d" || key === "D") {
         dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount });
-      }
-      if (e.key === "n" || e.key === "N") {
-        dispatch({
-          type: "nextTurn",
-          untap: settings.nextTurnUntap,
-          draw: settings.nextTurnDraw,
-        });
-      }
-      if (e.key === "u" || e.key === "U") {
+      } else if (key === "n" || key === "N") {
+        dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw });
+      } else if (key === "u" || key === "U") {
+        dispatch({ type: "untapAll", seatId: seat.id });
+      } else if ((key === "z" || key === "Z") && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
         const prev = history.current.pop();
         if (prev) setTable(prev);
-      }
-      if (e.key === "e" || e.key === "E") {
-        const card = hoverRef.current;
-        const ids = card
-          ? picked.includes(card.instanceId) && picked.length > 1
-            ? picked
-            : [card.instanceId]
-          : selected
-            ? picked.includes(selected) && picked.length > 1
-              ? picked
-              : [selected]
-            : [];
-        if (ids.length) {
-          const all = Object.values(seat.zones).flat();
-          const cards = ids.map((id) => all.find((c) => c.instanceId === id)).filter((c): c is PlayCard => Boolean(c));
-          dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
-        }
-      }
-      if (e.key === "Escape") {
+      } else if (key === "s" || key === "S") {
+        dispatch({ type: "shuffle", seatId: seat.id });
+      } else if (key === "r" || key === "R") {
+        void start(true);
+      } else if (key === "t" || key === "T") {
+        if (!ids.length) return;
+        const all = Object.values(seat.zones).flat();
+        const cards = ids.map((id) => all.find((c) => c.instanceId === id)).filter((c): c is PlayCard => Boolean(c));
+        dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
+      } else if (key === "f" || key === "F") {
+        ids.forEach((id) => dispatch({ type: "flip", instanceId: id }));
+      } else if (key === "x" || key === "X") {
+        if (ids.length) dispatch({ type: "cloneMany", instanceIds: ids });
+      } else if (key === "g" || key === "G") {
+        if (ids.length) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "graveyard" });
+      } else if (key === "e" || key === "E") {
+        if (ids.length) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "exile" });
+      } else if (key === "h" || key === "H") {
+        if (ids.length) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "hand" });
+      } else if (key === "b" || key === "B") {
+        if (ids.length) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "battlefield" });
+      } else if (key === "c" || key === "C") {
+        if (ids.length) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "command" });
+      } else if (key === "l" || key === "L") {
+        if (!ids.length) return;
+        if (e.shiftKey) dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "library" });
+        else dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "library", index: 0 });
+      } else if (key === "v" || key === "V") {
+        setSearchZone("library");
+      } else if (key === "p" || key === "P") {
+        dispatch({ type: "proliferate", seatId: seat.id });
+      } else if (key === "a" || key === "A") {
+        if (ids.length) dispatch({ type: "align", instanceIds: ids });
+      } else if (key === "+" || key === "=" || key === "ArrowUp") {
+        dispatch({ type: "life", seatId: seat.id, delta: stepFromEvent(e) });
+      } else if (key === "-" || key === "_" || key === "ArrowDown") {
+        dispatch({ type: "life", seatId: seat.id, delta: -stepFromEvent(e) });
+      } else if (key === "Escape") {
         setEnhanceList([]);
         setMarquee(null);
-      }
-      if (e.key === "Alt") setAltPeek(true);
+        clearSelection();
+      } else if (key === "Alt") setAltPeek(true);
     }
     function onUp(e: KeyboardEvent) {
       if (e.key === "Alt") setAltPeek(false);
@@ -468,7 +546,7 @@ export function PlaytestPage() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onUp);
     };
-  }, [dispatch, picked, selected, settings, table]);
+  }, [clearSelection, dispatch, picked, selected, settings, start, table]);
 
   const seat = table?.seats[0];
   const libReveal = (seat && table?.libraryReveal?.[seat.id]) || "hidden";
@@ -551,16 +629,25 @@ export function PlaytestPage() {
     card,
     style,
     zone,
+    stack,
   }: {
     card: PlayCard;
     style?: CSSProperties;
     zone?: PlayZone;
+    stack?: PlayCard[];
   }) {
+    const stackIds = (stack && stack.length ? stack : [card]).map((c) => c.instanceId);
     return (
       <PlayFace
         card={card}
-        selected={selected === card.instanceId || picked.includes(card.instanceId)}
+        selected={stackIds.some((id) => selected === id || picked.includes(id))}
         style={style}
+        stackCount={stackIds.length}
+        onCounter={
+          zone === "battlefield" || card.token
+            ? (key, delta) => dispatch({ type: "counterMany", instanceIds: stackIds, key, delta })
+            : undefined
+        }
         onHover={(c) => {
           hoverRef.current = c;
           setHoverCard(c);
@@ -568,9 +655,9 @@ export function PlaytestPage() {
         onActivate={(ev) => {
           const group = () => {
             const ids =
-              picked.includes(card.instanceId) && picked.length > 1
+              stackIds.some((id) => picked.includes(id)) && picked.length > 1
                 ? picked
-                : [card.instanceId];
+                : stackIds;
             const map = new Map(
               Object.values(seat?.zones ?? {}).flat().map((c) => [c.instanceId, c])
             );
@@ -581,11 +668,10 @@ export function PlaytestPage() {
             return;
           }
           if (ev.ctrlKey || ev.metaKey) {
-            setPicked((cur) =>
-              cur.includes(card.instanceId)
-                ? cur.filter((id) => id !== card.instanceId)
-                : [...cur, card.instanceId]
-            );
+            setPicked((cur) => {
+              const has = stackIds.every((id) => cur.includes(id));
+              return has ? cur.filter((id) => !stackIds.includes(id)) : [...cur, ...stackIds];
+            });
             setSelected(card.instanceId);
             return;
           }
@@ -604,7 +690,7 @@ export function PlaytestPage() {
             return;
           }
           lastClickRef.current = { id: card.instanceId, at: now };
-          setPicked([card.instanceId]);
+          setPicked(stackIds);
           setSelected(card.instanceId);
         }}
         onGrab={(ev) => {
@@ -624,7 +710,7 @@ export function PlaytestPage() {
             return;
           }
           setSelected(card.instanceId);
-          if (!picked.includes(card.instanceId)) setPicked([card.instanceId]);
+          if (!stackIds.every((id) => picked.includes(id))) setPicked(stackIds);
           setMenu({ ...clampMenu(ev.clientX, ev.clientY, 200, 320), card });
         }}
       />
@@ -806,6 +892,36 @@ export function PlaytestPage() {
             </button>
           </div>
         </div>
+        <div className={styles.cmdStrip}>
+          <button
+            type="button"
+            className={styles.stat}
+            onClick={(e) => dispatch({ type: "tax", seatId: seat.id, delta: stepFromEvent(e) })}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              dispatch({ type: "tax", seatId: seat.id, delta: -stepFromEvent(e) });
+            }}
+          >
+            Tax {seat.commanderTax ?? 0}
+          </button>
+          <button
+            type="button"
+            className={styles.stat}
+            onClick={(e) => dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: stepFromEvent(e) })}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: -stepFromEvent(e) });
+            }}
+          >
+            Cmd dmg {seat.commanderDamage?.opp ?? 0}
+          </button>
+          <button type="button" className={styles.stat} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>
+            Untap
+          </button>
+          <button type="button" className={styles.stat} onClick={() => dispatch({ type: "proliferate", seatId: seat.id })}>
+            Proliferate
+          </button>
+        </div>
 
 
         <div className={styles.board}>
@@ -828,12 +944,12 @@ export function PlaytestPage() {
               }}
             >
               <span ref={ghostRef} className={styles.gridGhost} style={{ display: "none" }} />
-              {seat.zones.battlefield
-                .filter((c) => c.row !== "lands")
-                .map((c) => (
+              {groupFieldCards(seat.zones.battlefield.filter((c) => c.row !== "lands")).map(({ card: c, stack }) => (
                   <CardView
                     key={c.instanceId}
                     card={c}
+                    zone="battlefield"
+                    stack={stack}
                     style={
                       c.x != null && c.y != null
                         ? {
@@ -938,6 +1054,13 @@ export function PlaytestPage() {
               dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
               setMenu(null);
             }}>Tap / untap</button>
+            <button type="button" onClick={() => {
+              dispatch({ type: "counterMany", instanceIds: targets(menu.card.instanceId), key: plusKey(menu.card), delta: 1 });
+            }}>+ {plusKey(menu.card)}</button>
+            <button type="button" onClick={() => {
+              dispatch({ type: "align", instanceIds: targets(menu.card.instanceId) });
+              setMenu(null);
+            }}>Align</button>
             <button type="button" onClick={() => setBranch((b) => (b === "move" ? null : "move"))}>Move to ▸</button>
             {branch === "move" && (
               <div className={styles.menuBlock}>
@@ -1063,6 +1186,8 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: libX }); setTableMenu(null); }}>Draw {xv(libX)}</button>
             <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
+            <button type="button" onClick={() => { dispatch({ type: "untapAll", seatId: seat.id }); setTableMenu(null); }}>Untap all</button>
+            <button type="button" onClick={() => { dispatch({ type: "proliferate", seatId: seat.id }); setTableMenu(null); }}>Proliferate</button>
             <button type="button" onClick={() => { dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan }); setTableMenu(null); }}>Mulligan</button>
             <button type="button" onClick={() => setBranch((b) => (b === "mech" ? null : "mech"))}>Mechanics ▸</button>
             {branch === "mech" && (

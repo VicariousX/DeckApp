@@ -38,6 +38,7 @@ export type SeatState = {
   poison: number;
   energy: number;
   experience: number;
+  commanderTax: number;
   commanderDamage: Record<string, number>;
   zones: Record<PlayZone, PlayCard[]>;
   mulligans: number;
@@ -72,8 +73,12 @@ export type PlayAction =
   | { type: "flip"; instanceId: string; face?: 0 | 1 }
   | { type: "facedown"; instanceId: string; facedown?: boolean }
   | { type: "counter"; instanceId: string; key: string; delta: number }
+  | { type: "counterMany"; instanceIds: string[]; key: string; delta: number }
+  | { type: "proliferate"; seatId: string }
   | { type: "life"; seatId: string; delta: number }
   | { type: "stat"; seatId: string; key: "poison" | "energy" | "experience"; delta: number }
+  | { type: "tax"; seatId: string; delta: number }
+  | { type: "cmdDamage"; seatId: string; from: string; delta: number }
   | { type: "nextTurn"; untap?: boolean; draw?: number }
   | { type: "scry"; seatId: string; keepTop: string[]; bottom: string[]; grave?: string[] }
   | { type: "bottomRandom"; seatId: string; instanceIds: string[] }
@@ -86,6 +91,7 @@ export type PlayAction =
   | { type: "cloneMany"; instanceIds: string[] }
   | { type: "exileTop"; seatId: string; n: number }
   | { type: "revealTop"; seatId: string; mode: "hidden" | "self" | "all" }
+  | { type: "align"; instanceIds: string[] }
   | {
       type: "place";
       instanceId: string;

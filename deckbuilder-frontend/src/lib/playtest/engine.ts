@@ -126,6 +126,7 @@ export function createTableFromDeck(
     poison: 0,
     energy: 0,
     experience: 0,
+    commanderTax: 0,
     commanderDamage: {},
     zones,
     mulligans: 0,
@@ -193,6 +194,10 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
   const next = clone(state);
   if (next.rngStep == null) next.rngStep = 0;
   if (!next.libraryReveal) next.libraryReveal = {};
+  for (const s of next.seats) {
+    if (s.commanderTax == null) s.commanderTax = 0;
+    if (!s.commanderDamage) s.commanderDamage = {};
+  }
 
   switch (action.type) {
     case "shuffle": {
@@ -370,6 +375,64 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       const nextVal = cur + action.delta;
       if (nextVal === 0) delete found.card.counters[action.key];
       else found.card.counters[action.key] = nextVal;
+      break;
+    }
+    case "counterMany": {
+      for (const id of action.instanceIds) {
+        const found = findCard(next, id);
+        if (!found) continue;
+        const cur = found.card.counters[action.key] ?? 0;
+        const nextVal = cur + action.delta;
+        if (nextVal === 0) delete found.card.counters[action.key];
+        else found.card.counters[action.key] = nextVal;
+      }
+      break;
+    }
+    case "proliferate": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      let n = 0;
+      for (const c of seat.zones.battlefield) {
+        for (const [k, v] of Object.entries(c.counters)) {
+          if (v > 0) {
+            c.counters[k] = v + 1;
+            n += 1;
+          }
+        }
+      }
+      if (seat.poison > 0) seat.poison += 1;
+      if (seat.energy > 0) seat.energy += 1;
+      if (seat.experience > 0) seat.experience += 1;
+      pushLog(next, `${seat.name} proliferated${n ? ` (${n} counters)` : ""}`);
+      break;
+    }
+    case "tax": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat.commanderTax = Math.max(0, (seat.commanderTax ?? 0) + action.delta);
+      pushLog(next, `${seat.name} commander tax ${seat.commanderTax}`);
+      break;
+    }
+    case "cmdDamage": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const cur = seat.commanderDamage[action.from] ?? 0;
+      seat.commanderDamage[action.from] = Math.max(0, cur + action.delta);
+      pushLog(next, `${seat.name} commander damage ${seat.commanderDamage[action.from]}`);
+      break;
+    }
+    case "align": {
+      const cards = action.instanceIds
+        .map((id) => findCard(next, id)?.card)
+        .filter((c): c is PlayCard => Boolean(c));
+      if (!cards.length) break;
+      const startX = cards[0].x ?? 4;
+      const startY = cards[0].y ?? 8;
+      cards.forEach((c, i) => {
+        c.x = startX + i * 8;
+        c.y = startY;
+        c.row = "field";
+      });
       break;
     }
     case "life": {
