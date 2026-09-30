@@ -147,23 +147,33 @@ function plusKey(card: PlayCard) {
   return /\bplaneswalker\b/i.test(card.typeLine) ? "loyalty" : "+1/+1";
 }
 
-function tokenStackKey(c: PlayCard) {
-  return `${c.oracleId || c.name}|${c.tapped ? 1 : 0}|${c.facedown ? 1 : 0}|${JSON.stringify(c.counters)}`;
+function canHaveSickness(card: PlayCard) {
+  return /\b(creature|vehicle)\b/i.test(card.typeLine || "");
 }
 
-function groupFieldCards(cards: PlayCard[]) {
-  const shown: { card: PlayCard; stack: PlayCard[] }[] = [];
+function tokenStatus(card: PlayCard, turn: number): "sick" | "tapped" | "ready" {
+  if (card.tapped) return "tapped";
+  if (canHaveSickness(card) && (card.enteredTurn ?? turn) === turn) return "sick";
+  return "ready";
+}
+
+function tokenStackKey(c: PlayCard, turn: number) {
+  return `${c.oracleId || c.name}|${tokenStatus(c, turn)}|${c.facedown ? 1 : 0}|${JSON.stringify(c.counters)}`;
+}
+
+function groupFieldCards(cards: PlayCard[], turn: number) {
+  const shown: { card: PlayCard; stack: PlayCard[]; status: "sick" | "tapped" | "ready" | "single" }[] = [];
   const used = new Set<string>();
   for (const c of cards) {
     if (used.has(c.instanceId)) continue;
     if (c.token) {
-      const key = tokenStackKey(c);
-      const stack = cards.filter((x) => x.token && tokenStackKey(x) === key);
+      const key = tokenStackKey(c, turn);
+      const stack = cards.filter((x) => x.token && tokenStackKey(x, turn) === key);
       stack.forEach((x) => used.add(x.instanceId));
-      shown.push({ card: c, stack });
+      shown.push({ card: c, stack, status: tokenStatus(c, turn) });
     } else {
       used.add(c.instanceId);
-      shown.push({ card: c, stack: [c] });
+      shown.push({ card: c, stack: [c], status: "single" });
     }
   }
   return shown;
@@ -180,6 +190,8 @@ function PlayFace({
   style,
   stackCount,
   onCounter,
+  onStackDelta,
+  status,
 }: {
   card: PlayCard;
   selected: boolean;
@@ -191,6 +203,8 @@ function PlayFace({
   style?: CSSProperties;
   stackCount?: number;
   onCounter?: (key: string, delta: number, e: ReactMouseEvent) => void;
+  onStackDelta?: (delta: number, e: ReactMouseEvent) => void;
+  status?: "sick" | "tapped" | "ready" | "single";
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.instanceId,
@@ -207,7 +221,7 @@ function PlayFace({
       data-play-id={card.instanceId}
       className={`${styles.card}${card.tapped ? ` ${styles.tapped}` : ""}${
         selected ? ` ${styles.selected}` : ""
-      }${isDragging ? ` ${styles.dragging}` : ""}`}
+      }${status === "sick" ? ` ${styles.sick}` : ""}${isDragging ? ` ${styles.dragging}` : ""}`}
       style={{ ...style, opacity: isDragging ? 0.35 : style?.opacity }}
       onClick={(e) => {
         e.stopPropagation();
@@ -237,8 +251,28 @@ function PlayFace({
           <span className={styles.cardFace}>{card.name}</span>
         )}
       </TiltFace>
-      {stackCount && stackCount > 1 ? <span className={styles.stackBadge}>×{stackCount}</span> : null}
-      {onCounter && !card.facedown ? (
+      {onStackDelta ? (
+        <button
+          type="button"
+          className={styles.stackBadge}
+          title={status === "sick" ? "Summoning sick" : status === "tapped" ? "Tapped" : "Available"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onStackDelta(1, e);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onStackDelta(-1, e);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          ×{stackCount ?? 1}
+        </button>
+      ) : stackCount && stackCount > 1 ? (
+        <span className={styles.stackBadge}>×{stackCount}</span>
+      ) : null}
+      {onCounter && !card.facedown && (/\bplaneswalker\b/i.test(card.typeLine) || card.counters["+1/+1"] != null) ? (
         <button
           type="button"
           className={styles.counterChip}
@@ -256,6 +290,11 @@ function PlayFace({
           {/\bplaneswalker\b/i.test(card.typeLine) ? "L" : "+"}
           {card.counters[plusKey(card)] ?? 0}
         </button>
+      ) : null}
+      {status && status !== "single" ? (
+        <span className={styles.statusTag}>
+          {status === "sick" ? "sick" : status === "tapped" ? "tapped" : "ready"}
+        </span>
       ) : null}
     </button>
   );
@@ -487,7 +526,12 @@ export function PlaytestPage() {
       if (key === "d" || key === "D") {
         dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount });
       } else if (key === "n" || key === "N") {
-        dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw });
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          void start(true);
+        } else {
+          dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw });
+        }
       } else if (key === "u" || key === "U") {
         dispatch({ type: "untapAll", seatId: seat.id });
       } else if ((key === "z" || key === "Z") && (e.ctrlKey || e.metaKey)) {
@@ -496,8 +540,6 @@ export function PlaytestPage() {
         if (prev) setTable(prev);
       } else if (key === "s" || key === "S") {
         dispatch({ type: "shuffle", seatId: seat.id });
-      } else if (key === "r" || key === "R") {
-        void start(true);
       } else if (key === "t" || key === "T") {
         if (!ids.length) return;
         const all = Object.values(seat.zones).flat();
@@ -643,6 +685,12 @@ export function PlaytestPage() {
         selected={stackIds.some((id) => selected === id || picked.includes(id))}
         style={style}
         stackCount={stackIds.length}
+        status={card.token ? tokenStatus(card, table?.turn ?? 1) : "single"}
+        onStackDelta={
+          card.token
+            ? (delta) => dispatch({ type: "stackDelta", instanceId: card.instanceId, delta })
+            : undefined
+        }
         onCounter={
           zone === "battlefield" || card.token
             ? (key, delta) => dispatch({ type: "counterMany", instanceIds: stackIds, key, delta })
@@ -923,6 +971,34 @@ export function PlaytestPage() {
           </button>
         </div>
 
+        {seat && table.keptHand?.[seat.id] === false && (
+          <div className={styles.mulliganDock}>
+            <div className={styles.mulliganCopy}>
+              <strong>Opening hand</strong>
+              <span>Drag extras onto Bottom of library, then Keep — or take another {settings.mulligan} mulligan.</span>
+            </div>
+            <div className={styles.mulliganRow}>
+              {seat.zones.hand.map((c) => (
+                <CardView key={`mull-${c.instanceId}`} card={c} zone="hand" />
+              ))}
+            </div>
+            <ZoneDrop zone="library" className={styles.bottomWell}>
+              <span>Bottom of library</span>
+            </ZoneDrop>
+            <div className={styles.mulliganActions}>
+              <button type="button" className={styles.primary} onClick={() => dispatch({ type: "keep", seatId: seat.id })}>
+                Keep
+              </button>
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan })}
+              >
+                Mulligan
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className={styles.board}>
           <div className={styles.battlefield} ref={bfRef}>
@@ -944,7 +1020,7 @@ export function PlaytestPage() {
               }}
             >
               <span ref={ghostRef} className={styles.gridGhost} style={{ display: "none" }} />
-              {groupFieldCards(seat.zones.battlefield.filter((c) => c.row !== "lands")).map(({ card: c, stack }) => (
+              {groupFieldCards(seat.zones.battlefield.filter((c) => c.row !== "lands"), table.turn).map(({ card: c, stack, status }) => (
                   <CardView
                     key={c.instanceId}
                     card={c}
@@ -1061,6 +1137,18 @@ export function PlaytestPage() {
               dispatch({ type: "align", instanceIds: targets(menu.card.instanceId) });
               setMenu(null);
             }}>Align</button>
+            {picked.length > 1 ? (
+              <button type="button" onClick={() => {
+                dispatch({ type: "attach", instanceIds: targets(menu.card.instanceId).filter((id) => id !== menu.card.instanceId), to: menu.card.instanceId });
+                setMenu(null);
+              }}>Attach selection</button>
+            ) : null}
+            {menu.card.attachedTo ? (
+              <button type="button" onClick={() => {
+                dispatch({ type: "attach", instanceIds: [menu.card.instanceId], to: null });
+                setMenu(null);
+              }}>Detach</button>
+            ) : null}
             <button type="button" onClick={() => setBranch((b) => (b === "move" ? null : "move"))}>Move to ▸</button>
             {branch === "move" && (
               <div className={styles.menuBlock}>

@@ -142,6 +142,7 @@ export function createTableFromDeck(
     seed,
     rngStep: 0,
     libraryReveal: { [seatId]: "hidden" },
+    keptHand: { [seatId]: false },
     turn: 1,
     activeSeat: seatId,
     seats: [seat],
@@ -194,6 +195,7 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
   const next = clone(state);
   if (next.rngStep == null) next.rngStep = 0;
   if (!next.libraryReveal) next.libraryReveal = {};
+  if (!next.keptHand) next.keptHand = {};
   for (const s of next.seats) {
     if (s.commanderTax == null) s.commanderTax = 0;
     if (!s.commanderDamage) s.commanderDamage = {};
@@ -246,20 +248,25 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     case "keep": {
       const seat = seatOf(next, action.seatId);
       if (!seat) break;
+      next.keptHand = { ...(next.keptHand ?? {}), [seat.id]: true };
       pushLog(next, `${seat.name} kept a hand of ${seat.zones.hand.length}`);
       break;
     }
     case "move": {
       const found = findCard(next, action.instanceId);
       if (!found) break;
+      const fromZone = found.zone;
       const [card] = found.seat.zones[found.zone].splice(found.index, 1);
       if (action.to !== "battlefield") {
         card.tapped = false;
         card.row = undefined;
         card.x = undefined;
         card.y = undefined;
-      } else if (!card.row) {
-        card.row = "field";
+        card.enteredTurn = undefined;
+        card.attachedTo = undefined;
+      } else {
+        if (!card.row) card.row = "field";
+        if (fromZone !== "battlefield") card.enteredTurn = next.turn;
       }
       const destSeat = seatOf(next, action.seatId) ?? found.seat;
       const dest = destSeat.zones[action.to];
@@ -302,14 +309,18 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       action.instanceIds.forEach((id, i) => {
         const found = findCard(next, id);
         if (!found) return;
+        const fromZone = found.zone;
         const [card] = found.seat.zones[found.zone].splice(found.index, 1);
         if (action.to !== "battlefield") {
           card.tapped = false;
           card.row = undefined;
           card.x = undefined;
           card.y = undefined;
-        } else if (!card.row) {
-          card.row = "field";
+          card.enteredTurn = undefined;
+          card.attachedTo = undefined;
+        } else {
+          if (!card.row) card.row = "field";
+          if (fromZone !== "battlefield") card.enteredTurn = next.turn;
         }
         const destSeat = seatOf(next, action.seatId) ?? found.seat;
         const dest = destSeat.zones[action.to];
@@ -337,11 +348,61 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
           instanceId: uid("tok"),
           token: true,
           tapped: false,
+          attachedTo: undefined,
+          enteredTurn: next.turn,
           x: found.card.x != null ? found.card.x + 3 : undefined,
           y: found.card.y != null ? found.card.y + 3 : undefined,
         });
       }
       if (action.instanceIds.length) pushLog(next, `Token copies ×${action.instanceIds.length}`);
+      break;
+    }
+    case "stackDelta": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      if (action.delta > 0) {
+        for (let i = 0; i < action.delta; i += 1) {
+          found.seat.zones.battlefield.push({
+            ...structuredClone(found.card),
+            instanceId: uid("tok"),
+            token: true,
+            attachedTo: undefined,
+            x: found.card.x,
+            y: found.card.y,
+            enteredTurn: found.card.enteredTurn ?? next.turn,
+          });
+        }
+        pushLog(next, `${found.card.name} ×${action.delta} added`);
+      } else if (action.delta < 0) {
+        const want = Math.abs(action.delta);
+        const key = `${found.card.oracleId}|${found.card.tapped}|${found.card.facedown}|${found.card.enteredTurn ?? ""}|${JSON.stringify(found.card.counters)}`;
+        const matches = found.seat.zones.battlefield.filter(
+          (c) =>
+            c.token &&
+            `${c.oracleId}|${c.tapped}|${c.facedown}|${c.enteredTurn ?? ""}|${JSON.stringify(c.counters)}` === key
+        );
+        const cut = matches.slice(-want);
+        const ids = new Set(cut.map((c) => c.instanceId));
+        found.seat.zones.battlefield = found.seat.zones.battlefield.filter((c) => !ids.has(c.instanceId));
+        pushLog(next, `Removed ${cut.length} ${found.card.name}`);
+      }
+      break;
+    }
+    case "attach": {
+      for (const id of action.instanceIds) {
+        if (id === action.to) continue;
+        const found = findCard(next, id);
+        if (!found) continue;
+        found.card.attachedTo = action.to ?? undefined;
+        if (action.to) {
+          const host = findCard(next, action.to);
+          if (host && host.card.x != null) {
+            found.card.x = host.card.x + 2;
+            found.card.y = (host.card.y ?? 0) + 6;
+            found.card.row = host.card.row ?? "field";
+          }
+        }
+      }
       break;
     }
     case "revealTop": {
@@ -517,6 +578,7 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
         instanceId: uid("tok"),
         ownerSeat: seat.id,
         token: true,
+        enteredTurn: next.turn,
       });
       pushLog(next, `${seat.name} created ${action.card.name}`);
       break;
@@ -536,6 +598,8 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
         instanceId: uid("tok"),
         token: true,
         tapped: false,
+        attachedTo: undefined,
+        enteredTurn: next.turn,
         x: found.card.x != null ? found.card.x + 3 : undefined,
         y: found.card.y != null ? found.card.y + 3 : undefined,
       };

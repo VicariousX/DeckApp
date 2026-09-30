@@ -28,6 +28,7 @@ export type PlayCard = {
   x?: number;
   y?: number;
   row?: "field" | "lands";
+  enteredTurn?: number;
 };
 
 export type SeatState = {
@@ -58,6 +59,7 @@ export type TableState = {
   log: { at: number; text: string }[];
   started: boolean;
   libraryReveal: Record<string, "hidden" | "self" | "all">;
+  keptHand?: Record<string, boolean>;
 };
 
 export type PlayAction =
@@ -89,6 +91,8 @@ export type PlayAction =
   | { type: "removeMany"; instanceIds: string[] }
   | { type: "clone"; instanceId: string }
   | { type: "cloneMany"; instanceIds: string[] }
+  | { type: "stackDelta"; instanceId: string; delta: number }
+  | { type: "attach"; instanceIds: string[]; to: string | null }
   | { type: "exileTop"; seatId: string; n: number }
   | { type: "revealTop"; seatId: string; mode: "hidden" | "self" | "all" }
   | { type: "align"; instanceIds: string[] }
