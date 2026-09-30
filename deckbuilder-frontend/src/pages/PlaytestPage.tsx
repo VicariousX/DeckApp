@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -82,6 +83,36 @@ function clampMenu(x: number, y: number, w = 220, h = 320) {
   const top = Math.min(window.innerHeight - maxH - pad, Math.max(pad, y));
   const flyLeft = left + maxW + 168 > window.innerWidth;
   return { x: left, y: top, flyLeft };
+}
+
+function MenuBox({
+  x,
+  y,
+  children,
+}: {
+  x: number;
+  y: number;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    let left = x;
+    let top = y;
+    if (left + r.width > window.innerWidth - 8) left = window.innerWidth - r.width - 8;
+    if (top + r.height > window.innerHeight - 8) top = window.innerHeight - r.height - 8;
+    if (left < 8) left = 8;
+    if (top < 8) top = 8;
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  });
+  return (
+    <div ref={ref} className={styles.menu} style={{ left: x, top: y }} onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  );
 }
 
 function useHScroll() {
@@ -248,6 +279,7 @@ export function PlaytestPage() {
   const [altPeek, setAltPeek] = useState(false);
   const [libSlot, setLibSlot] = useState(1);
   const [libDestOpen, setLibDestOpen] = useState(false);
+  const [branch, setBranch] = useState<string | null>(null);
   const [libReveal, setLibReveal] = useState<"hidden" | "self" | "all">("hidden");
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const marqueeRef = useRef(marquee);
@@ -340,6 +372,7 @@ export function PlaytestPage() {
     function close() {
       setMenu(null);
       setTableMenu(null);
+      setBranch(null);
       setMoveOpen(false);
       setLibMenu(null);
       if (!countsLocked) setCountsOpen(false);
@@ -709,12 +742,21 @@ export function PlaytestPage() {
     >
       <div
         className={`${transitions.page} ${styles.page}`}
+        onPointerDown={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest("[data-play-id]") || t.closest(`.${styles.menu}`) || t.closest("input")) return;
+          if (e.button === 0) {
+            setPicked([]);
+            setSelected(null);
+          }
+        }}
         onContextMenu={(e) => {
           const t = e.target as HTMLElement;
           if (t.closest("button") || t.closest("a") || t.closest("input") || t.closest(`.${styles.card}`)) return;
           e.preventDefault();
           setMenu(null);
-          setTableMenu(clampMenu(e.clientX, e.clientY, 200, 340));
+          setBranch(null);
+          setTableMenu(clampMenu(e.clientX, e.clientY, 220, 360));
         }}
       >
         <div className={styles.top}>
@@ -881,171 +923,139 @@ export function PlaytestPage() {
         )}
 
         {menu && (
-          <div
-            className={styles.menu}
-            style={{ left: menu.x, top: menu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button type="button" onClick={() => {
-              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
-              setMenu(null);
-            }}>
-              Tap / untap
-            </button>
+          <MenuBox x={menu.x} y={menu.y}>
+            <div className={styles.xRail}>
+              <button
+                type="button"
+                className={styles.xChip}
+                onClick={(e) => { e.stopPropagation(); setLibSlot((n) => bumpX(n, e, 1)); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibSlot((n) => bumpX(n, e, -1)); }}
+              >
+                X={libSlot}
+              </button>
+            </div>
             <button type="button" onClick={() => {
               const ids = targets(menu.card.instanceId);
               const all = Object.values(seat.zones).flat();
               setEnhanceList(ids.map((id) => all.find((x) => x.instanceId === id)).filter((x): x is PlayCard => Boolean(x)));
               setMenu(null);
-            }}>
-              Enhance
-            </button>
-            <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>
-              Flip card
-            </button>
-            <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>
-              Switch face
-            </button>
+            }}>Enhance</button>
             <button type="button" onClick={() => {
-              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "clone", instanceId: id }));
+              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
               setMenu(null);
-            }}>
-              Make Token Copy
-            </button>
-            <button type="button" onClick={() => {
-              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "remove", instanceId: id }));
-              setPicked([]);
-              setMenu(null);
-            }}>
-              Remove from table
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMoveOpen((v) => !v);
-              }}
-            >
-              Move to ▸
-            </button>
-            {moveOpen && (
-              <div
-                className={styles.flyout}
-                style={{
-                  left: "flyLeft" in menu && menu.flyLeft ? "auto" : "100%",
-                  right: "flyLeft" in menu && menu.flyLeft ? "100%" : "auto",
-                }}
-              >
-                {MOVE_ZONES.map((z) => (
+            }}>Tap / untap</button>
+            <button type="button" onClick={() => setBranch((b) => (b === "move" ? null : "move"))}>Move to ▸</button>
+            {branch === "move" && (
+              <div className={styles.menuBlock}>
+                {MOVE_ZONES.map((z) =>
                   z.id === "library" ? (
-                    <div key={z.id} className={styles.menuNested}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLibDestOpen((v) => !v);
-                        }}
-                      >
-                        Library ▸
-                      </button>
+                    <div key={z.id}>
+                      <button type="button" onClick={() => setLibDestOpen((v) => !v)}>Library ▸</button>
                       {libDestOpen && (
-                        <div className={styles.flyout2}>
+                        <div className={styles.menuBlock}>
                           <button type="button" onClick={() => {
                             targets(menu.card.instanceId).forEach((id, i) =>
                               dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library", index: i })
                             );
-                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                            setMenu(null); setBranch(null); setLibDestOpen(false);
                           }}>Top</button>
                           <button type="button" onClick={() => {
                             targets(menu.card.instanceId).forEach((id) =>
                               dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library" })
                             );
-                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                            setMenu(null); setBranch(null); setLibDestOpen(false);
                           }}>Bottom</button>
                           <button type="button" onClick={() => {
                             const slot = Math.max(1, libSlot) - 1;
                             targets(menu.card.instanceId).forEach((id, i) =>
                               dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library", index: slot + i })
                             );
-                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
-                          }}>
-                            Slot {xv(libSlot)} from top
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.xChip}
-                            onClick={(e) => { e.stopPropagation(); setLibSlot((n) => bumpX(n, e, 1)); }}
-                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibSlot((n) => bumpX(n, e, -1)); }}
-                          >
-                            X={libSlot}
-                          </button>
+                            setMenu(null); setBranch(null); setLibDestOpen(false);
+                          }}>Slot {xv(libSlot)} from top</button>
                           <button type="button" onClick={() => {
                             targets(menu.card.instanceId).forEach((id) =>
                               dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library" })
                             );
                             dispatch({ type: "shuffle", seatId: seat.id });
-                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                            setMenu(null); setBranch(null); setLibDestOpen(false);
                           }}>Shuffle in</button>
                         </div>
                       )}
                     </div>
                   ) : (
-                  <button
-                    key={z.id}
-                    type="button"
-                    onClick={() => {
-                      targets(menu.card.instanceId).forEach((id) =>
-                        dispatch({ type: "move", seatId: seat.id, instanceId: id, to: z.id })
-                      );
-                      setMenu(null);
-                      setMoveOpen(false);
-                    }}
-                  >
-                    {z.label}
-                  </button>
+                    <button
+                      key={z.id}
+                      type="button"
+                      onClick={() => {
+                        targets(menu.card.instanceId).forEach((id) =>
+                          dispatch({ type: "move", seatId: seat.id, instanceId: id, to: z.id })
+                        );
+                        setMenu(null); setBranch(null);
+                      }}
+                    >
+                      {z.label}
+                    </button>
                   )
-                ))}
+                )}
               </div>
             )}
-            <button type="button" onClick={() => { setInspect(menu.card); setMenu(null); }}>
-              Inspect
-            </button>
-          </div>
+            {searchZone === "library" && (
+              <>
+                <button type="button" onClick={() => setBranch((b) => (b === "libcard" ? null : "libcard"))}>Library actions ▸</button>
+                {branch === "libcard" && (
+                  <div className={styles.menuBlock}>
+                    <button type="button" onClick={() => {
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "library", index: 0 });
+                      dispatch({ type: "shuffle", seatId: seat.id });
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "library", index: 0 });
+                      setMenu(null);
+                    }}>Shuffle, place on top</button>
+                    <button type="button" onClick={() => {
+                      dispatch({ type: "log", text: `Revealed ${menu.card.name}` });
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "hand" });
+                      dispatch({ type: "shuffle", seatId: seat.id });
+                      setMenu(null);
+                    }}>Reveal, hand, shuffle</button>
+                    <button type="button" onClick={() => {
+                      dispatch({ type: "log", text: `Revealed ${menu.card.name}` });
+                      dispatch({ type: "shuffle", seatId: seat.id });
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "library", index: 0 });
+                      setMenu(null);
+                    }}>Reveal, shuffle, put on top</button>
+                    <button type="button" onClick={() => {
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "hand" });
+                      dispatch({ type: "shuffle", seatId: seat.id });
+                      setMenu(null);
+                    }}>Hand & shuffle</button>
+                    <button type="button" onClick={() => {
+                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: "library", index: 0 });
+                      setMenu(null);
+                    }}>Place on top</button>
+                  </div>
+                )}
+              </>
+            )}
+            <button type="button" onClick={() => setBranch((b) => (b === "cardx" ? null : "cardx"))}>More ▸</button>
+            {branch === "cardx" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>Flip card</button>
+                <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>Switch face</button>
+                <button type="button" onClick={() => {
+                  targets(menu.card.instanceId).forEach((id) => dispatch({ type: "clone", instanceId: id }));
+                  setMenu(null);
+                }}>Make Token Copy</button>
+                <button type="button" onClick={() => { setInspect(menu.card); setMenu(null); }}>Card page</button>
+                <button type="button" onClick={() => {
+                  targets(menu.card.instanceId).forEach((id) => dispatch({ type: "remove", instanceId: id }));
+                  setPicked([]);
+                  setMenu(null);
+                }}>Remove from table</button>
+              </div>
+            )}
+          </MenuBox>
         )}
-
         {tableMenu && (
-          <div className={styles.menu} style={{ left: tableMenu.x, top: tableMenu.y }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount }); setTableMenu(null); }}>Draw {xv(settings.drawCount)}</button>
-            <button type="button" onClick={() => { dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan }); setTableMenu(null); }}>Mulligan</button>
-            <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
-            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
-            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: settings.millCount }); setTableMenu(null); }}>Mill {xv(settings.millCount)}</button>
-            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry/Surveil {xv(settings.scryCount)}</button>
-            <button type="button" onClick={() => { history.current.pop(); const prev = history.current[history.current.length - 1]; if (prev) dispatch({ type: "hydrate", state: prev }); setTableMenu(null); }}>Undo</button>
-            <button type="button" onClick={() => { dispatch({ type: "log", text: `d20 = ${roll(20)}` }); setTableMenu(null); }}>Roll d20</button>
-            <button
-              type="button"
-              onClick={() => {
-                const face = Math.random() < 0.5 ? "Heads" : "Tails";
-                setCoin(face);
-                dispatch({ type: "log", text: `Coin: ${face}` });
-                setTableMenu(null);
-              }}
-            >
-              Flip a coin
-            </button>
-            <button type="button" onClick={() => { setKit({ kind: "tokens", tab: "tokens" }); setTableMenu(null); }}>Tokens</button>
-            <button type="button" onClick={() => { setKit({ kind: "side", tab: "side" }); setTableMenu(null); }}>Sideboard</button>
-            <button type="button" onClick={() => { setSettingsOpen(true); setTableMenu(null); }}>Settings</button>
-          </div>
-        )}
-
-        {libMenu && (
-          <div
-            className={styles.menu}
-            style={{ left: libMenu.x, top: libMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <MenuBox x={tableMenu.x} y={tableMenu.y}>
             <div className={styles.xRail}>
               <button
                 type="button"
@@ -1056,99 +1066,118 @@ export function PlaytestPage() {
                 X={libX}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                dispatch({ type: "draw", seatId: seat.id, n: libX });
-                setLibMenu(null);
-              }}
-            >
-              Draw {xv(libX)}
-            </button>
-            <button type="button" onClick={() => { setSearchZone("library"); setLibMenu(null); }}>
-              Search
-            </button>
-            <button type="button" onClick={() => { setLookKind("searchTop"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
-              Search top {xv(libX)}
-            </button>
-            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
-              Scry/Surveil {xv(libX)}
-            </button>
-            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setLibMenu(null); }}>
-              Mill {xv(libX)}
-            </button>
-            <button type="button" onClick={() => { dispatch({ type: "exileTop", seatId: seat.id, n: libX }); setLibMenu(null); }}>
-              Exile {xv(libX)}
-            </button>
-            <button type="button" onClick={() => {
-              const revealed: PlayCard[] = [];
-              let hit: string | null = null;
-              for (const c of seat.zones.library) {
-                revealed.push(c);
-                const land = /\bland\b/i.test(c.typeLine);
-                if (!land && manaValue(c) < libX) {
-                  hit = c.instanceId;
-                  break;
-                }
-              }
-              setLookKind("cascade");
-              setCascadeHit(hit);
-              setScryN(revealed);
-              setLibMenu(null);
-            }}>
-              Cascade {xv(libX)}
-            </button>
-            <button type="button" onClick={() => {
-              const revealed: PlayCard[] = [];
-              let hit: string | null = null;
-              for (const c of seat.zones.library) {
-                revealed.push(c);
-                const land = /\bland\b/i.test(c.typeLine);
-                if (!land && manaValue(c) <= libX) {
-                  hit = c.instanceId;
-                  break;
-                }
-              }
-              setLookKind("discover");
-              setCascadeHit(hit);
-              setScryN(revealed);
-              setLibMenu(null);
-            }}>
-              Discover {xv(libX)}
-            </button>
-            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>
-              Shuffle
-            </button>
-            <button type="button" onClick={() => { setLibReveal("self"); setLibMenu(null); }}>
-              Reveal top (only me)
-            </button>
-            <button type="button" onClick={() => { setLibReveal("all"); dispatch({ type: "log", text: `${seat.name} revealed the top of the library` }); setLibMenu(null); }}>
-              Reveal top (all)
-            </button>
-            <button type="button" onClick={() => { setLibReveal("hidden"); setLibMenu(null); }}>
-              Hide top
-            </button>
-            {["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"]
-              .map((name) =>
-                Object.values(seat.zones)
-                  .flat()
-                  .find((c) => c.name === name)
-              )
-              .filter((c): c is PlayCard => Boolean(c))
-              .map((land) => (
-                <button
-                  key={land.oracleId}
-                  type="button"
-                  onClick={() => {
-                    dispatch({ type: "move", seatId: seat.id, instanceId: land.instanceId, to: "battlefield" });
-                    dispatch({ type: "place", instanceId: land.instanceId, row: "lands" });
-                    setLibMenu(null);
-                  }}
-                >
-                  Get {land.name}
-                </button>
-              ))}
-          </div>
+            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: libX }); setTableMenu(null); }}>Draw {xv(libX)}</button>
+            <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
+            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
+            <button type="button" onClick={() => { dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan }); setTableMenu(null); }}>Mulligan</button>
+            <button type="button" onClick={() => setBranch((b) => (b === "mech" ? null : "mech"))}>Mechanics ▸</button>
+            {branch === "mech" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setTableMenu(null); }}>Mill {xv(libX)}</button>
+                <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, libX)); setTableMenu(null); }}>Scry/Surveil {xv(libX)}</button>
+                <button type="button" onClick={() => { setLookKind("searchTop"); setScryN(seat.zones.library.slice(0, libX)); setTableMenu(null); }}>Search top {xv(libX)}</button>
+              </div>
+            )}
+            <button type="button" onClick={() => setBranch((b) => (b === "roll" ? null : "roll"))}>Roll / flip ▸</button>
+            {branch === "roll" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { dispatch({ type: "log", text: `d20 = ${roll(20)}` }); setTableMenu(null); }}>d20</button>
+                <button type="button" onClick={() => { dispatch({ type: "log", text: `d6 = ${roll(6)}` }); setTableMenu(null); }}>d6</button>
+                <button type="button" onClick={() => { dispatch({ type: "log", text: `d${libX} = ${roll(libX)}` }); setTableMenu(null); }}>d{xv(libX)}</button>
+                <button type="button" onClick={() => { const face = Math.random() < 0.5 ? "Heads" : "Tails"; setCoin(face); dispatch({ type: "log", text: `Coin: ${face}` }); setTableMenu(null); }}>Coin flip</button>
+                <button type="button" onClick={() => {
+                  const flips = Array.from({ length: libX }, () => (Math.random() < 0.5 ? "H" : "T"));
+                  dispatch({ type: "log", text: `Flip ${libX}: ${flips.join(" ")}` });
+                  setTableMenu(null);
+                }}>Flip {xv(libX)}</button>
+              </div>
+            )}
+            <button type="button" onClick={() => setBranch((b) => (b === "extra" ? null : "extra"))}>Extra ▸</button>
+            {branch === "extra" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { const prev = history.current.pop(); if (prev) dispatch({ type: "hydrate", state: prev }); setTableMenu(null); }}>Undo</button>
+                <button type="button" onClick={() => { setKit({ kind: "tokens", tab: "tokens" }); setTableMenu(null); }}>Tokens</button>
+                <button type="button" onClick={() => { setKit({ kind: "side", tab: "side" }); setTableMenu(null); }}>Sideboard</button>
+                <button type="button" onClick={() => { setSettingsOpen(true); setTableMenu(null); }}>Settings</button>
+              </div>
+            )}
+          </MenuBox>
+        )}
+
+        {libMenu && (
+          <MenuBox x={libMenu.x} y={libMenu.y}>
+            <div className={styles.xRail}>
+              <button
+                type="button"
+                className={styles.xChip}
+                onClick={(e) => { e.stopPropagation(); setLibX((n) => bumpX(n, e, 1)); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibX((n) => bumpX(n, e, -1)); }}
+              >
+                X={libX}
+              </button>
+            </div>
+            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: libX }); setLibMenu(null); }}>Draw {xv(libX)}</button>
+            <button type="button" onClick={() => { setSearchZone("library"); setLibMenu(null); }}>Search</button>
+            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>Shuffle</button>
+            <button type="button" onClick={() => setBranch((b) => (b === "mech" ? null : "mech"))}>Mechanics ▸</button>
+            {branch === "mech" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { setLookKind("searchTop"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>Search top {xv(libX)}</button>
+                <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>Scry/Surveil {xv(libX)}</button>
+                <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setLibMenu(null); }}>Mill {xv(libX)}</button>
+                <button type="button" onClick={() => { dispatch({ type: "exileTop", seatId: seat.id, n: libX }); setLibMenu(null); }}>Exile {xv(libX)}</button>
+                <button type="button" onClick={() => {
+                  const revealed: PlayCard[] = [];
+                  let hit: string | null = null;
+                  for (const c of seat.zones.library) {
+                    revealed.push(c);
+                    const land = /\bland\b/i.test(c.typeLine);
+                    if (!land && manaValue(c) < libX) { hit = c.instanceId; break; }
+                  }
+                  setLookKind("cascade"); setCascadeHit(hit); setScryN(revealed); setLibMenu(null);
+                }}>Cascade {xv(libX)}</button>
+                <button type="button" onClick={() => {
+                  const revealed: PlayCard[] = [];
+                  let hit: string | null = null;
+                  for (const c of seat.zones.library) {
+                    revealed.push(c);
+                    const land = /\bland\b/i.test(c.typeLine);
+                    if (!land && manaValue(c) <= libX) { hit = c.instanceId; break; }
+                  }
+                  setLookKind("discover"); setCascadeHit(hit); setScryN(revealed); setLibMenu(null);
+                }}>Discover {xv(libX)}</button>
+              </div>
+            )}
+            <button type="button" onClick={() => setBranch((b) => (b === "reveal" ? null : "reveal"))}>Reveal ▸</button>
+            {branch === "reveal" && (
+              <div className={styles.menuBlock}>
+                <button type="button" onClick={() => { setLibReveal("self"); setLibMenu(null); }}>Reveal top (only me)</button>
+                <button type="button" onClick={() => { setLibReveal("all"); dispatch({ type: "log", text: `${seat.name} revealed the top of the library` }); setLibMenu(null); }}>Reveal top (all)</button>
+                <button type="button" onClick={() => { setLibReveal("hidden"); setLibMenu(null); }}>Hide top</button>
+              </div>
+            )}
+            <button type="button" onClick={() => setBranch((b) => (b === "lands" ? null : "lands"))}>Basic lands ▸</button>
+            {branch === "lands" && (
+              <div className={styles.menuBlock}>
+                {["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"]
+                  .map((name) => Object.values(seat.zones).flat().find((c) => c.name === name))
+                  .filter((c): c is PlayCard => Boolean(c))
+                  .map((land) => (
+                    <button
+                      key={land.oracleId}
+                      type="button"
+                      onClick={() => {
+                        dispatch({ type: "move", seatId: seat.id, instanceId: land.instanceId, to: "battlefield" });
+                        dispatch({ type: "place", instanceId: land.instanceId, row: "lands" });
+                        setLibMenu(null);
+                      }}
+                    >
+                      Get {land.name}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </MenuBox>
         )}
 
         {searchZone && (
@@ -1171,16 +1200,6 @@ export function PlaytestPage() {
                     <div key={c.instanceId} className={styles.lookCard}>
                       <CardView card={c} />
                       <span className={styles.lookName}>{c.name}</span>
-                      <div className={styles.lookActions}>
-                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" })}>Hand</button>
-                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "battlefield" })}>Play</button>
-                        {searchZone === "library" && (
-                          <button type="button" className={styles.ghost} onClick={() => {
-                            dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" });
-                            dispatch({ type: "shuffle", seatId: seat.id });
-                          }}>Take & shuffle</button>
-                        )}
-                      </div>
                     </div>
                   ))}
               </div>
@@ -1231,9 +1250,18 @@ export function PlaytestPage() {
                             if (i <= 0) return cur;
                             const next = [...cur];
                             const [m] = next.splice(i, 1);
-                            next.unshift(m);
+                            next.splice(i - 1, 0, m);
                             return next;
-                          })}>Top</button>
+                          })}>◀</button>
+                          <button type="button" className={styles.ghost} onClick={() => setScryN((cur) => {
+                            if (!cur) return cur;
+                            const i = cur.findIndex((x) => x.instanceId === c.instanceId);
+                            if (i < 0 || i >= cur.length - 1) return cur;
+                            const next = [...cur];
+                            const [m] = next.splice(i, 1);
+                            next.splice(i + 1, 0, m);
+                            return next;
+                          })}>▶</button>
                           <button type="button" className={styles.ghost} onClick={() => {
                             dispatch({
                               type: "scry",
@@ -1533,36 +1561,40 @@ export function PlaytestPage() {
 
         {enhanceList.length > 0 && (
           <div className={styles.overlay} onClick={() => setEnhanceList([])}>
-            <div className={styles.enhanceStage} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.enhanceToolbar}>
-                <span>{enhanceList.length} cards</span>
-                <button type="button" className={styles.primary} onClick={() => setEnhanceList([])}>
-                  Close
-                </button>
+            {enhanceList.length === 1 ? (
+              <div className={styles.enhanceSolo} onClick={(e) => e.stopPropagation()}>
+                <button type="button" className={styles.primary} onClick={() => setEnhanceList([])}>Close</button>
+                <div className={styles.enhance}>
+                  <TiltFace enabled>
+                    {enhanceList[0].facedown ? (
+                      <span className={styles.sleeveBig} />
+                    ) : (
+                      <img src={cardImage(enhanceList[0]) || enhanceList[0].image} alt={enhanceList[0].name} className={styles.enhanceSoloImg} />
+                    )}
+                  </TiltFace>
+                </div>
               </div>
-              <div
-                className={styles.enhanceGrid}
-                style={{
-                  gridTemplateColumns: `repeat(auto-fit, minmax(${enhanceList.length > 6 ? "7.2rem" : enhanceList.length > 2 ? "9rem" : "12rem"}, 1fr))`,
-                }}
-              >
-                {enhanceList.map((card) => (
-                  <div key={card.instanceId} className={styles.enhance}>
-                    <TiltFace enabled>
-                      {card.facedown ? (
-                        <span className={styles.sleeveBig} />
-                      ) : (
-                        <img
-                          src={cardImage(card) || card.image}
-                          alt={card.name}
-                          className={styles.enhanceImg}
-                        />
-                      )}
-                    </TiltFace>
-                  </div>
-                ))}
+            ) : (
+              <div className={styles.enhanceStage} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.enhanceToolbar}>
+                  <span>{enhanceList.length} cards</span>
+                  <button type="button" className={styles.primary} onClick={() => setEnhanceList([])}>Close</button>
+                </div>
+                <div className={styles.enhanceGrid}>
+                  {enhanceList.map((card) => (
+                    <div key={card.instanceId} className={styles.enhance}>
+                      <TiltFace enabled>
+                        {card.facedown ? (
+                          <span className={styles.sleeveBig} />
+                        ) : (
+                          <img src={cardImage(card) || card.image} alt={card.name} className={styles.enhanceImg} />
+                        )}
+                      </TiltFace>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
