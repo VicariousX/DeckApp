@@ -115,7 +115,9 @@ function PlayFace({
     data: { card },
   });
   const src = cardImage(card);
-  const { onPointerDown: dndPointerDown, ...dndListeners } = listeners;
+  const dndPointerDown = listeners?.onPointerDown as ((e: { nativeEvent: Event }) => void) | undefined;
+  const dndListeners = { ...(listeners ?? {}) } as Record<string, unknown>;
+  delete dndListeners.onPointerDown;
   return (
     <button
       type="button"
