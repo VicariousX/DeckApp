@@ -219,7 +219,8 @@ export function PlaytestPage() {
   const [inspect, setInspect] = useState<PlayCard | null>(null);
   const [searchZone, setSearchZone] = useState<PlayZone | null>(null);
   const [scryN, setScryN] = useState<PlayCard[] | null>(null);
-  const [lookKind, setLookKind] = useState<"scry" | "searchTop" | "cascade" | "delve">("scry");
+  const [lookKind, setLookKind] = useState<"scry" | "searchTop" | "cascade" | "discover">("scry");
+  const lastClickRef = useRef({ id: "", at: 0 });
   const [cascadeHit, setCascadeHit] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [settings, setSettings] = useState<PlaySettings>(DEFAULT_PLAY_SETTINGS);
@@ -476,14 +477,19 @@ export function PlaytestPage() {
           hoverRef.current = c;
           setHoverCard(c);
         }}
-        onDoubleClick={() => {
-          targets(card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
-        }}
         onActivate={(ev) => {
-          if (ev.altKey) {
-            const ids = targets(card.instanceId);
-            const all = Object.values(seat?.zones ?? {}).flat();
-            setEnhanceList(ids.map((id) => all.find((x) => x.instanceId === id)).filter((x): x is PlayCard => Boolean(x)));
+          const group = () => {
+            const ids =
+              picked.includes(card.instanceId) && picked.length > 1
+                ? picked
+                : [card.instanceId];
+            const map = new Map(
+              Object.values(seat?.zones ?? {}).flat().map((c) => [c.instanceId, c])
+            );
+            return ids.map((id) => map.get(id)).filter((c): c is PlayCard => Boolean(c));
+          };
+          if (ev.altKey || altPeek) {
+            setEnhanceList(group());
             return;
           }
           if (ev.ctrlKey || ev.metaKey) {
@@ -495,6 +501,16 @@ export function PlaytestPage() {
             setSelected(card.instanceId);
             return;
           }
+          const now = Date.now();
+          if (
+            lastClickRef.current.id === card.instanceId &&
+            now - lastClickRef.current.at < 400
+          ) {
+            lastClickRef.current = { id: "", at: 0 };
+            group().forEach((c) => dispatch({ type: "tap", instanceId: c.instanceId }));
+            return;
+          }
+          lastClickRef.current = { id: card.instanceId, at: now };
           setPicked([card.instanceId]);
           setSelected(card.instanceId);
         }}
@@ -989,11 +1005,22 @@ export function PlaytestPage() {
               Cascade {libX}
             </button>
             <button type="button" onClick={() => {
-              setLookKind("delve");
-              setScryN(seat.zones.graveyard.slice(0, Math.max(seat.zones.graveyard.length, libX)));
+              const revealed: PlayCard[] = [];
+              let hit: string | null = null;
+              for (const c of seat.zones.library) {
+                revealed.push(c);
+                const land = /\bland\b/i.test(c.typeLine);
+                if (!land && manaValue(c) <= libX) {
+                  hit = c.instanceId;
+                  break;
+                }
+              }
+              setLookKind("discover");
+              setCascadeHit(hit);
+              setScryN(revealed);
               setLibMenu(null);
             }}>
-              Delve {libX}
+              Discover {libX}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>
               Shuffle
@@ -1062,14 +1089,26 @@ export function PlaytestPage() {
           <div className={styles.overlay} onClick={() => setScryN(null)}>
             <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
               <h2>
-                {lookKind === "cascade" ? `Cascade ${libX}` : lookKind === "delve" ? `Delve ${libX}` : lookKind === "searchTop" ? `Top ${scryN.length}` : `Scry ${scryN.length}`}
+                {lookKind === "cascade"
+                  ? `Cascade ${libX}`
+                  : lookKind === "discover"
+                    ? `Discover ${libX}`
+                    : lookKind === "searchTop"
+                      ? `Top ${scryN.length}`
+                      : `Scry ${scryN.length}`}
               </h2>
               {lookKind === "cascade" && (
                 <p className={styles.hint}>
                   {cascadeHit ? "Nonland found. Cast it or leave it; the rest go to the bottom." : "No nonland cheaper than X. Revealed cards go to the bottom."}
                 </p>
               )}
-              {lookKind === "delve" && <p className={styles.hint}>Exile cards from the graveyard (up to {libX}), or exile the top {libX} of the library.</p>}
+              {lookKind === "discover" && (
+                <p className={styles.hint}>
+                  {cascadeHit
+                    ? "Nonland with MV ≤ X found. Cast it or put the pile on the bottom in random order."
+                    : "No nonland with MV ≤ X. Revealed cards go to the bottom in random order."}
+                </p>
+              )}
               {lookKind === "scry" && <p className={styles.hint}>Keep on top or send to the bottom, then Done.</p>}
               <div className={styles.lookGrid}>
                 {scryN.map((c) => (
@@ -1105,35 +1144,33 @@ export function PlaytestPage() {
                           <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "battlefield" })}>Play</button>
                         </>
                       )}
-                      {lookKind === "cascade" && cascadeHit === c.instanceId && (
+                      {(lookKind === "cascade" || lookKind === "discover") && cascadeHit === c.instanceId && (
                         <>
                           <button type="button" className={styles.primary} onClick={() => {
                             const rest = scryN.filter((x) => x.instanceId !== c.instanceId);
+                            if (lookKind === "discover") rest.sort(() => Math.random() - 0.5);
                             dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "stack" });
                             rest.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
                             setScryN(null);
                           }}>Cast</button>
                           <button type="button" className={styles.ghost} onClick={() => {
-                            scryN.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                            const pile = lookKind === "discover" ? [...scryN].sort(() => Math.random() - 0.5) : scryN;
+                            pile.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
                             setScryN(null);
                           }}>All bottom</button>
                         </>
-                      )}
-                      {lookKind === "delve" && (
-                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "exile" })}>
-                          Exile
-                        </button>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-              {lookKind === "delve" && (
+              {lookKind === "discover" && !cascadeHit && (
                 <button type="button" className={styles.btn} onClick={() => {
-                  dispatch({ type: "exileTop", seatId: seat.id, n: libX });
+                  const pile = [...scryN].sort(() => Math.random() - 0.5);
+                  pile.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
                   setScryN(null);
                 }}>
-                  Exile top {libX} of library
+                  Bottom in random order
                 </button>
               )}
               {lookKind === "scry" && (
