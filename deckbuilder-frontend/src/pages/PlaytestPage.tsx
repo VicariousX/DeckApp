@@ -54,11 +54,20 @@ const MOVE_ZONES: { id: PlayZone; label: string }[] = [
   { id: "hand", label: "Hand" },
   { id: "graveyard", label: "Graveyard" },
   { id: "exile", label: "Exile" },
-  { id: "library", label: "Library (top)" },
+  { id: "library", label: "Library" },
   { id: "command", label: "Command" },
   { id: "sideboard", label: "Sideboard" },
   { id: "stack", label: "Stack" },
 ];
+
+function manaValue(card: PlayCard): number {
+  if (typeof card.cmc === "number") return card.cmc;
+  const cost = card.manaCost || "";
+  const nums = [...cost.matchAll(/\{(\d+)\}/g)].reduce((s, m) => s + Number(m[1]), 0);
+  const pips = (cost.match(/\{[WUBRGC]\}/gi) || []).length;
+  const hybrid = (cost.match(/\{[WUBRG2]\/[WUBRG]\}/gi) || []).length;
+  return nums + pips + hybrid;
+}
 
 function roll(sides: number) {
   return 1 + Math.floor(Math.random() * sides);
@@ -101,6 +110,8 @@ function PlayFace({
   onActivate,
   onMenu,
   onGrab,
+  onHover,
+  onDoubleClick,
   style,
 }: {
   card: PlayCard;
@@ -108,6 +119,8 @@ function PlayFace({
   onActivate: (e: ReactMouseEvent) => void;
   onMenu: (e: ReactMouseEvent) => void;
   onGrab?: (e: ReactMouseEvent) => void;
+  onHover?: (card: PlayCard | null) => void;
+  onDoubleClick?: (e: ReactMouseEvent) => void;
   style?: CSSProperties;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -130,6 +143,13 @@ function PlayFace({
         e.stopPropagation();
         onActivate(e);
       }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onDoubleClick?.(e);
+      }}
+      onMouseEnter={() => onHover?.(card)}
+      onMouseLeave={() => onHover?.(null)}
       onContextMenu={onMenu}
       onPointerDown={(e) => {
         onGrab?.(e as unknown as ReactMouseEvent);
@@ -199,6 +219,8 @@ export function PlaytestPage() {
   const [inspect, setInspect] = useState<PlayCard | null>(null);
   const [searchZone, setSearchZone] = useState<PlayZone | null>(null);
   const [scryN, setScryN] = useState<PlayCard[] | null>(null);
+  const [lookKind, setLookKind] = useState<"scry" | "searchTop" | "cascade" | "delve">("scry");
+  const [cascadeHit, setCascadeHit] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [settings, setSettings] = useState<PlaySettings>(DEFAULT_PLAY_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -209,7 +231,12 @@ export function PlaytestPage() {
   const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
   const [coin, setCoin] = useState<string | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
-  const [enhance, setEnhance] = useState<PlayCard | null>(null);
+  const [enhanceList, setEnhanceList] = useState<PlayCard[]>([]);
+  const [hoverCard, setHoverCard] = useState<PlayCard | null>(null);
+  const [altPeek, setAltPeek] = useState(false);
+  const [libSlot, setLibSlot] = useState(1);
+  const [libDestOpen, setLibDestOpen] = useState(false);
+  const hoverRef = useRef<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
@@ -332,13 +359,31 @@ export function PlaytestPage() {
         const prev = history.current.pop();
         if (prev) setTable(prev);
       }
-      if ((e.key === "t" || e.key === "T") && selected) {
-        dispatch({ type: "tap", instanceId: selected });
+      if (e.key === "e" || e.key === "E") {
+        const card = hoverRef.current;
+        const ids = card
+          ? picked.includes(card.instanceId) && picked.length > 1
+            ? picked
+            : [card.instanceId]
+          : selected
+            ? picked.includes(selected) && picked.length > 1
+              ? picked
+              : [selected]
+            : [];
+        ids.forEach((id) => dispatch({ type: "tap", instanceId: id }));
       }
+      if (e.key === "Alt") setAltPeek(true);
+    }
+    function onUp(e: KeyboardEvent) {
+      if (e.key === "Alt") setAltPeek(false);
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [dispatch, selected, settings, table]);
+    window.addEventListener("keyup", onUp);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, [dispatch, picked, selected, settings, table]);
 
   const seat = table?.seats[0];
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
@@ -402,7 +447,13 @@ export function PlaytestPage() {
     if (!card || !zone || !seat) return;
     const ids = targets(card.instanceId);
     ids.forEach((instanceId, i) => {
-      dispatch({ type: "move", seatId: seat.id, instanceId, to: zone });
+      dispatch({
+        type: "move",
+        seatId: seat.id,
+        instanceId,
+        to: zone,
+        index: zone === "library" ? i : undefined,
+      });
       if (zone === "battlefield") {
         dispatch({
           type: "place",
@@ -421,9 +472,18 @@ export function PlaytestPage() {
         card={card}
         selected={selected === card.instanceId || picked.includes(card.instanceId)}
         style={style}
+        onHover={(c) => {
+          hoverRef.current = c;
+          setHoverCard(c);
+        }}
+        onDoubleClick={() => {
+          targets(card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
+        }}
         onActivate={(ev) => {
           if (ev.altKey) {
-            setEnhance(card);
+            const ids = targets(card.instanceId);
+            const all = Object.values(seat?.zones ?? {}).flat();
+            setEnhanceList(ids.map((id) => all.find((x) => x.instanceId === id)).filter((x): x is PlayCard => Boolean(x)));
             return;
           }
           if (ev.ctrlKey || ev.metaKey) {
@@ -437,7 +497,6 @@ export function PlaytestPage() {
           }
           setPicked([card.instanceId]);
           setSelected(card.instanceId);
-          dispatch({ type: "tap", instanceId: card.instanceId });
         }}
         onGrab={(ev) => {
           const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
@@ -462,7 +521,7 @@ export function PlaytestPage() {
   function Pile({ zone, label }: { zone: PlayZone; label: string }) {
     if (!seat) return null;
     const cards = seat.zones[zone];
-    const top = cards[cards.length - 1] ?? cards[0];
+    const top = zone === "library" ? cards[0] : cards[cards.length - 1] ?? cards[0];
     const stacked = zone === "library" || zone === "graveyard" || zone === "exile" || zone === "command";
     return (
       <ZoneDrop zone={zone} className={`${styles.pile} ${styles.pileCompact}`}>
@@ -493,9 +552,7 @@ export function PlaytestPage() {
             else setSearchZone(zone);
           }}
         >
-          {stacked && top && zone === "library" ? (
-            <span className={styles.sleeve} title="Library" />
-          ) : stacked && top ? (
+          {stacked && top ? (
             <CardView card={top} />
           ) : stacked ? (
             <span className={styles.hint}>Empty</span>
@@ -616,11 +673,9 @@ export function PlaytestPage() {
             <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
               {logOpen ? "Hide log" : "Log"}
             </button>
-            {settings.show.newGame && (
-              <button type="button" className={styles.primary} onClick={() => void start(true)}>
-                New game
-              </button>
-            )}
+            <button type="button" className={styles.primary} onClick={() => void start(true)}>
+              New game
+            </button>
           </div>
         </div>
 
@@ -732,7 +787,12 @@ export function PlaytestPage() {
             }}>
               Tap / untap
             </button>
-            <button type="button" onClick={() => { setEnhance(menu.card); setMenu(null); }}>
+            <button type="button" onClick={() => {
+              const ids = targets(menu.card.instanceId);
+              const all = Object.values(seat.zones).flat();
+              setEnhanceList(ids.map((id) => all.find((x) => x.instanceId === id)).filter((x): x is PlayCard => Boolean(x)));
+              setMenu(null);
+            }}>
               Enhance
             </button>
             <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>
@@ -772,17 +832,73 @@ export function PlaytestPage() {
                 }}
               >
                 {MOVE_ZONES.map((z) => (
+                  z.id === "library" ? (
+                    <div key={z.id} className={styles.menuNested}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLibDestOpen((v) => !v);
+                        }}
+                      >
+                        Library ▸
+                      </button>
+                      {libDestOpen && (
+                        <div className={styles.flyout2}>
+                          <button type="button" onClick={() => {
+                            targets(menu.card.instanceId).forEach((id, i) =>
+                              dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library", index: i })
+                            );
+                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                          }}>Top</button>
+                          <button type="button" onClick={() => {
+                            targets(menu.card.instanceId).forEach((id) =>
+                              dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library" })
+                            );
+                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                          }}>Bottom</button>
+                          <button type="button" onClick={() => {
+                            const slot = Math.max(1, libSlot) - 1;
+                            targets(menu.card.instanceId).forEach((id, i) =>
+                              dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library", index: slot + i })
+                            );
+                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                          }}>
+                            Slot {libSlot} from top
+                          </button>
+                          <input
+                            className={styles.slotInput}
+                            type="number"
+                            min={1}
+                            value={libSlot}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setLibSlot(Number(e.target.value) || 1)}
+                          />
+                          <button type="button" onClick={() => {
+                            targets(menu.card.instanceId).forEach((id) =>
+                              dispatch({ type: "move", seatId: seat.id, instanceId: id, to: "library" })
+                            );
+                            dispatch({ type: "shuffle", seatId: seat.id });
+                            setMenu(null); setMoveOpen(false); setLibDestOpen(false);
+                          }}>Shuffle in</button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <button
                     key={z.id}
                     type="button"
                     onClick={() => {
-                      dispatch({ type: "move", seatId: seat.id, instanceId: menu.card.instanceId, to: z.id });
+                      targets(menu.card.instanceId).forEach((id) =>
+                        dispatch({ type: "move", seatId: seat.id, instanceId: id, to: z.id })
+                      );
                       setMenu(null);
                       setMoveOpen(false);
                     }}
                   >
                     {z.label}
                   </button>
+                  )
                 ))}
               </div>
             )}
@@ -799,7 +915,7 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
             <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: settings.millCount }); setTableMenu(null); }}>Mill</button>
-            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry</button>
+            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry</button>
             <button type="button" onClick={() => { history.current.pop(); const prev = history.current[history.current.length - 1]; if (prev) dispatch({ type: "hydrate", state: prev }); setTableMenu(null); }}>Undo</button>
             <button type="button" onClick={() => { dispatch({ type: "log", text: `d20 = ${roll(20)}` }); setTableMenu(null); }}>Roll d20</button>
             <button
@@ -842,8 +958,11 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { setSearchZone("library"); setLibMenu(null); }}>
               Search
             </button>
-            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
+            <button type="button" onClick={() => { setLookKind("searchTop"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
               Search {libX}
+            </button>
+            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, settings.scryCount)); setLibMenu(null); }}>
+              Scry {settings.scryCount}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setLibMenu(null); }}>
               Mill {libX}
@@ -851,8 +970,30 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { dispatch({ type: "exileTop", seatId: seat.id, n: libX }); setLibMenu(null); }}>
               Exile {libX}
             </button>
-            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
-              Cascade / delve {libX}
+            <button type="button" onClick={() => {
+              const revealed: PlayCard[] = [];
+              let hit: string | null = null;
+              for (const c of seat.zones.library) {
+                revealed.push(c);
+                const land = /\bland\b/i.test(c.typeLine);
+                if (!land && manaValue(c) < libX) {
+                  hit = c.instanceId;
+                  break;
+                }
+              }
+              setLookKind("cascade");
+              setCascadeHit(hit);
+              setScryN(revealed);
+              setLibMenu(null);
+            }}>
+              Cascade {libX}
+            </button>
+            <button type="button" onClick={() => {
+              setLookKind("delve");
+              setScryN(seat.zones.graveyard.slice(0, Math.max(seat.zones.graveyard.length, libX)));
+              setLibMenu(null);
+            }}>
+              Delve {libX}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>
               Shuffle
@@ -884,7 +1025,7 @@ export function PlaytestPage() {
           <div className={styles.overlay} onClick={() => setSearchZone(null)}>
             <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
               <h2>
-                {searchZone} ({seat.zones[searchZone].length})
+                Search {searchZone} ({seat.zones[searchZone].length})
               </h2>
               <input
                 className={styles.btn}
@@ -893,22 +1034,23 @@ export function PlaytestPage() {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               />
-              <div className={styles.searchList}>
+              <div className={styles.lookGrid}>
                 {seat.zones[searchZone]
                   .filter((c) => c.name.toLowerCase().includes(filter.toLowerCase()))
                   .map((c) => (
-                    <div key={c.instanceId}>
+                    <div key={c.instanceId} className={styles.lookCard}>
                       <CardView card={c} />
-                      <button
-                        type="button"
-                        className={styles.ghost}
-                        onClick={() => {
-                          dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" });
-                          if (searchZone === "library") dispatch({ type: "shuffle", seatId: seat.id });
-                        }}
-                      >
-                        To hand
-                      </button>
+                      <span className={styles.lookName}>{c.name}</span>
+                      <div className={styles.lookActions}>
+                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" })}>Hand</button>
+                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "battlefield" })}>Play</button>
+                        {searchZone === "library" && (
+                          <button type="button" className={styles.ghost} onClick={() => {
+                            dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" });
+                            dispatch({ type: "shuffle", seatId: seat.id });
+                          }}>Take & shuffle</button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -919,31 +1061,97 @@ export function PlaytestPage() {
         {scryN && (
           <div className={styles.overlay} onClick={() => setScryN(null)}>
             <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
-              <h2>Scry {scryN.length}</h2>
-              <p className={styles.hint}>Click a card to put it on the bottom.</p>
-              <div className={styles.searchList}>
+              <h2>
+                {lookKind === "cascade" ? `Cascade ${libX}` : lookKind === "delve" ? `Delve ${libX}` : lookKind === "searchTop" ? `Top ${scryN.length}` : `Scry ${scryN.length}`}
+              </h2>
+              {lookKind === "cascade" && (
+                <p className={styles.hint}>
+                  {cascadeHit ? "Nonland found. Cast it or leave it; the rest go to the bottom." : "No nonland cheaper than X. Revealed cards go to the bottom."}
+                </p>
+              )}
+              {lookKind === "delve" && <p className={styles.hint}>Exile cards from the graveyard (up to {libX}), or exile the top {libX} of the library.</p>}
+              {lookKind === "scry" && <p className={styles.hint}>Keep on top or send to the bottom, then Done.</p>}
+              <div className={styles.lookGrid}>
                 {scryN.map((c) => (
-                  <button
-                    key={c.instanceId}
-                    type="button"
-                    className={styles.ghost}
-                    onClick={() => {
-                      dispatch({
-                        type: "scry",
-                        seatId: seat.id,
-                        keepTop: scryN.filter((x) => x.instanceId !== c.instanceId).map((x) => x.instanceId),
-                        bottom: [c.instanceId],
-                      });
-                      setScryN((cur) => cur?.filter((x) => x.instanceId !== c.instanceId) ?? null);
-                    }}
-                  >
-                    Bottom {c.name}
-                  </button>
+                  <div key={c.instanceId} className={`${styles.lookCard}${cascadeHit === c.instanceId ? ` ${styles.lookHit}` : ""}`}>
+                    <CardView card={c} />
+                    <span className={styles.lookName}>{c.name}</span>
+                    <div className={styles.lookActions}>
+                      {lookKind === "scry" && (
+                        <>
+                          <button type="button" className={styles.ghost} onClick={() => setScryN((cur) => {
+                            if (!cur) return cur;
+                            const i = cur.findIndex((x) => x.instanceId === c.instanceId);
+                            if (i <= 0) return cur;
+                            const next = [...cur];
+                            const [m] = next.splice(i, 1);
+                            next.unshift(m);
+                            return next;
+                          })}>Top</button>
+                          <button type="button" className={styles.ghost} onClick={() => {
+                            dispatch({
+                              type: "scry",
+                              seatId: seat.id,
+                              keepTop: scryN.filter((x) => x.instanceId !== c.instanceId).map((x) => x.instanceId),
+                              bottom: [c.instanceId],
+                            });
+                            setScryN((cur) => cur?.filter((x) => x.instanceId !== c.instanceId) ?? null);
+                          }}>Bottom</button>
+                        </>
+                      )}
+                      {lookKind === "searchTop" && (
+                        <>
+                          <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "hand" })}>Hand</button>
+                          <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "battlefield" })}>Play</button>
+                        </>
+                      )}
+                      {lookKind === "cascade" && cascadeHit === c.instanceId && (
+                        <>
+                          <button type="button" className={styles.primary} onClick={() => {
+                            const rest = scryN.filter((x) => x.instanceId !== c.instanceId);
+                            dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "stack" });
+                            rest.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                            setScryN(null);
+                          }}>Cast</button>
+                          <button type="button" className={styles.ghost} onClick={() => {
+                            scryN.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                            setScryN(null);
+                          }}>All bottom</button>
+                        </>
+                      )}
+                      {lookKind === "delve" && (
+                        <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "exile" })}>
+                          Exile
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-              <button type="button" className={styles.primary} onClick={() => setScryN(null)}>
-                Done
-              </button>
+              {lookKind === "delve" && (
+                <button type="button" className={styles.btn} onClick={() => {
+                  dispatch({ type: "exileTop", seatId: seat.id, n: libX });
+                  setScryN(null);
+                }}>
+                  Exile top {libX} of library
+                </button>
+              )}
+              {lookKind === "scry" && (
+                <button type="button" className={styles.primary} onClick={() => {
+                  dispatch({
+                    type: "scry",
+                    seatId: seat.id,
+                    keepTop: scryN.map((c) => c.instanceId),
+                    bottom: [],
+                  });
+                  setScryN(null);
+                }}>
+                  Done
+                </button>
+              )}
+              {lookKind !== "scry" && (
+                <button type="button" className={styles.primary} onClick={() => setScryN(null)}>Close</button>
+              )}
             </div>
           </div>
         )}
@@ -1132,22 +1340,6 @@ export function PlaytestPage() {
                 />
                 Next turn untaps
               </label>
-              <h3 className={styles.sub}>Toolbar buttons</h3>
-              {Object.entries(settings.show).map(([key, on]) => (
-                <label key={key} className={styles.setting}>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={(e) =>
-                      persist({
-                        ...settings,
-                        show: { ...settings.show, [key]: e.target.checked },
-                      })
-                    }
-                  />
-                  {key}
-                </label>
-              ))}
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close
               </button>
@@ -1155,20 +1347,37 @@ export function PlaytestPage() {
           </div>
         )}
 
-        {enhance && (
-          <div className={styles.overlay} onClick={() => setEnhance(null)}>
-            <div className={styles.enhance} onClick={(e) => e.stopPropagation()}>
-              <TiltFace enabled>
-                {enhance.facedown ? (
-                  <span className={styles.sleeveBig} />
-                ) : (
-                  <img
-                    src={cardImage(enhance) || enhance.image}
-                    alt={enhance.name}
-                    className={styles.enhanceImg}
-                  />
-                )}
-              </TiltFace>
+        {altPeek && hoverCard && enhanceList.length === 0 && (
+          <div className={styles.peek} onPointerDown={(e) => e.preventDefault()}>
+            <img
+              src={cardImage(hoverCard) || hoverCard.image}
+              alt={hoverCard.name}
+              className={styles.peekImg}
+            />
+          </div>
+        )}
+
+        {enhanceList.length > 0 && (
+          <div className={styles.overlay} onClick={() => setEnhanceList([])}>
+            <div
+              className={enhanceList.length > 3 ? styles.enhanceGrid : styles.enhanceRow}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {enhanceList.map((card) => (
+                <div key={card.instanceId} className={styles.enhance}>
+                  <TiltFace enabled>
+                    {card.facedown ? (
+                      <span className={styles.sleeveBig} />
+                    ) : (
+                      <img
+                        src={cardImage(card) || card.image}
+                        alt={card.name}
+                        className={styles.enhanceImg}
+                      />
+                    )}
+                  </TiltFace>
+                </div>
+              ))}
             </div>
           </div>
         )}

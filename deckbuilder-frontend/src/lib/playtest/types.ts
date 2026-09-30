@@ -15,6 +15,7 @@ export type PlayCard = {
   name: string;
   typeLine: string;
   manaCost: string;
+  cmc?: number;
   image?: string;
   imageBack?: string;
   face: 0 | 1;

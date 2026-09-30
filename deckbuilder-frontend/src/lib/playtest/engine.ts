@@ -80,6 +80,7 @@ function expandDeckCards(
         name: c.name,
         typeLine: c.type_line || "",
         manaCost: c.mana_cost || "",
+        cmc: typeof c.cmc === "number" ? c.cmc : undefined,
         image: images[c.scryfall_id]?.front || images[c.id]?.front,
         imageBack: images[c.scryfall_id]?.back || images[c.id]?.back,
         face: 0,
