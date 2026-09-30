@@ -321,16 +321,24 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     case "scry": {
       const seat = seatOf(next, action.seatId);
       if (!seat) break;
+      const grave = action.grave ?? [];
       const byId = new Map(seat.zones.library.map((c) => [c.instanceId, c]));
       const rest = seat.zones.library.filter(
-        (c) => !action.keepTop.includes(c.instanceId) && !action.bottom.includes(c.instanceId)
+        (c) =>
+          !action.keepTop.includes(c.instanceId) &&
+          !action.bottom.includes(c.instanceId) &&
+          !grave.includes(c.instanceId)
       );
       seat.zones.library = [
         ...action.keepTop.map((id) => byId.get(id)!).filter(Boolean),
         ...rest,
         ...action.bottom.map((id) => byId.get(id)!).filter(Boolean),
       ];
-      pushLog(next, `${seat.name} scried`);
+      for (const id of grave) {
+        const card = byId.get(id);
+        if (card) seat.zones.graveyard.push(card);
+      }
+      pushLog(next, grave.length ? `${seat.name} surveiled` : `${seat.name} scried`);
       break;
     }
     case "place": {

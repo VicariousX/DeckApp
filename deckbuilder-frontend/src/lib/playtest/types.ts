@@ -71,7 +71,7 @@ export type PlayAction =
   | { type: "life"; seatId: string; delta: number }
   | { type: "stat"; seatId: string; key: "poison" | "energy" | "experience"; delta: number }
   | { type: "nextTurn"; untap?: boolean; draw?: number }
-  | { type: "scry"; seatId: string; keepTop: string[]; bottom: string[] }
+  | { type: "scry"; seatId: string; keepTop: string[]; bottom: string[]; grave?: string[] }
   | { type: "mill"; seatId: string; n: number }
   | { type: "untapAll"; seatId: string }
   | { type: "addToken"; seatId: string; card: Omit<PlayCard, "instanceId" | "ownerSeat"> }

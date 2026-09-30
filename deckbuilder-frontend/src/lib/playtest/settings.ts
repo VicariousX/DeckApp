@@ -11,6 +11,7 @@ export type PlaySettings = {
   millCount: number;
   nextTurnUntap: boolean;
   nextTurnDraw: number;
+  showXGlyph: boolean;
   show: {
     newGame: boolean;
     draw: boolean;
@@ -35,6 +36,7 @@ export const DEFAULT_PLAY_SETTINGS: PlaySettings = {
   millCount: 1,
   nextTurnUntap: true,
   nextTurnDraw: 1,
+  showXGlyph: true,
   show: {
     newGame: true,
     draw: true,

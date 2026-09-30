@@ -74,11 +74,13 @@ function roll(sides: number) {
   return 1 + Math.floor(Math.random() * sides);
 }
 
-function clampMenu(x: number, y: number, w = 188, h = 260) {
+function clampMenu(x: number, y: number, w = 220, h = 320) {
   const pad = 8;
-  const left = Math.min(window.innerWidth - w - pad, Math.max(pad, x));
-  const top = Math.min(window.innerHeight - h - pad, Math.max(pad, y));
-  const flyLeft = left + w + 168 > window.innerWidth;
+  const maxW = Math.min(w, window.innerWidth - pad * 2);
+  const maxH = Math.min(h, window.innerHeight * 0.72);
+  const left = Math.min(window.innerWidth - maxW - pad, Math.max(pad, x));
+  const top = Math.min(window.innerHeight - maxH - pad, Math.max(pad, y));
+  const flyLeft = left + maxW + 168 > window.innerWidth;
   return { x: left, y: top, flyLeft };
 }
 
@@ -272,6 +274,7 @@ export function PlaytestPage() {
     setSettings(next);
     savePlaySettings(next);
   }, []);
+  const xv = (n: number) => (settings.showXGlyph ? "X" : String(n));
 
   const dispatch = useCallback((action: PlayAction) => {
     setTable((cur) => {
@@ -966,11 +969,11 @@ export function PlaytestPage() {
                             );
                             setMenu(null); setMoveOpen(false); setLibDestOpen(false);
                           }}>
-                            Slot from top
+                            Slot {xv(libSlot)} from top
                           </button>
                           <button
                             type="button"
-                            className={styles.countChip}
+                            className={styles.xChip}
                             onClick={(e) => { e.stopPropagation(); setLibSlot((n) => bumpX(n, e, 1)); }}
                             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibSlot((n) => bumpX(n, e, -1)); }}
                           >
@@ -1012,12 +1015,12 @@ export function PlaytestPage() {
 
         {tableMenu && (
           <div className={styles.menu} style={{ left: tableMenu.x, top: tableMenu.y }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount }); setTableMenu(null); }}>Draw</button>
+            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount }); setTableMenu(null); }}>Draw {xv(settings.drawCount)}</button>
             <button type="button" onClick={() => { dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan }); setTableMenu(null); }}>Mulligan</button>
             <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
-            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: settings.millCount }); setTableMenu(null); }}>Mill</button>
-            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry</button>
+            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: settings.millCount }); setTableMenu(null); }}>Mill {xv(settings.millCount)}</button>
+            <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry/Surveil {xv(settings.scryCount)}</button>
             <button type="button" onClick={() => { history.current.pop(); const prev = history.current[history.current.length - 1]; if (prev) dispatch({ type: "hydrate", state: prev }); setTableMenu(null); }}>Undo</button>
             <button type="button" onClick={() => { dispatch({ type: "log", text: `d20 = ${roll(20)}` }); setTableMenu(null); }}>Roll d20</button>
             <button
@@ -1043,14 +1046,16 @@ export function PlaytestPage() {
             style={{ left: libMenu.x, top: libMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              className={styles.countChip}
-              onClick={(e) => { e.stopPropagation(); setLibX((n) => bumpX(n, e, 1)); }}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibX((n) => bumpX(n, e, -1)); }}
-            >
-              X={libX}
-            </button>
+            <div className={styles.xRail}>
+              <button
+                type="button"
+                className={styles.xChip}
+                onClick={(e) => { e.stopPropagation(); setLibX((n) => bumpX(n, e, 1)); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setLibX((n) => bumpX(n, e, -1)); }}
+              >
+                X={libX}
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -1058,22 +1063,22 @@ export function PlaytestPage() {
                 setLibMenu(null);
               }}
             >
-              Draw
+              Draw {xv(libX)}
             </button>
             <button type="button" onClick={() => { setSearchZone("library"); setLibMenu(null); }}>
               Search
             </button>
             <button type="button" onClick={() => { setLookKind("searchTop"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
-              Search top
+              Search top {xv(libX)}
             </button>
             <button type="button" onClick={() => { setLookKind("scry"); setScryN(seat.zones.library.slice(0, libX)); setLibMenu(null); }}>
-              Scry
+              Scry/Surveil {xv(libX)}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: libX }); setLibMenu(null); }}>
-              Mill
+              Mill {xv(libX)}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "exileTop", seatId: seat.id, n: libX }); setLibMenu(null); }}>
-              Exile
+              Exile {xv(libX)}
             </button>
             <button type="button" onClick={() => {
               const revealed: PlayCard[] = [];
@@ -1091,7 +1096,7 @@ export function PlaytestPage() {
               setScryN(revealed);
               setLibMenu(null);
             }}>
-              Cascade
+              Cascade {xv(libX)}
             </button>
             <button type="button" onClick={() => {
               const revealed: PlayCard[] = [];
@@ -1109,7 +1114,7 @@ export function PlaytestPage() {
               setScryN(revealed);
               setLibMenu(null);
             }}>
-              Discover
+              Discover {xv(libX)}
             </button>
             <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setLibMenu(null); }}>
               Shuffle
@@ -1193,7 +1198,7 @@ export function PlaytestPage() {
                     ? `Discover ${libX}`
                     : lookKind === "searchTop"
                       ? `Top ${scryN.length}`
-                      : `Scry ${scryN.length}`}
+                      : `Scry/Surveil ${scryN.length}`}
               </h2>
               {lookKind === "cascade" && (
                 <p className={styles.hint}>
@@ -1207,7 +1212,11 @@ export function PlaytestPage() {
                     : "No nonland with MV ≤ X. Revealed cards go to the bottom in random order."}
                 </p>
               )}
-              {lookKind === "scry" && <p className={styles.hint}>Keep on top or send to the bottom, then Done.</p>}
+              {lookKind === "scry" && (
+                <p className={styles.hint}>
+                  Arrange cards left on top. Send others to the bottom (scry) or graveyard (surveil), then Done.
+                </p>
+              )}
               <div className={styles.lookGrid}>
                 {scryN.map((c) => (
                   <div key={c.instanceId} className={`${styles.lookCard}${cascadeHit === c.instanceId ? ` ${styles.lookHit}` : ""}`}>
@@ -1234,6 +1243,16 @@ export function PlaytestPage() {
                             });
                             setScryN((cur) => cur?.filter((x) => x.instanceId !== c.instanceId) ?? null);
                           }}>Bottom</button>
+                          <button type="button" className={styles.ghost} onClick={() => {
+                            dispatch({
+                              type: "scry",
+                              seatId: seat.id,
+                              keepTop: scryN.filter((x) => x.instanceId !== c.instanceId).map((x) => x.instanceId),
+                              bottom: [],
+                              grave: [c.instanceId],
+                            });
+                            setScryN((cur) => cur?.filter((x) => x.instanceId !== c.instanceId) ?? null);
+                          }}>Grave</button>
                         </>
                       )}
                       {lookKind === "searchTop" && (
@@ -1474,6 +1493,14 @@ export function PlaytestPage() {
                   onChange={(e) => persist({ ...settings, nextTurnUntap: e.target.checked })}
                 />
                 Next turn untaps
+              </label>
+              <label className={styles.setting}>
+                <input
+                  type="checkbox"
+                  checked={settings.showXGlyph}
+                  onChange={(e) => persist({ ...settings, showXGlyph: e.target.checked })}
+                />
+                Show X on actions (off = show the number)
               </label>
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close
