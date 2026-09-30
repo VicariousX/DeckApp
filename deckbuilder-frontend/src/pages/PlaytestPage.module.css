@@ -218,19 +218,24 @@
 
 .navTab {
   position: fixed;
-  top: 0.35rem;
-  right: 0.6rem;
+  top: 0;
+  right: 0.85rem;
   z-index: 50;
   appearance: none;
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-top: none;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   color: var(--color-accent);
   border-radius: 0 0 8px 8px;
-  padding: 0.28rem 0.7rem;
+  padding: 0.1rem 0.55rem 0.18rem;
   font: inherit;
-  font-size: 0.75rem;
-  font-weight: 750;
+  font-size: 0.85rem;
+  line-height: 1;
   cursor: pointer;
+}
+
+:global(body.play-nav-hidden) .navTab {
+  top: 0;
 }
 
 .kit {

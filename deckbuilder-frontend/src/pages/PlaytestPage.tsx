@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type Ref,
 } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -146,11 +147,13 @@ function ZoneDrop({
   row,
   className,
   children,
+  innerRef,
 }: {
   zone: PlayZone;
   row?: "field" | "lands";
   className?: string;
   children: ReactNode;
+  innerRef?: Ref<HTMLDivElement>;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `zone:${zone}:${row ?? "any"}`,
@@ -158,7 +161,11 @@ function ZoneDrop({
   });
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        if (typeof innerRef === "function") innerRef(node);
+        else if (innerRef && "current" in innerRef) (innerRef as { current: HTMLDivElement | null }).current = node;
+      }}
       className={`${className ?? ""}${isOver ? ` ${styles.dropOver}` : ""}`}
     >
       {children}
@@ -191,12 +198,16 @@ export function PlaytestPage() {
   const [countsLocked, setCountsLocked] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [libMenu, setLibMenu] = useState<{ x: number; y: number } | null>(null);
+  const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
+  const [coin, setCoin] = useState<string | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [enhance, setEnhance] = useState<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
   const ghostRef = useRef<HTMLSpanElement | null>(null);
   const ptrRef = useRef({ x: 0, y: 0 });
+  const grabRef = useRef({ dx: 0, dy: 0, w: 76.8, h: 107.4 });
   const handScroll = useHScroll();
   const landScroll = useHScroll();
 
@@ -282,6 +293,7 @@ export function PlaytestPage() {
   useEffect(() => {
     function close() {
       setMenu(null);
+      setTableMenu(null);
       setMoveOpen(false);
       setLibMenu(null);
       if (!countsLocked) setCountsOpen(false);
@@ -330,23 +342,28 @@ export function PlaytestPage() {
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
 
   function snapField() {
-    const rect = bfRef.current?.getBoundingClientRect();
+    const rect = fieldRef.current?.getBoundingClientRect() ?? bfRef.current?.getBoundingClientRect();
     if (!rect) return null;
-    const cardW = 4.8 * 16;
-    const cardH = cardW * (88 / 63);
-    const cellW = cardW / 3;
-    const cellH = cardH / 4;
-    const gx = Math.max(0, Math.round((ptrRef.current.x - rect.left - cardW / 2) / cellW));
-    const gy = Math.max(0, Math.round((ptrRef.current.y - rect.top - cardH / 2) / cellH));
+    const { dx, dy, w: cardW, h: cardH } = grabRef.current;
+    const cellW = Math.max(12, cardW / 3);
+    const cellH = Math.max(10, cardH / 4);
+    const rawLeft = ptrRef.current.x - rect.left - dx;
+    const rawTop = ptrRef.current.y - rect.top - dy;
+    const gx = Math.round(rawLeft / cellW);
+    const gy = Math.round(rawTop / cellH);
+    const maxLeft = Math.max(0, rect.width - cardW);
+    const maxTop = Math.max(0, rect.height - cardH);
+    const left = Math.min(maxLeft, Math.max(0, gx * cellW));
+    const top = Math.min(maxTop, Math.max(0, gy * cellH));
     return {
       gx,
       gy,
-      left: gx * cellW,
-      top: gy * cellH,
+      left,
+      top,
       cardW,
       cardH,
-      x: Math.min(88, (gx * cellW) / rect.width * 100),
-      y: Math.min(68, (gy * cellH) / rect.height * 100),
+      x: rect.width ? (left / rect.width) * 100 : 0,
+      y: rect.height ? (top / rect.height) * 100 : 0,
     };
   }
 
@@ -359,6 +376,16 @@ export function PlaytestPage() {
     const card = e.active.data.current?.card as PlayCard | undefined;
     setActiveDrag(card ?? null);
     if (card) setSelected(card.instanceId);
+    const ev = e.activatorEvent as PointerEvent | MouseEvent | undefined;
+    const rect = e.active.rect.current.initial;
+    if (ev && rect) {
+      grabRef.current = {
+        dx: ev.clientX - rect.left,
+        dy: ev.clientY - rect.top,
+        w: rect.width,
+        h: rect.height,
+      };
+    }
   }
 
   function onDragEnd(e: DragEndEvent) {
@@ -497,12 +524,24 @@ export function PlaytestPage() {
         if (ghostRef.current) ghostRef.current.style.display = "none";
       }}
     >
-      <div className={`${transitions.page} ${styles.page}`}>
-        {navHidden && (
-          <button type="button" className={styles.navTab} onClick={() => setNavHidden(false)}>
-            Menu
-          </button>
-        )}
+      <div
+        className={`${transitions.page} ${styles.page}`}
+        onContextMenu={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest("button") || t.closest("a") || t.closest("input") || t.closest(`.${styles.card}`)) return;
+          e.preventDefault();
+          setMenu(null);
+          setTableMenu(clampMenu(e.clientX, e.clientY, 200, 340));
+        }}
+      >
+        <button
+          type="button"
+          className={styles.navTab}
+          aria-label={navHidden ? "Show navigation" : "Hide navigation"}
+          onClick={() => setNavHidden((v) => !v)}
+        >
+          {navHidden ? "▾" : "▴"}
+        </button>
         <div className={styles.top}>
           <Link to={`/deck/${id}`} className={styles.back}>
             ← {table.deckName}
@@ -545,15 +584,15 @@ export function PlaytestPage() {
             <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
               {logOpen ? "Hide log" : "Log"}
             </button>
+            {settings.show.newGame && (
+              <button type="button" className={styles.primary} onClick={() => void start(true)}>
+                New game
+              </button>
+            )}
           </div>
         </div>
 
-        <div className={styles.toolbar}>
-          {settings.show.newGame && (
-            <button type="button" className={styles.primary} onClick={() => void start(true)}>
-              New game
-            </button>
-          )}
+        <div className={styles.toolbar} hidden>
           {settings.show.draw && (
             <div className={styles.toolCell}>
               <button
@@ -752,19 +791,12 @@ export function PlaytestPage() {
 
         <div className={styles.board}>
           <div className={styles.col}>
-            <Pile zone="library" label="Library" />
-            <Pile zone="graveyard" label="GY" />
-            <div className={styles.actionCol}>
-              <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
-                Tokens
-              </button>
-              <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
-                Sideboard
-              </button>
-              <button type="button" className={styles.btn} onClick={() => setNavHidden((v) => !v)}>
-                {navHidden ? "Show nav" : "Hide nav"}
-              </button>
-            </div>
+            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
+              Tokens
+            </button>
+            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
+              Sideboard
+            </button>
           </div>
           <div className={styles.battlefield} ref={bfRef}>
             <div className={styles.pileHead}>
@@ -773,7 +805,7 @@ export function PlaytestPage() {
                 {seat.zones.battlefield.filter((c) => c.row !== "lands").length}
               </span>
             </div>
-            <ZoneDrop zone="battlefield" row="field" className={styles.bfField}>
+            <ZoneDrop zone="battlefield" row="field" className={styles.bfField} innerRef={fieldRef}>
               <span ref={ghostRef} className={styles.gridGhost} style={{ display: "none" }} />
               {seat.zones.battlefield
                 .filter((c) => c.row !== "lands")
@@ -829,6 +861,8 @@ export function PlaytestPage() {
           <div className={styles.col}>
             <Pile zone="command" label="Command" />
             <Pile zone="exile" label="Exile" />
+            <Pile zone="graveyard" label="GY" />
+            <Pile zone="library" label="Library" />
           </div>
         </div>
 
@@ -927,6 +961,33 @@ export function PlaytestPage() {
             <button type="button" onClick={() => { setInspect(menu.card); setMenu(null); }}>
               Inspect
             </button>
+          </div>
+        )}
+
+        {tableMenu && (
+          <div className={styles.menu} style={{ left: tableMenu.x, top: tableMenu.y }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => { dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount }); setTableMenu(null); }}>Draw</button>
+            <button type="button" onClick={() => { dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan }); setTableMenu(null); }}>Mulligan</button>
+            <button type="button" onClick={() => { dispatch({ type: "nextTurn", untap: settings.nextTurnUntap, draw: settings.nextTurnDraw }); setTableMenu(null); }}>Next turn</button>
+            <button type="button" onClick={() => { dispatch({ type: "shuffle", seatId: seat.id }); setTableMenu(null); }}>Shuffle</button>
+            <button type="button" onClick={() => { dispatch({ type: "mill", seatId: seat.id, n: settings.millCount }); setTableMenu(null); }}>Mill</button>
+            <button type="button" onClick={() => { setScryN(seat.zones.library.slice(0, settings.scryCount)); setTableMenu(null); }}>Scry</button>
+            <button type="button" onClick={() => { history.current.pop(); const prev = history.current[history.current.length - 1]; if (prev) dispatch({ type: "hydrate", state: prev }); setTableMenu(null); }}>Undo</button>
+            <button type="button" onClick={() => { dispatch({ type: "log", text: `d20 = ${roll(20)}` }); setTableMenu(null); }}>Roll d20</button>
+            <button
+              type="button"
+              onClick={() => {
+                const face = Math.random() < 0.5 ? "Heads" : "Tails";
+                setCoin(face);
+                dispatch({ type: "log", text: `Coin: ${face}` });
+                setTableMenu(null);
+              }}
+            >
+              Flip a coin
+            </button>
+            <button type="button" onClick={() => { setKit({ kind: "tokens", tab: "tokens" }); setTableMenu(null); }}>Tokens</button>
+            <button type="button" onClick={() => { setKit({ kind: "side", tab: "side" }); setTableMenu(null); }}>Sideboard</button>
+            <button type="button" onClick={() => { setSettingsOpen(true); setTableMenu(null); }}>Settings</button>
           </div>
         )}
 
