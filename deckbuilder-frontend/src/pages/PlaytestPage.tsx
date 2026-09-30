@@ -100,12 +100,14 @@ function PlayFace({
   selected,
   onActivate,
   onMenu,
+  onGrab,
   style,
 }: {
   card: PlayCard;
   selected: boolean;
   onActivate: (e: ReactMouseEvent) => void;
   onMenu: (e: ReactMouseEvent) => void;
+  onGrab?: (e: ReactMouseEvent) => void;
   style?: CSSProperties;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -126,6 +128,7 @@ function PlayFace({
         onActivate(e);
       }}
       onContextMenu={onMenu}
+      onPointerDown={(e) => onGrab?.(e as unknown as ReactMouseEvent)}
       {...listeners}
       {...attributes}
     >
@@ -184,7 +187,6 @@ export function PlaytestPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [kit, setKit] = useState<null | { kind: "tokens" | "side" | "spawn"; tab: "tokens" | "side" | "spawn" }>(null);
-  const [navHidden, setNavHidden] = useState(() => localStorage.getItem("deckapp.playHideNav") === "1");
   const [libX, setLibX] = useState(1);
   const [spawnQ, setSpawnQ] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; flyLeft?: boolean; card: PlayCard } | null>(null);
@@ -283,12 +285,6 @@ export function PlaytestPage() {
   useEffect(() => {
     void start();
   }, [start]);
-
-  useEffect(() => {
-    document.body.classList.toggle("play-nav-hidden", navHidden);
-    localStorage.setItem("deckapp.playHideNav", navHidden ? "1" : "0");
-    return () => document.body.classList.remove("play-nav-hidden");
-  }, [navHidden]);
 
   useEffect(() => {
     function close() {
@@ -435,6 +431,15 @@ export function PlaytestPage() {
           setSelected(card.instanceId);
           dispatch({ type: "tap", instanceId: card.instanceId });
         }}
+        onGrab={(ev) => {
+          const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+          grabRef.current = {
+            dx: ev.clientX - r.left,
+            dy: ev.clientY - r.top,
+            w: r.width,
+            h: r.height,
+          };
+        }}
         onMenu={(ev) => {
           ev.preventDefault();
           ev.stopPropagation();
@@ -453,10 +458,19 @@ export function PlaytestPage() {
     const stacked = zone === "library" || zone === "graveyard" || zone === "exile" || zone === "command";
     return (
       <ZoneDrop zone={zone} className={`${styles.pile} ${styles.pileCompact}`}>
-        <div className={styles.pileHead}>
+        <button
+          type="button"
+          className={styles.pileHead}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (zone === "graveyard" || zone === "exile" || zone === "command" || zone === "sideboard") {
+              setSearchZone(zone);
+            }
+          }}
+        >
           <span>{label}</span>
           <span>{cards.length}</span>
-        </div>
+        </button>
         <div
           className={styles.pileBody}
           onClick={(e) => {
@@ -534,14 +548,6 @@ export function PlaytestPage() {
           setTableMenu(clampMenu(e.clientX, e.clientY, 200, 340));
         }}
       >
-        <button
-          type="button"
-          className={styles.navTab}
-          aria-label={navHidden ? "Show navigation" : "Hide navigation"}
-          onClick={() => setNavHidden((v) => !v)}
-        >
-          {navHidden ? "▾" : "▴"}
-        </button>
         <div className={styles.top}>
           <Link to={`/deck/${id}`} className={styles.back}>
             ← {table.deckName}
@@ -552,6 +558,15 @@ export function PlaytestPage() {
           </span>
           <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
             Table settings
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
+            Tokens
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
+            Sideboard
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "spawn", tab: "spawn" })}>
+            Spawn
           </button>
           <div className={styles.stats}>
             {(
@@ -592,212 +607,8 @@ export function PlaytestPage() {
           </div>
         </div>
 
-        <div className={styles.toolbar} hidden>
-          {settings.show.draw && (
-            <div className={styles.toolCell}>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => dispatch({ type: "draw", seatId: seat.id, n: settings.drawCount })}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCountsOpen(true);
-                }}
-              >
-                Draw
-              </button>
-              {countsOpen && (
-                <button
-                  type="button"
-                  className={styles.countChip}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    persist({ ...settings, drawCount: settings.drawCount + stepFromEvent(e) });
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    persist({ ...settings, drawCount: Math.max(1, settings.drawCount - stepFromEvent(e)) });
-                  }}
-                >
-                  {settings.drawCount}
-                </button>
-              )}
-            </div>
-          )}
-          {settings.show.mulligan && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() =>
-                dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan })
-              }
-            >
-              Mulligan
-            </button>
-          )}
-          {settings.show.nextTurn && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() =>
-                dispatch({
-                  type: "nextTurn",
-                  untap: settings.nextTurnUntap,
-                  draw: settings.nextTurnDraw,
-                })
-              }
-            >
-              Next turn
-            </button>
-          )}
-          {settings.show.shuffle && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => dispatch({ type: "shuffle", seatId: seat.id })}
-            >
-              Shuffle
-            </button>
-          )}
-          {settings.show.mill && (
-            <div className={styles.toolCell}>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => dispatch({ type: "mill", seatId: seat.id, n: settings.millCount })}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCountsOpen(true);
-                }}
-              >
-                Mill
-              </button>
-              {countsOpen && (
-                <button
-                  type="button"
-                  className={styles.countChip}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    persist({ ...settings, millCount: settings.millCount + stepFromEvent(e) });
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    persist({ ...settings, millCount: Math.max(1, settings.millCount - stepFromEvent(e)) });
-                  }}
-                >
-                  {settings.millCount}
-                </button>
-              )}
-            </div>
-          )}
-          {settings.show.scry && (
-            <div className={styles.toolCell}>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => setScryN(seat.zones.library.slice(0, settings.scryCount))}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCountsOpen(true);
-                }}
-              >
-                Scry
-              </button>
-              {countsOpen && (
-                <button
-                  type="button"
-                  className={styles.countChip}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    persist({ ...settings, scryCount: settings.scryCount + stepFromEvent(e) });
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    persist({ ...settings, scryCount: Math.max(1, settings.scryCount - stepFromEvent(e)) });
-                  }}
-                >
-                  {settings.scryCount}
-                </button>
-              )}
-            </div>
-          )}
-          {settings.show.undo && (
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => {
-                const prev = history.current.pop();
-                if (prev) {
-                  setTable(prev);
-                  if (prev.deckId) saveLiveTable(prev.deckId, prev);
-                }
-              }}
-            >
-              Undo
-            </button>
-          )}
-          {settings.show.dice && (
-            <>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => dispatch({ type: "log", text: `Rolled d20 = ${roll(20)}` })}
-              >
-                d20
-              </button>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => dispatch({ type: "log", text: `Rolled d6 = ${roll(6)}` })}
-              >
-                d6
-              </button>
-            </>
-          )}
-          {countsOpen && (
-            <>
-              <button
-                type="button"
-                className={`${styles.ghost}${countsLocked ? ` ${styles.locked}` : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCountsLocked((v) => !v);
-                }}
-              >
-                {countsLocked ? "Unlock counts" : "Lock counts"}
-              </button>
-              <button
-                type="button"
-                className={styles.ghost}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  persist({ ...settings, drawCount: 1, scryCount: 1, millCount: 1 });
-                }}
-              >
-                Reset all
-              </button>
-            </>
-          )}
-          <span className={styles.hint}>
-            Click tap · Alt enhance · Ctrl select · Shift counters ×10
-          </span>
-        </div>
 
         <div className={styles.board}>
-          <div className={styles.col}>
-            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
-              Tokens
-            </button>
-            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
-              Sideboard
-            </button>
-          </div>
           <div className={styles.battlefield} ref={bfRef}>
             <div className={styles.pileHead}>
               <span>Battlefield</span>

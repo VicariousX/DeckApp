@@ -12,6 +12,10 @@ export function AppShell() {
   const location = useLocation();
   const [decksOpen, setDecksOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const isPlay = location.pathname.startsWith("/play");
+  const [playNavHidden, setPlayNavHidden] = useState(
+    () => localStorage.getItem("deckapp.playHideNav") === "1"
+  );
   const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
   const decksRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -26,6 +30,16 @@ export function AppShell() {
     setSearchOpen(false);
     setLastDeck(getLastViewedDeck());
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!isPlay) {
+      document.body.classList.remove("play-nav-hidden");
+      return;
+    }
+    document.body.classList.toggle("play-nav-hidden", playNavHidden);
+    localStorage.setItem("deckapp.playHideNav", playNavHidden ? "1" : "0");
+    return () => document.body.classList.remove("play-nav-hidden");
+  }, [isPlay, playNavHidden]);
 
   const searchMode =
     location.pathname.startsWith("/search") &&
@@ -78,6 +92,7 @@ export function AppShell() {
   return (
     <div className={styles.shell}>
       <AmbientBackdrop />
+      <div className={styles.headerWrap}>
       <header className={styles.header}>
         <NavLink to="/" className={styles.brand} end>
           Deck<span className={styles.brandAccent}>App</span>
@@ -276,6 +291,17 @@ export function AppShell() {
           )}
         </nav>
       </header>
+      {isPlay && (
+        <button
+          type="button"
+          className={styles.playNavToggle}
+          aria-label={playNavHidden ? "Show navigation" : "Hide navigation"}
+          onClick={() => setPlayNavHidden((v) => !v)}
+        >
+          {playNavHidden ? "▾" : "▴"}
+        </button>
+      )}
+      </div>
       <main className={styles.main}>
         <Outlet />
       </main>
