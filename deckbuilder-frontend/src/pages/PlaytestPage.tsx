@@ -38,6 +38,7 @@ import {
   createTableFromDeck,
   reducePlay,
 } from "../lib/playtest/engine";
+import { usePlayInteraction } from "../lib/playtest/interaction";
 import {
   DEFAULT_PLAY_SETTINGS,
   clearLiveTable,
@@ -252,39 +253,29 @@ export function PlaytestPage() {
   const history = useRef<TableState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [picked, setPicked] = useState<string[]>([]);
+  const ix = usePlayInteraction();
+  const {
+    selected, setSelected, picked, setPicked,
+    menu, setMenu, libMenu, setLibMenu, tableMenu, setTableMenu,
+    branch, setBranch, enhanceList, setEnhanceList,
+    hoverCard, setHoverCard, altPeek, setAltPeek,
+    searchZone, setSearchZone, scryN, setScryN, lookKind, setLookKind,
+    cascadeHit, setCascadeHit, marquee, setMarquee,
+    libDestOpen, setLibDestOpen, moveOpen, setMoveOpen,
+    lastClickRef, hoverRef, marqueeRef, targets, clearUi, clearSelection, openEnhance,
+  } = ix;
   const [kit, setKit] = useState<null | { kind: "tokens" | "side" | "spawn"; tab: "tokens" | "side" | "spawn" }>(null);
   const [libX, setLibX] = useState(1);
   const [spawnQ, setSpawnQ] = useState("");
-  const [menu, setMenu] = useState<{ x: number; y: number; flyLeft?: boolean; card: PlayCard } | null>(null);
   const [inspect, setInspect] = useState<PlayCard | null>(null);
-  const [searchZone, setSearchZone] = useState<PlayZone | null>(null);
-  const [scryN, setScryN] = useState<PlayCard[] | null>(null);
-  const [lookKind, setLookKind] = useState<"scry" | "searchTop" | "cascade" | "discover">("scry");
-  const lastClickRef = useRef({ id: "", at: 0 });
-  const [cascadeHit, setCascadeHit] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [settings, setSettings] = useState<PlaySettings>(DEFAULT_PLAY_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
   const [countsLocked, setCountsLocked] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [libMenu, setLibMenu] = useState<{ x: number; y: number } | null>(null);
-  const [tableMenu, setTableMenu] = useState<{ x: number; y: number } | null>(null);
   const [coin, setCoin] = useState<string | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
-  const [enhanceList, setEnhanceList] = useState<PlayCard[]>([]);
-  const [hoverCard, setHoverCard] = useState<PlayCard | null>(null);
-  const [altPeek, setAltPeek] = useState(false);
   const [libSlot, setLibSlot] = useState(1);
-  const [libDestOpen, setLibDestOpen] = useState(false);
-  const [branch, setBranch] = useState<string | null>(null);
-  const [libReveal, setLibReveal] = useState<"hidden" | "self" | "all">("hidden");
-  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
-  const marqueeRef = useRef(marquee);
-  marqueeRef.current = marquee;
-  const hoverRef = useRef<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
@@ -370,16 +361,12 @@ export function PlaytestPage() {
 
   useEffect(() => {
     function close() {
-      setMenu(null);
-      setTableMenu(null);
-      setBranch(null);
-      setMoveOpen(false);
-      setLibMenu(null);
+      clearUi();
       if (!countsLocked) setCountsOpen(false);
     }
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
-  }, [countsLocked]);
+  }, [countsLocked, clearUi]);
 
   useEffect(() => {
     function move(e: PointerEvent) {
@@ -460,7 +447,11 @@ export function PlaytestPage() {
               ? picked
               : [selected]
             : [];
-        ids.forEach((id) => dispatch({ type: "tap", instanceId: id }));
+        if (ids.length) {
+          const all = Object.values(seat.zones).flat();
+          const cards = ids.map((id) => all.find((c) => c.instanceId === id)).filter((c): c is PlayCard => Boolean(c));
+          dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
+        }
       }
       if (e.key === "Escape") {
         setEnhanceList([]);
@@ -480,6 +471,7 @@ export function PlaytestPage() {
   }, [dispatch, picked, selected, settings, table]);
 
   const seat = table?.seats[0];
+  const libReveal = (seat && table?.libraryReveal?.[seat.id]) || "hidden";
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
 
   function snapField() {
@@ -506,11 +498,6 @@ export function PlaytestPage() {
       x: rect.width ? (left / rect.width) * 100 : 0,
       y: rect.height ? (top / rect.height) * 100 : 0,
     };
-  }
-
-  function targets(id: string) {
-    if (picked.includes(id) && picked.length > 1) return picked;
-    return [id];
   }
 
   function onDragStart(e: DragStartEvent) {
@@ -590,7 +577,7 @@ export function PlaytestPage() {
             return ids.map((id) => map.get(id)).filter((c): c is PlayCard => Boolean(c));
           };
           if (ev.altKey || altPeek) {
-            setEnhanceList(group());
+            openEnhance(group());
             return;
           }
           if (ev.ctrlKey || ev.metaKey) {
@@ -608,7 +595,12 @@ export function PlaytestPage() {
             now - lastClickRef.current.at < 400
           ) {
             lastClickRef.current = { id: "", at: 0 };
-            group().forEach((c) => dispatch({ type: "tap", instanceId: c.instanceId }));
+            const cards = group();
+            dispatch({
+              type: "tapMany",
+              instanceIds: cards.map((c) => c.instanceId),
+              tapped: cards.some((c) => !c.tapped),
+            });
             return;
           }
           lastClickRef.current = { id: card.instanceId, at: now };
@@ -746,8 +738,7 @@ export function PlaytestPage() {
           const t = e.target as HTMLElement;
           if (t.closest("[data-play-id]") || t.closest(`.${styles.menu}`) || t.closest("input")) return;
           if (e.button === 0) {
-            setPicked([]);
-            setSelected(null);
+            clearSelection();
           }
         }}
         onContextMenu={(e) => {
@@ -941,7 +932,10 @@ export function PlaytestPage() {
               setMenu(null);
             }}>Enhance</button>
             <button type="button" onClick={() => {
-              targets(menu.card.instanceId).forEach((id) => dispatch({ type: "tap", instanceId: id }));
+              const ids = targets(menu.card.instanceId);
+              const all = Object.values(seat.zones).flat();
+              const cards = ids.map((id) => all.find((c) => c.instanceId === id)).filter((c): c is PlayCard => Boolean(c));
+              dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
               setMenu(null);
             }}>Tap / untap</button>
             <button type="button" onClick={() => setBranch((b) => (b === "move" ? null : "move"))}>Move to ▸</button>
@@ -1041,13 +1035,13 @@ export function PlaytestPage() {
                 <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>Flip card</button>
                 <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>Switch face</button>
                 <button type="button" onClick={() => {
-                  targets(menu.card.instanceId).forEach((id) => dispatch({ type: "clone", instanceId: id }));
+                  dispatch({ type: "cloneMany", instanceIds: targets(menu.card.instanceId) });
                   setMenu(null);
                 }}>Make Token Copy</button>
                 <button type="button" onClick={() => { setInspect(menu.card); setMenu(null); }}>Card page</button>
                 <button type="button" onClick={() => {
-                  targets(menu.card.instanceId).forEach((id) => dispatch({ type: "remove", instanceId: id }));
-                  setPicked([]);
+                  dispatch({ type: "removeMany", instanceIds: targets(menu.card.instanceId) });
+                  clearSelection();
                   setMenu(null);
                 }}>Remove from table</button>
               </div>
@@ -1151,9 +1145,9 @@ export function PlaytestPage() {
             <button type="button" onClick={() => setBranch((b) => (b === "reveal" ? null : "reveal"))}>Reveal ▸</button>
             {branch === "reveal" && (
               <div className={styles.menuBlock}>
-                <button type="button" onClick={() => { setLibReveal("self"); setLibMenu(null); }}>Reveal top (only me)</button>
-                <button type="button" onClick={() => { setLibReveal("all"); dispatch({ type: "log", text: `${seat.name} revealed the top of the library` }); setLibMenu(null); }}>Reveal top (all)</button>
-                <button type="button" onClick={() => { setLibReveal("hidden"); setLibMenu(null); }}>Hide top</button>
+                <button type="button" onClick={() => { dispatch({ type: "revealTop", seatId: seat.id, mode: "self" }); setLibMenu(null); }}>Reveal top (only me)</button>
+                <button type="button" onClick={() => { dispatch({ type: "revealTop", seatId: seat.id, mode: "all" }); setLibMenu(null); }}>Reveal top (all)</button>
+                <button type="button" onClick={() => { dispatch({ type: "revealTop", seatId: seat.id, mode: "hidden" }); setLibMenu(null); }}>Hide top</button>
               </div>
             )}
             <button type="button" onClick={() => setBranch((b) => (b === "lands" ? null : "lands"))}>Basic lands ▸</button>
@@ -1293,14 +1287,18 @@ export function PlaytestPage() {
                         <>
                           <button type="button" className={styles.primary} onClick={() => {
                             const rest = scryN.filter((x) => x.instanceId !== c.instanceId);
-                            if (lookKind === "discover") rest.sort(() => Math.random() - 0.5);
                             dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "stack" });
-                            rest.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                            if (lookKind === "discover") {
+                              dispatch({ type: "bottomRandom", seatId: seat.id, instanceIds: rest.map((x) => x.instanceId) });
+                            } else {
+                              dispatch({ type: "moveMany", seatId: seat.id, instanceIds: rest.map((x) => x.instanceId), to: "library" });
+                            }
                             setScryN(null);
                           }}>Cast</button>
                           <button type="button" className={styles.ghost} onClick={() => {
-                            const pile = lookKind === "discover" ? [...scryN].sort(() => Math.random() - 0.5) : scryN;
-                            pile.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                            const ids = scryN.map((x) => x.instanceId);
+                            if (lookKind === "discover") dispatch({ type: "bottomRandom", seatId: seat.id, instanceIds: ids });
+                            else dispatch({ type: "moveMany", seatId: seat.id, instanceIds: ids, to: "library" });
                             setScryN(null);
                           }}>All bottom</button>
                         </>
@@ -1311,8 +1309,7 @@ export function PlaytestPage() {
               </div>
               {lookKind === "discover" && !cascadeHit && (
                 <button type="button" className={styles.btn} onClick={() => {
-                  const pile = [...scryN].sort(() => Math.random() - 0.5);
-                  pile.forEach((x) => dispatch({ type: "move", seatId: seat.id, instanceId: x.instanceId, to: "library" }));
+                  dispatch({ type: "bottomRandom", seatId: seat.id, instanceIds: scryN.map((x) => x.instanceId) });
                   setScryN(null);
                 }}>
                   Bottom in random order

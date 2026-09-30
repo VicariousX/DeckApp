@@ -139,6 +139,8 @@ export function createTableFromDeck(
     deckName: detail.deck.name,
     format: detail.deck.format || "casual",
     seed,
+    rngStep: 0,
+    libraryReveal: { [seatId]: "hidden" },
     turn: 1,
     activeSeat: seatId,
     seats: [seat],
@@ -175,15 +177,28 @@ function pushLog(state: TableState, text: string) {
   state.log = [...state.log.slice(-80), { at: Date.now(), text }];
 }
 
+function tableRng(state: TableState) {
+  state.rngStep = (state.rngStep ?? 0) + 1;
+  return mulberry32((state.seed ^ Math.imul(state.rngStep, 0x9e3779b9)) >>> 0);
+}
+
 export function reducePlay(state: TableState, action: PlayAction): TableState {
-  if (action.type === "hydrate") return action.state;
+  if (action.type === "hydrate") {
+    return {
+      rngStep: 0,
+      libraryReveal: {},
+      ...action.state,
+    };
+  }
   const next = clone(state);
+  if (next.rngStep == null) next.rngStep = 0;
+  if (!next.libraryReveal) next.libraryReveal = {};
 
   switch (action.type) {
     case "shuffle": {
       const seat = seatOf(next, action.seatId);
       if (!seat) break;
-      shuffleInPlace(seat.zones.library, Math.random);
+      shuffleInPlace(seat.zones.library, tableRng(next));
       pushLog(next, `${seat.name} shuffled library`);
       break;
     }
@@ -202,7 +217,7 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       const kind = action.kind ?? "london";
       seat.zones.library.push(...seat.zones.hand);
       seat.zones.hand = [];
-      shuffleInPlace(seat.zones.library, Math.random);
+      shuffleInPlace(seat.zones.library, tableRng(next));
       seat.mulligans += 1;
       const full = seat.maxHand || 7;
       if (kind === "free") {
@@ -254,16 +269,98 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       found.card.tapped = action.tapped ?? !found.card.tapped;
       break;
     }
+    case "tapMany": {
+      const set = new Set(action.instanceIds);
+      for (const seat of next.seats) {
+        for (const zone of ZONES) {
+          for (const card of seat.zones[zone]) {
+            if (!set.has(card.instanceId)) continue;
+            card.tapped = action.tapped ?? !card.tapped;
+          }
+        }
+      }
+      break;
+    }
     case "flip": {
       const found = findCard(next, action.instanceId);
       if (!found) break;
-      found.card.face = found.card.face === 0 ? 1 : 0;
+      found.card.face = action.face ?? (found.card.face === 0 ? 1 : 0);
       break;
     }
     case "facedown": {
       const found = findCard(next, action.instanceId);
       if (!found) break;
-      found.card.facedown = !found.card.facedown;
+      found.card.facedown = action.facedown ?? !found.card.facedown;
+      break;
+    }
+    case "moveMany": {
+      action.instanceIds.forEach((id, i) => {
+        const found = findCard(next, id);
+        if (!found) return;
+        const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+        if (action.to !== "battlefield") {
+          card.tapped = false;
+          card.row = undefined;
+          card.x = undefined;
+          card.y = undefined;
+        } else if (!card.row) {
+          card.row = "field";
+        }
+        const destSeat = seatOf(next, action.seatId) ?? found.seat;
+        const dest = destSeat.zones[action.to];
+        const idx = (action.index ?? dest.length) + i;
+        dest.splice(idx, 0, card);
+      });
+      if (action.instanceIds.length) pushLog(next, `${action.instanceIds.length} cards → ${action.to}`);
+      break;
+    }
+    case "removeMany": {
+      for (const id of action.instanceIds) {
+        const found = findCard(next, id);
+        if (!found) continue;
+        found.seat.zones[found.zone].splice(found.index, 1);
+      }
+      if (action.instanceIds.length) pushLog(next, `Removed ${action.instanceIds.length} cards`);
+      break;
+    }
+    case "cloneMany": {
+      for (const id of action.instanceIds) {
+        const found = findCard(next, id);
+        if (!found) continue;
+        found.seat.zones.battlefield.push({
+          ...structuredClone(found.card),
+          instanceId: uid("tok"),
+          token: true,
+          tapped: false,
+          x: found.card.x != null ? found.card.x + 3 : undefined,
+          y: found.card.y != null ? found.card.y + 3 : undefined,
+        });
+      }
+      if (action.instanceIds.length) pushLog(next, `Token copies ×${action.instanceIds.length}`);
+      break;
+    }
+    case "revealTop": {
+      next.libraryReveal[action.seatId] = action.mode;
+      const seat = seatOf(next, action.seatId);
+      if (seat) {
+        pushLog(
+          next,
+          action.mode === "hidden"
+            ? `${seat.name} hid the top of the library`
+            : `${seat.name} revealed the top of the library (${action.mode})`
+        );
+      }
+      break;
+    }
+    case "bottomRandom": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const set = new Set(action.instanceIds);
+      const moving = seat.zones.library.filter((c) => set.has(c.instanceId));
+      seat.zones.library = seat.zones.library.filter((c) => !set.has(c.instanceId));
+      shuffleInPlace(moving, tableRng(next));
+      seat.zones.library.push(...moving);
+      pushLog(next, `${seat.name} put ${moving.length} on the bottom (random)`);
       break;
     }
     case "counter": {

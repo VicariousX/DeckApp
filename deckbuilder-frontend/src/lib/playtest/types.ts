@@ -50,11 +50,13 @@ export type TableState = {
   deckName: string;
   format: string;
   seed: number;
+  rngStep: number;
   turn: number;
   activeSeat: string;
   seats: SeatState[];
   log: { at: number; text: string }[];
   started: boolean;
+  libraryReveal: Record<string, "hidden" | "self" | "all">;
 };
 
 export type PlayAction =
@@ -64,20 +66,26 @@ export type PlayAction =
   | { type: "mulligan"; seatId: string; kind?: "london" | "paris" | "free" }
   | { type: "keep"; seatId: string }
   | { type: "move"; seatId: string; instanceId: string; to: PlayZone; index?: number }
+  | { type: "moveMany"; seatId: string; instanceIds: string[]; to: PlayZone; index?: number }
   | { type: "tap"; instanceId: string; tapped?: boolean }
-  | { type: "flip"; instanceId: string }
-  | { type: "facedown"; instanceId: string }
+  | { type: "tapMany"; instanceIds: string[]; tapped?: boolean }
+  | { type: "flip"; instanceId: string; face?: 0 | 1 }
+  | { type: "facedown"; instanceId: string; facedown?: boolean }
   | { type: "counter"; instanceId: string; key: string; delta: number }
   | { type: "life"; seatId: string; delta: number }
   | { type: "stat"; seatId: string; key: "poison" | "energy" | "experience"; delta: number }
   | { type: "nextTurn"; untap?: boolean; draw?: number }
   | { type: "scry"; seatId: string; keepTop: string[]; bottom: string[]; grave?: string[] }
+  | { type: "bottomRandom"; seatId: string; instanceIds: string[] }
   | { type: "mill"; seatId: string; n: number }
   | { type: "untapAll"; seatId: string }
   | { type: "addToken"; seatId: string; card: Omit<PlayCard, "instanceId" | "ownerSeat"> }
   | { type: "remove"; instanceId: string }
+  | { type: "removeMany"; instanceIds: string[] }
   | { type: "clone"; instanceId: string }
+  | { type: "cloneMany"; instanceIds: string[] }
   | { type: "exileTop"; seatId: string; n: number }
+  | { type: "revealTop"; seatId: string; mode: "hidden" | "self" | "all" }
   | {
       type: "place";
       instanceId: string;
