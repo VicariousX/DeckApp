@@ -191,11 +191,11 @@ export function PlaytestPage() {
   const [countsLocked, setCountsLocked] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [libMenu, setLibMenu] = useState<{ x: number; y: number } | null>(null);
-  const [gridHover, setGridHover] = useState<{ left: number; top: number; cardW: number; cardH: number } | null>(null);
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [enhance, setEnhance] = useState<PlayCard | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
+  const ghostRef = useRef<HTMLSpanElement | null>(null);
   const ptrRef = useRef({ x: 0, y: 0 });
   const handScroll = useHScroll();
   const landScroll = useHScroll();
@@ -364,7 +364,7 @@ export function PlaytestPage() {
   function onDragEnd(e: DragEndEvent) {
     const snap = snapField();
     setActiveDrag(null);
-    setGridHover(null);
+    if (ghostRef.current) ghostRef.current.style.display = "none";
     const card = e.active.data.current?.card as PlayCard | undefined;
     const zone = e.over?.data.current?.zone as PlayZone | undefined;
     const row = e.over?.data.current?.row as "field" | "lands" | undefined;
@@ -483,12 +483,18 @@ export function PlaytestPage() {
       onDragStart={onDragStart}
       onDragMove={() => {
         const snap = snapField();
-        if (snap) setGridHover({ left: snap.left, top: snap.top, cardW: snap.cardW, cardH: snap.cardH });
+        const el = ghostRef.current;
+        if (!el || !snap) return;
+        el.style.display = "block";
+        el.style.left = `${snap.left}px`;
+        el.style.top = `${snap.top}px`;
+        el.style.width = `${snap.cardW}px`;
+        el.style.height = `${snap.cardH}px`;
       }}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
         setActiveDrag(null);
-        setGridHover(null);
+        if (ghostRef.current) ghostRef.current.style.display = "none";
       }}
     >
       <div className={`${transitions.page} ${styles.page}`}>
@@ -768,17 +774,7 @@ export function PlaytestPage() {
               </span>
             </div>
             <ZoneDrop zone="battlefield" row="field" className={styles.bfField}>
-              {activeDrag && gridHover && (
-                <span
-                  className={styles.gridGhost}
-                  style={{
-                    left: gridHover.left,
-                    top: gridHover.top,
-                    width: gridHover.cardW,
-                    height: gridHover.cardH,
-                  }}
-                />
-              )}
+              <span ref={ghostRef} className={styles.gridGhost} style={{ display: "none" }} />
               {seat.zones.battlefield
                 .filter((c) => c.row !== "lands")
                 .map((c) => (
