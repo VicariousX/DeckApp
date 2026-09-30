@@ -185,9 +185,9 @@ function tableRng(state: TableState) {
 export function reducePlay(state: TableState, action: PlayAction): TableState {
   if (action.type === "hydrate") {
     return {
-      rngStep: 0,
-      libraryReveal: {},
       ...action.state,
+      rngStep: action.state.rngStep ?? 0,
+      libraryReveal: action.state.libraryReveal ?? {},
     };
   }
   const next = clone(state);
