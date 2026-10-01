@@ -12,6 +12,10 @@ export type PlaySettings = {
   nextTurnUntap: boolean;
   nextTurnDraw: number;
   showXGlyph: boolean;
+  boardScale: number;
+  handScale: number;
+  hideHand: boolean;
+  playmat: "plain" | "felt" | "arcane";
   show: {
     newGame: boolean;
     draw: boolean;
@@ -37,6 +41,10 @@ export const DEFAULT_PLAY_SETTINGS: PlaySettings = {
   nextTurnUntap: true,
   nextTurnDraw: 1,
   showXGlyph: true,
+  boardScale: 1,
+  handScale: 1,
+  hideHand: false,
+  playmat: "felt",
   show: {
     newGame: true,
     draw: true,

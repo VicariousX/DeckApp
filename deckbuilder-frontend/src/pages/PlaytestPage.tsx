@@ -166,14 +166,14 @@ function groupFieldCards(cards: PlayCard[], turn: number) {
   const used = new Set<string>();
   for (const c of cards) {
     if (used.has(c.instanceId)) continue;
-    if (c.token) {
+    if (c.token && !c.tapped) {
       const key = tokenStackKey(c, turn);
-      const stack = cards.filter((x) => x.token && tokenStackKey(x, turn) === key);
+      const stack = cards.filter((x) => x.token && !x.tapped && tokenStackKey(x, turn) === key);
       stack.forEach((x) => used.add(x.instanceId));
       shown.push({ card: c, stack, status: tokenStatus(c, turn) });
     } else {
       used.add(c.instanceId);
-      shown.push({ card: c, stack: [c], status: "single" });
+      shown.push({ card: c, stack: [c], status: c.token && c.tapped ? "tapped" : "single" });
     }
   }
   return shown;
@@ -291,11 +291,7 @@ function PlayFace({
           {card.counters[plusKey(card)] ?? 0}
         </button>
       ) : null}
-      {status && status !== "single" ? (
-        <span className={styles.statusTag}>
-          {status === "sick" ? "sick" : status === "tapped" ? "tapped" : "ready"}
-        </span>
-      ) : null}
+      {status === "sick" ? <span className={styles.statusTag}>sick</span> : null}
     </button>
   );
 }
@@ -729,6 +725,14 @@ export function PlaytestPage() {
             now - lastClickRef.current.at < 400
           ) {
             lastClickRef.current = { id: "", at: 0 };
+            if (card.token && stackIds.length > 1) {
+              dispatch({ type: "tap", instanceId: stackIds[stackIds.length - 1], tapped: true });
+              return;
+            }
+            if (card.token && card.tapped) {
+              dispatch({ type: "tap", instanceId: card.instanceId, tapped: false });
+              return;
+            }
             const cards = group();
             dispatch({
               type: "tapMany",
@@ -868,6 +872,10 @@ export function PlaytestPage() {
     >
       <div
         className={`${transitions.page} ${styles.page}`}
+        style={{
+          ["--board-card" as string]: `${4.8 * (settings.boardScale || 1)}rem`,
+          ["--hand-card" as string]: `${4.8 * (settings.handScale || 1)}rem`,
+        }}
         onPointerDown={(e) => {
           const t = e.target as HTMLElement;
           if (t.closest("[data-play-id]") || t.closest(`.${styles.menu}`) || t.closest("input")) return;
@@ -971,37 +979,8 @@ export function PlaytestPage() {
           </button>
         </div>
 
-        {seat && table.keptHand?.[seat.id] === false && (
-          <div className={styles.mulliganDock}>
-            <div className={styles.mulliganCopy}>
-              <strong>Opening hand</strong>
-              <span>Drag extras onto Bottom of library, then Keep — or take another {settings.mulligan} mulligan.</span>
-            </div>
-            <div className={styles.mulliganRow}>
-              {seat.zones.hand.map((c) => (
-                <CardView key={`mull-${c.instanceId}`} card={c} zone="hand" />
-              ))}
-            </div>
-            <ZoneDrop zone="library" className={styles.bottomWell}>
-              <span>Bottom of library</span>
-            </ZoneDrop>
-            <div className={styles.mulliganActions}>
-              <button type="button" className={styles.primary} onClick={() => dispatch({ type: "keep", seatId: seat.id })}>
-                Keep
-              </button>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => dispatch({ type: "mulligan", seatId: seat.id, kind: settings.mulligan })}
-              >
-                Mulligan
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className={styles.board}>
-          <div className={styles.battlefield} ref={bfRef}>
+          <div className={`${styles.battlefield} ${styles[`mat${(settings.playmat || "felt")[0].toUpperCase()}${(settings.playmat || "felt").slice(1)}`] ?? styles.matFelt}`} ref={bfRef}>
             <div className={styles.pileHead}>
               <span>Battlefield</span>
               <span>
@@ -1079,15 +1058,24 @@ export function PlaytestPage() {
           </div>
         </div>
 
-        <ZoneDrop zone="hand" className={styles.hand}>
+        <ZoneDrop zone="hand" className={`${styles.hand} ${settings.hideHand ? styles.handHidden : ""}`}>
           <div className={styles.pileHead}>
             <span>Hand</span>
             <span>{seat.zones.hand.length}</span>
+            <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "cmc" })}>CMC</button>
+            <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "type" })}>Type</button>
+            <button type="button" className={styles.ghost} onClick={() => persist({ ...settings, hideHand: !settings.hideHand })}>
+              {settings.hideHand ? "Show" : "Hide"}
+            </button>
           </div>
           <div className={styles.handRow} ref={handScroll}>
-            {seat.zones.hand.map((c) => (
-              <CardView key={c.instanceId} card={c} />
-            ))}
+            {settings.hideHand ? (
+              <span className={styles.hiddenHand}>Hand hidden · {seat.zones.hand.length}</span>
+            ) : (
+              seat.zones.hand.map((c) => (
+                <CardView key={c.instanceId} card={c} zone="hand" />
+              ))
+            )}
           </div>
         </ZoneDrop>
 
@@ -1130,6 +1118,15 @@ export function PlaytestPage() {
               dispatch({ type: "tapMany", instanceIds: ids, tapped: cards.some((c) => !c.tapped) });
               setMenu(null);
             }}>Tap / untap</button>
+            {menu.card.token && !menu.card.tapped && seat.zones.battlefield.filter((c) => c.token && !c.tapped && tokenStackKey(c, table.turn) === tokenStackKey(menu.card, table.turn)).length > 1 ? (
+              <button type="button" onClick={() => {
+                const ids = seat.zones.battlefield
+                  .filter((c) => c.token && !c.tapped && tokenStackKey(c, table.turn) === tokenStackKey(menu.card, table.turn))
+                  .map((c) => c.instanceId);
+                dispatch({ type: "tapMany", instanceIds: ids, tapped: true });
+                setMenu(null);
+              }}>Tap all</button>
+            ) : null}
             <button type="button" onClick={() => {
               dispatch({ type: "counterMany", instanceIds: targets(menu.card.instanceId), key: plusKey(menu.card), delta: 1 });
             }}>+ {plusKey(menu.card)}</button>
@@ -1739,6 +1736,48 @@ export function PlaytestPage() {
                   onChange={(e) => persist({ ...settings, showXGlyph: e.target.checked })}
                 />
                 Show X on actions (off = show the number)
+              </label>
+              <label className={styles.setting}>
+                Board card size
+                <select
+                  value={String(settings.boardScale ?? 1)}
+                  onChange={(e) => persist({ ...settings, boardScale: Number(e.target.value) })}
+                >
+                  <option value="0.85">Small</option>
+                  <option value="1">Normal</option>
+                  <option value="1.2">Large</option>
+                  <option value="1.4">XL</option>
+                </select>
+              </label>
+              <label className={styles.setting}>
+                Hand card size
+                <select
+                  value={String(settings.handScale ?? 1)}
+                  onChange={(e) => persist({ ...settings, handScale: Number(e.target.value) })}
+                >
+                  <option value="0.85">Small</option>
+                  <option value="1">Normal</option>
+                  <option value="1.15">Large</option>
+                </select>
+              </label>
+              <label className={styles.setting}>
+                Playmat
+                <select
+                  value={settings.playmat ?? "felt"}
+                  onChange={(e) => persist({ ...settings, playmat: e.target.value as PlaySettings["playmat"] })}
+                >
+                  <option value="felt">Felt</option>
+                  <option value="arcane">Arcane</option>
+                  <option value="plain">Plain</option>
+                </select>
+              </label>
+              <label className={styles.setting}>
+                <input
+                  type="checkbox"
+                  checked={settings.hideHand}
+                  onChange={(e) => persist({ ...settings, hideHand: e.target.checked })}
+                />
+                Hide hand (streamer)
               </label>
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close

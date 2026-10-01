@@ -96,6 +96,7 @@ export type PlayAction =
   | { type: "exileTop"; seatId: string; n: number }
   | { type: "revealTop"; seatId: string; mode: "hidden" | "self" | "all" }
   | { type: "align"; instanceIds: string[] }
+  | { type: "sortHand"; seatId: string; by: "cmc" | "type" | "name" }
   | {
       type: "place";
       instanceId: string;

@@ -392,6 +392,37 @@
   flex: 0 0 auto;
 }
 
+.hand .card {
+  width: var(--hand-card, 4.8rem);
+}
+
+.handHidden .handRow {
+  min-height: 2.4rem;
+}
+
+.hiddenHand {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  align-self: center;
+}
+
+.matFelt {
+  background:
+    radial-gradient(90% 70% at 50% 20%, color-mix(in srgb, #1f6b45 28%, transparent), transparent 60%),
+    linear-gradient(180deg, #163526, #0e241a);
+}
+
+.matArcane {
+  background:
+    radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 55%),
+    linear-gradient(180deg, #1a1228, #0c0a14);
+}
+
+.matPlain {
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
 .hand {
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -410,7 +441,7 @@
 
 .card {
   position: relative;
-  width: 4.8rem;
+  width: var(--board-card, 4.8rem);
   flex: 0 0 auto;
   border: none;
   padding: 0;

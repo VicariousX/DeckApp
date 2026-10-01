@@ -496,6 +496,17 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       });
       break;
     }
+    case "sortHand": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      seat.zones.hand.sort((a, b) => {
+        if (action.by === "type") return (a.typeLine || "").localeCompare(b.typeLine || "") || a.name.localeCompare(b.name);
+        if (action.by === "name") return a.name.localeCompare(b.name);
+        return (a.cmc ?? 0) - (b.cmc ?? 0) || a.name.localeCompare(b.name);
+      });
+      pushLog(next, `${seat.name} sorted hand by ${action.by}`);
+      break;
+    }
     case "life": {
       const seat = seatOf(next, action.seatId);
       if (!seat) break;
