@@ -16,9 +16,12 @@ export function apiUrl(path: string): string {
 }
 
 /** Direct API origin for WebSockets. Cloudflare Pages cannot proxy the upgrade. */
+const HOSTED_API = "https://deckapp-bwio.onrender.com";
+
 export function tableSocketUrl(room: string, role: "host" | "guest", name: string): string {
   const explicit = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
-  const httpBase = explicit || apiBase() || "http://127.0.0.1:3001";
+  const local = typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  const httpBase = explicit || apiBase() || (local ? "http://127.0.0.1:3001" : HOSTED_API);
   const wsBase = httpBase.replace(/^http/, "ws");
   const q = new URLSearchParams({ room, role, name });
   return `${wsBase.replace(/\/$/, "")}/api/tables/socket?${q}`;
