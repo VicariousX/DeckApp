@@ -1,6 +1,8 @@
 import express from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
+import http from "node:http";
+import { WebSocketServer, type WebSocket } from "ws";
 import { scryfallGet, scryfallPost } from "./scryfallClient.js";
 import {
   autocompleteNames,
@@ -15,6 +17,8 @@ import {
   simpleNameSearch,
 } from "./bulkData.js";
 import { BULK_ENABLED, CORS_ORIGINS, HOST, PORT } from "./config.js";
+import { appendAction, getRoom, putRoom } from "./tableRooms.js";
+import type { TableState, TableWire } from "./wire.js";
 
 const app = express();
 app.use(
@@ -46,6 +50,19 @@ function health(_req: Request, res: Response) {
 
 app.get("/health", health);
 app.get("/api/health", health);
+
+app.get("/api/tables/:id", (req: Request, res: Response) => {
+  const room = getRoom(String(req.params.id));
+  if (!room) return res.status(404).json({ error: "No table" });
+  res.json({ id: room.id, hostSeat: room.hostSeat, state: room.state, actions: room.actions.slice(-50) });
+});
+
+app.put("/api/tables/:id", (req: Request, res: Response) => {
+  const state = req.body?.state as TableState | undefined;
+  if (!state?.id) return res.status(400).json({ error: "state required" });
+  const room = putRoom(String(req.params.id), state, String(req.body?.hostSeat ?? state.seats?.[0]?.id ?? "host"));
+  res.json({ id: room.id, hostSeat: room.hostSeat });
+});
 
 /** Live API only when bulk cannot answer — still rate-limited. */
 async function liveGet(path: string) {
@@ -342,7 +359,68 @@ app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, HOST, () => {
+const server = http.createServer(app);
+const sockets = new WebSocketServer({ server, path: "/api/tables/socket" });
+const peers = new Map<string, Set<WebSocket>>();
+
+function roomOf(ws: WebSocket): string {
+  return (ws as WebSocket & { roomId?: string }).roomId ?? "";
+}
+
+function relay(roomId: string, msg: TableWire, except?: WebSocket) {
+  for (const peer of peers.get(roomId) ?? []) {
+    if (peer !== except && peer.readyState === 1) peer.send(JSON.stringify(msg));
+  }
+}
+
+sockets.on("connection", (ws, req) => {
+  const url = new URL(req.url ?? "", "http://localhost");
+  const roomId = url.searchParams.get("room") ?? "";
+  const role = url.searchParams.get("role") ?? "guest";
+  const name = url.searchParams.get("name") ?? "Guest";
+  if (!roomId) {
+    ws.close();
+    return;
+  }
+  (ws as WebSocket & { roomId?: string; role?: string }).roomId = roomId;
+  (ws as WebSocket & { role?: string }).role = role;
+  const set = peers.get(roomId) ?? new Set<WebSocket>();
+  set.add(ws);
+  peers.set(roomId, set);
+  const room = getRoom(roomId);
+  if (room) {
+    const welcome: TableWire = {
+      kind: "welcome",
+      seatId: role === "host" ? room.hostSeat : `guest-${name}`,
+      state: room.state,
+      from: room.hostSeat,
+    };
+    ws.send(JSON.stringify(welcome));
+  }
+  if (role === "guest") {
+    relay(roomId, { kind: "join", from: name, name }, ws);
+  }
+  ws.on("message", (raw) => {
+    let msg: TableWire;
+    try {
+      msg = JSON.parse(String(raw)) as TableWire;
+    } catch {
+      return;
+    }
+    if (msg.kind === "snapshot") {
+      putRoom(roomId, msg.state, msg.from);
+    }
+    if (msg.kind === "action" && msg.state) {
+      appendAction(roomId, msg.action, msg.state);
+    }
+    relay(roomId, msg, ws);
+  });
+  ws.on("close", () => {
+    peers.get(roomOf(ws))?.delete(ws);
+  });
+});
+
+server.listen(PORT, HOST, () => {
   console.log(`DeckApp API listening on http://${HOST}:${PORT}`);
   console.log(
     BULK_ENABLED

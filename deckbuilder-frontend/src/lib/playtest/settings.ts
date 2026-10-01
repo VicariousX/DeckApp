@@ -1,4 +1,4 @@
-import type { TableState } from "./types";
+import type { TableJournal, TableState } from "./types";
 
 export type MulliganKind = "london" | "paris" | "free";
 
@@ -67,6 +67,7 @@ export function loadPlaySettings(): PlaySettings {
       ...DEFAULT_PLAY_SETTINGS,
       ...parsed,
       show: { ...DEFAULT_PLAY_SETTINGS.show, ...parsed.show },
+      assistants: { ...DEFAULT_PLAY_SETTINGS.assistants, ...parsed.assistants },
     };
   } catch {
     return DEFAULT_PLAY_SETTINGS;
@@ -99,4 +100,23 @@ export function saveLiveTable(deckId: string, state: TableState) {
 
 export function clearLiveTable(deckId: string) {
   localStorage.removeItem(TABLE_KEY + deckId);
+  localStorage.removeItem(TABLE_KEY + deckId + ".journal");
+}
+
+export function loadJournal(deckId: string): TableJournal | null {
+  try {
+    const raw = localStorage.getItem(TABLE_KEY + deckId + ".journal");
+    if (!raw) return null;
+    return JSON.parse(raw) as TableJournal;
+  } catch {
+    return null;
+  }
+}
+
+export function saveJournal(deckId: string, journal: TableJournal) {
+  try {
+    localStorage.setItem(TABLE_KEY + deckId + ".journal", JSON.stringify(journal));
+  } catch {
+    /* quota */
+  }
 }

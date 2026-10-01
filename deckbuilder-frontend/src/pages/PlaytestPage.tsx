@@ -43,12 +43,15 @@ import {
   DEFAULT_PLAY_SETTINGS,
   clearLiveTable,
   loadLiveTable,
+  loadJournal,
   loadPlaySettings,
   saveLiveTable,
+  saveJournal,
   savePlaySettings,
   type PlaySettings,
 } from "../lib/playtest/settings";
-import type { PlayAction, PlayCard, PlayZone, TableState } from "../lib/playtest/types";
+import { acceptIntent, openHostedTable, publishTable, type TableWire } from "../lib/playtest/sync";
+import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./PlaytestPage.module.css";
 
@@ -192,6 +195,7 @@ function PlayFace({
   onCounter,
   onStackDelta,
   status,
+  ownerMark,
 }: {
   card: PlayCard;
   selected: boolean;
@@ -205,6 +209,7 @@ function PlayFace({
   onCounter?: (key: string, delta: number, e: ReactMouseEvent) => void;
   onStackDelta?: (delta: number, e: ReactMouseEvent) => void;
   status?: "sick" | "tapped" | "ready" | "single";
+  ownerMark?: string;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.instanceId,
@@ -292,6 +297,7 @@ function PlayFace({
         </button>
       ) : null}
       {status === "sick" ? <span className={styles.statusTag}>sick</span> : null}
+      {ownerMark ? <span className={styles.ownerPip} title={`Owned by ${ownerMark}`}>O:{ownerMark.slice(0, 1)}</span> : null}
     </button>
   );
 }
@@ -336,6 +342,19 @@ export function PlaytestPage() {
   const { resolveImageUrl } = useArtPreferences();
   const [table, setTable] = useState<TableState | null>(null);
   const history = useRef<TableState[]>([]);
+  const journalRef = useRef<TableJournal | null>(null);
+  const [fogSeats, setFogSeats] = useState(false);
+  const [tapCost, setTapCost] = useState("");
+  const [pendingTax, setPendingTax] = useState<PlayCard | null>(null);
+  const [role, setRole] = useState<"solo" | "host" | "guest">("solo");
+  const [roomCode, setRoomCode] = useState("");
+  const [viewerSeat, setViewerSeat] = useState<string | null>(null);
+  const channelRef = useRef<{ send: (msg: TableWire) => void; close: () => void } | null>(null);
+  const roleRef = useRef(role);
+  const viewerRef = useRef(viewerSeat);
+  const remoteRef = useRef(false);
+  roleRef.current = role;
+  viewerRef.current = viewerSeat;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const ix = usePlayInteraction();
@@ -387,12 +406,32 @@ export function PlaytestPage() {
   const dispatch = useCallback((action: PlayAction) => {
     setTable((cur) => {
       if (!cur && action.type !== "hydrate") return cur;
+      if (roleRef.current === "guest" && !remoteRef.current && action.type !== "hydrate") {
+        channelRef.current?.send({ kind: "intent", action, from: viewerRef.current ?? "guest" });
+        return cur;
+      }
       const base = action.type === "hydrate" ? action.state : cur!;
       if (action.type !== "hydrate") {
         history.current = [...history.current.slice(-39), cur!];
       }
       const next = reducePlay(base, action);
-      if (next.deckId) saveLiveTable(next.deckId, next);
+      if (action.type === "hydrate") {
+        if (!journalRef.current) journalRef.current = emptyJournal(next);
+      } else if (journalRef.current) {
+        journalRef.current = recordAction(journalRef.current, action, next);
+      } else {
+        journalRef.current = recordAction(emptyJournal(base), action, next);
+      }
+      if (next.deckId) {
+        saveLiveTable(next.deckId, next);
+        if (journalRef.current) saveJournal(next.deckId, journalRef.current);
+      }
+      if (roleRef.current === "host" && action.type !== "hydrate") {
+        channelRef.current?.send({ kind: "action", action, from: next.activeSeat, state: next });
+        if ((journalRef.current?.seq ?? 0) % 25 === 0) {
+          channelRef.current?.send({ kind: "snapshot", state: next, from: next.activeSeat });
+        }
+      }
       return next;
     });
   }, []);
@@ -404,13 +443,19 @@ export function PlaytestPage() {
     const prefs = loadPlaySettings();
     if (!fresh) {
       const live = loadLiveTable(id);
+      const journal = loadJournal(id);
       if (live?.started) {
-        dispatch({ type: "hydrate", state: live });
+        const replayed = journal ? replayJournal(journal) : null;
+        const state = replayed ?? live;
+        journalRef.current = journal ?? emptyJournal(state);
+        dispatch({ type: "hydrate", state });
         setLoading(false);
         return;
       }
     } else {
       clearLiveTable(id);
+      journalRef.current = null;
+      history.current = [];
     }
     const { detail, error: err } = await fetchDeckDetail(id);
     if (err || !detail) {
@@ -439,6 +484,18 @@ export function PlaytestPage() {
     dispatch({ type: "hydrate", state: next });
     setLoading(false);
   }, [dispatch, id, resolveImageUrl, user]);
+
+  const sendIntent = useCallback((action: PlayAction) => {
+    if (roleRef.current !== "guest") {
+      dispatch(action);
+      return;
+    }
+    channelRef.current?.send({ kind: "intent", action, from: viewerSeat ?? "guest" });
+  }, [dispatch, viewerSeat]);
+
+  useEffect(() => {
+    return () => channelRef.current?.close();
+  }, []);
 
   useEffect(() => {
     void start();
@@ -533,7 +590,12 @@ export function PlaytestPage() {
       } else if ((key === "z" || key === "Z") && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         const prev = history.current.pop();
-        if (prev) setTable(prev);
+        if (prev) {
+          if (journalRef.current) journalRef.current = truncateJournal(journalRef.current, prev);
+          if (prev.deckId && journalRef.current) saveJournal(prev.deckId, journalRef.current);
+          if (prev.deckId) saveLiveTable(prev.deckId, prev);
+          setTable(prev);
+        }
       } else if (key === "s" || key === "S") {
         dispatch({ type: "shuffle", seatId: seat.id });
       } else if (key === "t" || key === "T") {
@@ -587,6 +649,7 @@ export function PlaytestPage() {
   }, [clearSelection, dispatch, picked, selected, settings, start, table]);
 
   const seat = table?.seats[0];
+  const seatView = table && seat ? project(table, seat.id) : null;
   const libReveal = (seat && table?.libraryReveal?.[seat.id]) || "hidden";
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
 
@@ -682,6 +745,11 @@ export function PlaytestPage() {
         style={style}
         stackCount={stackIds.length}
         status={card.token ? tokenStatus(card, table?.turn ?? 1) : "single"}
+        ownerMark={
+          card.controllerSeat && card.ownerSeat && card.controllerSeat !== card.ownerSeat
+            ? table?.seats.find((s) => s.id === card.ownerSeat)?.name
+            : undefined
+        }
         onStackDelta={
           card.token
             ? (delta) => dispatch({ type: "stackDelta", instanceId: card.instanceId, delta })
@@ -703,7 +771,7 @@ export function PlaytestPage() {
                 ? picked
                 : stackIds;
             const map = new Map(
-              Object.values(seat?.zones ?? {}).flat().map((c) => [c.instanceId, c])
+              (table?.seats ?? []).flatMap((s) => Object.values(s.zones).flat()).map((c) => [c.instanceId, c])
             );
             return ids.map((id) => map.get(id)).filter((c): c is PlayCard => Boolean(c));
           };
@@ -946,6 +1014,51 @@ export function PlaytestPage() {
             <button type="button" className={styles.primary} onClick={() => void start(true)}>
               New game
             </button>
+            <button type="button" className={styles.btn} onClick={() => {
+              if (!table) return;
+              channelRef.current?.close();
+              const code = table.id;
+              setRoomCode(code);
+              setRole("host");
+              setViewerSeat(table.seats[0].id);
+              void publishTable(code, table, table.seats[0].id);
+              channelRef.current = openHostedTable(code, "host", table.seats[0].name, (msg) => {
+                if (msg.kind === "join") {
+                  dispatch({ type: "ensureSeat", name: msg.name || "Guest" });
+                } else if (msg.kind === "intent") {
+                  setTable((cur) => {
+                    if (!cur) return cur;
+                    const reason = acceptIntent(cur, msg.action, msg.from);
+                    if (reason) {
+                      channelRef.current?.send({ kind: "reject", text: reason, from: cur.seats[0].id });
+                      return cur;
+                    }
+                    return cur;
+                  });
+                  dispatch(msg.action);
+                }
+              });
+            }}>Share</button>
+            <input className={styles.costInput} value={roomCode} placeholder="Room" onChange={(e) => setRoomCode(e.target.value)} />
+            <button type="button" className={styles.btn} onClick={() => {
+              if (!roomCode) return;
+              channelRef.current?.close();
+              setRole("guest");
+              channelRef.current = openHostedTable(roomCode, "guest", user?.email || "Guest", (msg) => {
+                if (msg.kind === "welcome" || msg.kind === "snapshot") {
+                  setViewerSeat(msg.kind === "welcome" ? msg.seatId : viewerSeat);
+                  journalRef.current = emptyJournal(msg.state);
+                  dispatch({ type: "hydrate", state: msg.state });
+                } else if (msg.kind === "action") {
+                  remoteRef.current = true;
+                  dispatch(msg.action);
+                  remoteRef.current = false;
+                } else if (msg.kind === "reject") {
+                  setError(msg.text);
+                }
+              });
+              channelRef.current.send({ kind: "join", from: "guest", name: user?.email || "Guest" });
+            }}>Join</button>
           </div>
         </div>
         <div className={styles.cmdStrip}>
@@ -977,6 +1090,63 @@ export function PlaytestPage() {
           <button type="button" className={styles.stat} onClick={() => dispatch({ type: "proliferate", seatId: seat.id })}>
             Proliferate
           </button>
+          <button type="button" className={styles.stat} onClick={() => setFogSeats((v) => !v)}>
+            {fogSeats ? "Full table" : "Seat view"}
+          </button>
+        </div>
+        {seatView ? (
+          <div className={styles.cmdStrip}>
+            <span className={styles.railCount}>actions {journalRef.current?.seq ?? 0}</span>
+            {seatView.others.map((o) => (
+              <span key={o.id} className={styles.stat}>
+                {o.name} · life {o.life} · hand {fogSeats ? o.hand : o.hand} · lib {o.library}
+                {o.revealedTop ? ` · top ${o.revealedTop.name}` : fogSeats ? " · library hidden" : ""}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {seat && table ? (
+          <div className={styles.cmdStrip}>
+            {settings.assistants?.autoTap ? (
+              <>
+                <input className={styles.costInput} value={tapCost} placeholder="Cost 2G" onChange={(e) => setTapCost(e.target.value)} />
+                <button type="button" className={styles.stat} onClick={() => {
+                  const ids = suggestLandTaps(seat.zones.battlefield, tapCost);
+                  if (!ids?.length) return;
+                  dispatch({ type: "tapMany", instanceIds: ids, tapped: true });
+                  setTapCost("");
+                }}>Tap lands</button>
+              </>
+            ) : null}
+            {pendingTax ? (
+              <button type="button" className={styles.primary} onClick={() => {
+                dispatch({ type: "tax", seatId: seat.id, delta: 1 });
+                dispatch({ type: "cast", instanceId: pendingTax.instanceId });
+                setPendingTax(null);
+              }}>Cast {pendingTax.name} · tax {seat.commanderTax ?? 0}</button>
+            ) : null}
+            {settings.assistants?.death ? deadCreatures(table).map((c) => (
+              <button key={c.instanceId} type="button" className={styles.stat} onClick={() => dispatch({ type: "move", seatId: c.ownerSeat, instanceId: c.instanceId, to: "graveyard", toOwner: true })}>
+                {c.name} dead · grave
+              </button>
+            )) : null}
+            {settings.assistants?.legend ? legendClashes(table).map((clash) => (
+              <span key={clash.name} className={styles.stat}>Legend · {clash.cards[0].name} ×{clash.cards.length}</span>
+            )) : null}
+          </div>
+        ) : null}
+
+        <div className={styles.cmdStrip}>
+          {(["untap", "upkeep", "draw", "main", "combat", "main2", "end"] as const).map((phase) => (
+            <button
+              key={phase}
+              type="button"
+              className={table.phase === phase ? styles.primary : styles.stat}
+              onClick={() => sendIntent({ type: "setPhase", phase })}
+            >
+              {phase}
+            </button>
+          ))}
         </div>
 
         <div className={styles.board}>
@@ -984,7 +1154,7 @@ export function PlaytestPage() {
             <div className={styles.pileHead}>
               <span>Battlefield</span>
               <span>
-                {seat.zones.battlefield.filter((c) => c.row !== "lands").length}
+                {table.seats.reduce((n, s) => n + s.zones.battlefield.filter((c) => c.row !== "lands").length, 0)}
               </span>
             </div>
             <ZoneDrop
@@ -999,7 +1169,10 @@ export function PlaytestPage() {
               }}
             >
               <span ref={ghostRef} className={styles.gridGhost} style={{ display: "none" }} />
-              {groupFieldCards(seat.zones.battlefield.filter((c) => c.row !== "lands"), table.turn).map(({ card: c, stack, status }) => (
+              {groupFieldCards(
+                table.seats.flatMap((s) => s.zones.battlefield.filter((c) => c.row !== "lands")),
+                table.turn
+              ).map(({ card: c, stack }) => (
                   <CardView
                     key={c.instanceId}
                     card={c}
@@ -1016,20 +1189,17 @@ export function PlaytestPage() {
                     }
                   />
                 ))}
-              {seat.zones.stack.map((c) => (
-                <CardView key={c.instanceId} card={c} />
-              ))}
             </ZoneDrop>
             <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
               <div className={styles.railHead}>
                 <span className={styles.railCount}>
-                  {seat.zones.battlefield.filter((c) => c.row === "lands").length}
+                  {table.seats.reduce((n, s) => n + s.zones.battlefield.filter((c) => c.row === "lands").length, 0)}
                 </span>
                 <span className={styles.railLabel}>Lands</span>
               </div>
               <div className={styles.railScroll} ref={landScroll}>
                 {Object.values(
-                  seat.zones.battlefield
+                  table.seats.flatMap((s) => s.zones.battlefield)
                     .filter((c) => c.row === "lands")
                     .reduce<Record<string, PlayCard[]>>((acc, c) => {
                       const k = c.oracleId || c.name;
@@ -1051,6 +1221,27 @@ export function PlaytestPage() {
             </ZoneDrop>
           </div>
           <div className={styles.col}>
+            <div className={`${styles.pile} ${styles.pileCompact}`}>
+              <div className={styles.pileHead}>
+                <span>Stack</span>
+                <span>{table.stackItems?.length ?? 0}</span>
+              </div>
+              <div className={styles.stackCol}>
+                {[...(table.stackItems ?? [])].reverse().map((item, i) => (
+                  <div key={item.id} className={i === 0 ? styles.stackTop : styles.stackItem}>
+                    <strong>{item.name}</strong>
+                    <span>{item.kind}{item.x != null ? ` · X=${item.x}` : ""}{item.targets.length ? ` · ${item.targets.join(", ")}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.mulliganRow}>
+                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "pass", seatId: seat.id })}>Pass</button>
+                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "resolveTop", to: "battlefield" })}>Resolve</button>
+                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "resolveTop", to: "graveyard" })}>To grave</button>
+                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "counterSpell" })}>Counter</button>
+                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "copySpell" })}>Copy</button>
+              </div>
+            </div>
             <Pile zone="command" label="Command" />
             <Pile zone="exile" label="Exile" />
             <Pile zone="graveyard" label="GY" />
@@ -1242,6 +1433,39 @@ export function PlaytestPage() {
               <div className={styles.menuBlock}>
                 <button type="button" onClick={() => { dispatch({ type: "facedown", instanceId: menu.card.instanceId }); setMenu(null); }}>Flip card</button>
                 <button type="button" onClick={() => { dispatch({ type: "flip", instanceId: menu.card.instanceId }); setMenu(null); }}>Switch face</button>
+                <button type="button" onClick={() => {
+                  dispatch({
+                    type: "gainControl",
+                    instanceId: menu.card.instanceId,
+                    seatId: "opponent",
+                    untilEndOfTurn: true,
+                  });
+                  setMenu(null);
+                }}>Gain control until end of turn</button>
+                <button type="button" onClick={() => {
+                  dispatch({ type: "gainControl", instanceId: menu.card.instanceId, seatId: "opponent" });
+                  setMenu(null);
+                }}>Gain control</button>
+                <button type="button" onClick={() => {
+                  const fromCommand = table.seats.some((s) => s.zones.command.some((c) => c.instanceId === menu.card.instanceId));
+                  if (settings.assistants?.tax && fromCommand) setPendingTax(menu.card);
+                  else dispatch({ type: "cast", instanceId: menu.card.instanceId });
+                  setMenu(null);
+                }}>Cast</button>
+                <button type="button" onClick={() => {
+                  dispatch({ type: "activate", instanceId: menu.card.instanceId, name: `${menu.card.name} ability` });
+                  setMenu(null);
+                }}>Activate</button>
+                <button type="button" onClick={() => {
+                  dispatch({ type: "counter", instanceId: menu.card.instanceId, key: "toughness", delta: libSlot - (menu.card.counters.toughness ?? menu.card.toughness ?? 0) });
+                  setMenu(null);
+                }}>Set toughness to X</button>
+                {menu.card.controllerSeat !== menu.card.ownerSeat ? (
+                  <button type="button" onClick={() => {
+                    dispatch({ type: "releaseControl", instanceId: menu.card.instanceId });
+                    setMenu(null);
+                  }}>Give back</button>
+                ) : null}
                 <button type="button" onClick={() => {
                   dispatch({ type: "cloneMany", instanceIds: targets(menu.card.instanceId) });
                   setMenu(null);
@@ -1497,7 +1721,7 @@ export function PlaytestPage() {
                         <>
                           <button type="button" className={styles.primary} onClick={() => {
                             const rest = scryN.filter((x) => x.instanceId !== c.instanceId);
-                            dispatch({ type: "move", seatId: seat.id, instanceId: c.instanceId, to: "stack" });
+                            dispatch({ type: "cast", instanceId: c.instanceId });
                             if (lookKind === "discover") {
                               dispatch({ type: "bottomRandom", seatId: seat.id, instanceIds: rest.map((x) => x.instanceId) });
                             } else {
@@ -1779,6 +2003,16 @@ export function PlaytestPage() {
                 />
                 Hide hand (streamer)
               </label>
+              {(["autoTap", "death", "tax", "legend"] as const).map((key) => (
+                <label key={key} className={styles.setting}>
+                  <input
+                    type="checkbox"
+                    checked={settings.assistants?.[key] !== false}
+                    onChange={(e) => persist({ ...settings, assistants: { ...settings.assistants, [key]: e.target.checked } })}
+                  />
+                  Assistant: {key}
+                </label>
+              ))}
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close
               </button>

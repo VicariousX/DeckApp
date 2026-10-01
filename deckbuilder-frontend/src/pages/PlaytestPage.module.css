@@ -136,6 +136,21 @@
   filter: saturate(0.72);
 }
 
+.ownerPip {
+  position: absolute;
+  right: 0.16rem;
+  bottom: 0.16rem;
+  z-index: 2;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  border-radius: 4px;
+  padding: 0.04rem 0.2rem;
+}
+
 .mulliganDock {
   border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
   border-radius: 14px;
@@ -307,9 +322,35 @@
   gap: 0.28rem;
 }
 
-.pileCompact {
-  flex: 0 0 auto;
-  min-height: 0;
+.stackCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.stackItem,
+.stackTop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.costInput {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font: inherit;
+  font-size: 0.75rem;
+  width: 6.5rem;
 }
 
 .navTab {

@@ -14,3 +14,12 @@ export function apiUrl(path: string): string {
   const p = raw.startsWith("/") ? raw : `/${raw}`;
   return `${apiBase()}${p}`;
 }
+
+/** Direct API origin for WebSockets. Cloudflare Pages cannot proxy the upgrade. */
+export function tableSocketUrl(room: string, role: "host" | "guest", name: string): string {
+  const explicit = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+  const httpBase = explicit || apiBase() || "http://127.0.0.1:3001";
+  const wsBase = httpBase.replace(/^http/, "ws");
+  const q = new URLSearchParams({ room, role, name });
+  return `${wsBase.replace(/\/$/, "")}/api/tables/socket?${q}`;
+}

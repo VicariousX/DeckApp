@@ -89,6 +89,7 @@ function expandDeckCards(
         counters: {},
         token: false,
         ownerSeat: seatId,
+        controllerSeat: seatId,
       };
       if (c.board === "commander") command.push(pc);
       else if (c.board === "side") side.push(pc);
@@ -143,6 +144,8 @@ export function createTableFromDeck(
     rngStep: 0,
     libraryReveal: { [seatId]: "hidden" },
     keptHand: { [seatId]: false },
+    controlStamp: 0,
+    phase: "main",
     turn: 1,
     activeSeat: seatId,
     seats: [seat],
@@ -175,6 +178,52 @@ function seatOf(state: TableState, seatId: string): SeatState | undefined {
   return state.seats.find((s) => s.id === seatId);
 }
 
+function ownerZones(zone: PlayZone): boolean {
+  return zone === "graveyard" || zone === "exile" || zone === "library" || zone === "command";
+}
+
+function releaseToOwner(state: TableState, card: PlayCard, fromSeat: SeatState, zone: PlayZone) {
+  card.controllerSeat = card.ownerSeat;
+  card.controlExpiresTurn = undefined;
+  if (zone !== "battlefield" || fromSeat.id === card.ownerSeat) return;
+  const idx = fromSeat.zones.battlefield.findIndex((c) => c.instanceId === card.instanceId);
+  if (idx < 0) return;
+  const [moved] = fromSeat.zones.battlefield.splice(idx, 1);
+  const owner = seatOf(state, card.ownerSeat) ?? fromSeat;
+  owner.zones.battlefield.push(moved);
+}
+
+function applyMove(
+  state: TableState,
+  card: PlayCard,
+  fromSeat: SeatState,
+  fromZone: PlayZone,
+  to: PlayZone,
+  seatId: string,
+  index?: number,
+  toOwner?: boolean
+) {
+  if (to !== "battlefield") {
+    card.tapped = false;
+    card.row = undefined;
+    card.x = undefined;
+    card.y = undefined;
+    card.enteredTurn = undefined;
+    card.attachedTo = undefined;
+    card.controllerSeat = card.ownerSeat;
+    card.controlExpiresTurn = undefined;
+  } else if (fromZone !== "battlefield") {
+    card.enteredTurn = state.turn;
+    if (!card.row) card.row = "field";
+  }
+  const useOwner = toOwner || ownerZones(to);
+  const destId = useOwner ? card.ownerSeat : seatId || card.controllerSeat || card.ownerSeat;
+  const destSeat = seatOf(state, destId) ?? fromSeat;
+  const dest = destSeat.zones[to];
+  const idx = index ?? dest.length;
+  dest.splice(Math.max(0, Math.min(idx, dest.length)), 0, card);
+}
+
 function pushLog(state: TableState, text: string) {
   state.log = [...state.log.slice(-80), { at: Date.now(), text }];
 }
@@ -190,15 +239,27 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       ...action.state,
       rngStep: action.state.rngStep ?? 0,
       libraryReveal: action.state.libraryReveal ?? {},
+      controlStamp: action.state.controlStamp ?? 0,
+      stackItems: action.state.stackItems ?? [],
+      passed: action.state.passed ?? [],
     };
   }
   const next = clone(state);
   if (next.rngStep == null) next.rngStep = 0;
   if (!next.libraryReveal) next.libraryReveal = {};
   if (!next.keptHand) next.keptHand = {};
+  if (next.controlStamp == null) next.controlStamp = 0;
+  if (!next.stackItems) next.stackItems = [];
+  if (!next.passed) next.passed = [];
   for (const s of next.seats) {
     if (s.commanderTax == null) s.commanderTax = 0;
     if (!s.commanderDamage) s.commanderDamage = {};
+    for (const zone of ZONES) {
+      for (const card of s.zones[zone]) {
+        if (!card.controllerSeat) card.controllerSeat = card.ownerSeat || s.id;
+        if (!card.ownerSeat) card.ownerSeat = s.id;
+      }
+    }
   }
 
   switch (action.type) {
@@ -255,23 +316,8 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     case "move": {
       const found = findCard(next, action.instanceId);
       if (!found) break;
-      const fromZone = found.zone;
       const [card] = found.seat.zones[found.zone].splice(found.index, 1);
-      if (action.to !== "battlefield") {
-        card.tapped = false;
-        card.row = undefined;
-        card.x = undefined;
-        card.y = undefined;
-        card.enteredTurn = undefined;
-        card.attachedTo = undefined;
-      } else {
-        if (!card.row) card.row = "field";
-        if (fromZone !== "battlefield") card.enteredTurn = next.turn;
-      }
-      const destSeat = seatOf(next, action.seatId) ?? found.seat;
-      const dest = destSeat.zones[action.to];
-      const idx = action.index ?? dest.length;
-      dest.splice(idx, 0, card);
+      applyMove(next, card, found.seat, found.zone, action.to, action.seatId, action.index, action.toOwner);
       pushLog(next, `${card.name} → ${action.to}`);
       break;
     }
@@ -309,25 +355,98 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       action.instanceIds.forEach((id, i) => {
         const found = findCard(next, id);
         if (!found) return;
-        const fromZone = found.zone;
         const [card] = found.seat.zones[found.zone].splice(found.index, 1);
-        if (action.to !== "battlefield") {
-          card.tapped = false;
-          card.row = undefined;
-          card.x = undefined;
-          card.y = undefined;
-          card.enteredTurn = undefined;
-          card.attachedTo = undefined;
-        } else {
-          if (!card.row) card.row = "field";
-          if (fromZone !== "battlefield") card.enteredTurn = next.turn;
-        }
-        const destSeat = seatOf(next, action.seatId) ?? found.seat;
-        const dest = destSeat.zones[action.to];
-        const idx = (action.index ?? dest.length) + i;
-        dest.splice(idx, 0, card);
+        applyMove(
+          next,
+          card,
+          found.seat,
+          found.zone,
+          action.to,
+          action.seatId,
+          action.index != null ? action.index + i : undefined,
+          action.toOwner
+        );
       });
       if (action.instanceIds.length) pushLog(next, `${action.instanceIds.length} cards → ${action.to}`);
+      break;
+    }
+    case "ensureSeat": {
+      const name = action.name.trim() || "Opponent";
+      if (!next.seats.some((s) => s.name === name)) {
+        const id = uid("seat");
+        next.seats.push({
+          id,
+          name,
+          life: startingLife(next.format),
+          poison: 0,
+          energy: 0,
+          experience: 0,
+          commanderTax: 0,
+          commanderDamage: {},
+          zones: emptyZones(),
+          mulligans: 0,
+          maxHand: 7,
+        });
+        next.libraryReveal[id] = "hidden";
+        pushLog(next, `${name} joined the table`);
+      }
+      break;
+    }
+    case "gainControl": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      let dest = seatOf(next, action.seatId);
+      if (!dest && action.seatId === "opponent") {
+        dest = next.seats.find((s) => s.name === "Opponent");
+        if (!dest) {
+          const id = uid("seat");
+          dest = {
+            id,
+            name: "Opponent",
+            life: startingLife(next.format),
+            poison: 0,
+            energy: 0,
+            experience: 0,
+            commanderTax: 0,
+            commanderDamage: {},
+            zones: emptyZones(),
+            mulligans: 0,
+            maxHand: 7,
+          };
+          next.seats.push(dest);
+          next.libraryReveal[id] = "hidden";
+        }
+      }
+      if (!dest) break;
+      const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+      next.controlStamp = (next.controlStamp ?? 0) + 1;
+      card.controllerSeat = dest.id;
+      card.timestamp = next.controlStamp;
+      card.controlExpiresTurn = action.untilEndOfTurn ? next.turn : undefined;
+      if (found.zone === "battlefield") {
+        if (!card.row) card.row = "field";
+        dest.zones.battlefield.push(card);
+      } else {
+        found.seat.zones[found.zone].splice(found.index, 0, card);
+      }
+      pushLog(
+        next,
+        `${dest.name} controls ${card.name}${action.untilEndOfTurn ? " until end of turn" : ""}`
+      );
+      break;
+    }
+    case "releaseControl": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+      const owner = seatOf(next, card.ownerSeat) ?? found.seat;
+      card.controllerSeat = owner.id;
+      card.controlExpiresTurn = undefined;
+      next.controlStamp = (next.controlStamp ?? 0) + 1;
+      card.timestamp = next.controlStamp;
+      if (found.zone === "battlefield") owner.zones.battlefield.push(card);
+      else owner.zones[found.zone].push(card);
+      pushLog(next, `${card.name} returned to ${owner.name}`);
       break;
     }
     case "removeMany": {
@@ -347,6 +466,8 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
           ...structuredClone(found.card),
           instanceId: uid("tok"),
           token: true,
+          ownerSeat: found.card.controllerSeat || found.seat.id,
+          controllerSeat: found.card.controllerSeat || found.seat.id,
           tapped: false,
           attachedTo: undefined,
           enteredTurn: next.turn,
@@ -530,6 +651,15 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
       const seat = seatOf(next, next.activeSeat);
       const doUntap = action.untap !== false;
       const drawN = action.draw ?? 1;
+      for (const s of next.seats) {
+        for (const zone of ZONES) {
+          for (const card of [...s.zones[zone]]) {
+            if (card.controlExpiresTurn != null && card.controlExpiresTurn <= next.turn) {
+              releaseToOwner(next, card, s, zone);
+            }
+          }
+        }
+      }
       if (seat) {
         if (doUntap) for (const c of seat.zones.battlefield) c.tapped = false;
         const drawn = drawN > 0 ? seat.zones.library.splice(0, drawN) : [];
@@ -588,6 +718,7 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
         ...action.card,
         instanceId: uid("tok"),
         ownerSeat: seat.id,
+        controllerSeat: seat.id,
         token: true,
         enteredTurn: next.turn,
       });
@@ -608,6 +739,8 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
         ...structuredClone(found.card),
         instanceId: uid("tok"),
         token: true,
+        ownerSeat: found.card.controllerSeat || found.seat.id,
+        controllerSeat: found.card.controllerSeat || found.seat.id,
         tapped: false,
         attachedTo: undefined,
         enteredTurn: next.turn,
@@ -629,6 +762,119 @@ export function reducePlay(state: TableState, action: PlayAction): TableState {
     case "log":
       pushLog(next, action.text);
       break;
+    case "cast":
+    case "activate": {
+      const found = findCard(next, action.instanceId);
+      if (!found) break;
+      const controller = found.card.controllerSeat || found.seat.id;
+      const item = {
+        id: uid("stk"),
+        kind: action.type === "cast" ? "spell" as const : "ability" as const,
+        name: action.type === "activate" && action.name ? action.name : found.card.name,
+        controllerSeat: controller,
+        instanceId: found.card.instanceId,
+        targets: action.targets ?? [],
+        x: action.x,
+      };
+      if (action.type === "cast") {
+        const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+        card.controllerSeat = controller;
+        const dest = seatOf(next, controller) ?? found.seat;
+        dest.zones.stack.push(card);
+      }
+      next.stackItems = [...(next.stackItems ?? []), item];
+      next.passed = [];
+      pushLog(next, `${item.kind === "spell" ? "Cast" : "Activated"} ${item.name}${item.targets.length ? ` → ${item.targets.join(", ")}` : ""}`);
+      break;
+    }
+    case "pass": {
+      const seat = seatOf(next, action.seatId);
+      if (!seat) break;
+      const passed = new Set(next.passed ?? []);
+      passed.add(seat.id);
+      next.passed = [...passed];
+      pushLog(next, `${seat.name} passed`);
+      break;
+    }
+    case "counterSpell": {
+      const items = next.stackItems ?? [];
+      const idx = action.itemId ? items.findIndex((i) => i.id === action.itemId) : items.length - 1;
+      if (idx < 0) break;
+      const [item] = items.splice(idx, 1);
+      next.stackItems = items;
+      next.passed = [];
+      if (item.instanceId && item.kind !== "ability") {
+        const found = findCard(next, item.instanceId);
+        if (found) {
+          const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+          card.controllerSeat = card.ownerSeat;
+          const owner = seatOf(next, card.ownerSeat) ?? found.seat;
+          owner.zones.graveyard.push(card);
+        }
+      }
+      pushLog(next, `Countered ${item.name}`);
+      break;
+    }
+    case "copySpell": {
+      const items = next.stackItems ?? [];
+      const item = action.itemId ? items.find((i) => i.id === action.itemId) : items[items.length - 1];
+      if (!item) break;
+      next.stackItems = [
+        ...items,
+        {
+          id: uid("stk"),
+          kind: "copy",
+          name: item.name,
+          controllerSeat: item.controllerSeat,
+          instanceId: item.instanceId,
+          targets: [...item.targets],
+          x: item.x,
+          copyOf: item.id,
+        },
+      ];
+      next.passed = [];
+      pushLog(next, `Copied ${item.name}`);
+      break;
+    }
+    case "setPhase": {
+      next.phase = action.phase;
+      pushLog(next, `Phase · ${action.phase}`);
+      break;
+    }
+    case "resolveTop": {
+      const items = next.stackItems ?? [];
+      const item = items.pop();
+      next.stackItems = items;
+      next.passed = [];
+      if (!item) break;
+      if (item.kind === "copy" && item.instanceId) {
+        const found = findCard(next, item.instanceId);
+        if (found) {
+          const dest = seatOf(next, item.controllerSeat) ?? found.seat;
+          dest.zones.battlefield.push({
+            ...structuredClone(found.card),
+            instanceId: uid("tok"),
+            token: true,
+            ownerSeat: item.controllerSeat,
+            controllerSeat: item.controllerSeat,
+            tapped: false,
+            attachedTo: undefined,
+            enteredTurn: next.turn,
+          });
+        }
+        pushLog(next, `Resolved copy of ${item.name}`);
+        break;
+      }
+      if (item.instanceId && item.kind === "spell") {
+        const found = findCard(next, item.instanceId);
+        if (found) {
+          const [card] = found.seat.zones[found.zone].splice(found.index, 1);
+          applyMove(next, card, found.seat, found.zone, action.to, item.controllerSeat, undefined, ownerZones(action.to));
+        }
+      }
+      pushLog(next, `Resolved ${item.name} → ${action.to}`);
+      break;
+    }
     default:
       break;
   }
