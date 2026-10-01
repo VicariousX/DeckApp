@@ -963,24 +963,33 @@ export function PlaytestPage() {
         }}
       >
         <div className={styles.top}>
+          <div className={styles.identity}>
           <Link to={`/deck/${id}`} className={styles.back}>
             ← {table.deckName}
           </Link>
-          <h1 className={styles.title}>Playtest</h1>
+          <h1 className={styles.title}>Table</h1>
           <span className={styles.muted}>
-            Turn {table.turn} · {table.format} · {settings.mulligan} mulligan
+            Turn {table.turn} · {table.phase ?? "main"} · {table.format}
           </span>
+          </div>
+          <div className={styles.tools}>
           <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
-            Table settings
+            Settings
           </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
             Tokens
           </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
-            Sideboard
+            Side
           </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "spawn", tab: "spawn" })}>
             Spawn
+          </button>
+          <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
+            {logOpen ? "Hide log" : "Log"}
+          </button>
+          <button type="button" className={styles.primary} onClick={() => void start(true)}>
+            New game
           </button>
           <div className={styles.stats}>
             {(
@@ -1010,12 +1019,6 @@ export function PlaytestPage() {
                 {label} {kind === "life" ? seat.life : seat[key]}
               </button>
             ))}
-            <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
-              {logOpen ? "Hide log" : "Log"}
-            </button>
-            <button type="button" className={styles.primary} onClick={() => void start(true)}>
-              New game
-            </button>
             <button type="button" className={styles.btn} onClick={() => {
               if (!table) return;
               channelRef.current?.close();
@@ -1061,6 +1064,7 @@ export function PlaytestPage() {
               });
               channelRef.current.send({ kind: "join", from: "guest", name: user?.email || "Guest" });
             }}>Join</button>
+          </div>
           </div>
         </div>
         <div className={styles.cmdStrip}>
@@ -1138,7 +1142,7 @@ export function PlaytestPage() {
           </div>
         ) : null}
 
-        <div className={styles.cmdStrip}>
+        <div className={styles.phases}>
           {(["untap", "upkeep", "draw", "main", "combat", "main2", "end"] as const).map((phase) => (
             <button
               key={phase}

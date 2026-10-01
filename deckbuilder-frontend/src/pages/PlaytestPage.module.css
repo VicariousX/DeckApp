@@ -1,39 +1,59 @@
 .page {
   width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0.4rem 0.75rem 0.5rem;
+  max-width: none;
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  height: calc(100vh - 4.6rem);
+  gap: 0.35rem;
+  height: calc(100dvh - 3.4rem);
   overflow: hidden;
   box-sizing: border-box;
 }
 
 .top {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+}
+
+.identity {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.7rem;
+  align-items: baseline;
+  gap: 0.35rem 0.7rem;
+  min-width: 0;
 }
 
 .back {
   color: var(--color-text-muted);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 650;
 }
 
 .title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 750;
+  letter-spacing: 0.02em;
 }
 
 .muted {
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  align-items: center;
 }
 
 .toolbar {
@@ -52,43 +72,52 @@
 }
 
 .btn,
-.ghost {
+.ghost,
+.primary,
+.stat {
   appearance: none;
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   color: var(--color-text);
   border-radius: 999px;
-  padding: 0.32rem 0.72rem;
+  padding: 0.22rem 0.62rem;
   font: inherit;
-  font-size: 0.8rem;
-  font-weight: 650;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
   cursor: pointer;
 }
 
 .btn:hover,
-.ghost:hover {
+.ghost:hover,
+.stat:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
 
 .primary {
-  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
   color: var(--color-accent);
 }
 
 .stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-left: auto;
+  justify-content: flex-end;
+  gap: 0.28rem;
 }
 
-.cmdStrip {
+.cmdStrip,
+.phases {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.28rem;
   align-items: center;
+  padding: 0.28rem 0.4rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
 }
 
 .stackBadge,
@@ -196,8 +225,8 @@
   gap: 0.2rem;
   border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
   border-radius: 999px;
-  padding: 0.18rem 0.55rem;
-  font-size: 0.76rem;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.72rem;
   font-weight: 750;
   background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
   color: var(--color-accent);
@@ -221,7 +250,7 @@
 
 .board {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6.4rem;
+  grid-template-columns: minmax(0, 1fr) 11.5rem;
   gap: 0.4rem;
   flex: 1;
   min-height: 0;
@@ -796,14 +825,15 @@
 .menu {
   position: fixed;
   z-index: 40;
-  min-width: 12rem;
-  max-width: min(20rem, calc(100vw - 16px));
-  overflow: visible;
-  padding: 0.28rem;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-md);
+  min-width: 11.5rem;
+  max-width: min(18rem, calc(100vw - 16px));
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  padding: 0.3rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 94%, black);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
 }
 
 .menuBlock {
