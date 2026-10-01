@@ -16,6 +16,12 @@ export type PlaySettings = {
   handScale: number;
   hideHand: boolean;
   playmat: "plain" | "felt" | "arcane";
+  assistants: {
+    autoTap: boolean;
+    death: boolean;
+    tax: boolean;
+    legend: boolean;
+  };
   show: {
     newGame: boolean;
     draw: boolean;
@@ -45,6 +51,7 @@ export const DEFAULT_PLAY_SETTINGS: PlaySettings = {
   handScale: 1,
   hideHand: false,
   playmat: "felt",
+  assistants: { autoTap: true, death: true, tax: true, legend: true },
   show: {
     newGame: true,
     draw: true,

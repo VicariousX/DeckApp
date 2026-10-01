@@ -51,6 +51,8 @@ import {
   type PlaySettings,
 } from "../lib/playtest/settings";
 import { acceptIntent, openHostedTable, publishTable, type TableWire } from "../lib/playtest/sync";
+import { deadCreatures, legendClashes, suggestLandTaps } from "../lib/playtest/assistants";
+import { emptyJournal, project, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./PlaytestPage.module.css";
@@ -1809,6 +1811,7 @@ export function PlaytestPage() {
                         facedown: false,
                         counters: {},
                         token: true,
+                        controllerSeat: seat.id,
                       },
                     })
                   }
@@ -1851,6 +1854,7 @@ export function PlaytestPage() {
                       facedown: false,
                       counters: {},
                       token: false,
+                      controllerSeat: seat.id,
                     },
                   });
                   setSpawnQ("");
