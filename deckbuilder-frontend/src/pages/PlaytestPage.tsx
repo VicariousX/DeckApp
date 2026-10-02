@@ -943,8 +943,8 @@ export function PlaytestPage() {
       <div
         className={`${transitions.page} ${styles.page}`}
         style={{
-          ["--board-card" as string]: `${4.8 * (settings.boardScale || 1)}rem`,
-          ["--hand-card" as string]: `${4.8 * (settings.handScale || 1)}rem`,
+          ["--board-card" as string]: `${3.6 * (settings.boardScale || 1)}rem`,
+          ["--hand-card" as string]: `${3.5 * (settings.handScale || 1)}rem`,
         }}
         onPointerDown={(e) => {
           const t = e.target as HTMLElement;
@@ -975,6 +975,13 @@ export function PlaytestPage() {
           <div className={styles.tools}>
           <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
             Settings
+          </button>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => persist({ ...settings, tableView: (settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "2d" : "3d" })}
+          >
+            {(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "3D" : "2D"}
           </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
             Tokens
@@ -1155,6 +1162,7 @@ export function PlaytestPage() {
           ))}
         </div>
 
+        <div className={`${styles.stage} ${(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? styles.stage3d : ""}`}>
         <div className={styles.board}>
           <div className={`${styles.battlefield} ${styles[`mat${(settings.playmat || "felt")[0].toUpperCase()}${(settings.playmat || "felt").slice(1)}`] ?? styles.matFelt}`} ref={bfRef}>
             <div className={styles.pileHead}>
@@ -1226,33 +1234,13 @@ export function PlaytestPage() {
               </div>
             </ZoneDrop>
           </div>
-          <div className={styles.col}>
-            <div className={`${styles.pile} ${styles.pileCompact}`}>
-              <div className={styles.pileHead}>
-                <span>Stack</span>
-                <span>{table.stackItems?.length ?? 0}</span>
-              </div>
-              <div className={styles.stackCol}>
-                {[...(table.stackItems ?? [])].reverse().map((item, i) => (
-                  <div key={item.id} className={i === 0 ? styles.stackTop : styles.stackItem}>
-                    <strong>{item.name}</strong>
-                    <span>{item.kind}{item.x != null ? ` · X=${item.x}` : ""}{item.targets.length ? ` · ${item.targets.join(", ")}` : ""}</span>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.mulliganRow}>
-                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "pass", seatId: seat.id })}>Pass</button>
-                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "resolveTop", to: "battlefield" })}>Resolve</button>
-                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "resolveTop", to: "graveyard" })}>To grave</button>
-                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "counterSpell" })}>Counter</button>
-                <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "copySpell" })}>Copy</button>
-              </div>
-            </div>
-            <Pile zone="command" label="Command" />
-            <Pile zone="exile" label="Exile" />
-            <Pile zone="graveyard" label="GY" />
+          <div className={styles.zoneDock}>
             <Pile zone="library" label="Library" />
+            <Pile zone="graveyard" label="Graveyard" />
+            <Pile zone="exile" label="Exile" />
+            <Pile zone="command" label="Command" />
           </div>
+        </div>
         </div>
 
         <ZoneDrop zone="hand" className={`${styles.hand} ${settings.hideHand ? styles.handHidden : ""}`}>

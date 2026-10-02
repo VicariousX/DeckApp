@@ -249,11 +249,44 @@
 }
 
 .board {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 11.5rem;
-  gap: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   flex: 1;
   min-height: 0;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stage3d {
+  perspective: 1400px;
+  perspective-origin: 50% 70%;
+}
+
+.stage3d .board {
+  transform: rotateX(28deg) scale(0.9);
+  transform-origin: 50% 100%;
+}
+
+.zoneDock {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.zoneDock .card {
+  width: 3.15rem;
+}
+
+.zoneDock .pileBody {
+  min-height: 0;
+  justify-content: center;
 }
 
 .col {
@@ -326,8 +359,9 @@
   display: flex;
   align-items: stretch;
   gap: 0.35rem;
-  min-height: 7.4rem;
-  padding: 0.25rem 0.3rem 0.2rem;
+  min-height: 5.4rem;
+  max-height: 6.2rem;
+  padding: 0.2rem 0.3rem 0.15rem;
   border-top: 1px dashed var(--color-border);
 }
 
@@ -506,7 +540,9 @@
   gap: 0.35rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 0.1rem;
+  padding: 0.1rem 0.1rem 0.15rem;
+  min-height: 5.2rem;
+  align-items: flex-end;
 }
 
 .card {
