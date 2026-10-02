@@ -943,8 +943,7 @@ export function PlaytestPage() {
       <div
         className={`${transitions.page} ${styles.page}`}
         style={{
-          ["--board-card" as string]: `${3.6 * (settings.boardScale || 1)}rem`,
-          ["--hand-card" as string]: `${3.5 * (settings.handScale || 1)}rem`,
+          ["--board-scale" as string]: String(settings.boardScale || 1),
         }}
         onPointerDown={(e) => {
           const t = e.target as HTMLElement;
@@ -1204,65 +1203,66 @@ export function PlaytestPage() {
                   />
                 ))}
             </ZoneDrop>
-            <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
-              <div className={styles.railHead}>
-                <span className={styles.railCount}>
-                  {table.seats.reduce((n, s) => n + s.zones.battlefield.filter((c) => c.row === "lands").length, 0)}
-                </span>
-                <span className={styles.railLabel}>Lands</span>
-              </div>
-              <div className={styles.railScroll} ref={landScroll}>
-                {Object.values(
-                  table.seats.flatMap((s) => s.zones.battlefield)
-                    .filter((c) => c.row === "lands")
-                    .reduce<Record<string, PlayCard[]>>((acc, c) => {
-                      const k = c.oracleId || c.name;
-                      (acc[k] ??= []).push(c);
-                      return acc;
-                    }, {})
-                ).map((stack) => (
-                  <div key={stack[0].instanceId} className={styles.landStack}>
-                    {stack.map((c, i) => (
-                      <CardView
-                        key={c.instanceId}
-                        card={c}
-                        style={{ marginLeft: i ? -36 : 0, zIndex: i }}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </ZoneDrop>
           </div>
+        </div>
+        <div className={styles.lower}>
+          <ZoneDrop zone="battlefield" row="lands" className={styles.landRail}>
+            <div className={styles.railHead}>
+              <span className={styles.railCount}>
+                {table.seats.reduce((n, s) => n + s.zones.battlefield.filter((c) => c.row === "lands").length, 0)}
+              </span>
+              <span className={styles.railLabel}>Lands</span>
+            </div>
+            <div className={styles.railScroll} ref={landScroll}>
+              {Object.values(
+                table.seats.flatMap((s) => s.zones.battlefield)
+                  .filter((c) => c.row === "lands")
+                  .reduce<Record<string, PlayCard[]>>((acc, c) => {
+                    const k = c.oracleId || c.name;
+                    (acc[k] ??= []).push(c);
+                    return acc;
+                  }, {})
+              ).map((stack) => (
+                <div key={stack[0].instanceId} className={styles.landStack}>
+                  {stack.map((c, i) => (
+                    <CardView
+                      key={c.instanceId}
+                      card={c}
+                      style={{ marginLeft: i ? -28 : 0, zIndex: i }}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </ZoneDrop>
+          <ZoneDrop zone="hand" className={`${styles.hand} ${settings.hideHand ? styles.handHidden : ""}`}>
+            <div className={styles.pileHead}>
+              <span>Hand</span>
+              <span>{seat.zones.hand.length}</span>
+              <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "cmc" })}>CMC</button>
+              <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "type" })}>Type</button>
+              <button type="button" className={styles.ghost} onClick={() => persist({ ...settings, hideHand: !settings.hideHand })}>
+                {settings.hideHand ? "Show" : "Hide"}
+              </button>
+            </div>
+            <div className={styles.handRow} ref={handScroll}>
+              {settings.hideHand ? (
+                <span className={styles.hiddenHand}>Hand hidden · {seat.zones.hand.length}</span>
+              ) : (
+                seat.zones.hand.map((c) => (
+                  <CardView key={c.instanceId} card={c} zone="hand" />
+                ))
+              )}
+            </div>
+          </ZoneDrop>
           <div className={styles.zoneDock}>
+            <Pile zone="command" label="Command" />
+            <Pile zone="exile" label="Exile" />
             <Pile zone="library" label="Library" />
             <Pile zone="graveyard" label="Graveyard" />
-            <Pile zone="exile" label="Exile" />
-            <Pile zone="command" label="Command" />
           </div>
         </div>
         </div>
-
-        <ZoneDrop zone="hand" className={`${styles.hand} ${settings.hideHand ? styles.handHidden : ""}`}>
-          <div className={styles.pileHead}>
-            <span>Hand</span>
-            <span>{seat.zones.hand.length}</span>
-            <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "cmc" })}>CMC</button>
-            <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "type" })}>Type</button>
-            <button type="button" className={styles.ghost} onClick={() => persist({ ...settings, hideHand: !settings.hideHand })}>
-              {settings.hideHand ? "Show" : "Hide"}
-            </button>
-          </div>
-          <div className={styles.handRow} ref={handScroll}>
-            {settings.hideHand ? (
-              <span className={styles.hiddenHand}>Hand hidden · {seat.zones.hand.length}</span>
-            ) : (
-              seat.zones.hand.map((c) => (
-                <CardView key={c.instanceId} card={c} zone="hand" />
-              ))
-            )}
-          </div>
-        </ZoneDrop>
 
         {logOpen && (
           <aside className={styles.logPop}>
