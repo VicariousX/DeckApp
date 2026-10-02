@@ -51,7 +51,7 @@ import {
   type PlaySettings,
 } from "../lib/playtest/settings";
 import { acceptIntent, openHostedTable, publishTable, type TableWire } from "../lib/playtest/sync";
-import { deadCreatures, legendClashes, suggestLandTaps } from "../lib/playtest/assistants";
+import { deadCreatures, legendClashes } from "../lib/playtest/assistants";
 import { emptyJournal, project, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
@@ -383,6 +383,7 @@ export function PlaytestPage() {
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [libSlot, setLibSlot] = useState(1);
   const [logOpen, setLogOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const ghostRef = useRef<HTMLSpanElement | null>(null);
@@ -975,13 +976,6 @@ export function PlaytestPage() {
           <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
             Settings
           </button>
-          <button
-            type="button"
-            className={styles.btn}
-            onClick={() => persist({ ...settings, tableView: (settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "2d" : "3d" })}
-          >
-            {(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "3D" : "2D"}
-          </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
             Tokens
           </button>
@@ -990,9 +984,6 @@ export function PlaytestPage() {
           </button>
           <button type="button" className={styles.btn} onClick={() => setKit({ kind: "spawn", tab: "spawn" })}>
             Spawn
-          </button>
-          <button type="button" className={styles.btn} onClick={() => setLogOpen((v) => !v)}>
-            {logOpen ? "Hide log" : "Log"}
           </button>
           <button type="button" className={styles.primary} onClick={() => void start(true)}>
             New game
@@ -1025,6 +1016,40 @@ export function PlaytestPage() {
                 {label} {kind === "life" ? seat.life : seat[key]}
               </button>
             ))}
+          </div>
+          </div>
+        </div>
+        <div className={styles.phases}>
+          <button type="button" className={styles.btn} onClick={() => setRailOpen((v) => !v)}>
+            {railOpen ? "Close" : "Table"}
+          </button>
+          <span className={styles.phaseNow}>{table.phase ?? "main"}</span>
+          {seatView?.others.map((o) => (
+            <span key={o.id} className={styles.stat}>{o.name} {o.life}</span>
+          ))}
+          <span className={styles.actionsCount}>{journalRef.current?.seq ?? 0} actions</span>
+        </div>
+        {railOpen ? (
+          <div className={styles.dropRail}>
+            {(["untap", "upkeep", "draw", "main", "combat", "main2", "end"] as const).map((phase) => (
+              <button key={phase} type="button" className={table.phase === phase ? styles.primary : styles.stat} onClick={() => sendIntent({ type: "setPhase", phase })}>
+                {phase}
+              </button>
+            ))}
+            <button type="button" className={styles.stat} onClick={(e) => dispatch({ type: "tax", seatId: seat.id, delta: stepFromEvent(e) })} onContextMenu={(e) => { e.preventDefault(); dispatch({ type: "tax", seatId: seat.id, delta: -stepFromEvent(e) }); }}>
+              Tax {seat.commanderTax ?? 0}
+            </button>
+            <button type="button" className={styles.stat} onClick={(e) => dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: stepFromEvent(e) })} onContextMenu={(e) => { e.preventDefault(); dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: -stepFromEvent(e) }); }}>
+              Cmd dmg {seat.commanderDamage?.opp ?? 0}
+            </button>
+            <button type="button" className={styles.stat} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>Untap</button>
+            <button type="button" className={styles.stat} onClick={() => dispatch({ type: "proliferate", seatId: seat.id })}>Proliferate</button>
+            <button type="button" className={styles.stat} onClick={() => setFogSeats((v) => !v)}>{fogSeats ? "Full table" : "Seat view"}</button>
+            <button type="button" className={styles.stat} onClick={() => persist({ ...settings, tableView: (settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "2d" : "3d" })}>
+              {(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "3D" : "2D"}
+            </button>
+            <button type="button" className={styles.stat} onClick={() => setLogOpen((v) => !v)}>{logOpen ? "Hide log" : "Log"}</button>
+            <input className={styles.costInput} value={roomCode} placeholder="Room" onChange={(e) => setRoomCode(e.target.value)} />
             <button type="button" className={styles.btn} onClick={() => {
               if (!table) return;
               channelRef.current?.close();
@@ -1034,9 +1059,8 @@ export function PlaytestPage() {
               setViewerSeat(table.seats[0].id);
               void publishTable(code, table, table.seats[0].id);
               channelRef.current = openHostedTable(code, "host", table.seats[0].name, (msg) => {
-                if (msg.kind === "join") {
-                  dispatch({ type: "ensureSeat", name: msg.name || "Guest" });
-                } else if (msg.kind === "intent") {
+                if (msg.kind === "join") dispatch({ type: "ensureSeat", name: msg.name || "Guest" });
+                else if (msg.kind === "intent") {
                   setTable((cur) => {
                     if (!cur) return cur;
                     const reason = acceptIntent(cur, msg.action, msg.from);
@@ -1050,7 +1074,6 @@ export function PlaytestPage() {
                 }
               });
             }}>Share</button>
-            <input className={styles.costInput} value={roomCode} placeholder="Room" onChange={(e) => setRoomCode(e.target.value)} />
             <button type="button" className={styles.btn} onClick={() => {
               if (!roomCode) return;
               channelRef.current?.close();
@@ -1064,102 +1087,19 @@ export function PlaytestPage() {
                   remoteRef.current = true;
                   dispatch(msg.action);
                   remoteRef.current = false;
-                } else if (msg.kind === "reject") {
-                  setError(msg.text);
-                }
+                } else if (msg.kind === "reject") setError(msg.text);
               });
               channelRef.current.send({ kind: "join", from: "guest", name: user?.email || "Guest" });
             }}>Join</button>
-          </div>
-          </div>
-        </div>
-        <div className={styles.cmdStrip}>
-          <button
-            type="button"
-            className={styles.stat}
-            onClick={(e) => dispatch({ type: "tax", seatId: seat.id, delta: stepFromEvent(e) })}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              dispatch({ type: "tax", seatId: seat.id, delta: -stepFromEvent(e) });
-            }}
-          >
-            Tax {seat.commanderTax ?? 0}
-          </button>
-          <button
-            type="button"
-            className={styles.stat}
-            onClick={(e) => dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: stepFromEvent(e) })}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: -stepFromEvent(e) });
-            }}
-          >
-            Cmd dmg {seat.commanderDamage?.opp ?? 0}
-          </button>
-          <button type="button" className={styles.stat} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>
-            Untap
-          </button>
-          <button type="button" className={styles.stat} onClick={() => dispatch({ type: "proliferate", seatId: seat.id })}>
-            Proliferate
-          </button>
-          <button type="button" className={styles.stat} onClick={() => setFogSeats((v) => !v)}>
-            {fogSeats ? "Full table" : "Seat view"}
-          </button>
-        </div>
-        {seatView ? (
-          <div className={styles.cmdStrip}>
-            <span className={styles.railCount}>actions {journalRef.current?.seq ?? 0}</span>
-            {seatView.others.map((o) => (
-              <span key={o.id} className={styles.stat}>
-                {o.name} · life {o.life} · hand {fogSeats ? o.hand : o.hand} · lib {o.library}
-                {o.revealedTop ? ` · top ${o.revealedTop.name}` : fogSeats ? " · library hidden" : ""}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {seat && table ? (
-          <div className={styles.cmdStrip}>
-            {settings.assistants?.autoTap ? (
-              <>
-                <input className={styles.costInput} value={tapCost} placeholder="Cost 2G" onChange={(e) => setTapCost(e.target.value)} />
-                <button type="button" className={styles.stat} onClick={() => {
-                  const ids = suggestLandTaps(seat.zones.battlefield, tapCost);
-                  if (!ids?.length) return;
-                  dispatch({ type: "tapMany", instanceIds: ids, tapped: true });
-                  setTapCost("");
-                }}>Tap lands</button>
-              </>
-            ) : null}
             {pendingTax ? (
               <button type="button" className={styles.primary} onClick={() => {
                 dispatch({ type: "tax", seatId: seat.id, delta: 1 });
                 dispatch({ type: "cast", instanceId: pendingTax.instanceId });
                 setPendingTax(null);
-              }}>Cast {pendingTax.name} · tax {seat.commanderTax ?? 0}</button>
+              }}>Cast {pendingTax.name}</button>
             ) : null}
-            {settings.assistants?.death ? deadCreatures(table).map((c) => (
-              <button key={c.instanceId} type="button" className={styles.stat} onClick={() => dispatch({ type: "move", seatId: c.ownerSeat, instanceId: c.instanceId, to: "graveyard", toOwner: true })}>
-                {c.name} dead · grave
-              </button>
-            )) : null}
-            {settings.assistants?.legend ? legendClashes(table).map((clash) => (
-              <span key={clash.name} className={styles.stat}>Legend · {clash.cards[0].name} ×{clash.cards.length}</span>
-            )) : null}
           </div>
         ) : null}
-
-        <div className={styles.phases}>
-          {(["untap", "upkeep", "draw", "main", "combat", "main2", "end"] as const).map((phase) => (
-            <button
-              key={phase}
-              type="button"
-              className={table.phase === phase ? styles.primary : styles.stat}
-              onClick={() => sendIntent({ type: "setPhase", phase })}
-            >
-              {phase}
-            </button>
-          ))}
-        </div>
 
         <div className={`${styles.stage} ${(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? styles.stage3d : ""}`}>
         <div className={styles.board}>
