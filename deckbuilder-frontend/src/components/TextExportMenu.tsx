@@ -9,6 +9,7 @@ import {
   type ExportSection,
   type TextExportOptions,
 } from "../lib/cards/exportCardList";
+import { buildTtsSavedObject, type TtsDeckPart } from "../lib/cards/ttsDeck";
 import styles from "./TextExportMenu.module.css";
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
   extraSections?: ExportSection[];
   extraLabel?: string;
   triggerClassName?: string;
+  ttsParts?: TtsDeckPart[];
 };
 
 export function TextExportMenu({
@@ -32,6 +34,7 @@ export function TextExportMenu({
   extraSections,
   extraLabel = "Include extras",
   triggerClassName,
+  ttsParts,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [useFilter, setUseFilter] = useState(true);
@@ -69,6 +72,13 @@ export function TextExportMenu({
   function onDownload() {
     downloadTextFile(exportFilename(fileBaseName), text);
     setStatus("Download started");
+    setTimeout(() => setStatus(null), 2000);
+  }
+
+  function onTts() {
+    if (!ttsParts?.length) return;
+    downloadTextFile(`${fileBaseName.replace(/\s+/g, "-")}-tts.json`, buildTtsSavedObject(fileBaseName, ttsParts));
+    setStatus("TTS object downloaded");
     setTimeout(() => setStatus(null), 2000);
   }
 
@@ -156,6 +166,11 @@ export function TextExportMenu({
             <button type="button" className={styles.ghostBtn} onClick={onDownload}>
               Download .txt
             </button>
+            {ttsParts?.length ? (
+              <button type="button" className={styles.ghostBtn} onClick={onTts}>
+                Download TTS object
+              </button>
+            ) : null}
           </div>
           {status && <p className={styles.status}>{status}</p>}
         </div>

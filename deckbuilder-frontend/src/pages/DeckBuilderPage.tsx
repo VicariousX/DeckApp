@@ -1600,6 +1600,20 @@ export function DeckBuilderPage() {
                 <TextExportMenu
                   sections={exportSections}
                   fileBaseName={detail.deck.name}
+                  ttsParts={[
+                    {
+                      name: `${detail.deck.name} main`,
+                      cards: detail.cards
+                        .filter((c) => c.board === "main" || c.board === "commander")
+                        .map((c) => ({ name: c.name, scryfallId: c.scryfall_id, quantity: c.quantity })),
+                    },
+                    {
+                      name: `${detail.deck.name} side`,
+                      cards: detail.cards
+                        .filter((c) => c.board === "side")
+                        .map((c) => ({ name: c.name, scryfallId: c.scryfall_id, quantity: c.quantity })),
+                    },
+                  ]}
                   extraSections={
                     deckTokens.some((t) => t.included)
                       ? [

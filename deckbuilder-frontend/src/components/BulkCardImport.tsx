@@ -6,7 +6,7 @@ import {
   parseCardList,
   type ParsedCardLine,
 } from "../lib/cards/parseCardList";
-import { fetchCardsByNames } from "../lib/scryfallApi";
+import { namesFromTtsJson } from "../lib/cards/ttsDeck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./BulkCardImport.module.css";
 
@@ -153,6 +153,18 @@ export function BulkCardImport({
             One card per line. Supports <code>1x Name</code>, <code>1 Name</code>,
             and plain names. Set codes in parentheses are ignored.
           </p>
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const raw = await file.text();
+              const lines = namesFromTtsJson(raw).map((c) => `${c.quantity} ${c.name}`);
+              setText(lines.join("\n"));
+              e.target.value = "";
+            }}
+          />
           <textarea
             className={styles.textarea}
             value={text}
