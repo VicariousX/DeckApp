@@ -72,8 +72,44 @@ function artFace(
     return `${base.replace(/\/$/, "")}/storage/v1/object/public/card-art/${art.custom_front_path.replace(/^\//, "")}`;
   }
   const printing = (art?.preferred_scryfall_id || card.scryfall_id).toLowerCase();
-  return `https://cards.scryfall.io/normal/front/${printing[0]}/${printing[1]}/${printing}.jpg`;
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  return `${api.replace(/\/$/, "")}/api/tts/image/${printing}.jpg`;
 }
+
+app.get("/api/tts/image/:file", async (req: Request, res: Response) => {
+  const raw = req.params.file;
+  const file = Array.isArray(raw) ? raw[0] : raw;
+  const id = String(file || "").replace(/\.jpg$/i, "").toLowerCase();
+  if (!DECK_ID.test(id)) return res.status(400).end();
+  const source = `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`;
+  try {
+    const image = await fetch(source, { headers: { Accept: "image/jpeg" } });
+    if (!image.ok) return res.status(404).end();
+    const bytes = Buffer.from(await image.arrayBuffer());
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", "inline; filename=card.jpg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(bytes);
+  } catch (e) {
+    console.error(e);
+    res.status(502).end();
+  }
+});
+
+app.get("/api/tts/back.jpg", async (_req: Request, res: Response) => {
+  const source = "https://backs.scryfall.io/large/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
+  try {
+    const image = await fetch(source, { headers: { Accept: "image/jpeg" } });
+    if (!image.ok) return res.status(404).end();
+    const bytes = Buffer.from(await image.arrayBuffer());
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", "inline; filename=back.jpg");
+    res.send(bytes);
+  } catch (e) {
+    console.error(e);
+    res.status(502).end();
+  }
+});
 
 app.get("/api/tts/decks", async (req: Request, res: Response) => {
   const ctx = supabaseHeaders();

@@ -3,7 +3,7 @@
 -- Chat still works: !deckapp <public deck url or id>
 
 local API = "https://deckapp-bwio.onrender.com/api/tts/"
-local BACK = "https://backs.scryfall.io/large/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
+local BACK = "https://deckapp-bwio.onrender.com/api/tts/back.jpg"
 local decks = {}
 local shown = {}
 
