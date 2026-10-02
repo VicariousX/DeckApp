@@ -41,6 +41,31 @@ function openGui()
   end)
 end
 
+function loadShown(index)
+  local chosen = shown[index]
+  if not chosen then
+    broadcastToAll("No deck on that button.", {1, 0.5, 0.4})
+    return
+  end
+  broadcastToAll("Loading " .. (chosen.name or "deck") .. "…", {0.8, 0.8, 1})
+  local pos = self.getPosition()
+  closeGui()
+  loadDeck(chosen.id, pos)
+end
+
+function pick1() loadShown(1) end
+function pick2() loadShown(2) end
+function pick3() loadShown(3) end
+function pick4() loadShown(4) end
+function pick5() loadShown(5) end
+function pick6() loadShown(6) end
+function pick7() loadShown(7) end
+function pick8() loadShown(8) end
+function pick9() loadShown(9) end
+function pick10() loadShown(10) end
+function pick11() loadShown(11) end
+function pick12() loadShown(12) end
+
 function drawGui(list)
   shown = list
   self.clearButtons()
@@ -56,21 +81,11 @@ function drawGui(list)
     color = {0.28, 0.18, 0.32},
     font_color = {0.93, 0.9, 1},
   })
+  local names = {"pick1", "pick2", "pick3", "pick4", "pick5", "pick6", "pick7", "pick8", "pick9", "pick10", "pick11", "pick12"}
   for i, deck in ipairs(list) do
-    local index = i
-    local fname = "deckappPick" .. index
-    _G[fname] = function()
-      local chosen = shown[index]
-      if not chosen then
-        broadcastToAll("That deck is no longer in the list.", {1, 0.5, 0.4})
-        return
-      end
-      broadcastToAll("Loading " .. (chosen.name or "deck") .. "…", {0.8, 0.8, 1})
-      closeGui()
-      loadDeck(chosen.id, self.getPosition())
-    end
+    if not names[i] then break end
     self.createButton({
-      click_function = fname,
+      click_function = names[i],
       function_owner = self,
       label = (deck.name or "Deck") .. "  ·  " .. (deck.format or ""),
       position = {0, 0.4, 1.1 - i * 0.7},
@@ -83,8 +98,6 @@ function drawGui(list)
     })
   end
 end
-
-function pickShown() end
 
 function closeGui()
   onLoad()
