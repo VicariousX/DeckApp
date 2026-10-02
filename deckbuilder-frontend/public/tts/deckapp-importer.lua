@@ -29,11 +29,16 @@ function openGui()
   broadcastToAll("Loading public decks…", {0.8, 0.8, 1})
   WebRequest.get(API .. "decks", function(req)
     if req.is_error or req.response_code ~= 200 then
-      broadcastToAll("Deck list failed. Is the deck public, and is Supabase configured on the API?", {1, 0.4, 0.4})
+      broadcastToAll("Deck list failed (" .. tostring(req.response_code) .. "): " .. tostring(req.error or req.text), {1, 0.4, 0.4})
       return
     end
     local data = JSON.decode(req.text)
     decks = data.decks or {}
+    if #decks == 0 then
+      broadcastToAll("No public decks. Mark a deck Public in DeckApp, and use the service role key on the API.", {1, 0.7, 0.4})
+    else
+      broadcastToAll("Found " .. #decks .. " public decks.", {0.6, 1, 0.6})
+    end
     drawGui(decks)
   end)
 end

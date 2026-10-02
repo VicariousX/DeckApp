@@ -82,7 +82,11 @@ app.get("/api/tts/decks", async (req: Request, res: Response) => {
   try {
     const url = `${ctx.base}/rest/v1/decks?is_public=eq.true&select=id,name,format,updated_at&order=updated_at.desc&limit=80`;
     const listRes = await fetch(url, { headers: ctx.headers });
-    const rows = (await listRes.json()) as { id: string; name: string; format: string; updated_at: string }[];
+    const rows = (await listRes.json()) as unknown;
+    if (!listRes.ok || !Array.isArray(rows)) {
+      const message = rows && typeof rows === "object" && "message" in rows ? String((rows as { message: unknown }).message) : "Deck list failed";
+      return res.status(502).json({ error: message, decks: [] });
+    }
     const decks = (Array.isArray(rows) ? rows : []).filter((d) =>
       !q || d.name.toLowerCase().includes(q.toLowerCase())
     );
