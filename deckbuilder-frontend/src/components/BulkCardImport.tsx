@@ -7,6 +7,7 @@ import {
   type ParsedCardLine,
 } from "../lib/cards/parseCardList";
 import { namesFromTtsJson } from "../lib/cards/ttsDeck";
+import { fetchCardsByNames } from "../lib/scryfallApi";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./BulkCardImport.module.css";
 
