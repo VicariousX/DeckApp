@@ -16,14 +16,16 @@ import {
   type RandomHistoryEntry,
 } from "../../lib/randomCardHistory";
 import { CardInspectorModal } from "../../components/CardInspectorModal";
+import { CardSkinsPanel } from "../../components/CardSkinsPanel";
 
-type AccountSection = "profile" | "themes" | "data" | "random" | "password";
+type AccountSection = "profile" | "skins" | "themes" | "data" | "random" | "password";
 
 function sectionFromSearch(raw: string | null): AccountSection {
   if (
     raw === "themes" ||
     raw === "password" ||
     raw === "profile" ||
+    raw === "skins" ||
     raw === "data" ||
     raw === "random"
   ) {
@@ -149,6 +151,15 @@ export function AccountPanel() {
           <button
             type="button"
             className={`${styles.accountNavBtn} ${
+              section === "skins" ? styles.accountNavBtnActive : ""
+            }`}
+            onClick={() => goSection("skins")}
+          >
+            Card skins
+          </button>
+          <button
+            type="button"
+            className={`${styles.accountNavBtn} ${
               section === "themes" ? styles.accountNavBtnActive : ""
             }`}
             onClick={() => goSection("themes")}
@@ -252,6 +263,8 @@ export function AccountPanel() {
             </form>
           </>
         )}
+
+        {section === "skins" && <CardSkinsPanel />}
 
         {section === "themes" && (
           <>

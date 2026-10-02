@@ -80,19 +80,45 @@ export function CardSkinsPanel() {
       </p>
       <form onSubmit={(e) => void onUpload(e)}>
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="skin-name">Name</label>
-          <input id="skin-name" className={styles.input} type="text" maxLength={48} value={name} onChange={(e) => setName(e.target.value)} placeholder="Arcane sleeve" required />
+          <label className={styles.label} htmlFor="skin-name">
+            Name
+          </label>
+          <input
+            id="skin-name"
+            className={styles.input}
+            type="text"
+            maxLength={48}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Arcane sleeve"
+            required
+          />
         </div>
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="skin-file">Image</label>
-          <input id="skin-file" className={styles.input} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <label className={styles.label} htmlFor="skin-file">
+            Image
+          </label>
+          <input
+            id="skin-file"
+            className={styles.input}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
         </div>
         <div className={styles.field}>
           <label className={styles.label}>
-            <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /> Public in TTS
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+            />{" "}
+            Public in TTS
           </label>
         </div>
-        <button type="submit" className={styles.primaryBtn} disabled={busy}>{busy ? "Uploading..." : "Upload skin"}</button>
+        <button type="submit" className={styles.primaryBtn} disabled={busy}>
+          {busy ? "Uploading..." : "Upload skin"}
+        </button>
       </form>
       {error && <p className={styles.subtitle}>{error}</p>}
       {info && <p className={styles.subtitle}>{info}</p>}
@@ -101,12 +127,18 @@ export function CardSkinsPanel() {
           const src = skinImageUrl(skin.storage_path);
           return (
             <div key={skin.id} className={styles.field}>
-              {src ? <img src={src} alt="" style={{ width: 120, borderRadius: 8 }} /> : null}
+              {src ? (
+                <img src={src} alt="" style={{ width: 120, borderRadius: 8 }} />
+              ) : null}
               <div>
                 <strong>{skin.name}</strong>
                 <div>{skin.is_public ? "Public" : "Private"}</div>
-                <button type="button" className={styles.secondaryBtn} onClick={() => void onToggle(skin)}>{skin.is_public ? "Make private" : "Make public"}</button>
-                <button type="button" className={styles.secondaryBtn} onClick={() => void onDelete(skin)}>Delete</button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => void onToggle(skin)}>
+                  {skin.is_public ? "Make private" : "Make public"}
+                </button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => void onDelete(skin)}>
+                  Delete
+                </button>
               </div>
             </div>
           );

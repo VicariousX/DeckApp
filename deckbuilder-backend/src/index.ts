@@ -18,6 +18,7 @@ import {
 } from "./bulkData.js";
 import { BULK_ENABLED, CORS_ORIGINS, HOST, PORT } from "./config.js";
 import { appendAction, getRoom, putRoom } from "./tableRooms.js";
+import { GENERATED_SKINS } from "./ttsSkins.js";
 import type { TableState, TableWire } from "./wire.js";
 
 const app = express();
@@ -66,14 +67,55 @@ function supabaseHeaders() {
 function artFace(
   base: string,
   card: { scryfall_id: string; oracle_id?: string },
-  art?: { preferred_scryfall_id?: string | null; custom_front_path?: string | null }
+  art?: { preferred_scryfall_id?: string | null; custom_front_path?: string | null },
+  face: "front" | "back" = "front"
 ) {
-  if (art?.custom_front_path) {
+  if (face === "front" && art?.custom_front_path) {
     return `${base.replace(/\/$/, "")}/storage/v1/object/public/card-art/${art.custom_front_path.replace(/^\//, "")}`;
   }
   const printing = (art?.preferred_scryfall_id || card.scryfall_id).toLowerCase();
   const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
-  return `${api.replace(/\/$/, "")}/api/tts/image/${printing}.jpg`;
+  const query = face === "back" ? "?face=back" : "";
+  return `${api.replace(/\/$/, "")}/api/tts/image/${printing}.jpg${query}`;
+}
+
+const DFC_LAYOUTS = new Set([
+  "transform",
+  "modal_dfc",
+  "double_faced_token",
+  "reversible_card",
+  "art_series",
+  "double_sided",
+]);
+
+function tokenPiles(
+  byId: Map<string, { id?: string; all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[] }>
+) {
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  const base = api.replace(/\/$/, "");
+  const tokens = new Map<string, { name: string; face: string; quantity: number }>();
+  for (const card of byId.values()) {
+    for (const part of card.all_parts || []) {
+      if (!part.id || part.id === card.id) continue;
+      const type = (part.type_line || "").toLowerCase();
+      const component = part.component || "";
+      const isToken =
+        component === "token" ||
+        type.includes("token") ||
+        type.includes("emblem") ||
+        type.includes("dungeon");
+      if (!isToken) continue;
+      const key = part.name || part.id;
+      const existing = tokens.get(key);
+      if (existing) continue;
+      tokens.set(key, {
+        name: part.name || "Token",
+        quantity: 1,
+        face: `${base}/api/tts/image/${part.id.toLowerCase()}.jpg`,
+      });
+    }
+  }
+  return [...tokens.values()];
 }
 
 app.get("/api/tts/image/:file", async (req: Request, res: Response) => {
@@ -81,10 +123,16 @@ app.get("/api/tts/image/:file", async (req: Request, res: Response) => {
   const file = Array.isArray(raw) ? raw[0] : raw;
   const id = String(file || "").replace(/\.jpg$/i, "").toLowerCase();
   if (!DECK_ID.test(id)) return res.status(400).end();
-  const sources = [
-    `https://api.scryfall.com/cards/${id}?format=image&version=normal`,
-    `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`,
-  ];
+  const back = String(req.query.face || "") === "back";
+  const sources = back
+    ? [
+        `https://api.scryfall.com/cards/${id}?format=image&version=normal&face=back`,
+        `https://cards.scryfall.io/normal/back/${id[0]}/${id[1]}/${id}.jpg`,
+      ]
+    : [
+        `https://api.scryfall.com/cards/${id}?format=image&version=normal`,
+        `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`,
+      ];
   for (const source of sources) {
     try {
       const image = await fetch(source, {
@@ -103,6 +151,103 @@ app.get("/api/tts/image/:file", async (req: Request, res: Response) => {
     }
   }
   res.status(502).json({ error: "Card image could not be fetched" });
+});
+
+const TTS_SKINS = [
+  { id: "classic", name: "Classic" },
+  { id: "arcane", name: "Arcane" },
+  { id: "night", name: "Night" },
+  { id: "parchment", name: "Parchment" },
+  { id: "ember", name: "Ember" },
+  { id: "tide", name: "Tide" },
+];
+
+app.get("/api/tts/skins", async (_req: Request, res: Response) => {
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  const base = api.replace(/\/$/, "");
+  const skins = TTS_SKINS.map((skin) => ({
+    ...skin,
+    url: `${base}/api/tts/skin/${skin.id}.jpg`,
+  }));
+  const ctx = supabaseHeaders();
+  if (ctx) {
+    try {
+      const listRes = await fetch(
+        `${ctx.base}/rest/v1/user_card_skins?is_public=eq.true&select=id,name&order=created_at.desc&limit=40`,
+        { headers: ctx.headers }
+      );
+      const rows = (await listRes.json()) as { id?: string; name?: string }[];
+      if (listRes.ok && Array.isArray(rows)) {
+        for (const row of rows) {
+          if (!row.id) continue;
+          skins.push({
+            id: row.id,
+            name: row.name || "Skin",
+            url: `${base}/api/tts/skin/${row.id}.jpg`,
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  res.json({ skins });
+});
+
+async function sendUserSkin(id: string, res: Response) {
+  const ctx = supabaseHeaders();
+  if (!ctx) return false;
+  const listRes = await fetch(
+    `${ctx.base}/rest/v1/user_card_skins?id=eq.${id}&is_public=eq.true&select=storage_path`,
+    { headers: ctx.headers }
+  );
+  const rows = (await listRes.json()) as { storage_path?: string }[];
+  const path = rows?.[0]?.storage_path;
+  if (!listRes.ok || !path) return false;
+  const source = `${ctx.base}/storage/v1/object/public/card-art/${path.replace(/^\//, "")}`;
+  const image = await fetch(source, { headers: { "User-Agent": "DeckApp/1.0" } });
+  if (!image.ok) return false;
+  const bytes = Buffer.from(await image.arrayBuffer());
+  if (bytes.length < 200) return false;
+  const type = bytes[0] === 0x89 ? "image/png" : "image/jpeg";
+  res.setHeader("Content-Type", type);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(bytes);
+  return true;
+}
+
+app.get("/api/tts/skin/:file", async (req: Request, res: Response) => {
+  const raw = req.params.file;
+  const file = Array.isArray(raw) ? raw[0] : raw;
+  const id = String(file || "").replace(/\.jpg$/i, "").toLowerCase();
+  if (id === "classic") {
+    const source = "https://cards.scryfall.io/large/back.jpg";
+    try {
+      const image = await fetch(source, { headers: { Accept: "image/jpeg", "User-Agent": "DeckApp/1.0" } });
+      if (!image.ok) return res.status(502).end();
+      const bytes = Buffer.from(await image.arrayBuffer());
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(bytes);
+    } catch (e) {
+      console.error(e);
+      return res.status(502).end();
+    }
+  }
+  const encoded = GENERATED_SKINS[id];
+  if (encoded) {
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    return res.send(Buffer.from(encoded, "base64"));
+  }
+  if (DECK_ID.test(id)) {
+    try {
+      if (await sendUserSkin(id, res)) return;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  return res.status(404).end();
 });
 
 app.get("/api/tts/back.jpg", async (_req: Request, res: Response) => {
@@ -180,17 +325,48 @@ app.get("/api/tts/deck/:id", async (req: Request, res: Response) => {
     const artByOracle = new Map(
       (Array.isArray(artRows) ? artRows : []).map((a) => [String(a.oracle_id).toLowerCase(), a])
     );
+    const identifiers = rows.map((c) => {
+      const art = artByOracle.get(String(c.oracle_id).toLowerCase());
+      return { id: (art?.preferred_scryfall_id || c.scryfall_id).toLowerCase() };
+    });
+    const byId = new Map<string, { id?: string; layout?: string; card_faces?: { name?: string; image_uris?: unknown }[]; all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[] }>();
+    for (let i = 0; i < identifiers.length; i += 75) {
+      const chunk = identifiers.slice(i, i + 75);
+      try {
+        const { data } = await scryfallPost("/cards/collection", { identifiers: chunk });
+        const found = (data as { data?: { id: string; layout?: string; card_faces?: { name?: string; image_uris?: unknown }[]; all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[] }[] })?.data;
+        for (const card of found || []) byId.set(card.id.toLowerCase(), card);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     res.json({
       id: deck.id,
       name: deck.name,
       format: deck.format,
-      cards: (Array.isArray(rows) ? rows : []).map((c) => ({
-        name: c.name,
-        scryfallId: c.scryfall_id,
-        quantity: c.quantity,
-        board: c.board,
-        face: artFace(ctx.base, c, artByOracle.get(String(c.oracle_id).toLowerCase())),
-      })),
+      cards: (Array.isArray(rows) ? rows : []).map((c) => {
+        const art = artByOracle.get(String(c.oracle_id).toLowerCase());
+        const printing = (art?.preferred_scryfall_id || c.scryfall_id).toLowerCase();
+        const printed = byId.get(printing);
+        const otherFace = printed?.card_faces?.[1];
+        const faces =
+          printed && DFC_LAYOUTS.has(String(printed.layout)) && otherFace?.image_uris
+            ? [
+                { name: printed.card_faces?.[0]?.name || c.name, face: artFace(ctx.base, c, art, "front") },
+                { name: otherFace.name || `${c.name} back`, face: artFace(ctx.base, c, art, "back") },
+              ]
+            : undefined;
+        return {
+          name: c.name,
+          scryfallId: c.scryfall_id,
+          quantity: c.quantity,
+          board: c.board,
+          layout: printed?.layout,
+          face: artFace(ctx.base, c, art, "front"),
+          faces,
+        };
+      }),
+      tokens: tokenPiles(byId),
     });
   } catch (e) {
     console.error(e);

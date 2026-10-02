@@ -17,6 +17,9 @@ local selected = { id = "classic", name = "Classic" }
 local mode = "home"
 
 function skinUrl()
+  if selected.url and selected.url ~= "" then
+    return selected.url
+  end
   return API .. "skin/" .. (selected.id or "classic") .. ".jpg?v=1"
 end
 
@@ -134,7 +137,7 @@ function loadShown(index)
     return
   end
   if mode == "skins" then
-    selected = { id = chosen.id, name = chosen.name }
+    selected = { id = chosen.id, name = chosen.name, url = chosen.url }
     self.script_state = JSON.encode({ skin = selected })
     broadcastToAll("Skin set to " .. (selected.name or selected.id), {0.6, 1, 0.6})
     drawHome()
@@ -256,6 +259,15 @@ function cardJson(name, face, position, faceDown)
   }
 end
 
+function encodeCard(payload)
+  local states = payload.States
+  payload.States = nil
+  local raw = JSON.encode(payload)
+  if not states or not states["2"] then return raw end
+  local state2 = JSON.encode(states["2"])
+  return raw:sub(1, -2) .. ',"States":{"2":' .. state2 .. "}}"
+end
+
 function cardPayload(card, position, faceDown)
   local frontName = card.name
   local frontFace = card.face
@@ -264,12 +276,13 @@ function cardPayload(card, position, faceDown)
     frontFace = card.faces[1].face or frontFace
   end
   local payload = cardJson(frontName, frontFace, position, faceDown)
+  payload.Description = "State 1"
   if card.faces and card.faces[2] and card.faces[2].face then
-    payload.States = {
-      ["2"] = cardJson(card.faces[2].name or (frontName .. " back"), card.faces[2].face, position, faceDown),
-    }
+    local back = cardJson(card.faces[2].name or (frontName .. " back"), card.faces[2].face, position, faceDown)
+    back.Description = "State 2"
+    payload.States = { ["2"] = back }
   end
-  return payload
+  return encodeCard(payload)
 end
 
 function stackIntoDeck(objs, name, position)
@@ -293,7 +306,7 @@ function spawnPile(cards, name, position, faceDown)
     local qty = card.quantity or 1
     for _ = 1, qty do
       local obj = spawnObjectJSON({
-        json = JSON.encode(cardPayload(card, position, faceDown)),
+        json = cardPayload(card, position, faceDown),
         position = position,
         rotation = {0, 0, faceDown and 180 or 0},
         sound = false,
