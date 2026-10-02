@@ -51,6 +51,50 @@ function health(_req: Request, res: Response) {
 app.get("/health", health);
 app.get("/api/health", health);
 
+const DECK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+app.get("/api/tts/deck/:id", async (req: Request, res: Response) => {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id || !DECK_ID.test(id)) return res.status(400).json({ error: "Deck id required" });
+  const base = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!base || !key) return res.status(503).json({ error: "Deck lookup is not configured" });
+  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  try {
+    const deckRes = await fetch(
+      `${base}/rest/v1/decks?id=eq.${id}&select=id,name,format,is_public`,
+      { headers }
+    );
+    const decks = (await deckRes.json()) as { id: string; name: string; format: string; is_public: boolean }[];
+    const deck = decks[0];
+    if (!deck) return res.status(404).json({ error: "Deck not found" });
+    if (!deck.is_public && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(404).json({ error: "Deck is not public" });
+    }
+    const cardsRes = await fetch(
+      `${base}/rest/v1/deck_cards?deck_id=eq.${id}&select=name,scryfall_id,quantity,board`,
+      { headers }
+    );
+    const rows = (await cardsRes.json()) as { name: string; scryfall_id: string; quantity: number; board: string }[];
+    res.json({
+      id: deck.id,
+      name: deck.name,
+      format: deck.format,
+      cards: rows.map((c) => ({
+        name: c.name,
+        scryfallId: c.scryfall_id,
+        quantity: c.quantity,
+        board: c.board,
+        face: `https://api.scryfall.com/cards/${c.scryfall_id}?format=image&version=normal`,
+      })),
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Deck lookup failed" });
+  }
+});
+
 app.get("/api/tables/:id", (req: Request, res: Response) => {
   const room = getRoom(String(req.params.id));
   if (!room) return res.status(404).json({ error: "No table" });

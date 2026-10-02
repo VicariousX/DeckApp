@@ -171,6 +171,9 @@ export function TextExportMenu({
                 Download TTS object
               </button>
             ) : null}
+            <p className={styles.hint}>
+              In Tabletop Simulator, paste public/tts/deckapp-importer.lua onto an object, then chat !deckapp and this deck's URL. The deck must be public.
+            </p>
           </div>
           {status && <p className={styles.status}>{status}</p>}
         </div>
