@@ -122,20 +122,20 @@ function MenuBox({
 }
 
 function useHScroll() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
+  const cleanup = useRef<(() => void) | null>(null);
+  return (el: HTMLDivElement | null) => {
+    cleanup.current?.();
+    cleanup.current = null;
     if (!el) return;
     function onWheel(e: WheelEvent) {
-      if (!el) return;
       if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
       el.scrollLeft += e.deltaY;
       e.preventDefault();
+      e.stopPropagation();
     }
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-  return ref;
+    cleanup.current = () => el.removeEventListener("wheel", onWheel);
+  };
 }
 
 function stepFromEvent(e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) {
@@ -389,6 +389,15 @@ export function PlaytestPage() {
   const ghostRef = useRef<HTMLSpanElement | null>(null);
   const ptrRef = useRef({ x: 0, y: 0 });
   const grabRef = useRef({ dx: 0, dy: 0, w: 76.8, h: 107.4 });
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
   const handScroll = useHScroll();
   const landScroll = useHScroll();
 
