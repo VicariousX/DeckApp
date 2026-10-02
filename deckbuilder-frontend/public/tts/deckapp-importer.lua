@@ -1,28 +1,26 @@
 -- DeckApp selector for Tabletop Simulator.
--- Spawn any object, paste this script, and click the button.
+-- Spawn any object, paste this script, and click DeckApp.
 -- Chat still works: !deckapp <public deck url or id>
 
 local API = "https://deckapp-bwio.onrender.com/api/tts/"
 local BACK = "https://backs.scryfall.io/large/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 local decks = {}
+local shown = {}
 
 function onLoad()
+  self.clearButtons()
   self.createButton({
     click_function = "openGui",
     function_owner = self,
     label = "DeckApp",
-    position = {0, 0.35, 0},
+    position = {0, 0.4, 0},
     rotation = {0, 180, 0},
-    width = 1400,
-    height = 360,
-    font_size = 150,
+    width = 1600,
+    height = 400,
+    font_size = 160,
     color = {0.16, 0.12, 0.24},
     font_color = {0.93, 0.9, 1},
   })
-end
-
-function xmlEscape(s)
-  return (tostring(s or ""):gsub("&", "&"):gsub("<", "<"):gsub(">", ">"))
 end
 
 function openGui()
@@ -35,55 +33,54 @@ function openGui()
     local data = JSON.decode(req.text)
     decks = data.decks or {}
     if #decks == 0 then
-      broadcastToAll("No public decks. Mark a deck Public in DeckApp, and use the service role key on the API.", {1, 0.7, 0.4})
-    else
-      broadcastToAll("Found " .. #decks .. " public decks.", {0.6, 1, 0.6})
+      broadcastToAll("No public decks.", {1, 0.7, 0.4})
+      return
     end
+    broadcastToAll("Found " .. #decks .. " public decks. Pick one on the object.", {0.6, 1, 0.6})
     drawGui(decks)
   end)
 end
 
 function drawGui(list)
-  local rows = ""
-  for _, deck in ipairs(list) do
-    rows = rows .. string.format(
-      '<Button id="deck_%s" onClick="pickDeck" preferredHeight="56" color="#2a2140" textColor="#f4f0ff">%s</Button>',
-      deck.id,
-      xmlEscape((deck.name or "Deck") .. "  ·  " .. (deck.format or ""))
-    )
+  shown = list
+  self.clearButtons()
+  self.createButton({
+    click_function = "closeGui",
+    function_owner = self,
+    label = "Close",
+    position = {0, 0.4, 1.1},
+    rotation = {0, 180, 0},
+    width = 2200,
+    height = 300,
+    font_size = 140,
+    color = {0.28, 0.18, 0.32},
+    font_color = {0.93, 0.9, 1},
+  })
+  for i, deck in ipairs(list) do
+    self.createButton({
+      click_function = "pickShown",
+      function_owner = self,
+      label = (deck.name or "Deck") .. "  ·  " .. (deck.format or ""),
+      position = {0, 0.4, 1.1 - i * 0.7},
+      rotation = {0, 180, 0},
+      width = 2200,
+      height = 340,
+      font_size = 130,
+      color = {0.16, 0.12, 0.24},
+      font_color = {0.93, 0.9, 1},
+    })
   end
-  if rows == "" then rows = '<Text color="#f4f0ff">No public decks.</Text>' end
-  self.UI.setXml(string.format([[
-    <Panel position="0 180 -40" width="520" height="640" color="#140f1e" rectAlignment="UpperCenter" padding="16">
-      <Text fontSize="22" color="#f4f0ff" preferredHeight="36">Public decks</Text>
-      <InputField id="filter" onEndEdit="filterDecks" placeholder="Filter" preferredHeight="40" />
-      <VerticalScrollView preferredHeight="500">
-        <VerticalLayout spacing="6" childAlignment="UpperCenter">%s</VerticalLayout>
-      </VerticalScrollView>
-      <Button onClick="closeGui" preferredHeight="40" color="#3a2a4e">Close</Button>
-    </Panel>
-  ]], rows))
 end
 
-function filterDecks(_, value)
-  local q = string.lower(value or "")
-  local nextList = {}
-  for _, deck in ipairs(decks) do
-    if q == "" or string.find(string.lower(deck.name or ""), q, 1, true) then
-      table.insert(nextList, deck)
-    end
-  end
-  drawGui(nextList)
-end
-
-function pickDeck(_, _, id)
-  local deckId = id:gsub("^deck_", "")
+function pickShown(_, _, id)
+  local deck = shown[id]
+  if not deck then return end
   closeGui()
-  loadDeck(deckId, self.getPosition())
+  loadDeck(deck.id, self.getPosition())
 end
 
 function closeGui()
-  self.UI.setXml("")
+  onLoad()
 end
 
 function onChat(message)
@@ -99,7 +96,7 @@ function loadDeck(id, pos)
   broadcastToAll("Loading deck…", {0.8, 0.8, 1})
   WebRequest.get(API .. "deck/" .. id, function(req)
     if req.is_error or req.response_code ~= 200 then
-      broadcastToAll("Deck load failed: " .. (req.error or req.text), {1, 0.4, 0.4})
+      broadcastToAll("Deck load failed: " .. tostring(req.error or req.text), {1, 0.4, 0.4})
       return
     end
     spawnDeck(JSON.decode(req.text), pos)
@@ -135,7 +132,7 @@ function spawnDeck(data, pos)
             local deck = spawned[1]
             for n = 2, #spawned do deck = deck.putObject(spawned[n]) or deck end
             deck.setName(data.name or "DeckApp deck")
-            broadcastToAll("Spawned " .. (data.name or "deck") .. " with owner art", {0.6, 1, 0.6})
+            broadcastToAll("Spawned " .. (data.name or "deck"), {0.6, 1, 0.6})
           end
         end, 0.5)
       end
