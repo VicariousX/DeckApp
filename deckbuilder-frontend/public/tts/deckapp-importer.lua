@@ -57,8 +57,20 @@ function drawGui(list)
     font_color = {0.93, 0.9, 1},
   })
   for i, deck in ipairs(list) do
+    local index = i
+    local fname = "deckappPick" .. index
+    _G[fname] = function()
+      local chosen = shown[index]
+      if not chosen then
+        broadcastToAll("That deck is no longer in the list.", {1, 0.5, 0.4})
+        return
+      end
+      broadcastToAll("Loading " .. (chosen.name or "deck") .. "…", {0.8, 0.8, 1})
+      closeGui()
+      loadDeck(chosen.id, self.getPosition())
+    end
     self.createButton({
-      click_function = "pickShown",
+      click_function = fname,
       function_owner = self,
       label = (deck.name or "Deck") .. "  ·  " .. (deck.format or ""),
       position = {0, 0.4, 1.1 - i * 0.7},
@@ -72,12 +84,7 @@ function drawGui(list)
   end
 end
 
-function pickShown(_, _, id)
-  local deck = shown[id]
-  if not deck then return end
-  closeGui()
-  loadDeck(deck.id, self.getPosition())
-end
+function pickShown() end
 
 function closeGui()
   onLoad()
