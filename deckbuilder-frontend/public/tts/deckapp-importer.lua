@@ -1,7 +1,6 @@
 -- DeckApp selector for Tabletop Simulator.
--- Spawn any object, paste this script, and click DeckApp.
--- Skin applies to every card back. Double-faced cards get a second state.
--- Chat: !deckapp <public deck url or id>
+-- Paste onto an object. Skin is saved on the object.
+-- Library and sideboard spawn face down. Commanders and tokens spawn face up.
 
 local API = "https://deckapp-bwio.onrender.com/api/tts/"
 local decks = {}
@@ -41,7 +40,7 @@ function drawHome()
     function_owner = self,
     label = "DeckApp",
     position = {0, 0.4, 0.35},
-    rotation = {0, 180, 0},
+    rotation = {0, 0, 0},
     width = 1600,
     height = 360,
     font_size = 150,
@@ -53,7 +52,7 @@ function drawHome()
     function_owner = self,
     label = "Skin: " .. (selected.name or "Classic"),
     position = {0, 0.4, -0.45},
-    rotation = {0, 180, 0},
+    rotation = {0, 0, 0},
     width = 1600,
     height = 320,
     font_size = 130,
@@ -82,7 +81,7 @@ function drawSkins()
     function_owner = self,
     label = "Back",
     position = {0, 0.4, 1.1},
-    rotation = {0, 180, 0},
+    rotation = {0, 0, 0},
     width = 2200,
     height = 300,
     font_size = 140,
@@ -92,13 +91,14 @@ function drawSkins()
   local names = {"pick1", "pick2", "pick3", "pick4", "pick5", "pick6", "pick7", "pick8", "pick9", "pick10", "pick11", "pick12"}
   for i, skin in ipairs(skins) do
     if not names[i] then break end
-    local mark = skin.id == selected.id and "  *" or ""
+    local mark = ""
+    if skin.id == selected.id then mark = " *" end
     self.createButton({
       click_function = names[i],
       function_owner = self,
       label = (skin.name or skin.id) .. mark,
       position = {0, 0.4, 1.1 - i * 0.7},
-      rotation = {0, 180, 0},
+      rotation = {0, 0, 0},
       width = 2200,
       height = 340,
       font_size = 140,
@@ -110,7 +110,7 @@ end
 
 function openGui()
   mode = "decks"
-  broadcastToAll("Loading public decks\u2026", {0.8, 0.8, 1})
+  broadcastToAll("Loading public decks...", {0.8, 0.8, 1})
   WebRequest.get(API .. "decks", function(req)
     if req.is_error or req.response_code ~= 200 then
       broadcastToAll("Deck list failed (" .. tostring(req.response_code) .. "): " .. tostring(req.error or req.text), {1, 0.4, 0.4})
@@ -140,7 +140,7 @@ function loadShown(index)
     drawHome()
     return
   end
-  broadcastToAll("Loading " .. (chosen.name or "deck") .. "\u2026", {0.8, 0.8, 1})
+  broadcastToAll("Loading " .. (chosen.name or "deck") .. "...", {0.8, 0.8, 1})
   local pos = self.getPosition()
   drawHome()
   loadDeck(chosen.id, pos)
@@ -167,7 +167,7 @@ function drawGui(list)
     function_owner = self,
     label = "Close",
     position = {0, 0.4, 1.1},
-    rotation = {0, 180, 0},
+    rotation = {0, 0, 0},
     width = 2200,
     height = 300,
     font_size = 140,
@@ -180,9 +180,9 @@ function drawGui(list)
     self.createButton({
       click_function = names[i],
       function_owner = self,
-      label = (deck.name or "Deck") .. "  \u00b7  " .. (deck.format or ""),
+      label = (deck.name or "Deck") .. " - " .. (deck.format or ""),
       position = {0, 0.4, 1.1 - i * 0.7},
-      rotation = {0, 180, 0},
+      rotation = {0, 0, 0},
       width = 2200,
       height = 340,
       font_size = 130,
@@ -206,7 +206,7 @@ function onChat(message)
 end
 
 function loadDeck(id, pos)
-  broadcastToAll("Loading deck with " .. (selected.name or "Classic") .. " skin\u2026", {0.8, 0.8, 1})
+  broadcastToAll("Loading deck with " .. (selected.name or "Classic") .. " skin...", {0.8, 0.8, 1})
   WebRequest.get(API .. "deck/" .. id, function(req)
     if req.is_error or req.response_code ~= 200 then
       broadcastToAll("Deck load failed: " .. tostring(req.error or req.text), {1, 0.4, 0.4})
@@ -222,12 +222,14 @@ function withCache(url)
   return url .. "?v=4"
 end
 
-function cardJson(name, face, position)
+function cardJson(name, face, position, faceDown)
+  local rotZ = 0
+  if faceDown then rotZ = 180 end
   return {
     Name = "Card",
     Transform = {
       posX = position.x, posY = position.y, posZ = position.z,
-      rotX = 0, rotY = 180, rotZ = 180,
+      rotX = 0, rotY = 0, rotZ = rotZ,
       scaleX = 1, scaleY = 1, scaleZ = 1,
     },
     Nickname = name or "Card",
@@ -254,17 +256,17 @@ function cardJson(name, face, position)
   }
 end
 
-function cardPayload(card, position)
+function cardPayload(card, position, faceDown)
   local frontName = card.name
   local frontFace = card.face
   if card.faces and card.faces[1] then
     frontName = card.faces[1].name or frontName
     frontFace = card.faces[1].face or frontFace
   end
-  local payload = cardJson(frontName, frontFace, position)
+  local payload = cardJson(frontName, frontFace, position, faceDown)
   if card.faces and card.faces[2] and card.faces[2].face then
     payload.States = {
-      ["2"] = cardJson(card.faces[2].name or (frontName .. " back"), card.faces[2].face, position),
+      ["2"] = cardJson(card.faces[2].name or (frontName .. " back"), card.faces[2].face, position, faceDown),
     }
   end
   return payload
@@ -284,17 +286,16 @@ function stackIntoDeck(objs, name, position)
   return deck
 end
 
-function spawnPile(cards, name, position)
-  if #cards == 0 then return end
+function spawnPile(cards, name, position, faceDown)
+  if not cards or #cards == 0 then return end
   local objs = {}
-  local states = 0
   for _, card in ipairs(cards) do
     local qty = card.quantity or 1
-    if card.faces and card.faces[2] then states = states + qty end
     for _ = 1, qty do
       local obj = spawnObjectJSON({
-        json = JSON.encode(cardPayload(card, position)),
+        json = JSON.encode(cardPayload(card, position, faceDown)),
         position = position,
+        rotation = {0, 0, faceDown and 180 or 0},
         sound = false,
       })
       if obj then table.insert(objs, obj) end
@@ -302,24 +303,24 @@ function spawnPile(cards, name, position)
   end
   Wait.time(function()
     stackIntoDeck(objs, name, position)
-    local extra = states > 0 and (", " .. states .. " with a flip state") or ""
-    broadcastToAll("Spawned " .. name .. " (" .. #objs .. extra .. ")", {0.6, 1, 0.6})
+    broadcastToAll("Spawned " .. name .. " (" .. #objs .. ")", {0.6, 1, 0.6})
   end, 0.4)
 end
 
 function spawnDeck(data, pos)
   pos = pos or {x = 0, y = 3, z = 0}
-  local piles = { main = {}, side = {}, commander = {}, maybe = {} }
+  local piles = { main = {}, side = {}, commander = {} }
   for _, card in ipairs(data.cards or {}) do
     local board = card.board or "main"
     if board ~= "maybe" then
-      if not piles[board] then board = "main" end
+      if board ~= "side" and board ~= "commander" then board = "main" end
       table.insert(piles[board], card)
     end
   end
   local base = {x = pos.x + 2, y = pos.y + 2, z = pos.z}
   local name = data.name or "DeckApp deck"
-  spawnPile(piles.main, name, base)
-  spawnPile(piles.side, name .. " sideboard", {x = base.x - 3.2, y = base.y, z = base.z})
-  spawnPile(piles.commander, name .. " commander", {x = base.x + 2.4, y = base.y, z = base.z - 2.2})
+  spawnPile(piles.main, name .. " library", base, true)
+  spawnPile(piles.commander, name .. " commander", {x = base.x + 3.4, y = base.y, z = base.z}, false)
+  spawnPile(piles.side, name .. " sideboard", {x = base.x - 3.4, y = base.y, z = base.z}, true)
+  spawnPile(data.tokens, name .. " tokens", {x = base.x, y = base.y, z = base.z + 3.4}, false)
 end
