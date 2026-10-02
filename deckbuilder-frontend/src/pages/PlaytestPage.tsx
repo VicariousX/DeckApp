@@ -127,14 +127,15 @@ function useHScroll() {
     cleanup.current?.();
     cleanup.current = null;
     if (!el) return;
+    const node = el;
     function onWheel(e: WheelEvent) {
       if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-      el.scrollLeft += e.deltaY;
+      node.scrollLeft += e.deltaY;
       e.preventDefault();
       e.stopPropagation();
     }
-    el.addEventListener("wheel", onWheel, { passive: false });
-    cleanup.current = () => el.removeEventListener("wheel", onWheel);
+    node.addEventListener("wheel", onWheel, { passive: false });
+    cleanup.current = () => node.removeEventListener("wheel", onWheel);
   };
 }
 
