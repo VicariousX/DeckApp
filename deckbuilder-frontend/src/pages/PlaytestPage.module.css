@@ -303,9 +303,12 @@
   overflow: hidden;
 }
 
-.stage3d {
-  perspective: 640px;
-  perspective-origin: 50% 0%;
+.stage3d,
+.dropRail,
+.phases,
+.phaseNow,
+.actionsCount {
+  display: none;
 }
 
 .stage3d .board {

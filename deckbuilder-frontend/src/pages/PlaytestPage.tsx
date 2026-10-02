@@ -50,9 +50,8 @@ import {
   savePlaySettings,
   type PlaySettings,
 } from "../lib/playtest/settings";
-import { acceptIntent, openHostedTable, publishTable, type TableWire } from "../lib/playtest/sync";
-import { deadCreatures, legendClashes } from "../lib/playtest/assistants";
-import { emptyJournal, project, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
+import type { TableWire } from "../lib/playtest/sync";
+import { emptyJournal, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./PlaytestPage.module.css";
@@ -346,11 +345,9 @@ export function PlaytestPage() {
   const [table, setTable] = useState<TableState | null>(null);
   const history = useRef<TableState[]>([]);
   const journalRef = useRef<TableJournal | null>(null);
-  const [fogSeats, setFogSeats] = useState(false);
   const [tapCost, setTapCost] = useState("");
   const [pendingTax, setPendingTax] = useState<PlayCard | null>(null);
   const [role, setRole] = useState<"solo" | "host" | "guest">("solo");
-  const [roomCode, setRoomCode] = useState("");
   const [viewerSeat, setViewerSeat] = useState<string | null>(null);
   const channelRef = useRef<{ send: (msg: TableWire) => void; close: () => void } | null>(null);
   const roleRef = useRef(role);
@@ -384,7 +381,6 @@ export function PlaytestPage() {
   const [activeDrag, setActiveDrag] = useState<PlayCard | null>(null);
   const [libSlot, setLibSlot] = useState(1);
   const [logOpen, setLogOpen] = useState(false);
-  const [railOpen, setRailOpen] = useState(false);
   const bfRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
   const ghostRef = useRef<HTMLSpanElement | null>(null);
@@ -662,7 +658,6 @@ export function PlaytestPage() {
   }, [clearSelection, dispatch, picked, selected, settings, start, table]);
 
   const seat = table?.seats[0];
-  const seatView = table && seat ? project(table, seat.id) : null;
   const libReveal = (seat && table?.libraryReveal?.[seat.id]) || "hidden";
   const tokens = useMemo(() => (id ? loadDeckTokens(id) : []), [id]);
 
@@ -978,9 +973,9 @@ export function PlaytestPage() {
             ← {table.deckName}
           </Link>
           <h1 className={styles.title}>Table</h1>
-          <span className={styles.muted}>
-            Turn {table.turn} · {table.phase ?? "main"} · {table.format}
-          </span>
+          <span className={styles.muted}>Turn {table.turn}</span>
+          <button type="button" className={styles.btn} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>Untap</button>
+          <button type="button" className={styles.primary} onClick={() => dispatch({ type: "nextTurn" })}>Next turn</button>
           </div>
           <div className={styles.tools}>
           <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
@@ -1029,89 +1024,7 @@ export function PlaytestPage() {
           </div>
           </div>
         </div>
-        <div className={styles.phases}>
-          <button type="button" className={styles.btn} onClick={() => setRailOpen((v) => !v)}>
-            {railOpen ? "Close" : "Table"}
-          </button>
-          <span className={styles.phaseNow}>{table.phase ?? "main"}</span>
-          {seatView?.others.map((o) => (
-            <span key={o.id} className={styles.stat}>{o.name} {o.life}</span>
-          ))}
-          <span className={styles.actionsCount}>{journalRef.current?.seq ?? 0} actions</span>
-        </div>
-        {railOpen ? (
-          <div className={styles.dropRail}>
-            {(["untap", "upkeep", "draw", "main", "combat", "main2", "end"] as const).map((phase) => (
-              <button key={phase} type="button" className={table.phase === phase ? styles.primary : styles.stat} onClick={() => sendIntent({ type: "setPhase", phase })}>
-                {phase}
-              </button>
-            ))}
-            <button type="button" className={styles.stat} onClick={(e) => dispatch({ type: "tax", seatId: seat.id, delta: stepFromEvent(e) })} onContextMenu={(e) => { e.preventDefault(); dispatch({ type: "tax", seatId: seat.id, delta: -stepFromEvent(e) }); }}>
-              Tax {seat.commanderTax ?? 0}
-            </button>
-            <button type="button" className={styles.stat} onClick={(e) => dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: stepFromEvent(e) })} onContextMenu={(e) => { e.preventDefault(); dispatch({ type: "cmdDamage", seatId: seat.id, from: "opp", delta: -stepFromEvent(e) }); }}>
-              Cmd dmg {seat.commanderDamage?.opp ?? 0}
-            </button>
-            <button type="button" className={styles.stat} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>Untap</button>
-            <button type="button" className={styles.stat} onClick={() => dispatch({ type: "proliferate", seatId: seat.id })}>Proliferate</button>
-            <button type="button" className={styles.stat} onClick={() => setFogSeats((v) => !v)}>{fogSeats ? "Full table" : "Seat view"}</button>
-            <button type="button" className={styles.stat} onClick={() => persist({ ...settings, tableView: (settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "2d" : "3d" })}>
-              {(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? "3D" : "2D"}
-            </button>
-            <button type="button" className={styles.stat} onClick={() => setLogOpen((v) => !v)}>{logOpen ? "Hide log" : "Log"}</button>
-            <input className={styles.costInput} value={roomCode} placeholder="Room" onChange={(e) => setRoomCode(e.target.value)} />
-            <button type="button" className={styles.btn} onClick={() => {
-              if (!table) return;
-              channelRef.current?.close();
-              const code = table.id;
-              setRoomCode(code);
-              setRole("host");
-              setViewerSeat(table.seats[0].id);
-              void publishTable(code, table, table.seats[0].id);
-              channelRef.current = openHostedTable(code, "host", table.seats[0].name, (msg) => {
-                if (msg.kind === "join") dispatch({ type: "ensureSeat", name: msg.name || "Guest" });
-                else if (msg.kind === "intent") {
-                  setTable((cur) => {
-                    if (!cur) return cur;
-                    const reason = acceptIntent(cur, msg.action, msg.from);
-                    if (reason) {
-                      channelRef.current?.send({ kind: "reject", text: reason, from: cur.seats[0].id });
-                      return cur;
-                    }
-                    return cur;
-                  });
-                  dispatch(msg.action);
-                }
-              });
-            }}>Share</button>
-            <button type="button" className={styles.btn} onClick={() => {
-              if (!roomCode) return;
-              channelRef.current?.close();
-              setRole("guest");
-              channelRef.current = openHostedTable(roomCode, "guest", user?.email || "Guest", (msg) => {
-                if (msg.kind === "welcome" || msg.kind === "snapshot") {
-                  setViewerSeat(msg.kind === "welcome" ? msg.seatId : viewerSeat);
-                  journalRef.current = emptyJournal(msg.state);
-                  dispatch({ type: "hydrate", state: msg.state });
-                } else if (msg.kind === "action") {
-                  remoteRef.current = true;
-                  dispatch(msg.action);
-                  remoteRef.current = false;
-                } else if (msg.kind === "reject") setError(msg.text);
-              });
-              channelRef.current.send({ kind: "join", from: "guest", name: user?.email || "Guest" });
-            }}>Join</button>
-            {pendingTax ? (
-              <button type="button" className={styles.primary} onClick={() => {
-                dispatch({ type: "tax", seatId: seat.id, delta: 1 });
-                dispatch({ type: "cast", instanceId: pendingTax.instanceId });
-                setPendingTax(null);
-              }}>Cast {pendingTax.name}</button>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className={`${styles.stage} ${(settings.tableView === "3d" || (settings.tableView !== "2d" && table.seats.length > 1)) ? styles.stage3d : ""}`}>
+        <div className={styles.stage}>
         <div className={styles.board}>
           <div className={`${styles.battlefield} ${styles[`mat${(settings.playmat || "felt")[0].toUpperCase()}${(settings.playmat || "felt").slice(1)}`] ?? styles.matFelt}`} ref={bfRef}>
             <div className={styles.pileHead}>
