@@ -53,40 +53,94 @@ app.get("/api/health", health);
 
 const DECK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function supabaseHeaders() {
+  const base = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!base || !key) return null;
+  return {
+    base,
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  };
+}
+
+function artFace(
+  base: string,
+  card: { scryfall_id: string; oracle_id?: string },
+  art?: { preferred_scryfall_id?: string | null; custom_front_path?: string | null }
+) {
+  if (art?.custom_front_path) {
+    return `${base.replace(/\/$/, "")}/storage/v1/object/public/card-art/${art.custom_front_path.replace(/^\//, "")}`;
+  }
+  const printing = art?.preferred_scryfall_id || card.scryfall_id;
+  return `https://api.scryfall.com/cards/${printing}?format=image&version=normal`;
+}
+
+app.get("/api/tts/decks", async (req: Request, res: Response) => {
+  const ctx = supabaseHeaders();
+  if (!ctx) return res.status(503).json({ error: "Deck lookup is not configured" });
+  const q = String(req.query.q ?? "").trim();
+  try {
+    const url = `${ctx.base}/rest/v1/decks?is_public=eq.true&select=id,name,format,updated_at&order=updated_at.desc&limit=80`;
+    const listRes = await fetch(url, { headers: ctx.headers });
+    const rows = (await listRes.json()) as { id: string; name: string; format: string; updated_at: string }[];
+    const decks = (Array.isArray(rows) ? rows : []).filter((d) =>
+      !q || d.name.toLowerCase().includes(q.toLowerCase())
+    );
+    res.json({ decks });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Deck list failed" });
+  }
+});
+
 app.get("/api/tts/deck/:id", async (req: Request, res: Response) => {
   const raw = req.params.id;
   const id = Array.isArray(raw) ? raw[0] : raw;
   if (!id || !DECK_ID.test(id)) return res.status(400).json({ error: "Deck id required" });
-  const base = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-  if (!base || !key) return res.status(503).json({ error: "Deck lookup is not configured" });
-  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  const ctx = supabaseHeaders();
+  if (!ctx) return res.status(503).json({ error: "Deck lookup is not configured" });
   try {
     const deckRes = await fetch(
-      `${base}/rest/v1/decks?id=eq.${id}&select=id,name,format,is_public`,
-      { headers }
+      `${ctx.base}/rest/v1/decks?id=eq.${id}&select=id,name,format,is_public,user_id`,
+      { headers: ctx.headers }
     );
-    const decks = (await deckRes.json()) as { id: string; name: string; format: string; is_public: boolean }[];
+    const decks = (await deckRes.json()) as { id: string; name: string; format: string; is_public: boolean; user_id: string }[];
     const deck = decks[0];
     if (!deck) return res.status(404).json({ error: "Deck not found" });
-    if (!deck.is_public && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return res.status(404).json({ error: "Deck is not public" });
-    }
+    if (!deck.is_public) return res.status(404).json({ error: "Deck is not public" });
     const cardsRes = await fetch(
-      `${base}/rest/v1/deck_cards?deck_id=eq.${id}&select=name,scryfall_id,quantity,board`,
-      { headers }
+      `${ctx.base}/rest/v1/deck_cards?deck_id=eq.${id}&select=name,scryfall_id,oracle_id,quantity,board`,
+      { headers: ctx.headers }
     );
-    const rows = (await cardsRes.json()) as { name: string; scryfall_id: string; quantity: number; board: string }[];
+    const rows = (await cardsRes.json()) as {
+      name: string;
+      scryfall_id: string;
+      oracle_id: string;
+      quantity: number;
+      board: string;
+    }[];
+    const artRes = await fetch(
+      `${ctx.base}/rest/v1/user_card_art?user_id=eq.${deck.user_id}&select=oracle_id,preferred_scryfall_id,custom_front_path`,
+      { headers: ctx.headers }
+    );
+    const artRows = (await artRes.json()) as {
+      oracle_id: string;
+      preferred_scryfall_id: string | null;
+      custom_front_path: string | null;
+    }[];
+    const artByOracle = new Map(
+      (Array.isArray(artRows) ? artRows : []).map((a) => [String(a.oracle_id).toLowerCase(), a])
+    );
     res.json({
       id: deck.id,
       name: deck.name,
       format: deck.format,
-      cards: rows.map((c) => ({
+      cards: (Array.isArray(rows) ? rows : []).map((c) => ({
         name: c.name,
         scryfallId: c.scryfall_id,
         quantity: c.quantity,
         board: c.board,
-        face: `https://api.scryfall.com/cards/${c.scryfall_id}?format=image&version=normal`,
+        face: artFace(ctx.base, c, artByOracle.get(String(c.oracle_id).toLowerCase())),
       })),
     });
   } catch (e) {

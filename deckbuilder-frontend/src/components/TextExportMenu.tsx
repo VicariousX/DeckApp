@@ -172,7 +172,7 @@ export function TextExportMenu({
               </button>
             ) : null}
             <p className={styles.hint}>
-              In Tabletop Simulator, paste public/tts/deckapp-importer.lua onto an object, then chat !deckapp and this deck's URL. The deck must be public.
+              Mark the deck public, then in Tabletop Simulator paste /tts/deckapp-importer.lua onto an object and click DeckApp. The list uses the owner's preferred art.
             </p>
           </div>
           {status && <p className={styles.status}>{status}</p>}

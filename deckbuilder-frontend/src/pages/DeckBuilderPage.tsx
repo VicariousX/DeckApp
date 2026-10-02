@@ -89,6 +89,7 @@ import {
   setCardQuantity,
   setCardTag,
   stackDeckCards,
+  updateDeck,
 } from "../services/deckService";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import transitions from "../styles/pageTransitions.module.css";
@@ -1443,7 +1444,29 @@ export function DeckBuilderPage() {
                 <p className={styles.desc}>{detail.deck.description}</p>
               )}
             </div>
-            <div className={styles.headerActions} />
+            <div className={styles.headerActions}>
+              {isOwner ? (
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => {
+                    if (!id) return;
+                    const next = !detail.deck.is_public;
+                    void updateDeck(id, { is_public: next }).then(({ deck, error: err }) => {
+                      if (err || !deck) {
+                        setError(err ?? "Could not update visibility");
+                        return;
+                      }
+                      setDetail((prev) => (prev ? { ...prev, deck } : prev));
+                    });
+                  }}
+                >
+                  {detail.deck.is_public ? "Public" : "Make public"}
+                </button>
+              ) : detail.deck.is_public ? (
+                <span className={styles.format}>Public</span>
+              ) : null}
+            </div>
           </header>
 
           <div className={styles.boardTabs} role="tablist" aria-label="Panel">
