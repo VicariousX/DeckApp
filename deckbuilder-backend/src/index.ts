@@ -81,33 +81,42 @@ app.get("/api/tts/image/:file", async (req: Request, res: Response) => {
   const file = Array.isArray(raw) ? raw[0] : raw;
   const id = String(file || "").replace(/\.jpg$/i, "").toLowerCase();
   if (!DECK_ID.test(id)) return res.status(400).end();
-  const source = `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`;
-  try {
-    const image = await fetch(source, { headers: { Accept: "image/jpeg" } });
-    if (!image.ok) return res.status(404).end();
-    const bytes = Buffer.from(await image.arrayBuffer());
-    res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Content-Disposition", "inline; filename=card.jpg");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(bytes);
-  } catch (e) {
-    console.error(e);
-    res.status(502).end();
+  const sources = [
+    `https://api.scryfall.com/cards/${id}?format=image&version=normal`,
+    `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`,
+  ];
+  for (const source of sources) {
+    try {
+      const image = await fetch(source, {
+        headers: { Accept: "image/jpeg", "User-Agent": "DeckApp/1.0" },
+        redirect: "follow",
+      });
+      if (!image.ok) continue;
+      const bytes = Buffer.from(await image.arrayBuffer());
+      if (bytes.length < 1000) continue;
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Content-Disposition", "inline; filename=card.jpg");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(bytes);
+    } catch (e) {
+      console.error(e);
+    }
   }
+  res.status(502).json({ error: "Card image could not be fetched" });
 });
 
 app.get("/api/tts/back.jpg", async (_req: Request, res: Response) => {
-  const source = "https://backs.scryfall.io/large/0/0/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
+  const source = "https://cards.scryfall.io/large/back.jpg";
   try {
-    const image = await fetch(source, { headers: { Accept: "image/jpeg" } });
-    if (!image.ok) return res.status(404).end();
+    const image = await fetch(source, { headers: { Accept: "image/jpeg", "User-Agent": "DeckApp/1.0" } });
+    if (!image.ok) return res.status(502).json({ error: "Card back could not be fetched" });
     const bytes = Buffer.from(await image.arrayBuffer());
     res.setHeader("Content-Type", "image/jpeg");
     res.setHeader("Content-Disposition", "inline; filename=back.jpg");
     res.send(bytes);
   } catch (e) {
     console.error(e);
-    res.status(502).end();
+    res.status(502).json({ error: "Card back could not be fetched" });
   }
 });
 
