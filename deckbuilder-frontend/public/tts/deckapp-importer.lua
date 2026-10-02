@@ -1,6 +1,7 @@
 -- DeckApp selector for Tabletop Simulator.
 -- Spawn any object, paste this script, and click DeckApp.
 -- Chat still works: !deckapp <public deck url or id>
+-- Card spawn matches the workshop importer: one Card per copy, then putObject into a deck.
 
 local API = "https://deckapp-bwio.onrender.com/api/tts/"
 local BACK = "https://deckapp-bwio.onrender.com/api/tts/back.jpg"
@@ -123,47 +124,90 @@ function loadDeck(id, pos)
   end)
 end
 
-function spawnDeck(data, pos)
-  pos = pos or {0, 3, 0}
-  local custom = {}
-  local ids = {}
-  local contained = {}
-  local n = 0
-  for _, card in ipairs(data.cards or {}) do
-    if card.board ~= "maybe" then
-      for _ = 1, (card.quantity or 1) do
-        n = n + 1
-        custom[tostring(n)] = {
-          FaceURL = card.face,
-          BackURL = BACK,
-          NumWidth = 1,
-          NumHeight = 1,
-          BackIsHidden = true,
-          UniqueBack = false,
-        }
-        table.insert(ids, n * 100)
-        table.insert(contained, {
-          Name = "Card",
-          Nickname = card.name,
-          CardID = n * 100,
-          Transform = { posX = 0, posY = 0, posZ = 0, rotX = 0, rotY = 180, rotZ = 180, scaleX = 1, scaleY = 1, scaleZ = 1 },
-        })
-      end
+-- Same shape the workshop importer uses. Key 24400 stays an object key in JSON.encode.
+function cardJson(card, position)
+  local face = card.face or ""
+  if face ~= "" and not face:find("?", 1, true) then
+    face = face .. "?v=3"
+  end
+  return {
+    Name = "Card",
+    Transform = {
+      posX = position.x, posY = position.y, posZ = position.z,
+      rotX = 0, rotY = 180, rotZ = 180,
+      scaleX = 1, scaleY = 1, scaleZ = 1,
+    },
+    Nickname = card.name or "Card",
+    Locked = false,
+    Grid = true,
+    Snap = true,
+    Sticky = true,
+    Tooltip = true,
+    Hands = true,
+    HideWhenFaceDown = true,
+    CardID = 2440000,
+    SidewaysCard = false,
+    CustomDeck = {
+      ["24400"] = {
+        FaceURL = face,
+        BackURL = BACK,
+        NumWidth = 1,
+        NumHeight = 1,
+        BackIsHidden = true,
+        UniqueBack = false,
+        Type = 0,
+      },
+    },
+  }
+end
+
+function stackIntoDeck(objs, name, position)
+  if #objs == 0 then return nil end
+  local deck = objs[1]
+  for i = 2, #objs do
+    local stacked = deck.putObject(objs[i])
+    if stacked then deck = stacked end
+  end
+  if deck then
+    deck.setName(name)
+    deck.setPosition(position)
+  end
+  return deck
+end
+
+function spawnPile(cards, name, position)
+  if #cards == 0 then return end
+  local objs = {}
+  for _, card in ipairs(cards) do
+    local qty = card.quantity or 1
+    for _ = 1, qty do
+      local obj = spawnObjectJSON({
+        json = JSON.encode(cardJson(card, position)),
+        position = position,
+        sound = false,
+      })
+      if obj then table.insert(objs, obj) end
     end
   end
-  if n == 0 then
-    broadcastToAll("Deck has no cards.", {1, 0.6, 0.4})
-    return
+  Wait.time(function()
+    stackIntoDeck(objs, name, position)
+    broadcastToAll("Spawned " .. name .. " (" .. #objs .. ")", {0.6, 1, 0.6})
+  end, 0.4)
+end
+
+function spawnDeck(data, pos)
+  pos = pos or {x = 0, y = 3, z = 0}
+  local piles = { main = {}, side = {}, commander = {}, maybe = {} }
+  for _, card in ipairs(data.cards or {}) do
+    local board = card.board or "main"
+    if board ~= "maybe" then
+      if not piles[board] then board = "main" end
+      table.insert(piles[board], card)
+    end
   end
-  local object = {
-    Name = "DeckCustom",
-    Nickname = data.name or "DeckApp deck",
-    Transform = { posX = pos.x + 2, posY = pos.y + 2, posZ = pos.z, rotX = 0, rotY = 180, rotZ = 180, scaleX = 1, scaleY = 1, scaleZ = 1 },
-    DeckIDs = ids,
-    CustomDeck = custom,
-    ContainedObjects = contained,
-    ColorDiffuse = { r = 1, g = 1, b = 1 },
-  }
-  spawnObjectJSON({ json = JSON.encode(object), position = {pos.x + 2, pos.y + 2, pos.z} })
-  broadcastToAll("Spawned " .. (data.name or "deck"), {0.6, 1, 0.6})
+  local base = {x = pos.x + 2, y = pos.y + 2, z = pos.z}
+  local name = data.name or "DeckApp deck"
+  spawnPile(piles.main, name, base)
+  spawnPile(piles.side, name .. " sideboard", {x = base.x - 3.2, y = base.y, z = base.z})
+  spawnPile(piles.commander, name .. " commander", {x = base.x + 2.4, y = base.y, z = base.z - 2.2})
 end
