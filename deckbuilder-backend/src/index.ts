@@ -71,8 +71,8 @@ function artFace(
   if (art?.custom_front_path) {
     return `${base.replace(/\/$/, "")}/storage/v1/object/public/card-art/${art.custom_front_path.replace(/^\//, "")}`;
   }
-  const printing = art?.preferred_scryfall_id || card.scryfall_id;
-  return `https://api.scryfall.com/cards/${printing}?format=image&version=normal`;
+  const printing = (art?.preferred_scryfall_id || card.scryfall_id).toLowerCase();
+  return `https://cards.scryfall.io/normal/front/${printing[0]}/${printing[1]}/${printing}.jpg`;
 }
 
 app.get("/api/tts/decks", async (req: Request, res: Response) => {

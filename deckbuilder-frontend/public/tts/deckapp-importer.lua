@@ -125,37 +125,45 @@ end
 
 function spawnDeck(data, pos)
   pos = pos or {0, 3, 0}
-  local pending = {}
+  local custom = {}
+  local ids = {}
+  local contained = {}
+  local n = 0
   for _, card in ipairs(data.cards or {}) do
     if card.board ~= "maybe" then
-      for _ = 1, (card.quantity or 1) do table.insert(pending, card) end
+      for _ = 1, (card.quantity or 1) do
+        n = n + 1
+        custom[tostring(n)] = {
+          FaceURL = card.face,
+          BackURL = BACK,
+          NumWidth = 1,
+          NumHeight = 1,
+          BackIsHidden = true,
+          UniqueBack = false,
+        }
+        table.insert(ids, n * 100)
+        table.insert(contained, {
+          Name = "Card",
+          Nickname = card.name,
+          CardID = n * 100,
+          Transform = { posX = 0, posY = 0, posZ = 0, rotX = 0, rotY = 180, rotZ = 180, scaleX = 1, scaleY = 1, scaleZ = 1 },
+        })
+      end
     end
   end
-  if #pending == 0 then
+  if n == 0 then
     broadcastToAll("Deck has no cards.", {1, 0.6, 0.4})
     return
   end
-  local spawned = {}
-  local left = #pending
-  for i, card in ipairs(pending) do
-    spawnObject({
-      type = "Card",
-      position = {pos.x + 2, pos.y + 1 + i * 0.02, pos.z},
-      callback_function = function(obj)
-        obj.setCustomObject({ face = card.face, back = BACK })
-        obj.setName(card.name)
-        obj.reload()
-        Wait.time(function()
-          table.insert(spawned, obj)
-          left = left - 1
-          if left == 0 then
-            local deck = spawned[1]
-            for n = 2, #spawned do deck = deck.putObject(spawned[n]) or deck end
-            deck.setName(data.name or "DeckApp deck")
-            broadcastToAll("Spawned " .. (data.name or "deck"), {0.6, 1, 0.6})
-          end
-        end, 0.5)
-      end
-    })
-  end
+  local object = {
+    Name = "DeckCustom",
+    Nickname = data.name or "DeckApp deck",
+    Transform = { posX = pos.x + 2, posY = pos.y + 2, posZ = pos.z, rotX = 0, rotY = 180, rotZ = 180, scaleX = 1, scaleY = 1, scaleZ = 1 },
+    DeckIDs = ids,
+    CustomDeck = custom,
+    ContainedObjects = contained,
+    ColorDiffuse = { r = 1, g = 1, b = 1 },
+  }
+  spawnObjectJSON({ json = JSON.encode(object), position = {pos.x + 2, pos.y + 2, pos.z} })
+  broadcastToAll("Spawned " .. (data.name or "deck"), {0.6, 1, 0.6})
 end
