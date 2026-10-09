@@ -35,7 +35,7 @@ export async function createDeck(
       user_id: userId,
       name,
       description: input.description?.trim() ?? "",
-      format: input.format?.trim() || "casual",
+      format: input.format?.trim() || "commander",
       is_public: input.is_public ?? false,
     })
     .select("*")

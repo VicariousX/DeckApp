@@ -13,7 +13,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
-import { fetchAutocomplete, fetchCardById, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchCardById, fetchCollectionByIds, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
 import { parseExternalCardDrop } from "../lib/cardDrag";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
@@ -92,6 +92,9 @@ import {
   updateDeck,
 } from "../services/deckService";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
+import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
+import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
+import { loadHouseFormats } from "../services/houseFormatService";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
@@ -212,6 +215,8 @@ export function DeckBuilderPage() {
   const { resolveImageUrl, artRevision } = useArtPreferences();
 
   const [detail, setDetail] = useState<DeckDetail | null>(null);
+  const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
+  const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelTab>("deck");
@@ -534,6 +539,49 @@ export function DeckBuilderPage() {
       .filter((c) => c.board === "commander")
       .map((c) => c.scryfall_id)
       .join(",") ?? "";
+
+  const legalityKey = detail?.cards.map((c) => c.scryfall_id).join(",") ?? "";
+
+  useEffect(() => {
+    setHouseFormats(loadHouseFormats());
+  }, [detail?.deck.id]);
+
+  useEffect(() => {
+    if (!detail) return;
+    let cancelled = false;
+    void fetchCollectionByIds(detail.cards.map((c) => c.scryfall_id)).then(({ cards }) => {
+      if (cancelled) return;
+      const next: Record<string, CardLegality> = {};
+      for (const card of cards) {
+        const oracle = (card.oracle_id || card.id || "").toLowerCase();
+        if (!oracle) continue;
+        next[oracle] = {
+          legalities: card.legalities,
+          color_identity: card.color_identity,
+          type_line: card.type_line,
+        };
+      }
+      setLegalityCards(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [legalityKey]);
+
+  const formatRule = resolveFormat(detail?.deck.format || "commander", houseFormats);
+  const legalityIssues: LegalityIssue[] = detail
+    ? checkDeck(detail.cards, formatRule, legalityCards)
+    : [];
+  const issuesByOracle = useMemo(() => {
+    const map = new Map<string, LegalityIssue[]>();
+    for (const issue of legalityIssues) {
+      if (!issue.oracleId) continue;
+      const list = map.get(issue.oracleId) ?? [];
+      list.push(issue);
+      map.set(issue.oracleId, list);
+    }
+    return map;
+  }, [legalityIssues]);
 
   useEffect(() => {
     if (!detail || !commanderKey) {
@@ -1427,7 +1475,32 @@ export function DeckBuilderPage() {
             <div>
               <h1 className={styles.title}>{detail.deck.name}</h1>
               <p className={styles.meta}>
-                <span className={styles.format}>{detail.deck.format}</span>
+                <span className={styles.format}>{formatRule.name}</span>
+                {isOwner && (
+                  <select
+                    className={styles.addRowBtn}
+                    value={detail.deck.format}
+                    aria-label="Format"
+                    onChange={(e) => {
+                      if (!id) return;
+                      const format = e.target.value;
+                      void updateDeck(id, { format }).then(({ deck, error: err }) => {
+                        if (err || !deck) {
+                          setError(err ?? "Could not update format");
+                          return;
+                        }
+                        setDetail((prev) => (prev ? { ...prev, deck } : prev));
+                      });
+                    }}
+                  >
+                    {BUILTIN_FORMATS.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                    {houseFormats.map((f) => (
+                      <option key={f.id} value={`house:${f.id}`}>{f.name}</option>
+                    ))}
+                  </select>
+                )}
                 <span>
                   {totalCards} card{totalCards === 1 ? "" : "s"} ·{" "}
                   {detail.cards.length} unique
@@ -1440,8 +1513,17 @@ export function DeckBuilderPage() {
                   ))}
                 </span>
               </p>
-              {detail.deck.description && (
-                <p className={styles.desc}>{detail.deck.description}</p>
+              {legalityIssues.length > 0 && (
+                <ul className={styles.legalList}>
+                  {legalityIssues.slice(0, 8).map((issue) => (
+                    <li key={`${issue.code}-${issue.oracleId || issue.message}`} className={styles.legalItem}>
+                      {issue.message}
+                    </li>
+                  ))}
+                  {legalityIssues.length > 8 && (
+                    <li className={styles.legalItem}>+{legalityIssues.length - 8} more</li>
+                  )}
+                </ul>
               )}
             </div>
             <div className={styles.headerActions}>
@@ -2299,6 +2381,14 @@ export function DeckBuilderPage() {
                                     </button>
                                     <ManaCost cost={c.mana_cost} size={15} />
                                     <span className={styles.cardType}>{c.type_line}</span>
+                                    {(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).length > 0 && (
+                                      <span
+                                        className={styles.legalBadge}
+                                        title={(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).map((i) => i.message).join(" ")}
+                                      >
+                                        Illegal
+                                      </span>
+                                    )}
                                   </div>
                                   {isOwner && (
                                     <div className={styles.cardActions}>

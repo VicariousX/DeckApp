@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { createDeck, deleteDeck, listMyDecks } from "../services/deckService";
+import { BUILTIN_FORMATS } from "../lib/formats/rules";
+import { loadHouseFormats } from "../services/houseFormatService";
 import type { Deck } from "../types/deck";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./MyDecksPage.module.css";
@@ -13,7 +15,8 @@ export function MyDecksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [format, setFormat] = useState("casual");
+  const [format, setFormat] = useState("commander");
+  const [houseFormats, setHouseFormats] = useState(loadHouseFormats());
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -27,6 +30,7 @@ export function MyDecksPage() {
 
   useEffect(() => {
     void reload();
+    setHouseFormats(loadHouseFormats());
   }, [reload]);
 
   if (!authLoading && !user) {
@@ -86,13 +90,13 @@ export function MyDecksPage() {
             onChange={(e) => setFormat(e.target.value)}
             aria-label="Format"
           >
-            <option value="casual">Casual</option>
             <option value="commander">Commander</option>
-            <option value="standard">Standard</option>
-            <option value="modern">Modern</option>
-            <option value="pioneer">Pioneer</option>
-            <option value="legacy">Legacy</option>
-            <option value="other">Other</option>
+            {BUILTIN_FORMATS.filter((f) => f.id !== "commander").map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+            {houseFormats.map((f) => (
+              <option key={f.id} value={`house:${f.id}`}>{f.name}</option>
+            ))}
           </select>
           <button type="submit" className={styles.primaryBtn} disabled={busy}>
             {busy ? "Creating…" : "Create"}
