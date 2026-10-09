@@ -425,7 +425,7 @@ export function DeckBuilderPage() {
         mana_cost: sc.mana_cost,
         cmc: sc.cmc,
         quantity: e.quantity,
-        board: addTargetBoard,
+        board: e.board ?? addTargetBoard,
       });
       if (addErr || !saved) {
         setError(addErr ?? `Could not add ${sc.name}.`);

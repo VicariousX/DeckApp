@@ -8,6 +8,8 @@ export type ParsedCardLine = {
   quantity: number;
   /** Optional set code if present, e.g. (M21) */
   setCode?: string;
+  /** Board implied by a preceding section header. */
+  board?: "main" | "side" | "maybe" | "commander";
   raw: string;
 };
 
@@ -77,13 +79,23 @@ export function parseCardList(text: string): ParseCardListResult {
   const entries: ParsedCardLine[] = [];
   const skipped: string[] = [];
   const lines = text.split(/\r?\n/);
+  let board: ParsedCardLine["board"] = "main";
 
   for (const line of lines) {
-    if (!line.trim()) continue;
-    if (COMMENT_RE.test(line.trim()) || SECTION_RE.test(line.trim())) continue;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (COMMENT_RE.test(trimmed)) continue;
+    if (SECTION_RE.test(trimmed)) {
+      const section = trimmed.toLowerCase();
+      if (section.startsWith("side")) board = "side";
+      else if (section.startsWith("maybe") || section.startsWith("consider")) board = "maybe";
+      else if (section.startsWith("commander")) board = "commander";
+      else board = "main";
+      continue;
+    }
     const parsed = parseCardListLine(line);
-    if (parsed) entries.push(parsed);
-    else if (line.trim()) skipped.push(line.trim());
+    if (parsed) entries.push({ ...parsed, board });
+    else skipped.push(trimmed);
   }
 
   return { entries, skipped };
@@ -93,7 +105,7 @@ export function parseCardList(text: string): ParseCardListResult {
 export function mergeParsedEntries(entries: ParsedCardLine[]): ParsedCardLine[] {
   const map = new Map<string, ParsedCardLine>();
   for (const e of entries) {
-    const key = e.name.toLowerCase();
+    const key = `${e.board || "main"}:${e.name.toLowerCase()}`;
     const existing = map.get(key);
     if (existing) {
       existing.quantity += e.quantity;

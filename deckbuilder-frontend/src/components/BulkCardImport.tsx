@@ -8,6 +8,7 @@ import {
 } from "../lib/cards/parseCardList";
 import { namesFromTtsJson } from "../lib/cards/ttsDeck";
 import { fetchCardsByNames } from "../lib/scryfallApi";
+import { apiUrl } from "../lib/apiBase";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./BulkCardImport.module.css";
 
@@ -15,6 +16,7 @@ export type BulkResolvedEntry = {
   name: string;
   quantity: number;
   card: ScryfallCard;
+  board?: "main" | "side" | "maybe" | "commander";
 };
 
 type Props = {
@@ -41,6 +43,7 @@ export function BulkCardImport({
   const [missingOnly, setMissingOnly] = useState(false);
   const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 400, h: 440 });
   const [text, setText] = useState("");
+  const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState<string[]>([]);
@@ -91,12 +94,56 @@ export function BulkCardImport({
         name: card.name,
         quantity: respectQuantity ? e.quantity : 1,
         card,
+        board: e.board,
       });
     }
     setNotFound(missing);
     setPreview(resolved);
     if (resolved.length === 0) {
       setError("None of the names could be resolved.");
+    }
+  }
+
+  async function fetchLink() {
+    const url = link.trim();
+    if (!url) return;
+    setBusy(true);
+    setError(null);
+    setPreview(null);
+    setProgress("Fetching deck link…");
+    try {
+      const res = await fetch(apiUrl(`/api/import/deck?url=${encodeURIComponent(url)}`));
+      const data = (await res.json()) as {
+        error?: string;
+        name?: string;
+        cards?: { name: string; quantity: number; board: string }[];
+      };
+      if (!res.ok || !data.cards) {
+        setError(data.error || "Could not read that link.");
+        return;
+      }
+      const blocks: Record<string, string[]> = {
+        commander: [],
+        main: [],
+        side: [],
+        maybe: [],
+      };
+      for (const card of data.cards) {
+        const board = blocks[card.board] ? card.board : "main";
+        blocks[board].push(`${card.quantity} ${card.name}`);
+      }
+      const textBlocks = [
+        blocks.commander.length ? `Commander\n${blocks.commander.join("\n")}` : "",
+        blocks.main.length ? `Deck\n${blocks.main.join("\n")}` : "",
+        blocks.side.length ? `Sideboard\n${blocks.side.join("\n")}` : "",
+        blocks.maybe.length ? `Maybeboard\n${blocks.maybe.join("\n")}` : "",
+      ].filter(Boolean);
+      setText(textBlocks.join("\n\n"));
+      setProgress(data.name ? `Loaded ${data.name}` : null);
+    } catch {
+      setError("Could not reach the import service.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -151,9 +198,26 @@ export function BulkCardImport({
             </button>
           </div>
           <p className={styles.hint}>
-            One card per line. Supports <code>1x Name</code>, <code>1 Name</code>,
-            and plain names. Set codes in parentheses are ignored.
+            Paste a list, or a public Archidekt, Moxfield, MTGGoldfish, or Deckstats link.
+            Commander and sideboard sections stay on those boards.
           </p>
+          <div className={styles.urlRow}>
+            <input
+              className={styles.urlInput}
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="https://www.archidekt.com/decks/…"
+              disabled={busy}
+            />
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              disabled={busy || !link.trim()}
+              onClick={() => void fetchLink()}
+            >
+              Fetch
+            </button>
+          </div>
           <input
             type="file"
             accept="application/json,.json"

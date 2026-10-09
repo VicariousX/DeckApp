@@ -19,6 +19,7 @@ import {
 import { BULK_ENABLED, CORS_ORIGINS, HOST, PORT } from "./config.js";
 import { appendAction, getRoom, putRoom } from "./tableRooms.js";
 import { GENERATED_SKINS } from "./ttsSkins.js";
+import { importDeckFromUrl } from "./importDeck.js";
 import type { TableState, TableWire } from "./wire.js";
 
 const app = express();
@@ -51,6 +52,21 @@ function health(_req: Request, res: Response) {
 
 app.get("/health", health);
 app.get("/api/health", health);
+
+app.get("/api/import/deck", async (req: Request, res: Response) => {
+  const url = String(req.query.url || "");
+  if (!url) return res.status(400).json({ error: "Missing url" });
+  try {
+    const deck = await importDeckFromUrl(url);
+    if (deck.cards.length === 0) {
+      return res.status(422).json({ error: "No cards found at that link." });
+    }
+    res.json(deck);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Import failed";
+    res.status(502).json({ error: message });
+  }
+});
 
 const DECK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
