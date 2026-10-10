@@ -218,6 +218,7 @@ export function DeckBuilderPage() {
   const { resolveImageUrl, artRevision } = useArtPreferences();
 
   const [detail, setDetail] = useState<DeckDetail | null>(null);
+  const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
@@ -893,14 +894,14 @@ export function DeckBuilderPage() {
   async function onRemove(card: DeckCard) {
     if (!isOwner) return;
     snapshot("Removed card");
-    const snapshot = card;
+    const removed = card;
     patchCard(card.id, null);
     const { error: err } = await removeCardFromDeck(card.id);
     if (err) {
       setError(err);
       setDetail((prev) =>
         prev
-          ? { ...prev, cards: sortCards([...prev.cards, snapshot]) }
+          ? { ...prev, cards: sortCards([...prev.cards, removed]) }
           : prev
       );
     }
