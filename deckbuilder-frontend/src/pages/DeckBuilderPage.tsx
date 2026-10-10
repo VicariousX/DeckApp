@@ -622,6 +622,9 @@ export function DeckBuilderPage() {
           legalities: card.legalities,
           color_identity: card.color_identity,
           type_line: card.type_line,
+          cmc: card.cmc,
+          usd: card.prices?.usd ? Number(card.prices.usd) : null,
+          edhrec_rank: card.edhrec_rank,
         };
       }
       setLegalityCards(next);

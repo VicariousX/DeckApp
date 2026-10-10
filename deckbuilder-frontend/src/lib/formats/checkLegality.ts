@@ -5,6 +5,9 @@ export type CardLegality = {
   legalities?: Record<string, string>;
   color_identity?: string[];
   type_line?: string;
+  cmc?: number | null;
+  usd?: number | null;
+  edhrec_rank?: number | null;
 };
 
 export type LegalityIssue = {
@@ -47,9 +50,18 @@ function isBasic(name: string, typeLine: string) {
   return BASIC.has(name.toLowerCase()) || /\bbasic\b/i.test(typeLine);
 }
 
-function capFor(name: string, rule: FormatRule) {
+function named(list: string[] | undefined, name: string) {
+  return (list ?? []).some((n) => n.toLowerCase() === name.toLowerCase());
+}
+
+function capFor(name: string, typeLine: string, rule: FormatRule) {
   const key = name.toLowerCase();
-  if (isBasic(name, "")) return 0;
+  const override = (rule.copyOverrides ?? []).find((row) => {
+    const target = row.target.toLowerCase();
+    return target === key || typeLine.toLowerCase().includes(target);
+  });
+  if (override) return override.copies;
+  if (isBasic(name, typeLine)) return 0;
   if (ANY_NUMBER.has(key)) return 0;
   if (COPY_CAP[key]) return COPY_CAP[key];
   if (rule.singleton) return 1;
@@ -119,7 +131,8 @@ export function checkDeck(
   }
   for (const row of copies.values()) {
     const info = byOracle[row.oracleId];
-    const cap = isBasic(row.name, info?.type_line || "") ? 0 : capFor(row.name, rule);
+    const typeLine = info?.type_line || "";
+    const cap = capFor(row.name, typeLine, rule);
     if (cap > 0 && row.qty > cap) {
       issues.push({
         level: "error",
@@ -129,7 +142,8 @@ export function checkDeck(
       });
     }
     const status = rule.legalityKey ? info?.legalities?.[rule.legalityKey] : "";
-    if (status === "banned" || rule.banned.some((n) => n.toLowerCase() === row.name.toLowerCase())) {
+    const unbanned = named(rule.whitelist, row.name);
+    if (!unbanned && (status === "banned" || named(rule.banned, row.name))) {
       issues.push({
         level: "error",
         code: "banned",
@@ -137,7 +151,7 @@ export function checkDeck(
         message: `${row.name} is banned in ${rule.name}.`,
       });
     }
-    if (status === "not_legal") {
+    if (!unbanned && status === "not_legal") {
       issues.push({
         level: "error",
         code: "illegal",
@@ -155,6 +169,20 @@ export function checkDeck(
         });
       }
     }
+    for (const extra of rule.rules ?? []) {
+      if (extra.kind === "maxEdhrec" && info?.edhrec_rank != null && info.edhrec_rank > extra.value) {
+        issues.push({ level: "error", code: "edhrec", oracleId: row.oracleId, message: `${row.name} is outside the EDHREC rank cap.` });
+      }
+      if (extra.kind === "maxCardPrice" && info?.usd != null && info.usd > extra.value) {
+        issues.push({ level: "error", code: "price", oracleId: row.oracleId, message: `${row.name} is over the card price cap.` });
+      }
+      if (extra.kind === "minCmc" && info?.cmc != null && info.cmc < extra.value) {
+        issues.push({ level: "warn", code: "cmc", oracleId: row.oracleId, message: `${row.name} is below the mana value floor.` });
+      }
+      if (extra.kind === "maxCmc" && info?.cmc != null && info.cmc > extra.value) {
+        issues.push({ level: "error", code: "cmc", oracleId: row.oracleId, message: `${row.name} is above the mana value cap.` });
+      }
+    }
     if (rule.colorIdentity && commanders.length > 0 && identity.size >= 0) {
       const colors = (info?.color_identity || []).map((c) => c.toUpperCase());
       const outside = colors.filter((c) => !identity.has(c));
@@ -166,6 +194,15 @@ export function checkDeck(
           message: `${row.name} is outside the commander color identity.`,
         });
       }
+    }
+  }
+
+  const deckPrice = cards
+    .filter((c) => c.board !== "maybe")
+    .reduce((sum, c) => sum + (byOracle[c.oracle_id.toLowerCase()]?.usd ?? 0) * c.quantity, 0);
+  for (const extra of rule.rules ?? []) {
+    if (extra.kind === "maxDeckPrice" && deckPrice > extra.value) {
+      issues.push({ level: "error", code: "price", message: `Deck price is $${deckPrice.toFixed(2)}. Cap is $${extra.value}.` });
     }
   }
 

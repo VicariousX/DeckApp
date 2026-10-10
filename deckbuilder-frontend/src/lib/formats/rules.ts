@@ -9,9 +9,20 @@ export type FormatId =
   | "casual"
   | "custom";
 
+export type CopyOverride = {
+  target: string;
+  copies: number;
+};
+
+export type DynamicRule = {
+  kind: "maxEdhrec" | "maxCardPrice" | "maxDeckPrice" | "minCmc" | "maxCmc";
+  value: number;
+};
+
 export type HouseFormat = {
   id: string;
   name: string;
+  basedOn: string;
   deckSize: number | null;
   sideboardSize: number | null;
   copyLimit: number;
@@ -22,6 +33,9 @@ export type HouseFormat = {
   legalityKey: string;
   banned: string[];
   restricted: string[];
+  whitelist: string[];
+  copyOverrides: CopyOverride[];
+  rules: DynamicRule[];
   notes: string;
   /** Reserved for play-group sharing. Not public until that exists. */
   isPublic: boolean;
@@ -40,6 +54,9 @@ export type FormatRule = {
   legalityKey: string;
   banned: string[];
   restricted: string[];
+  whitelist?: string[];
+  copyOverrides?: CopyOverride[];
+  rules?: DynamicRule[];
   house?: boolean;
 };
 
@@ -172,6 +189,9 @@ export function houseToRule(format: HouseFormat): FormatRule {
     legalityKey: format.legalityKey,
     banned: format.banned,
     restricted: format.restricted,
+    whitelist: format.whitelist,
+    copyOverrides: format.copyOverrides,
+    rules: format.rules,
     house: true,
   };
 }
