@@ -1,6 +1,7 @@
 export type DeckFolder = {
   id: string;
   name: string;
+  parentId?: string | null;
 };
 
 function key(userId: string) {
@@ -40,10 +41,22 @@ export function setDeckFolder(userId: string, deckId: string, folderId: string |
 }
 
 export function deleteFolder(userId: string, folderId: string) {
-  saveFolders(userId, loadFolders(userId).filter((f) => f.id !== folderId));
+  const all = loadFolders(userId);
+  const remove = new Set<string>([folderId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const folder of all) {
+      if (folder.parentId && remove.has(folder.parentId) && !remove.has(folder.id)) {
+        remove.add(folder.id);
+        grew = true;
+      }
+    }
+  }
+  saveFolders(userId, all.filter((f) => !remove.has(f.id)));
   const next = loadFolderAssignments(userId);
   for (const [deckId, assigned] of Object.entries(next)) {
-    if (assigned === folderId) delete next[deckId];
+    if (remove.has(assigned)) delete next[deckId];
   }
   localStorage.setItem(assignKey(userId), JSON.stringify(next));
 }
