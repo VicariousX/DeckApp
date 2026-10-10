@@ -97,6 +97,17 @@ export function saveBranchParent(deckId: string, parentId: string, name = "Branc
   });
 }
 
+export function pruneBranches(existingIds: Set<string>) {
+  const nodes = readNodes();
+  for (const id of Object.keys(nodes)) {
+    if (!existingIds.has(id)) delete nodes[id];
+  }
+  for (const node of Object.values(nodes)) {
+    if (node.parentId && !nodes[node.parentId]) node.parentId = null;
+  }
+  writeNodes(nodes);
+}
+
 export function hasBranches(deckId: string): boolean {
   const nodes = readNodes();
   if (nodes[deckId]?.parentId) return true;

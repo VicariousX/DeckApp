@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { createDeck, deleteDeck, listMyDecks } from "../services/deckService";
-import { hasBranches } from "../services/deckHistory";
+import { hasBranches, pruneBranches } from "../services/deckHistory";
 import {
   deleteFolder,
   loadFolderAssignments,
@@ -17,7 +17,29 @@ import type { Deck } from "../types/deck";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./MyDecksPage.module.css";
 
-export function MyDecksPage() {
+function FolderChoice({
+  folder,
+  folders,
+  onPick,
+}: {
+  folder: DeckFolder;
+  folders: DeckFolder[];
+  onPick: (id: string) => void;
+}) {
+  const children = folders.filter((f) => f.parentId === folder.id);
+  return (
+    <div className={styles.menuItem}>
+      <button type="button" onClick={() => onPick(folder.id)}>{folder.name}</button>
+      {children.length > 0 && (
+        <div className={styles.popout}>
+          {children.map((child) => (
+            <FolderChoice key={child.id} folder={child} folders={folders} onPick={onPick} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -38,6 +60,7 @@ export function MyDecksPage() {
     setLoading(true);
     const { decks: list, error: err } = await listMyDecks(user.id);
     setDecks(list);
+    pruneBranches(new Set(list.map((d) => d.id)));
     setFolders(loadFolders(user.id));
     setAssignments(loadFolderAssignments(user.id));
     setError(err);
@@ -51,17 +74,27 @@ export function MyDecksPage() {
 
   const roots = folders.filter((f) => !f.parentId);
   const subfolders = folders.filter((f) => f.parentId === activeFolder);
-  const selectedId = activeSubfolder || (activeFolder === "all" || activeFolder === "unfiled" ? "" : activeFolder);
+  function folderIdsAt(folderId: string): Set<string> {
+    const ids = new Set<string>([folderId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const folder of folders) {
+        if (folder.parentId && ids.has(folder.parentId) && !ids.has(folder.id)) {
+          ids.add(folder.id);
+          grew = true;
+        }
+      }
+    }
+    return ids;
+  }
+
   const visibleDecks = decks.filter((d) => {
     if (activeFolder === "all") return true;
     if (activeFolder === "unfiled") return !assignments[d.id];
-    return assignments[d.id] === selectedId;
+    if (activeSubfolder) return assignments[d.id] === activeSubfolder;
+    return folderIdsAt(activeFolder).has(assignments[d.id] ?? "");
   });
-
-  function folderLabel(folder: DeckFolder) {
-    const parent = folders.find((f) => f.id === folder.parentId);
-    return parent ? `${parent.name} / ${folder.name}` : folder.name;
-  }
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
@@ -116,6 +149,7 @@ export function MyDecksPage() {
   }
 
   function DeckRow({ deck }: { deck: Deck }) {
+    const [open, setOpen] = useState(false);
     return (
       <li className={styles.deckItem}>
         <Link to={`/deck/${deck.id}`} className={styles.deckLink}>
@@ -125,25 +159,41 @@ export function MyDecksPage() {
             {deck.is_public ? " · public" : " · private"}
           </span>
         </Link>
-        <select
-          className={styles.folderSelect}
-          value={assignments[deck.id] ?? ""}
-          onChange={(e) => onMove(deck.id, e.target.value)}
-          aria-label={`Move ${deck.name}`}
-        >
-          <option value="">Unfiled</option>
-          {folders.map((folder) => (
-            <option key={folder.id} value={folder.id}>{folderLabel(folder)}</option>
-          ))}
-        </select>
-        {hasBranches(deck.id) && (
-          <Link to={`/deck/${deck.id}/branches`} className={styles.deleteBtn}>
-            View Branches
-          </Link>
-        )}
-        <button type="button" className={styles.deleteBtn} onClick={() => onDelete(deck.id, deck.name)}>
-          Delete
-        </button>
+        <div className={styles.menuWrap}>
+          <button
+            type="button"
+            className={styles.menuBtn}
+            aria-label={`Options for ${deck.name}`}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            ⋯
+          </button>
+          {open && (
+            <div className={styles.menu} onMouseLeave={() => setOpen(false)}>
+              <div className={styles.menuItem}>
+                Move to
+                <div className={styles.popout}>
+                  <button type="button" onClick={() => { onMove(deck.id, ""); setOpen(false); }}>Unfiled</button>
+                  {roots.map((folder) => (
+                    <FolderChoice
+                      key={folder.id}
+                      folder={folder}
+                      folders={folders}
+                      onPick={(id) => { onMove(deck.id, id); setOpen(false); }}
+                    />
+                  ))}
+                </div>
+              </div>
+              {hasBranches(deck.id) && (
+                <Link to={`/deck/${deck.id}/branches`} className={styles.menuLink}>View Branches</Link>
+              )}
+              <button type="button" className={styles.menuDanger} onClick={() => onDelete(deck.id, deck.name)}>
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </li>
     );
   }
@@ -204,7 +254,7 @@ export function MyDecksPage() {
 
       {subfolders.length > 0 && (
         <div className={styles.subTabs} role="tablist" aria-label="Subfolders">
-          <button type="button" className={`${styles.subTab} ${!activeSubfolder ? styles.subTabOn : ""}`} onClick={() => setActiveSubfolder("")}>This folder</button>
+          <button type="button" className={`${styles.subTab} ${!activeSubfolder ? styles.subTabOn : ""}`} onClick={() => setActiveSubfolder("")}>All</button>
           {subfolders.map((folder) => (
             <button
               key={folder.id}
