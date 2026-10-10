@@ -1,3 +1,4 @@
+import { supabase } from "../lib/supabaseClient";
 import type { HouseFormat } from "../lib/formats/rules";
 
 const KEY = "deckapp-house-formats";
@@ -24,6 +25,50 @@ export function loadHouseFormats(): HouseFormat[] {
 
 export function saveHouseFormats(formats: HouseFormat[]) {
   localStorage.setItem(KEY, JSON.stringify(formats));
+}
+
+export async function loadRemoteHouseFormats(userId: string): Promise<HouseFormat[]> {
+  const { data } = await supabase.from("house_formats").select("id, name, rules").eq("user_id", userId);
+  return (data ?? []).map((row) => ({
+    ...blankHouseFormat(),
+    ...(row.rules as HouseFormat),
+    id: row.id as string,
+    name: row.name as string,
+  }));
+}
+
+export async function saveRemoteHouseFormat(userId: string, format: HouseFormat) {
+  return supabase.from("house_formats").upsert({
+    id: format.id,
+    user_id: userId,
+    name: format.name,
+    rules: format,
+    is_public: format.isPublic,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export async function deleteRemoteHouseFormat(id: string) {
+  return supabase.from("house_formats").delete().eq("id", id);
+}
+
+export async function listGroupFormats(groupId: string): Promise<HouseFormat[]> {
+  const { data } = await supabase.from("group_formats").select("id, name, rules").eq("group_id", groupId);
+  return (data ?? []).map((row) => ({
+    ...blankHouseFormat(),
+    ...(row.rules as HouseFormat),
+    id: row.id as string,
+    name: row.name as string,
+  }));
+}
+
+export async function saveGroupFormat(groupId: string, userId: string, format: HouseFormat) {
+  return supabase.from("group_formats").insert({
+    group_id: groupId,
+    name: format.name,
+    rules: format,
+    created_by: userId,
+  });
 }
 
 export function blankHouseFormat(): HouseFormat {

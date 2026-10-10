@@ -1,28 +1,40 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import { HouseFormatEditor } from "../components/HouseFormatEditor";
 import {
   blankHouseFormat,
+  deleteRemoteHouseFormat,
   loadHouseFormats,
+  loadRemoteHouseFormats,
   saveHouseFormats,
+  saveRemoteHouseFormat,
 } from "../services/houseFormatService";
 import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./FormatsPage.module.css";
 
 export function FormatsPage() {
+  const { user } = useAuth();
   const [formats, setFormats] = useState<HouseFormat[]>([]);
   const [draft, setDraft] = useState<HouseFormat>(blankHouseFormat());
 
   useEffect(() => {
     setFormats(loadHouseFormats());
-  }, []);
+    if (!user) return;
+    void loadRemoteHouseFormats(user.id).then((remote) => {
+      if (remote.length) {
+        setFormats(remote);
+        saveHouseFormats(remote);
+      }
+    });
+  }, [user]);
 
   function persist(next: HouseFormat[]) {
     setFormats(next);
     saveHouseFormats(next);
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     const name = draft.name.trim();
     if (!name) return;
     const row = { ...draft, name, isPublic: false };
@@ -30,6 +42,7 @@ export function FormatsPage() {
       ? formats.map((f) => (f.id === row.id ? row : f))
       : [...formats, row];
     persist(next);
+    if (user) await saveRemoteHouseFormat(user.id, row);
     setDraft(blankHouseFormat());
   }
 
@@ -68,7 +81,10 @@ export function FormatsPage() {
                 {f.deckSize || "any"} cards · {f.singleton ? "singleton" : `${f.copyLimit} copies`}
               </span>
             </button>
-            <button type="button" className={styles.deleteBtn} onClick={() => persist(formats.filter((x) => x.id !== f.id))}>
+            <button type="button" className={styles.deleteBtn} onClick={() => {
+              persist(formats.filter((x) => x.id !== f.id));
+              void deleteRemoteHouseFormat(f.id);
+            }}>
               Delete
             </button>
           </li>

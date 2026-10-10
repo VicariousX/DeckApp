@@ -36,7 +36,7 @@ import {
   type Vote,
 } from "../services/socialService";
 import { HouseFormatEditor } from "../components/HouseFormatEditor";
-import { blankHouseFormat } from "../services/houseFormatService";
+import { blankHouseFormat, listGroupFormats, saveGroupFormat, saveRemoteHouseFormat } from "../services/houseFormatService";
 import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./SocialPage.module.css";
 
@@ -62,7 +62,7 @@ export function SocialPage() {
   const [proposalTitle, setProposalTitle] = useState("");
   const [proposalBody, setProposalBody] = useState("");
   const [draft, setDraft] = useState("");
-  const [formatDraft, setFormatDraft] = useState<HouseFormat>(blankHouseFormat());
+  const [groupFormats, setGroupFormats] = useState<HouseFormat[]>([]);
   const [showFinder, setShowFinder] = useState(false);
   const [groupTab, setGroupTab] = useState<GroupTab>("formats");
   const [members, setMembers] = useState<Member[]>([]);
@@ -93,6 +93,7 @@ export function SocialPage() {
     if (!selectedGroup) return;
     const saved = localStorage.getItem(`deckapp-group-format:${selectedGroup}`);
     setFormatDraft(saved ? (JSON.parse(saved) as HouseFormat) : blankHouseFormat());
+    void listGroupFormats(selectedGroup).then(setGroupFormats);
     void Promise.all([listProposals(selectedGroup), listMembers(selectedGroup)]).then(async ([rows, memberRows]) => {
       setProposals(rows);
       setMembers(memberRows);
@@ -221,7 +222,7 @@ export function SocialPage() {
               const group = groups.find((g) => g.id === selectedGroup);
               const mine = members.find((m) => m.user_id === user?.id);
               const isStaff = mine?.role === "owner" || mine?.role === "admin" || group?.owner_id === user?.id;
-              const formats = proposals.filter((p) => p.kind === "format" && p.status === "approved");
+              const formats = groupFormats;
               const open = proposals.filter((p) => (p.status ?? "open") === "open");
               const review = open.find((p) => p.id === reviewId) ?? open[0];
               const tally = (id: string) => votes.filter((v) => v.proposal_id === id);
@@ -248,9 +249,19 @@ export function SocialPage() {
                   </div>
                   {groupTab === "formats" && (
                     <>
+                      {formats.length > 0 && (
+                        <ul>
+                          {formats.map((f) => (
+                            <li key={f.id}>
+                              <strong>{f.name}</strong>
+                              <span className={styles.muted}>{f.basedOn || "custom"} · {f.deckSize || "any"} cards · banned {(f.banned ?? []).length} · restricted {(f.restricted ?? []).length}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       <div className={styles.tabs}>
-                        {formats.map((p) => (
-                          <button key={p.id} type="button" className={styles.tab} onClick={() => setFormatDraft(p.payload as unknown as HouseFormat)}>{p.title}</button>
+                        {formats.map((f) => (
+                          <button key={f.id} type="button" className={styles.tab} onClick={() => setFormatDraft(f)}>{f.name}</button>
                         ))}
                         <button type="button" className={styles.tab} onClick={() => setFormatDraft(blankHouseFormat())}>Propose New Format</button>
                       </div>
@@ -260,6 +271,7 @@ export function SocialPage() {
                         saveLabel="Propose this change"
                         onSave={() => {
                           if (!user) return;
+                          void saveRemoteHouseFormat(user.id, formatDraft);
                           void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Format change", "format", formatDraft as unknown as Record<string, unknown>)
                             .then((res) => {
                               setError(res.error?.message ?? null);
@@ -299,7 +311,16 @@ export function SocialPage() {
                                 <button type="button" className={styles.menuBtn} aria-label="Submission options" onClick={() => setMenuOpen((v) => !v)}>⋯</button>
                                 {menuOpen && (
                                   <div className={styles.menu}>
-                                    <button type="button" onClick={() => { setMenuOpen(false); void setProposalStatus(review.id, "approved").then(() => listProposals(selectedGroup).then(setProposals)); }}>Approve</button>
+                                    <button type="button" onClick={() => {
+                                      setMenuOpen(false);
+                                      void setProposalStatus(review.id, "approved").then(async () => {
+                                        if (review.kind === "format" && user) {
+                                          await saveGroupFormat(selectedGroup, user.id, review.payload as unknown as HouseFormat);
+                                          setGroupFormats(await listGroupFormats(selectedGroup));
+                                        }
+                                        setProposals(await listProposals(selectedGroup));
+                                      });
+                                    }}>Approve</button>
                                     <button type="button" onClick={() => { setMenuOpen(false); void deleteProposal(review.id).then(() => listProposals(selectedGroup).then(setProposals)); }}>Remove</button>
                                   </div>
                                 )}
