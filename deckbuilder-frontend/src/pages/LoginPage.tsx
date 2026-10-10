@@ -28,23 +28,24 @@ export function LoginPage() {
     e.preventDefault();
     setBusy(true);
     clearMessages();
-    const { error: err } = await auth.signInWithPassword(email.trim(), password);
-    setBusy(false);
-    if (err) setError(err);
-  }
-
-  async function onPasswordSignUp() {
-    setBusy(true);
-    clearMessages();
-    const { error: err } = await auth.signUpWithPassword(email.trim(), password);
-    setBusy(false);
-    if (err) {
-      setError(err);
+    const emailValue = email.trim();
+    const signIn = await auth.signInWithPassword(emailValue, password);
+    if (!signIn.error) {
+      setBusy(false);
       return;
     }
-    setInfo(
-      "Account created. If email confirmation is enabled, check your inbox before signing in."
-    );
+    const created = await auth.signUpWithPassword(emailValue, password);
+    if (!created.error) {
+      const again = await auth.signInWithPassword(emailValue, password);
+      setBusy(false);
+      if (again.error) {
+        setInfo("Account created. If email confirmation is on, open the link in your inbox, then sign in.");
+      }
+      return;
+    }
+    setBusy(false);
+    const already = /already|registered|exists/i.test(created.error);
+    setError(already ? "That email already has an account. Check the password or reset it." : created.error);
   }
 
   async function onMagicLink(e: FormEvent) {
@@ -161,7 +162,7 @@ export function LoginPage() {
       <div className={styles.card}>
         <h1 className={styles.title}>Log in</h1>
         <p className={styles.subtitle}>
-          Email + password, magic link, or reset a forgotten password.
+          Sign in with email and password. A new email creates the account and sets that password.
         </p>
 
         <div className={styles.tabs} role="tablist">
@@ -222,14 +223,6 @@ export function LoginPage() {
             <div className={styles.actions}>
               <button type="submit" className={styles.primaryBtn} disabled={busy}>
                 {busy ? "Working…" : "Sign in"}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                disabled={busy}
-                onClick={onPasswordSignUp}
-              >
-                Create account
               </button>
               <button
                 type="button"
