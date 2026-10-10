@@ -205,7 +205,7 @@ export function MyDecksPage() {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>My decks</h1>
-          <p className={styles.subtitle}>Create decks and group them into folders.</p>
+          <p className={styles.subtitle}>Create decks, group them into folders, and open a branch tree from the menu.</p>
         </div>
       </header>
 

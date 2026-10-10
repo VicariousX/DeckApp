@@ -427,8 +427,7 @@ export function CombosPage() {
         <div>
           <h1 className={styles.title}>Combos</h1>
           <p className={styles.subtitle}>
-            Cards in different wheels link by default. Unlink a pair to mark
-            that those faces do not work together.
+            Lock, mesh, map, or atlas. Cards in different wheels link until you unlink them.
           </p>
         </div>
         <div className={styles.viewToggle} role="group" aria-label="View">
@@ -499,7 +498,7 @@ export function CombosPage() {
         <section className={styles.stage}>
           {!active && (
             <p className={styles.muted}>
-              Start a combo to line up cards on the lock.
+              No combo selected. Create one, then add cards to the lock.
             </p>
           )}
           {active && (

@@ -9,13 +9,17 @@ export function CollectionsPage() {
           <h1 className={styles.title}>Collections</h1>
           <p className={styles.subtitle}>
             Owned printings, missing cards, and rough prices will live here.
-            The art picker already remembers a preferred printing per card.
           </p>
         </div>
       </header>
-      <p className={styles.status}>
-        Nothing to mark owned yet. <Link to="/search">Search a card</Link> to set preferred art.
-      </p>
+      <section className={styles.form}>
+        <h2 className={styles.formTitle}>What you can do now</h2>
+        <p className={styles.status}>Preferred art is already saved per card.</p>
+        <div className={styles.actions}>
+          <Link to="/search" className={styles.primaryBtn}>Search cards</Link>
+          <Link to="/my-decks" className={styles.primaryBtn}>Open decks</Link>
+        </div>
+      </section>
     </div>
   );
 }

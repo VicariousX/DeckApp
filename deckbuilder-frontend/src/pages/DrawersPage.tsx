@@ -474,7 +474,7 @@ export function DrawersPage() {
 
         <section className={styles.main}>
           {!selected && !loading && (
-            <p className={styles.muted}>Select or create a drawer.</p>
+            <p className={styles.muted}>Select a drawer, or create one on the left.</p>
           )}
           {selected && (
             <>

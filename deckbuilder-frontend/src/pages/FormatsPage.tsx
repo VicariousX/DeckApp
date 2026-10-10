@@ -40,7 +40,7 @@ export function FormatsPage() {
         <div>
           <h1 className={styles.title}>Formats</h1>
           <p className={styles.subtitle}>
-            Built-in formats are checked on the deck. House formats stay private for now.
+            Built-in formats are checked on the deck. House formats stay private and can be chosen from the deck header.
           </p>
         </div>
       </header>

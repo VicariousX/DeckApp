@@ -44,8 +44,14 @@ textarea,
   z-index: 0;
 }
 
-a {
-  color: inherit;
+a,
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 /* Selection */

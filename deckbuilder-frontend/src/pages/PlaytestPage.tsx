@@ -973,7 +973,7 @@ export function PlaytestPage() {
             ← {table.deckName}
           </Link>
           <h1 className={styles.title}>Table</h1>
-          <span className={styles.muted}>Turn {table.turn}</span>
+          <span className={styles.muted}>Turn {table.turn} · click a stat to change it · right-click the table for more</span>
           <button type="button" className={styles.btn} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>Untap</button>
           <button type="button" className={styles.primary} onClick={() => dispatch({ type: "nextTurn" })}>Next turn</button>
           </div>

@@ -271,6 +271,10 @@ export function SearchResultsPage() {
       <p className={resultStyles.query}>
         <code>{q}</code>
       </p>
+      {isError && <p className={resultStyles.query}>Search failed. Edit the query and try again.</p>}
+      {!isLoading && !isError && sorted.length === 0 && (
+        <p className={resultStyles.query}>No cards matched. <Link to={editTo}>Edit search</Link></p>
+      )}
       <CardResult
         cards={visible}
         cardSize={cardSize}

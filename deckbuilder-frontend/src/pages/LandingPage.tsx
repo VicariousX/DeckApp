@@ -159,6 +159,7 @@ export function LandingPage() {
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
         { to: "/combos", mark: "C", title: "Combos" },
+        { to: "/formats", mark: "F", title: "Formats" },
       ]}
       rail={{ kind: "link", to: "/login", label: "Profile" }}
     />
@@ -185,14 +186,13 @@ export function LandingPage() {
       description="Lists beyond your own."
       delayMs={220}
       slots={[
-        { to: "/decks?view=friends", mark: "F", title: "Friends" },
         { to: "/decks", mark: "P", title: "Public decks" },
+        { to: "/formats", mark: "F", title: "Formats" },
       ]}
       rail={{
         kind: "link",
-        to: "https://discord.com/invite/placeholder",
-        label: "Discord",
-        external: true,
+        to: "/collections",
+        label: "Collections",
       }}
     />
   );

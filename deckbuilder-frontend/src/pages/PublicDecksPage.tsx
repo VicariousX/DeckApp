@@ -11,6 +11,8 @@ export function PublicDecksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [format, setFormat] = useState("all");
   const [error, setError] = useState<string | null>(null);
   const [ask, setAsk] = useState<{ deck: Deck; branch: boolean } | null>(null);
   const [ready, setReady] = useState<{ id: string; name: string; branch: boolean } | null>(null);
@@ -20,6 +22,7 @@ export function PublicDecksPage() {
     void listPublicDecks().then(({ decks: list, error: err }) => {
       setDecks(list);
       setError(err);
+      setLoading(false);
     });
   }, []);
 
@@ -43,6 +46,9 @@ export function PublicDecksPage() {
     setReady({ id: next.id, name: next.name, branch });
   }
 
+  const formats = [...new Set(decks.map((d) => d.format).filter(Boolean))];
+  const visible = format === "all" ? decks : decks.filter((d) => d.format === format);
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -51,10 +57,19 @@ export function PublicDecksPage() {
           <p className={styles.subtitle}>Clone a list, or branch it to compare your own changes.</p>
         </div>
       </header>
+      {formats.length > 1 && (
+        <div className={styles.tabs}>
+          <button type="button" className={`${styles.tab} ${format === "all" ? styles.tabOn : ""}`} onClick={() => setFormat("all")}>All</button>
+          {formats.map((f) => (
+            <button key={f} type="button" className={`${styles.tab} ${format === f ? styles.tabOn : ""}`} onClick={() => setFormat(f)}>{f}</button>
+          ))}
+        </div>
+      )}
       {error && <p className={styles.error}>{error}</p>}
-      {decks.length === 0 && <p className={styles.empty}>No public decks yet.</p>}
+      {loading && <p className={styles.status}>Loading public decks…</p>}
+      {!loading && visible.length === 0 && <p className={styles.empty}>No public decks yet.</p>}
       <ul className={styles.list}>
-        {decks.map((d) => (
+        {visible.map((d) => (
           <li key={d.id} className={styles.deckItem}>
             <Link to={`/deck/${d.id}`} className={styles.deckLink}>
               <span className={styles.deckName}>{d.name}</span>
