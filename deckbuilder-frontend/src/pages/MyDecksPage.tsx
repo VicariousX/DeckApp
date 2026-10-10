@@ -40,6 +40,8 @@ function FolderChoice({
     </div>
   );
 }
+
+export function MyDecksPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[]>([]);
