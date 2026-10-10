@@ -25,6 +25,15 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  cursor: default;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+  user-select: text;
 }
 
 #root {
