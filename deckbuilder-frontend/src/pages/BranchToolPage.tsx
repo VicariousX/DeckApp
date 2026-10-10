@@ -52,6 +52,21 @@ function avgCmc(cards: DeckCard[]) {
   return playable.reduce((sum, c) => sum + (c.cmc || 0) * c.quantity, 0) / n;
 }
 
+function CompareBar({ label, left, right, max }: { label: string; left: number; right: number; max: number }) {
+  const scale = Math.max(1, max);
+  return (
+    <div className={styles.compareBar}>
+      <span className={styles.barLabel}>{label}</span>
+      <div className={styles.barTrack}>
+        <span className={styles.barLeft} style={{ width: `${(left / scale) * 50}%` }} />
+        <span className={styles.barCenter} />
+        <span className={styles.barRight} style={{ width: `${(right / scale) * 50}%` }} />
+      </div>
+      <em>{left} · {right}</em>
+    </div>
+  );
+}
+
 function depthOf(node: BranchNode, nodes: BranchNode[]) {
   let depth = 0;
   let parent = node.parentId;
@@ -249,32 +264,19 @@ export function BranchToolPage() {
               <div className={styles.charts}>
                 <div>
                   <h3>Mana curve</h3>
+                  <p className={styles.legend}><i /> Left <b /> Right</p>
                   {curve.map((bin) => (
-                    <div key={bin.bucket} className={styles.barRow}>
-                      <span>{bin.bucket}</span>
-                      <i style={{ width: `${Math.min(100, bin.left * 8)}%` }} />
-                      <b style={{ width: `${Math.min(100, bin.right * 8)}%` }} />
-                      <em>{bin.left}/{bin.right}</em>
-                    </div>
+                    <CompareBar key={bin.bucket} label={bin.bucket} left={bin.left} right={bin.right} max={Math.max(1, ...curve.flatMap((c) => [c.left, c.right]))} />
                   ))}
                 </div>
                 <div>
                   <h3>Colors and types</h3>
+                  <p className={styles.legend}><i /> Left <b /> Right</p>
                   {colors.map((c) => (
-                    <div key={c.color} className={styles.barRow}>
-                      <span>{c.color}</span>
-                      <i style={{ width: `${Math.min(100, c.left * 4)}%` }} />
-                      <b style={{ width: `${Math.min(100, c.right * 4)}%` }} />
-                      <em>{c.left}/{c.right}</em>
-                    </div>
+                    <CompareBar key={c.color} label={c.color} left={c.left} right={c.right} max={Math.max(1, ...colors.flatMap((x) => [x.left, x.right]), ...types.flatMap((x) => [x.left, x.right]))} />
                   ))}
                   {types.map((t) => (
-                    <div key={t.label} className={styles.barRow}>
-                      <span>{t.label}</span>
-                      <i style={{ width: `${Math.min(100, t.left * 6)}%` }} />
-                      <b style={{ width: `${Math.min(100, t.right * 6)}%` }} />
-                      <em>{t.left}/{t.right}</em>
-                    </div>
+                    <CompareBar key={t.label} label={t.label} left={t.left} right={t.right} max={Math.max(1, ...colors.flatMap((x) => [x.left, x.right]), ...types.flatMap((x) => [x.left, x.right]))} />
                   ))}
                 </div>
               </div>
