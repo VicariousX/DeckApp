@@ -15,8 +15,9 @@ export type CopyOverride = {
 };
 
 export type DynamicRule = {
-  kind: "maxEdhrec" | "maxCardPrice" | "maxDeckPrice" | "minCmc" | "maxCmc";
+  kind: "maxEdhrec" | "maxCardPrice" | "maxDeckPrice" | "minCmc" | "maxCmc" | "copyException";
   value: number;
+  target?: string;
 };
 
 export type HouseFormat = {

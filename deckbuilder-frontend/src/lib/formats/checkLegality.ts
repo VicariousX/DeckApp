@@ -56,7 +56,12 @@ function named(list: string[] | undefined, name: string) {
 
 function capFor(name: string, typeLine: string, rule: FormatRule) {
   const key = name.toLowerCase();
-  const override = (rule.copyOverrides ?? []).find((row) => {
+  const override = [
+    ...(rule.copyOverrides ?? []),
+    ...(rule.rules ?? [])
+      .filter((row) => row.kind === "copyException" && row.target)
+      .map((row) => ({ target: row.target ?? "", copies: row.value })),
+  ].find((row) => {
     const target = row.target.toLowerCase();
     return target === key || typeLine.toLowerCase().includes(target);
   });

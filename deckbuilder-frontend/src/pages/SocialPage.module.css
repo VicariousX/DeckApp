@@ -81,13 +81,13 @@
   margin: 0.8rem 0;
 }
 
-.messages {
+.messages, .workspace, .review {
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 0.8rem;
 }
 
-.messages aside {
+.messages aside, .review aside {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -96,14 +96,7 @@
 .mine { justify-content: flex-end; }
 .error { color: #fca5a5; }
 
-.workspace {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 0.8rem;
-}
-
-.groupRail,
-.groupMain {
+.groupRail, .groupMain, .review article {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 0.8rem;
@@ -124,16 +117,9 @@
   margin-bottom: 0.8rem;
 }
 
-.groupHead h2,
-.groupMain h3 {
-  margin: 0.4rem 0;
-}
-
-.groupHead p {
-  margin: 0.25rem 0 0;
-  color: var(--color-text-muted);
-}
+.groupHead h2, .groupMain h3 { margin: 0.4rem 0; }
+.groupHead p { margin: 0.25rem 0 0; color: var(--color-text-muted); }
 
 @media (max-width: 760px) {
-  .header, .messages, .workspace { display: flex; flex-direction: column; }
+  .header, .messages, .workspace, .review { display: flex; flex-direction: column; }
 }

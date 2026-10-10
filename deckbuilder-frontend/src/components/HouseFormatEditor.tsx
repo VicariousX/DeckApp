@@ -2,6 +2,7 @@ import { BUILTIN_FORMATS, type DynamicRule, type HouseFormat } from "../lib/form
 import styles from "../pages/FormatsPage.module.css";
 
 const RULE_LABELS: Record<DynamicRule["kind"], string> = {
+  copyException: "Copy exception",
   maxEdhrec: "Max EDHREC rank",
   maxCardPrice: "Max card price",
   maxDeckPrice: "Max deck price",
@@ -110,37 +111,6 @@ export function HouseFormatEditor({
         />
       </label>
       <div className={styles.field}>
-        <span>Copy exceptions</span>
-        {(draft.copyOverrides ?? []).map((row, i) => (
-          <div key={i} className={styles.grid}>
-            <input
-              className={styles.input}
-              value={row.target}
-              placeholder="Card name or type"
-              onChange={(e) => {
-                const copyOverrides = [...draft.copyOverrides];
-                copyOverrides[i] = { ...row, target: e.target.value };
-                setDraft({ ...draft, copyOverrides });
-              }}
-            />
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              value={row.copies}
-              onChange={(e) => {
-                const copyOverrides = [...draft.copyOverrides];
-                copyOverrides[i] = { ...row, copies: Number(e.target.value) || 0 };
-                setDraft({ ...draft, copyOverrides });
-              }}
-            />
-          </div>
-        ))}
-        <button type="button" className={styles.deleteBtn} onClick={() => setDraft({ ...draft, copyOverrides: [...(draft.copyOverrides ?? []), { target: "", copies: 4 }] })}>
-          Add copy exception
-        </button>
-      </div>
-      <div className={styles.field}>
         <span>Dynamic rules</span>
         {(draft.rules ?? []).map((row, i) => (
           <div key={i} className={styles.grid}>
@@ -157,21 +127,41 @@ export function HouseFormatEditor({
                 <option key={id} value={id}>{label}</option>
               ))}
             </select>
+            {row.kind === "copyException" && (
+              <input
+                className={styles.input}
+                value={row.target ?? ""}
+                placeholder="Card name or type"
+                onChange={(e) => {
+                  const rules = [...draft.rules];
+                  rules[i] = { ...row, target: e.target.value };
+                  setDraft({ ...draft, rules });
+                }}
+              />
+            )}
             <input
               className={styles.input}
               type="number"
               min={0}
               value={row.value}
+              placeholder={row.kind === "copyException" ? "Copies" : "Value"}
               onChange={(e) => {
                 const rules = [...draft.rules];
                 rules[i] = { ...row, value: Number(e.target.value) || 0 };
                 setDraft({ ...draft, rules });
               }}
             />
+            <button
+              type="button"
+              className={styles.deleteBtn}
+              onClick={() => setDraft({ ...draft, rules: draft.rules.filter((_, n) => n !== i) })}
+            >
+              Remove
+            </button>
           </div>
         ))}
-        <button type="button" className={styles.deleteBtn} onClick={() => setDraft({ ...draft, rules: [...(draft.rules ?? []), { kind: "maxCardPrice", value: 5 }] })}>
-          Add dynamic rule
+        <button type="button" className={styles.deleteBtn} onClick={() => setDraft({ ...draft, rules: [...(draft.rules ?? []), { kind: "copyException", value: 4, target: "" }] })}>
+          Add rule
         </button>
       </div>
       <label className={styles.field}>

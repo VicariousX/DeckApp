@@ -7,8 +7,18 @@ export type Friendship = {
   addressee_id: string;
   status: "pending" | "accepted";
 };
-export type PlayGroup = { id: string; name: string; description: string; owner_id: string };
-export type Proposal = { id: string; group_id: string; author_id: string; title: string; body: string };
+export type PlayGroup = { id: string; name: string; description: string; owner_id: string; is_public?: boolean };
+export type Member = { group_id: string; user_id: string; role: "owner" | "admin" | "member" | "pending" };
+export type Proposal = {
+  id: string;
+  group_id: string;
+  author_id: string;
+  title: string;
+  body: string;
+  kind?: "format" | "rule" | "join";
+  payload?: Record<string, unknown>;
+  status?: "open" | "approved" | "rejected";
+};
 export type Vote = { proposal_id: string; user_id: string; vote: "yes" | "no" };
 export type Conversation = { id: string; kind: "dm" | "group"; group_id: string | null; title: string };
 export type Message = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
@@ -43,7 +53,7 @@ export async function acceptFriend(id: string) {
 }
 
 export async function listGroups(): Promise<PlayGroup[]> {
-  const { data } = await supabase.from("play_groups").select("id, name, description, owner_id").order("created_at", { ascending: false });
+  const { data } = await supabase.from("play_groups").select("id, name, description, owner_id, is_public").order("created_at", { ascending: false });
   return (data ?? []) as PlayGroup[];
 }
 
@@ -54,17 +64,41 @@ export async function createGroup(ownerId: string, name: string, description: st
   return { id: data.id as string };
 }
 
-export async function joinGroup(userId: string, groupId: string) {
-  return supabase.from("play_group_members").insert({ group_id: groupId, user_id: userId, role: "member" });
+export async function joinGroup(userId: string, groupId: string, pending = false) {
+  return supabase.from("play_group_members").insert({ group_id: groupId, user_id: userId, role: pending ? "pending" : "member" });
+}
+
+export async function listMembers(groupId: string): Promise<Member[]> {
+  const { data } = await supabase.from("play_group_members").select("group_id, user_id, role").eq("group_id", groupId);
+  return (data ?? []) as Member[];
+}
+
+export async function setMemberRole(groupId: string, userId: string, role: Member["role"]) {
+  return supabase.from("play_group_members").update({ role }).eq("group_id", groupId).eq("user_id", userId);
+}
+
+export async function setGroupPublic(groupId: string, isPublic: boolean) {
+  return supabase.from("play_groups").update({ is_public: isPublic }).eq("id", groupId);
 }
 
 export async function listProposals(groupId: string): Promise<Proposal[]> {
-  const { data } = await supabase.from("group_proposals").select("id, group_id, author_id, title, body").eq("group_id", groupId);
+  const { data } = await supabase.from("group_proposals").select("id, group_id, author_id, title, body, kind, payload, status").eq("group_id", groupId);
   return (data ?? []) as Proposal[];
 }
 
-export async function createProposal(groupId: string, authorId: string, title: string, body: string) {
-  return supabase.from("group_proposals").insert({ group_id: groupId, author_id: authorId, title, body });
+export async function createProposal(
+  groupId: string,
+  authorId: string,
+  title: string,
+  body: string,
+  kind: Proposal["kind"] = "rule",
+  payload: Record<string, unknown> = {}
+) {
+  return supabase.from("group_proposals").insert({ group_id: groupId, author_id: authorId, title, body, kind, payload });
+}
+
+export async function setProposalStatus(id: string, status: Proposal["status"]) {
+  return supabase.from("group_proposals").update({ status }).eq("id", id);
 }
 
 export async function listVotes(proposalIds: string[]): Promise<Vote[]> {

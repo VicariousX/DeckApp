@@ -12,16 +12,21 @@ import {
   listConversations,
   listFriendships,
   listGroups,
+  listMembers,
   listMessages,
   listProposals,
   listVotes,
   requestFriend,
   searchProfiles,
   sendMessage,
+  setGroupPublic,
+  setMemberRole,
+  setProposalStatus,
   startDm,
   vote,
   type Conversation,
   type Friendship,
+  type Member,
   type Message,
   type PlayGroup,
   type Profile,
@@ -34,6 +39,7 @@ import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./SocialPage.module.css";
 
 type Tab = "friends" | "groups" | "messages";
+type GroupTab = "formats" | "rules" | "submissions" | "members";
 
 export function SocialPage() {
   const { user, loading } = useAuth();
@@ -56,6 +62,9 @@ export function SocialPage() {
   const [draft, setDraft] = useState("");
   const [formatDraft, setFormatDraft] = useState<HouseFormat>(blankHouseFormat());
   const [showFinder, setShowFinder] = useState(false);
+  const [groupTab, setGroupTab] = useState<GroupTab>("formats");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [reviewId, setReviewId] = useState("");
 
   async function refresh() {
     if (!user) return;
@@ -80,9 +89,11 @@ export function SocialPage() {
     if (!selectedGroup) return;
     const saved = localStorage.getItem(`deckapp-group-format:${selectedGroup}`);
     setFormatDraft(saved ? (JSON.parse(saved) as HouseFormat) : blankHouseFormat());
-    void listProposals(selectedGroup).then(async (rows) => {
+    void Promise.all([listProposals(selectedGroup), listMembers(selectedGroup)]).then(async ([rows, memberRows]) => {
       setProposals(rows);
+      setMembers(memberRows);
       setVotes(await listVotes(rows.map((r) => r.id)));
+      setReviewId(rows.find((r) => (r.status ?? "open") === "open")?.id ?? "");
     });
   }, [selectedGroup]);
 
@@ -189,54 +200,116 @@ export function SocialPage() {
             )}
           </aside>
           <div className={styles.groupMain}>
-            {!selectedGroup && <p>Create or pick a play group to set its format and house rules.</p>}
-            {selectedGroup && (
-              <>
-                <div className={styles.groupHead}>
-                  <div>
-                    <h2>{groups.find((g) => g.id === selectedGroup)?.name}</h2>
-                    <p>Set the format the group plays, then propose and vote on house rules.</p>
+            {!selectedGroup && <p>Create or pick a play group.</p>}
+            {selectedGroup && (() => {
+              const group = groups.find((g) => g.id === selectedGroup);
+              const mine = members.find((m) => m.user_id === user?.id);
+              const isStaff = mine?.role === "owner" || mine?.role === "admin" || group?.owner_id === user?.id;
+              const formats = proposals.filter((p) => p.kind === "format" && p.status === "approved");
+              const open = proposals.filter((p) => (p.status ?? "open") === "open");
+              const review = open.find((p) => p.id === reviewId) ?? open[0];
+              const tally = (id: string) => votes.filter((v) => v.proposal_id === id);
+              return (
+                <>
+                  <div className={styles.groupHead}>
+                    <div>
+                      <h2>{group?.name}</h2>
+                      <p>{group?.is_public === false ? "Private group" : "Public group"}</p>
+                    </div>
+                    <div className={styles.row}>
+                      <button type="button" onClick={() => user && void joinGroup(user.id, selectedGroup, group?.is_public === false)}>
+                        {group?.is_public === false ? "Request to join" : "Join group"}
+                      </button>
+                      <button type="button" onClick={() => group && user && void joinGroupChat(user.id, group).then(() => setParams({ tab: "messages" }))}>Join Group Chat</button>
+                    </div>
                   </div>
-                  <div className={styles.row}>
-                    <button type="button" onClick={() => user && void joinGroup(user.id, selectedGroup)}>Join group</button>
-                    <button type="button" onClick={() => {
-                      const group = groups.find((g) => g.id === selectedGroup);
-                      if (user && group) void joinGroupChat(user.id, group).then(() => setParams({ tab: "messages" }));
-                    }}>Join Group Chat</button>
+                  <div className={styles.tabs}>
+                    {(["formats", "rules", "submissions", "members"] as GroupTab[]).map((item) => (
+                      <button key={item} type="button" className={groupTab === item ? styles.tabOn : styles.tab} onClick={() => setGroupTab(item)}>
+                        {item === "formats" ? "Group Formats" : item === "rules" ? "Group Rules" : item === "submissions" ? "Submissions" : "Members"}
+                      </button>
+                    ))}
                   </div>
-                </div>
-                <h3>Group format</h3>
-                <HouseFormatEditor
-                  draft={formatDraft}
-                  setDraft={setFormatDraft}
-                  saveLabel="Save group format"
-                  onSave={() => {
-                    localStorage.setItem(`deckapp-group-format:${selectedGroup}`, JSON.stringify(formatDraft));
-                    if (user) void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Group format update");
-                  }}
-                />
-                <h3>House rules</h3>
-                <form className={styles.stack} onSubmit={onPropose}>
-                  <input value={proposalTitle} onChange={(e) => setProposalTitle(e.target.value)} placeholder="House rule" />
-                  <textarea value={proposalBody} onChange={(e) => setProposalBody(e.target.value)} placeholder="What should the group vote on?" />
-                  <button type="submit">Propose</button>
-                </form>
-                <ul>
-                  {proposals.map((p) => {
-                    const tally = votes.filter((v) => v.proposal_id === p.id);
-                    return (
-                      <li key={p.id}>
-                        <strong>{p.title}</strong>
-                        <span>{p.body}</span>
-                        <span>{tally.filter((v) => v.vote === "yes").length} yes / {tally.filter((v) => v.vote === "no").length} no</span>
-                        <button type="button" onClick={() => user && void vote(p.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Yes</button>
-                        <button type="button" onClick={() => user && void vote(p.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>No</button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            )}
+                  {groupTab === "formats" && (
+                    <>
+                      <div className={styles.tabs}>
+                        {formats.map((p) => (
+                          <button key={p.id} type="button" className={styles.tab} onClick={() => setFormatDraft(p.payload as unknown as HouseFormat)}>{p.title}</button>
+                        ))}
+                        <button type="button" className={styles.tab} onClick={() => setFormatDraft(blankHouseFormat())}>Propose New Format</button>
+                      </div>
+                      <HouseFormatEditor
+                        draft={formatDraft}
+                        setDraft={setFormatDraft}
+                        saveLabel="Propose this change"
+                        onSave={() => {
+                          if (!user) return;
+                          void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Format change", "format", formatDraft as unknown as Record<string, unknown>)
+                            .then(() => listProposals(selectedGroup))
+                            .then(setProposals);
+                        }}
+                      />
+                    </>
+                  )}
+                  {groupTab === "rules" && (
+                    <form className={styles.stack} onSubmit={onPropose}>
+                      <input value={proposalTitle} onChange={(e) => setProposalTitle(e.target.value)} placeholder="Group rule" />
+                      <textarea value={proposalBody} onChange={(e) => setProposalBody(e.target.value)} placeholder="What should the group vote on?" />
+                      <button type="submit">Propose group rule</button>
+                    </form>
+                  )}
+                  {groupTab === "submissions" && (
+                    <div className={styles.review}>
+                      <aside>
+                        {open.map((p) => (
+                          <button key={p.id} type="button" className={review?.id === p.id ? styles.tabOn : styles.tab} onClick={() => setReviewId(p.id)}>
+                            {p.title}
+                          </button>
+                        ))}
+                        {open.length === 0 && <p>No open submissions.</p>}
+                      </aside>
+                      {review && (
+                        <article>
+                          <h3>{review.title}</h3>
+                          <p>{review.body}</p>
+                          {review.kind === "format" && <p>Based on {(review.payload as { basedOn?: string })?.basedOn || "custom"}.</p>}
+                          <p>{tally(review.id).filter((v) => v.vote === "yes").length} yes / {tally(review.id).filter((v) => v.vote === "no").length} no</p>
+                          <div className={styles.row}>
+                            <button type="button" onClick={() => user && void vote(review.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote yes</button>
+                            <button type="button" onClick={() => user && void vote(review.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote no</button>
+                            {isStaff && (
+                              <button type="button" onClick={() => void setProposalStatus(review.id, "approved").then(() => listProposals(selectedGroup).then(setProposals))}>Break tie / approve</button>
+                            )}
+                          </div>
+                        </article>
+                      )}
+                    </div>
+                  )}
+                  {groupTab === "members" && (
+                    <>
+                      {isStaff && (
+                        <button type="button" onClick={() => void setGroupPublic(selectedGroup, group?.is_public === false)}>
+                          Make {group?.is_public === false ? "public" : "private"}
+                        </button>
+                      )}
+                      <ul>
+                        {members.map((m) => (
+                          <li key={m.user_id}>
+                            <span>{m.role}</span>
+                            {isStaff && m.role === "pending" && (
+                              <button type="button" onClick={() => void setMemberRole(selectedGroup, m.user_id, "member").then(() => listMembers(selectedGroup).then(setMembers))}>Approve</button>
+                            )}
+                            {isStaff && m.role === "member" && (
+                              <button type="button" onClick={() => void setMemberRole(selectedGroup, m.user_id, "admin").then(() => listMembers(selectedGroup).then(setMembers))}>Make admin</button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </section>
       )}
