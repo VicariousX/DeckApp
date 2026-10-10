@@ -1,0 +1,55 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog {
+  width: min(420px, calc(100vw - 2rem));
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.dialog p {
+  margin: 0.55rem 0 0;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.primary,
+.secondary {
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border: none;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}

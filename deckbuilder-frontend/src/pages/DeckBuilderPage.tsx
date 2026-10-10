@@ -92,7 +92,8 @@ import {
   stackDeckCards,
   updateDeck,
 } from "../services/deckService";
-import { loadBranchParent, loadHistory, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
+import { loadBranchParent, loadHistory, rememberBranchNode, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
+import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
@@ -222,6 +223,9 @@ export function DeckBuilderPage() {
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [copyAsk, setCopyAsk] = useState<null | "clone" | "branch">(null);
+  const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
+  const [copyBusy, setCopyBusy] = useState(false);
   const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -447,14 +451,25 @@ export function DeckBuilderPage() {
   }
 
   async function copyThis(branch: boolean) {
-    if (!user || !id) return;
+    if (!user || !id || !detail) return;
+    setCopyBusy(true);
     const { deck, error: err } = await cloneDeck(id, user.id, { branch });
+    setCopyBusy(false);
     if (err || !deck) {
       setError(err ?? "Could not copy deck.");
       return;
     }
-    if (branch) saveBranchParent(deck.id, id);
-    navigate(`/deck/${deck.id}`);
+    if (branch) {
+      rememberBranchNode({
+        id,
+        name: detail.deck.name,
+        parentId,
+        createdAt: detail.deck.created_at,
+      });
+      saveBranchParent(deck.id, id, deck.name);
+    }
+    setCopyAsk(null);
+    setCopyReady({ id: deck.id, name: deck.name, kind: branch ? "branch" : "clone" });
   }
 
   async function onBulkImport(entries: BulkResolvedEntry[]) {
@@ -1580,8 +1595,9 @@ export function DeckBuilderPage() {
             <div className={styles.headerActions}>
               {user && (
                 <>
-                  <button type="button" className={styles.secondaryBtn} onClick={() => void copyThis(false)}>Clone</button>
-                  <button type="button" className={styles.secondaryBtn} onClick={() => void copyThis(true)}>Branch</button>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("clone")}>Clone</button>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("branch")}>Branch</button>
+                  <Link to={`/deck/${id}/branches`} className={styles.backLink}>Branches</Link>
                 </>
               )}
               {isOwner && (
@@ -2684,7 +2700,30 @@ export function DeckBuilderPage() {
         />
       )}
 
-      <CardHoverPreview
+      {copyAsk && (
+        <CopyReadyDialog
+          title={copyAsk === "branch" ? "Branch this deck?" : "Clone this deck?"}
+          body={
+            copyAsk === "branch"
+              ? "This makes a private copy and links it to this deck so you can compare the branch later."
+              : "This makes a private copy. Cloning does not keep a comparison link."
+          }
+          confirmLabel={copyAsk === "branch" ? "Branch" : "Clone"}
+          cancelLabel="Cancel"
+          busy={copyBusy}
+          onCancel={() => setCopyAsk(null)}
+          onConfirm={() => void copyThis(copyAsk === "branch")}
+        />
+      )}
+      {copyReady && (
+        <CopyReadyDialog
+          title={copyReady.kind === "branch" ? "Branch ready" : "Clone ready"}
+          body={`${copyReady.name} has been built.`}
+          cancelLabel="Stay here"
+          onCancel={() => setCopyReady(null)}
+          extra={{ label: "Open new deck", onClick: () => navigate(`/deck/${copyReady.id}`) }}
+        />
+      )}
         card={hoverCard}
         src={hoverSrc}
         x={hoverPos.x}
