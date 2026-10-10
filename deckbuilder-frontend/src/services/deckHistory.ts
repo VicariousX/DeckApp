@@ -97,7 +97,11 @@ export function saveBranchParent(deckId: string, parentId: string, name = "Branc
   });
 }
 
-export function branchTree(deckId: string): BranchNode[] {
+export function hasBranches(deckId: string): boolean {
+  const nodes = readNodes();
+  if (nodes[deckId]?.parentId) return true;
+  return Object.values(nodes).some((node) => node.parentId === deckId);
+}
   const nodes = readNodes();
   const seen = new Set<string>();
   let cursor: string | null = deckId;
