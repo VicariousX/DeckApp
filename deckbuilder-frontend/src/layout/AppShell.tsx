@@ -214,6 +214,9 @@ export function AppShell() {
                 <NavLink to="/formats" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
                   Formats
                 </NavLink>
+                <NavLink to="/social" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
+                  Social
+                </NavLink>
                 <NavLink to="/collections" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
                   Collections
                 </NavLink>

@@ -14,6 +14,7 @@ import { FormatsPage } from "./pages/FormatsPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { BranchToolPage } from "./pages/BranchToolPage";
 import { PlaytestPage } from "./pages/PlaytestPage";
+import { SocialPage } from "./pages/SocialPage";
 import "./index.css";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/combos" element={<CombosPage />} />
           <Route path="/formats" element={<FormatsPage />} />
           <Route path="/collections" element={<CollectionsPage />} />
+          <Route path="/social" element={<SocialPage />} />
           <Route path="/deck/:id" element={<DeckBuilderPage />} />
           <Route path="/deck/:id/branches" element={<BranchToolPage />} />
           <Route path="/play/:id" element={<PlaytestPage />} />

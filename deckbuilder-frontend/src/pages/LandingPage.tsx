@@ -186,7 +186,7 @@ export function LandingPage() {
       description="Lists beyond your own."
       delayMs={220}
       slots={[
-        { to: "/decks?view=friends", mark: "F", title: "Friends" },
+        { to: "/social", mark: "S", title: "Social" },
         { to: "/decks", mark: "P", title: "Public decks" },
       ]}
       rail={{
