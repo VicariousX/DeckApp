@@ -2724,6 +2724,7 @@ export function DeckBuilderPage() {
           extra={{ label: "Open new deck", onClick: () => navigate(`/deck/${copyReady.id}`) }}
         />
       )}
+      <CardHoverPreview
         card={hoverCard}
         src={hoverSrc}
         x={hoverPos.x}
