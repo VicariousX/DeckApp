@@ -186,13 +186,14 @@ export function LandingPage() {
       description="Lists beyond your own."
       delayMs={220}
       slots={[
+        { to: "/decks?view=friends", mark: "F", title: "Friends" },
         { to: "/decks", mark: "P", title: "Public decks" },
-        { to: "/formats", mark: "F", title: "Formats" },
       ]}
       rail={{
         kind: "link",
-        to: "/collections",
-        label: "Collections",
+        to: "https://discord.com/invite/placeholder",
+        label: "Discord",
+        external: true,
       }}
     />
   );

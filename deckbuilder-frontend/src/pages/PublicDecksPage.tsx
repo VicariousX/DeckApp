@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import { cloneDeck, listPublicDecks } from "../services/deckService";
@@ -10,6 +10,8 @@ import styles from "./MyDecksPage.module.css";
 export function PublicDecksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const friendsView = params.get("view") === "friends";
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [format, setFormat] = useState("all");
@@ -53,11 +55,22 @@ export function PublicDecksPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>Public decks</h1>
-          <p className={styles.subtitle}>Clone a list, or branch it to compare your own changes.</p>
+          <h1 className={styles.title}>{friendsView ? "Friends" : "Public decks"}</h1>
+          <p className={styles.subtitle}>
+            {friendsView
+              ? "Friend lists will live here. This is the placeholder until social follows are built."
+              : "Clone a list, or branch it to compare your own changes."}
+          </p>
         </div>
       </header>
-      {formats.length > 1 && (
+      {friendsView && (
+        <section className={styles.folder}>
+          <div className={styles.folderHead}><h2>Coming next</h2></div>
+          <p className={styles.empty}>Follow players, see their public decks, and share your own lists with a group.</p>
+          <Link to="/decks">Browse public decks</Link>
+        </section>
+      )}
+      {!friendsView && formats.length > 1 && (
         <div className={styles.tabs}>
           <button type="button" className={`${styles.tab} ${format === "all" ? styles.tabOn : ""}`} onClick={() => setFormat("all")}>All</button>
           {formats.map((f) => (
@@ -65,9 +78,10 @@ export function PublicDecksPage() {
           ))}
         </div>
       )}
-      {error && <p className={styles.error}>{error}</p>}
-      {loading && <p className={styles.status}>Loading public decks…</p>}
-      {!loading && visible.length === 0 && <p className={styles.empty}>No public decks yet.</p>}
+      {!friendsView && error && <p className={styles.error}>{error}</p>}
+      {!friendsView && loading && <p className={styles.status}>Loading public decks…</p>}
+      {!friendsView && !loading && visible.length === 0 && <p className={styles.empty}>No public decks yet.</p>}
+      {!friendsView && (
       <ul className={styles.list}>
         {visible.map((d) => (
           <li key={d.id} className={styles.deckItem}>
@@ -80,6 +94,7 @@ export function PublicDecksPage() {
           </li>
         ))}
       </ul>
+      )}
       {ask && (
         <CopyReadyDialog
           title={ask.branch ? "Branch this public deck?" : "Clone this public deck?"}
