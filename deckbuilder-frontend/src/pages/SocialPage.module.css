@@ -18,7 +18,8 @@
 .header p, .muted { margin: 0.3rem 0 0; color: var(--color-text-muted); }
 .muted { font-size: 0.85rem; }
 
-.tabs, .row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tabs, .row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.tabs { margin: 0.85rem 0; }
 
 .tab, .tabOn, .row button, .stack button {
   border: 1px solid var(--color-border);
@@ -74,13 +75,24 @@
 }
 
 .stack { display: flex; flex-direction: column; gap: 0.45rem; margin: 0.8rem 0; }
-.messages, .workspace, .review { display: grid; grid-template-columns: 220px 1fr; gap: 0.8rem; }
-.messages aside, .review aside, .groupRail { display: flex; flex-direction: column; gap: 0.35rem; }
+.messages, .workspace, .review { display: grid; grid-template-columns: 240px 1fr; gap: 1.25rem; }
+.messages aside, .review aside, .groupRail { display: flex; flex-direction: column; gap: 0.55rem; }
 .mine { justify-content: flex-end; }
 .error { color: #fca5a5; }
-.groupHead { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; margin-bottom: 0.8rem; }
+.groupHead { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.1rem; }
 .groupHead h2 { margin: 0; }
-.groupHead p { margin: 0.25rem 0 0; color: var(--color-text-muted); }
+.groupHead p { margin: 0.35rem 0 0; color: var(--color-text-muted); }
+
+.reviewHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.review article { display: flex; flex-direction: column; gap: 0.85rem; }
+.breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin: 0; }
+.breakdown div { padding: 0.55rem 0.65rem; border: 1px solid var(--color-border); border-radius: 8px; }
+.breakdown dt { font-size: 0.75rem; color: var(--color-text-muted); }
+.breakdown dd { margin: 0.2rem 0 0; }
+.menuWrap { position: relative; }
+.menuBtn { border: 1px solid var(--color-border); border-radius: 999px; background: transparent; color: var(--color-text); padding: 0.2rem 0.55rem; }
+.menu { position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 5; min-width: 9rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.4rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
+.menu button { border: none; background: transparent; color: var(--color-text); text-align: left; padding: 0.4rem 0.5rem; }
 
 @media (max-width: 760px) {
   .header, .messages, .workspace, .review { display: flex; flex-direction: column; }

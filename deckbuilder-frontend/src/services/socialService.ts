@@ -115,6 +115,16 @@ export async function setProposalStatus(id: string, status: Proposal["status"]) 
   return supabase.from("group_proposals").update({ status }).eq("id", id);
 }
 
+export async function listProfiles(ids: string[]): Promise<Profile[]> {
+  if (!ids.length) return [];
+  const { data } = await supabase.from("profiles").select("id, display_name").in("id", ids);
+  return (data ?? []) as Profile[];
+}
+
+export async function deleteProposal(id: string) {
+  return supabase.from("group_proposals").delete().eq("id", id);
+}
+
 export async function listVotes(proposalIds: string[]): Promise<Vote[]> {
   if (!proposalIds.length) return [];
   const { data } = await supabase.from("group_votes").select("proposal_id, user_id, vote").in("proposal_id", proposalIds);

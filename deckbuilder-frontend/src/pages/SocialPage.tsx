@@ -6,6 +6,7 @@ import {
   acceptFriend,
   createGroup,
   createProposal,
+  deleteProposal,
   ensureProfile,
   joinGroup,
   joinGroupChat,
@@ -14,6 +15,7 @@ import {
   listGroups,
   listMembers,
   listMessages,
+  listProfiles,
   listProposals,
   listVotes,
   requestFriend,
@@ -64,7 +66,9 @@ export function SocialPage() {
   const [showFinder, setShowFinder] = useState(false);
   const [groupTab, setGroupTab] = useState<GroupTab>("formats");
   const [members, setMembers] = useState<Member[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
   const [reviewId, setReviewId] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function refresh() {
     if (!user) return;
@@ -94,6 +98,8 @@ export function SocialPage() {
       setMembers(memberRows);
       setVotes(await listVotes(rows.map((r) => r.id)));
       setReviewId(rows.find((r) => (r.status ?? "open") === "open")?.id ?? "");
+      const people = await listProfiles(memberRows.map((m) => m.user_id));
+      setNames(Object.fromEntries(people.map((p) => [p.id, p.display_name])));
     });
   }, [selectedGroup]);
 
@@ -283,16 +289,41 @@ export function SocialPage() {
                       </aside>
                       {review && (
                         <article>
-                          <h3>{review.title}</h3>
+                          <div className={styles.reviewHead}>
+                            <div>
+                              <h3>{review.title}</h3>
+                              <p className={styles.muted}>{review.kind === "format" ? "Format proposal" : "Group rule"} · {names[review.author_id] || "Player"}</p>
+                            </div>
+                            {isStaff && (
+                              <div className={styles.menuWrap}>
+                                <button type="button" className={styles.menuBtn} aria-label="Submission options" onClick={() => setMenuOpen((v) => !v)}>⋯</button>
+                                {menuOpen && (
+                                  <div className={styles.menu}>
+                                    <button type="button" onClick={() => { setMenuOpen(false); void setProposalStatus(review.id, "approved").then(() => listProposals(selectedGroup).then(setProposals)); }}>Approve</button>
+                                    <button type="button" onClick={() => { setMenuOpen(false); void deleteProposal(review.id).then(() => listProposals(selectedGroup).then(setProposals)); }}>Remove</button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           <p>{review.body}</p>
-                          {review.kind === "format" && <p>Based on {(review.payload as { basedOn?: string })?.basedOn || "custom"}.</p>}
-                          <p>{tally(review.id).filter((v) => v.vote === "yes").length} yes / {tally(review.id).filter((v) => v.vote === "no").length} no</p>
+                          {review.kind === "format" && (
+                            <dl className={styles.breakdown}>
+                              <div><dt>Based on</dt><dd>{(review.payload as { basedOn?: string })?.basedOn || "custom"}</dd></div>
+                              <div><dt>Deck size</dt><dd>{String((review.payload as { deckSize?: number | null })?.deckSize ?? "any")}</dd></div>
+                              <div><dt>Copy limit</dt><dd>{String((review.payload as { copyLimit?: number })?.copyLimit ?? "—")}</dd></div>
+                              <div><dt>Singleton</dt><dd>{(review.payload as { singleton?: boolean })?.singleton ? "Yes" : "No"}</dd></div>
+                              <div><dt>Commander</dt><dd>{(review.payload as { commanderRequired?: boolean })?.commanderRequired ? "Required" : "Optional"}</dd></div>
+                              <div><dt>Color identity</dt><dd>{(review.payload as { colorIdentity?: boolean })?.colorIdentity ? "Enforced" : "Off"}</dd></div>
+                              <div><dt>Whitelist</dt><dd>{((review.payload as { whitelist?: string[] })?.whitelist ?? []).join(", ") || "None"}</dd></div>
+                              <div><dt>Blacklist</dt><dd>{((review.payload as { banned?: string[] })?.banned ?? []).join(", ") || "None"}</dd></div>
+                              <div><dt>Rules</dt><dd>{((review.payload as { rules?: { kind: string; value: number; target?: string }[] })?.rules ?? []).map((r) => `${r.kind}${r.target ? ` ${r.target}` : ""} ${r.value}`).join(", ") || "None"}</dd></div>
+                            </dl>
+                          )}
+                          <p className={styles.muted}>{tally(review.id).filter((v) => v.vote === "yes").length} yes / {tally(review.id).filter((v) => v.vote === "no").length} no</p>
                           <div className={styles.row}>
                             <button type="button" className={tally(review.id).some((v) => v.user_id === user?.id && v.vote === "yes") ? styles.voteOn : ""} onClick={() => user && void vote(review.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote yes</button>
                             <button type="button" className={tally(review.id).some((v) => v.user_id === user?.id && v.vote === "no") ? styles.voteOn : ""} onClick={() => user && void vote(review.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote no</button>
-                            {isStaff && (
-                              <button type="button" onClick={() => void setProposalStatus(review.id, "approved").then(() => listProposals(selectedGroup).then(setProposals))}>Break tie / approve</button>
-                            )}
                           </div>
                         </article>
                       )}
@@ -308,7 +339,8 @@ export function SocialPage() {
                       <ul>
                         {members.map((m) => (
                           <li key={m.user_id}>
-                            <span>{m.role}</span>
+                            <span>{names[m.user_id] || "Player"}</span>
+                            <span className={styles.muted}>{m.role}</span>
                             {isStaff && m.role === "pending" && (
                               <button type="button" onClick={() => void setMemberRole(selectedGroup, m.user_id, "member").then(() => listMembers(selectedGroup).then(setMembers))}>Approve</button>
                             )}
