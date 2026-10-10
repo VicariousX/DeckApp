@@ -35,7 +35,7 @@ function compare(left: DeckCard[], right: DeckCard[]): DiffRow[] {
     else map.set(key, { key, name: card.name, board: card.board, left: 0, right: card.quantity, kind: "added" });
   }
   return [...map.values()]
-    .map((row) => ({
+    .map((row): DiffRow => ({
       ...row,
       kind: row.left === 0 ? "added" : row.right === 0 ? "removed" : "changed",
     }))
