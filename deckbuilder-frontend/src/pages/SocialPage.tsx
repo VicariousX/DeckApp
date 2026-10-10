@@ -65,6 +65,7 @@ export function SocialPage() {
   const [groupFormats, setGroupFormats] = useState<HouseFormat[]>([]);
   const [showFinder, setShowFinder] = useState(false);
   const [groupTab, setGroupTab] = useState<GroupTab>("formats");
+  const [formatSub, setFormatSub] = useState<"list" | "propose">("list");
   const [members, setMembers] = useState<Member[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [reviewId, setReviewId] = useState("");
@@ -249,37 +250,50 @@ export function SocialPage() {
                   </div>
                   {groupTab === "formats" && (
                     <>
-                      {formats.length > 0 && (
-                        <ul>
-                          {formats.map((f) => (
-                            <li key={f.id}>
-                              <strong>{f.name}</strong>
-                              <span className={styles.muted}>{f.basedOn || "custom"} · {f.deckSize || "any"} cards · banned {(f.banned ?? []).length} · restricted {(f.restricted ?? []).length}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
                       <div className={styles.tabs}>
-                        {formats.map((f) => (
-                          <button key={f.id} type="button" className={styles.tab} onClick={() => setFormatDraft(f)}>{f.name}</button>
-                        ))}
-                        <button type="button" className={styles.tab} onClick={() => setFormatDraft(blankHouseFormat())}>Propose New Format</button>
+                        <button type="button" className={formatSub === "list" ? styles.tabOn : styles.tab} onClick={() => setFormatSub("list")}>Approved formats</button>
+                        <button type="button" className={formatSub === "propose" ? styles.tabOn : styles.tab} onClick={() => setFormatSub("propose")}>Propose format</button>
                       </div>
-                      <HouseFormatEditor
-                        draft={formatDraft}
-                        setDraft={setFormatDraft}
-                        saveLabel="Propose this change"
-                        onSave={() => {
-                          if (!user) return;
-                          void saveRemoteHouseFormat(user.id, formatDraft);
-                          void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Format change", "format", formatDraft as unknown as Record<string, unknown>)
-                            .then((res) => {
-                              setError(res.error?.message ?? null);
-                              return listProposals(selectedGroup);
-                            })
-                            .then(setProposals);
-                        }}
-                      />
+                      {formatSub === "list" && (
+                        formats.length === 0
+                          ? <p className={styles.muted}>No approved formats yet. Propose one for the group to vote on.</p>
+                          : <ul>
+                              {formats.map((f) => (
+                                <li key={f.id}>
+                                  <div>
+                                    <strong>{f.name}</strong>
+                                    <span className={styles.muted}>{f.basedOn || "custom"} · {f.deckSize || "any"} cards · banned {(f.banned ?? []).length} · restricted {(f.restricted ?? []).length}</span>
+                                  </div>
+                                  <button type="button" className={styles.tab} onClick={() => { setFormatDraft(f); setFormatSub("propose"); }}>Propose change</button>
+                                </li>
+                              ))}
+                            </ul>
+                      )}
+                      {formatSub === "propose" && (
+                        <>
+                          <div className={styles.tabs}>
+                            <button type="button" className={styles.tab} onClick={() => setFormatDraft(blankHouseFormat())}>New format</button>
+                            {formats.map((f) => (
+                              <button key={f.id} type="button" className={styles.tab} onClick={() => setFormatDraft(f)}>{f.name}</button>
+                            ))}
+                          </div>
+                          <HouseFormatEditor
+                            draft={formatDraft}
+                            setDraft={setFormatDraft}
+                            saveLabel="Propose this change"
+                            onSave={() => {
+                              if (!user) return;
+                              void saveRemoteHouseFormat(user.id, formatDraft);
+                              void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Format change", "format", formatDraft as unknown as Record<string, unknown>)
+                                .then((res) => {
+                                  setError(res.error?.message ?? null);
+                                  return listProposals(selectedGroup);
+                                })
+                                .then(setProposals);
+                            }}
+                          />
+                        </>
+                      )}
                     </>
                   )}
                   {groupTab === "rules" && (
