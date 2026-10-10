@@ -97,7 +97,7 @@ import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
-import { loadHouseFormats } from "../services/houseFormatService";
+import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
@@ -603,11 +603,18 @@ export function DeckBuilderPage() {
 
   useEffect(() => {
     setHouseFormats(loadHouseFormats());
+    if (user) {
+      void loadRemoteHouseFormats(user.id).then((remote) => {
+        if (!remote.length) return;
+        setHouseFormats(remote);
+        saveHouseFormats(remote);
+      });
+    }
     if (id) {
       setHistory(loadHistory(id));
       setParentId(loadBranchParent(id));
     }
-  }, [detail?.deck.id]);
+  }, [detail?.deck.id, user]);
 
   useEffect(() => {
     if (!detail) return;

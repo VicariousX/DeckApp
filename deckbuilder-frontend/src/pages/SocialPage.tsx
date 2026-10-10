@@ -36,7 +36,7 @@ import {
   type Vote,
 } from "../services/socialService";
 import { HouseFormatEditor } from "../components/HouseFormatEditor";
-import { blankHouseFormat, listGroupFormats, saveGroupFormat, saveRemoteHouseFormat } from "../services/houseFormatService";
+import { blankHouseFormat, listGroupFormats, loadHouseFormats, saveGroupFormat, saveHouseFormats, saveRemoteHouseFormat } from "../services/houseFormatService";
 import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./SocialPage.module.css";
 
@@ -67,6 +67,7 @@ export function SocialPage() {
   const [showFinder, setShowFinder] = useState(false);
   const [groupTab, setGroupTab] = useState<GroupTab>("formats");
   const [formatSub, setFormatSub] = useState<"list" | "propose">("list");
+  const [viewingFormat, setViewingFormat] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [reviewId, setReviewId] = useState("");
@@ -258,17 +259,46 @@ export function SocialPage() {
                       {formatSub === "list" && (
                         formats.length === 0
                           ? <p className={styles.muted}>No approved formats yet. Propose one for the group to vote on.</p>
-                          : <ul>
-                              {formats.map((f) => (
-                                <li key={f.id}>
-                                  <div>
-                                    <strong>{f.name}</strong>
-                                    <span className={styles.muted}>{f.basedOn || "custom"} · {f.deckSize || "any"} cards · banned {(f.banned ?? []).length} · restricted {(f.restricted ?? []).length}</span>
-                                  </div>
-                                  <button type="button" className={styles.tab} onClick={() => { setFormatDraft(f); setFormatSub("propose"); }}>Propose change</button>
-                                </li>
+                          : <>
+                              <ul>
+                                {formats.map((f) => (
+                                  <li key={f.id}>
+                                    <div>
+                                      <strong>{f.name}</strong>
+                                      <span className={styles.muted}>{f.basedOn || "custom"} · {f.deckSize || "any"} cards · banned {(f.banned ?? []).length} · restricted {(f.restricted ?? []).length}</span>
+                                    </div>
+                                    <div className={styles.row}>
+                                      <button type="button" className={styles.tab} onClick={() => setViewingFormat(viewingFormat === f.id ? "" : f.id)}>View rules</button>
+                                      <button type="button" className={styles.tab} onClick={() => {
+                                        if (!user) return;
+                                        const imported = { ...f, id: crypto.randomUUID(), isPublic: false };
+                                        const mine = loadHouseFormats();
+                                        saveHouseFormats([...mine.filter((row) => row.name !== imported.name), imported]);
+                                        void saveRemoteHouseFormat(user.id, imported);
+                                        setError(`Imported ${imported.name} to your formats.`);
+                                      }}>Import</button>
+                                      <button type="button" className={styles.tab} onClick={() => { setFormatDraft(f); setFormatSub("propose"); }}>Propose change</button>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                              {formats.filter((f) => f.id === viewingFormat).map((f) => (
+                                <dl key={f.id} className={styles.breakdown}>
+                                  <div><dt>Based on</dt><dd>{f.basedOn || "custom"}</dd></div>
+                                  <div><dt>Deck size</dt><dd>{f.deckSize ?? "any"}</dd></div>
+                                  <div><dt>Sideboard</dt><dd>{f.sideboardSize ?? "any"}</dd></div>
+                                  <div><dt>Copy limit</dt><dd>{f.copyLimit}</dd></div>
+                                  <div><dt>Singleton</dt><dd>{f.singleton ? "Yes" : "No"}</dd></div>
+                                  <div><dt>Commander</dt><dd>{f.commanderRequired ? "Required" : "Optional"}</dd></div>
+                                  <div><dt>Color identity</dt><dd>{f.colorIdentity ? "Enforced" : "Off"}</dd></div>
+                                  <div><dt>Whitelist</dt><dd>{(f.whitelist ?? []).join(", ") || "None"}</dd></div>
+                                  <div><dt>Banned</dt><dd>{(f.banned ?? []).join(", ") || "None"}</dd></div>
+                                  <div><dt>Restricted</dt><dd>{(f.restricted ?? []).join(", ") || "None"}</dd></div>
+                                  <div><dt>Rules</dt><dd>{(f.rules ?? []).map((r) => `${r.kind}${r.target ? ` ${r.target}` : ""} ${r.value}`).join(", ") || "None"}</dd></div>
+                                  {f.notes && <div><dt>Notes</dt><dd>{f.notes}</dd></div>}
+                                </dl>
                               ))}
-                            </ul>
+                            </>
                       )}
                       {formatSub === "propose" && (
                         <>
