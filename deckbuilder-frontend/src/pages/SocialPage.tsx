@@ -63,6 +63,7 @@ export function SocialPage() {
   const [proposalBody, setProposalBody] = useState("");
   const [draft, setDraft] = useState("");
   const [groupFormats, setGroupFormats] = useState<HouseFormat[]>([]);
+  const [formatDraft, setFormatDraft] = useState<HouseFormat>(blankHouseFormat());
   const [showFinder, setShowFinder] = useState(false);
   const [groupTab, setGroupTab] = useState<GroupTab>("formats");
   const [formatSub, setFormatSub] = useState<"list" | "propose">("list");
