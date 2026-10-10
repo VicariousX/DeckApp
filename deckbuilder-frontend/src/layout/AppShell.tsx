@@ -12,6 +12,7 @@ export function AppShell() {
   const location = useLocation();
   const [decksOpen, setDecksOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const isPlay = location.pathname.startsWith("/play");
   const [playNavHidden, setPlayNavHidden] = useState(
     () => localStorage.getItem("deckapp.playHideNav") === "1"
@@ -19,6 +20,7 @@ export function AppShell() {
   const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
   const decksRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const libraryRef = useRef<HTMLDivElement>(null);
 
   const decksActive =
     location.pathname === "/decks" ||
@@ -28,6 +30,7 @@ export function AppShell() {
   useEffect(() => {
     setDecksOpen(false);
     setSearchOpen(false);
+    setLibraryOpen(false);
     setLastDeck(getLastViewedDeck());
   }, [location.pathname, location.search]);
 
@@ -56,7 +59,7 @@ export function AppShell() {
         : "Search";
 
   useEffect(() => {
-    if (!decksOpen && !searchOpen) return;
+    if (!decksOpen && !searchOpen && !libraryOpen) return;
 
     let remove: (() => void) | undefined;
 
@@ -66,12 +69,14 @@ export function AppShell() {
         const t = e.target as Node;
         if (!decksRef.current?.contains(t)) setDecksOpen(false);
         if (!searchRef.current?.contains(t)) setSearchOpen(false);
+        if (!libraryRef.current?.contains(t)) setLibraryOpen(false);
       }
 
       function onKey(e: KeyboardEvent) {
         if (e.key === "Escape") {
           setDecksOpen(false);
           setSearchOpen(false);
+          setLibraryOpen(false);
         }
       }
 
@@ -87,7 +92,7 @@ export function AppShell() {
       window.clearTimeout(timer);
       remove?.();
     };
-  }, [decksOpen, searchOpen]);
+  }, [decksOpen, searchOpen, libraryOpen]);
 
   return (
     <div className={styles.shell}>
@@ -110,6 +115,7 @@ export function AppShell() {
                 e.stopPropagation();
                 setSearchOpen((v) => !v);
                 setDecksOpen(false);
+                setLibraryOpen(false);
               }}
             >
               {searchLabel}
@@ -168,26 +174,52 @@ export function AppShell() {
               Drawers
             </NavLink>
           )}
-          <NavLink
-            to="/combos"
-            className={({ isActive }) =>
-              isActive
-                ? `${styles.navLink} ${styles.navLinkActive}`
-                : styles.navLink
-            }
-          >
-            Combos
-          </NavLink>
-          <NavLink
-            to="/formats"
-            className={({ isActive }) =>
-              isActive
-                ? `${styles.navLink} ${styles.navLinkActive}`
-                : styles.navLink
-            }
-          >
-            Formats
-          </NavLink>
+          <div className={styles.decksMenu} ref={libraryRef}>
+            <button
+              type="button"
+              className={`${styles.navLink} ${styles.decksTrigger} ${
+                libraryOpen ||
+                location.pathname.startsWith("/combos") ||
+                location.pathname.startsWith("/formats") ||
+                location.pathname.startsWith("/collections")
+                  ? styles.navLinkActive
+                  : ""
+              }`}
+              aria-haspopup="menu"
+              aria-expanded={libraryOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLibraryOpen((v) => !v);
+                setSearchOpen(false);
+                setDecksOpen(false);
+              }}
+            >
+              Library
+              <span
+                className={`${styles.chevron} ${libraryOpen ? styles.chevronOpen : ""}`}
+                aria-hidden
+              >
+                ▾
+              </span>
+            </button>
+            {libraryOpen && (
+              <div
+                className={styles.decksDropdown}
+                role="menu"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <NavLink to="/combos" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
+                  Combos
+                </NavLink>
+                <NavLink to="/formats" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
+                  Formats
+                </NavLink>
+                <NavLink to="/collections" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
+                  Collections
+                </NavLink>
+              </div>
+            )}
+          </div>
 
           {user ? (
             <div className={styles.decksMenu} ref={decksRef}>
@@ -201,6 +233,8 @@ export function AppShell() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setDecksOpen((v) => !v);
+                setSearchOpen(false);
+                setLibraryOpen(false);
                 }}
               >
                 Decks
