@@ -163,6 +163,7 @@ export function SocialPage() {
             <input value={lookup} onChange={(e) => setLookup(e.target.value)} placeholder="Look up a player" />
             <button type="submit">Search</button>
           </form>
+          {profiles.length === 0 && <p className={styles.muted}>Search for a player to add them.</p>}
           <ul>
             {profiles.map((p) => (
               <li key={p.id}>
