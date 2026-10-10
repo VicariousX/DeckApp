@@ -121,7 +121,12 @@ export function SocialPage() {
   async function onPropose(e: FormEvent) {
     e.preventDefault();
     if (!user || !selectedGroup || !proposalTitle.trim()) return;
-    await createProposal(selectedGroup, user.id, proposalTitle.trim(), proposalBody.trim());
+    const created = await createProposal(selectedGroup, user.id, proposalTitle.trim(), proposalBody.trim(), "rule");
+    if (created.error) {
+      setError(created.error.message);
+      return;
+    }
+    setError(null);
     setProposalTitle("");
     setProposalBody("");
     setProposals(await listProposals(selectedGroup));
@@ -162,12 +167,16 @@ export function SocialPage() {
             {profiles.map((p) => (
               <li key={p.id}>
                 <span>{p.display_name}</span>
-                <button type="button" onClick={() => user && void requestFriend(user.id, p.id).then(refresh)}>Add friend</button>
+                <button type="button" onClick={() => user && void requestFriend(user.id, p.id).then((res) => {
+                  setError(res.error?.message ?? null);
+                  void refresh();
+                })}>Add friend</button>
                 <button type="button" onClick={() => user && void startDm(user.id, p.id, p.display_name).then(refresh)}>Message</button>
               </li>
             ))}
           </ul>
           <h2>Friends and requests</h2>
+          {friends.length === 0 && <p className={styles.muted}>No friends or requests yet.</p>}
           <ul>
             {friends.map((f) => (
               <li key={f.id}>
@@ -245,7 +254,10 @@ export function SocialPage() {
                         onSave={() => {
                           if (!user) return;
                           void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Format change", "format", formatDraft as unknown as Record<string, unknown>)
-                            .then(() => listProposals(selectedGroup))
+                            .then((res) => {
+                              setError(res.error?.message ?? null);
+                              return listProposals(selectedGroup);
+                            })
                             .then(setProposals);
                         }}
                       />
@@ -266,7 +278,7 @@ export function SocialPage() {
                             {p.title}
                           </button>
                         ))}
-                        {open.length === 0 && <p>No open submissions.</p>}
+                        {open.length === 0 && <p className={styles.muted}>No open submissions.</p>}
                       </aside>
                       {review && (
                         <article>
@@ -275,8 +287,8 @@ export function SocialPage() {
                           {review.kind === "format" && <p>Based on {(review.payload as { basedOn?: string })?.basedOn || "custom"}.</p>}
                           <p>{tally(review.id).filter((v) => v.vote === "yes").length} yes / {tally(review.id).filter((v) => v.vote === "no").length} no</p>
                           <div className={styles.row}>
-                            <button type="button" onClick={() => user && void vote(review.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote yes</button>
-                            <button type="button" onClick={() => user && void vote(review.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote no</button>
+                            <button type="button" className={tally(review.id).some((v) => v.user_id === user?.id && v.vote === "yes") ? styles.voteOn : ""} onClick={() => user && void vote(review.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote yes</button>
+                            <button type="button" className={tally(review.id).some((v) => v.user_id === user?.id && v.vote === "no") ? styles.voteOn : ""} onClick={() => user && void vote(review.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Vote no</button>
                             {isStaff && (
                               <button type="button" onClick={() => void setProposalStatus(review.id, "approved").then(() => listProposals(selectedGroup).then(setProposals))}>Break tie / approve</button>
                             )}
@@ -322,7 +334,7 @@ export function SocialPage() {
                 {c.title || (c.kind === "group" ? "Group chat" : "Direct message")}
               </button>
             ))}
-            {conversations.length === 0 && <p>No chats yet. Message a friend or join a play group chat.</p>}
+            {conversations.length === 0 && <p className={styles.muted}>No chats yet. Message a friend or join a play group chat.</p>}
           </aside>
           <div>
             <ul className={styles.thread}>

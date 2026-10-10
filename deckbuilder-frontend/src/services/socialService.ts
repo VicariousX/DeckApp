@@ -45,6 +45,12 @@ export async function listFriendships(userId: string): Promise<Friendship[]> {
 }
 
 export async function requestFriend(requesterId: string, addresseeId: string) {
+  const { data } = await supabase
+    .from("friendships")
+    .select("id")
+    .or(`and(requester_id.eq.${requesterId},addressee_id.eq.${addresseeId}),and(requester_id.eq.${addresseeId},addressee_id.eq.${requesterId})`)
+    .limit(1);
+  if (data?.length) return { error: { message: "That player is already a friend or has a pending request." } };
   return supabase.from("friendships").insert({ requester_id: requesterId, addressee_id: addresseeId });
 }
 
@@ -94,6 +100,14 @@ export async function createProposal(
   kind: Proposal["kind"] = "rule",
   payload: Record<string, unknown> = {}
 ) {
+  const { data: open } = await supabase
+    .from("group_proposals")
+    .select("id, title, kind, status")
+    .eq("group_id", groupId)
+    .eq("kind", kind)
+    .eq("status", "open");
+  const duplicate = (open ?? []).some((row) => String(row.title).trim().toLowerCase() === title.trim().toLowerCase());
+  if (duplicate) return { error: { message: "An open proposal with that name already exists." } };
   return supabase.from("group_proposals").insert({ group_id: groupId, author_id: authorId, title, body, kind, payload });
 }
 
