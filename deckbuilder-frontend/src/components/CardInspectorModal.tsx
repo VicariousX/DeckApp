@@ -819,6 +819,20 @@ export function CardInspectorModal({
                 <div className={styles.imagePlaceholder}>{displayName}</div>
               )
             )}
+            {deck?.isOwner && (
+              <div className={styles.quickQty}>
+                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">
+                  −
+                </button>
+                <span>{deck.card.quantity}</span>
+                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">
+                  +
+                </button>
+                <button type="button" className={`${styles.quickBtn} ${styles.quickRemove}`} onClick={deck.onRemove}>
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
 
           <div className={styles.body}>

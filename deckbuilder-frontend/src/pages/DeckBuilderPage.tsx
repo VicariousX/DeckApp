@@ -9,7 +9,7 @@ import {
   type MouseEvent,
   type DragEvent as ReactDragEvent,
 } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
@@ -80,6 +80,7 @@ import {
 } from "../lib/cards/cardSort";
 import {
   addCardToDeck,
+  cloneDeck,
   createDeckTag,
   deleteDeckTag,
   fetchDeckDetail,
@@ -91,6 +92,7 @@ import {
   stackDeckCards,
   updateDeck,
 } from "../services/deckService";
+import { loadBranchParent, loadHistory, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
@@ -202,6 +204,7 @@ function buildGroups(
 
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const {
     hoverCard,
@@ -215,7 +218,9 @@ export function DeckBuilderPage() {
   const { resolveImageUrl, artRevision } = useArtPreferences();
 
   const [detail, setDetail] = useState<DeckDetail | null>(null);
-  const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
+  const [history, setHistory] = useState<DeckSnapshot[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -414,8 +419,46 @@ export function DeckBuilderPage() {
   }, [detail]);
 
 
+  function snapshot(label: string) {
+    if (!id || !detail) return;
+    rememberDeck(id, detail.cards, label);
+    setHistory(loadHistory(id));
+  }
+
+  async function restoreSnapshot(snap: DeckSnapshot) {
+    if (!id || !detail || !isOwner) return;
+    snapshot("Before restore");
+    for (const card of detail.cards) await removeCardFromDeck(card.id);
+    for (const card of snap.cards) {
+      await addCardToDeck(id, {
+        oracle_id: card.oracle_id,
+        scryfall_id: card.scryfall_id,
+        name: card.name,
+        type_line: card.type_line,
+        mana_cost: card.mana_cost,
+        cmc: card.cmc,
+        quantity: card.quantity,
+        board: card.board,
+      });
+    }
+    setHistoryOpen(false);
+    void loadDeck({ silent: true });
+  }
+
+  async function copyThis(branch: boolean) {
+    if (!user || !id) return;
+    const { deck, error: err } = await cloneDeck(id, user.id, { branch });
+    if (err || !deck) {
+      setError(err ?? "Could not copy deck.");
+      return;
+    }
+    if (branch) saveBranchParent(deck.id, id);
+    navigate(`/deck/${deck.id}`);
+  }
+
   async function onBulkImport(entries: BulkResolvedEntry[]) {
     if (!id || !isOwner || !user) return;
+    snapshot("Before bulk import");
     setError(null);
     setAddBusy(true);
     for (const e of entries) {
@@ -544,6 +587,10 @@ export function DeckBuilderPage() {
 
   useEffect(() => {
     setHouseFormats(loadHouseFormats());
+    if (id) {
+      setHistory(loadHistory(id));
+      setParentId(loadBranchParent(id));
+    }
   }, [detail?.deck.id]);
 
   useEffect(() => {
@@ -706,6 +753,7 @@ export function DeckBuilderPage() {
   }
 
   async function addByName(name: string, board: DeckBoard = addTargetBoard) {
+    snapshot("Added card");
     if (!id || !isOwner || !name.trim()) return;
     setAddBusy(true);
     setError(null);
@@ -844,6 +892,7 @@ export function DeckBuilderPage() {
 
   async function onRemove(card: DeckCard) {
     if (!isOwner) return;
+    snapshot("Removed card");
     const snapshot = card;
     patchCard(card.id, null);
     const { error: err } = await removeCardFromDeck(card.id);
@@ -908,6 +957,7 @@ export function DeckBuilderPage() {
 
   async function moveCardToBoard(card: DeckCard, board: DeckBoard) {
     if (!isOwner || card.board === board) return;
+    snapshot("Moved card");
     const { card: saved, removedId, error: err } = await setCardBoard(card, board);
     if (err || !saved) {
       setError(err ?? "Could not move card.");
@@ -1527,6 +1577,18 @@ export function DeckBuilderPage() {
               )}
             </div>
             <div className={styles.headerActions}>
+              {user && (
+                <>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => void copyThis(false)}>Clone</button>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => void copyThis(true)}>Branch</button>
+                </>
+              )}
+              {isOwner && (
+                <button type="button" className={styles.secondaryBtn} onClick={() => setHistoryOpen((v) => !v)}>
+                  History
+                </button>
+              )}
+              {parentId && <Link to={`/deck/${parentId}`} className={styles.backLink}>Parent</Link>}
               {isOwner ? (
                 <button
                   type="button"
@@ -1550,6 +1612,17 @@ export function DeckBuilderPage() {
               ) : null}
             </div>
           </header>
+          {historyOpen && (
+            <ul className={styles.legalList}>
+              {history.length === 0 && <li className={styles.legalItem}>No saved edits yet.</li>}
+              {history.map((snap) => (
+                <li key={snap.at} className={styles.legalItem}>
+                  {new Date(snap.at).toLocaleString()} · {snap.label}
+                  <button type="button" className={styles.secondaryBtn} onClick={() => void restoreSnapshot(snap)}>Restore</button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className={styles.boardTabs} role="tablist" aria-label="Panel">
             {PANEL_TABS.map((t) => (
@@ -1922,7 +1995,7 @@ export function DeckBuilderPage() {
                               key={c.id}
                               card={c}
                               disabled={!isOwner}
-                              className={styles.commanderCard}
+                              className={`${styles.commanderCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                               style={{ zIndex: cardIdx + 1 }}
                               onClick={() => openCardModal(c)}
                               onContextMenu={(e) => onCardContext(e, c)}
@@ -2120,7 +2193,7 @@ export function DeckBuilderPage() {
                                       key={c.id}
                                       card={c}
                                       disabled={!isOwner}
-                                      className={styles.stackCard}
+                                      className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
@@ -2251,7 +2324,7 @@ export function DeckBuilderPage() {
                                       key={c.id}
                                       card={c}
                                       disabled={!isOwner}
-                                      className={styles.stackCard}
+                                      className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
                                       onClick={() => openCardModal(c)}
@@ -2360,7 +2433,7 @@ export function DeckBuilderPage() {
                             </h3>
                             <ul className={styles.cardList}>
                               {g.cards.map((c) => (
-                                <li key={c.id} className={styles.cardRow}>
+                                <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
                                   <div className={styles.cardMain}>
                                     <QtyControl
                                       quantity={c.quantity}

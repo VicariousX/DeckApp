@@ -9,6 +9,49 @@ import type {
   DeckTag,
 } from "../types/deck";
 
+export async function listPublicDecks(): Promise<{ decks: Deck[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("decks")
+    .select("*")
+    .eq("is_public", true)
+    .order("updated_at", { ascending: false })
+    .limit(60);
+  if (error) return { decks: [], error: error.message };
+  return { decks: (data ?? []) as Deck[], error: null };
+}
+
+export async function cloneDeck(
+  sourceId: string,
+  userId: string,
+  opts: { branch?: boolean } = {}
+): Promise<{ deck: Deck | null; error: string | null }> {
+  const { detail, error } = await fetchDeckDetail(sourceId);
+  if (error || !detail) return { deck: null, error: error ?? "Deck not found." };
+  const name = opts.branch ? `${detail.deck.name} branch` : `Copy of ${detail.deck.name}`;
+  const created = await createDeck(userId, {
+    name,
+    format: detail.deck.format,
+    description: opts.branch
+      ? `Branched from ${detail.deck.name}`
+      : `Copied from ${detail.deck.name}`,
+    is_public: false,
+  });
+  if (!created.deck) return created;
+  for (const card of detail.cards) {
+    await addCardToDeck(created.deck.id, {
+      oracle_id: card.oracle_id,
+      scryfall_id: card.scryfall_id,
+      name: card.name,
+      type_line: card.type_line,
+      mana_cost: card.mana_cost,
+      cmc: card.cmc,
+      quantity: card.quantity,
+      board: card.board,
+    });
+  }
+  return created;
+}
+
 export async function listMyDecks(
   userId: string
 ): Promise<{ decks: Deck[]; error: string | null }> {
