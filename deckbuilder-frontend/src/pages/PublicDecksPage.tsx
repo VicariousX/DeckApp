@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import { cloneDeck, listPublicDecks } from "../services/deckService";
-import { rememberBranchNode, saveBranchParent } from "../services/deckHistory";
 import type { Deck } from "../types/deck";
 import styles from "./MyDecksPage.module.css";
 
@@ -16,9 +15,11 @@ export function PublicDecksPage() {
   const [loading, setLoading] = useState(true);
   const [format, setFormat] = useState("all");
   const [error, setError] = useState<string | null>(null);
-  const [ask, setAsk] = useState<{ deck: Deck; branch: boolean } | null>(null);
-  const [ready, setReady] = useState<{ id: string; name: string; branch: boolean } | null>(null);
+  const [ask, setAsk] = useState<Deck | null>(null);
+  const [ready, setReady] = useState<{ id: string; name: string } | null>(null);
+  const [shared, setShared] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   useEffect(() => {
     void listPublicDecks().then(({ decks: list, error: err }) => {
@@ -28,24 +29,36 @@ export function PublicDecksPage() {
     });
   }, []);
 
-  async function copy(deck: Deck, branch: boolean) {
+  async function copy(deck: Deck) {
     if (!user) {
       navigate("/login");
       return;
     }
     setBusy(true);
-    const { deck: next, error: err } = await cloneDeck(deck.id, user.id, { branch });
+    const { deck: next, error: err } = await cloneDeck(deck.id, user.id);
     setBusy(false);
     if (err || !next) {
       setError(err ?? "Could not copy deck.");
       return;
     }
-    if (branch) {
-      rememberBranchNode({ id: deck.id, name: deck.name, parentId: null, createdAt: deck.created_at });
-      saveBranchParent(next.id, deck.id, next.name);
-    }
     setAsk(null);
-    setReady({ id: next.id, name: next.name, branch });
+    setReady({ id: next.id, name: next.name });
+  }
+
+  async function share(deck: Deck) {
+    const url = `${window.location.origin}/deck/${deck.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: deck.name, url });
+        setShared(deck.id);
+        return;
+      } catch {
+        // Fall through to clipboard if the share sheet is dismissed.
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    setShared(deck.id);
+    setOpenMenu(null);
   }
 
   const formats = [...new Set(decks.map((d) => d.format).filter(Boolean))];
@@ -59,7 +72,7 @@ export function PublicDecksPage() {
           <p className={styles.subtitle}>
             {friendsView
               ? "Friend lists will live here. This is the placeholder until social follows are built."
-              : "Clone a list, or branch it to compare your own changes."}
+              : "Open a list, clone it, or share the link."}
           </p>
         </div>
       </header>
@@ -89,26 +102,33 @@ export function PublicDecksPage() {
               <span className={styles.deckName}>{d.name}</span>
               <span className={styles.deckMeta}>{d.format}</span>
             </Link>
-            <button type="button" className={styles.deleteBtn} onClick={() => setAsk({ deck: d, branch: false })}>Clone</button>
-            <button type="button" className={styles.deleteBtn} onClick={() => setAsk({ deck: d, branch: true })}>Branch</button>
+            <div className={styles.menuWrap}>
+              <button type="button" className={styles.menuBtn} aria-label={`Options for ${d.name}`} onClick={() => setOpenMenu(openMenu === d.id ? null : d.id)}>⋯</button>
+              {openMenu === d.id && (
+                <div className={styles.menu}>
+                  <button type="button" className={styles.menuLink} onClick={() => { setOpenMenu(null); setAsk(d); }}>Clone</button>
+                  <button type="button" className={styles.menuLink} onClick={() => void share(d)}>{shared === d.id ? "Link copied" : "Share"}</button>
+                </div>
+              )}
+            </div>
           </li>
         ))}
       </ul>
       )}
       {ask && (
         <CopyReadyDialog
-          title={ask.branch ? "Branch this public deck?" : "Clone this public deck?"}
-          body={ask.branch ? "This makes a private branch linked to the public deck." : "This makes a private copy."}
-          confirmLabel={ask.branch ? "Branch" : "Clone"}
+          title="Clone this public deck?"
+          body="This makes a private copy."
+          confirmLabel="Clone"
           cancelLabel="Cancel"
           busy={busy}
           onCancel={() => setAsk(null)}
-          onConfirm={() => void copy(ask.deck, ask.branch)}
+          onConfirm={() => void copy(ask)}
         />
       )}
       {ready && (
         <CopyReadyDialog
-          title={ready.branch ? "Branch ready" : "Clone ready"}
+          title="Clone ready"
           body={`${ready.name} has been built.`}
           cancelLabel="Stay here"
           onCancel={() => setReady(null)}

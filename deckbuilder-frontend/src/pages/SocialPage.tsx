@@ -28,6 +28,9 @@ import {
   type Proposal,
   type Vote,
 } from "../services/socialService";
+import { HouseFormatEditor } from "../components/HouseFormatEditor";
+import { blankHouseFormat } from "../services/houseFormatService";
+import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./SocialPage.module.css";
 
 type Tab = "friends" | "groups" | "messages";
@@ -51,6 +54,8 @@ export function SocialPage() {
   const [proposalTitle, setProposalTitle] = useState("");
   const [proposalBody, setProposalBody] = useState("");
   const [draft, setDraft] = useState("");
+  const [formatDraft, setFormatDraft] = useState<HouseFormat>(blankHouseFormat());
+  const [showFinder, setShowFinder] = useState(false);
 
   async function refresh() {
     if (!user) return;
@@ -73,6 +78,8 @@ export function SocialPage() {
 
   useEffect(() => {
     if (!selectedGroup) return;
+    const saved = localStorage.getItem(`deckapp-group-format:${selectedGroup}`);
+    setFormatDraft(saved ? (JSON.parse(saved) as HouseFormat) : blankHouseFormat());
     void listProposals(selectedGroup).then(async (rows) => {
       setProposals(rows);
       setVotes(await listVotes(rows.map((r) => r.id)));
@@ -164,46 +171,73 @@ export function SocialPage() {
       )}
 
       {tab === "groups" && (
-        <section className={styles.panel}>
-          <form className={styles.row} onSubmit={onCreateGroup}>
-            <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="New play group" />
-            <button type="submit">Create</button>
-          </form>
-          <div className={styles.tabs}>
+        <section className={styles.workspace}>
+          <aside className={styles.groupRail}>
+            <button type="button" className={styles.tab} onClick={() => setShowFinder((v) => !v)}>
+              {showFinder ? "Hide finder" : "Find or create"}
+            </button>
             {groups.map((g) => (
-              <button key={g.id} type="button" className={selectedGroup === g.id ? styles.tabOn : styles.tab} onClick={() => setSelectedGroup(g.id)}>{g.name}</button>
+              <button key={g.id} type="button" className={selectedGroup === g.id ? styles.tabOn : styles.tab} onClick={() => setSelectedGroup(g.id)}>
+                {g.name}
+              </button>
             ))}
-          </div>
-          {selectedGroup && (
-            <>
-              <div className={styles.row}>
-                <button type="button" onClick={() => user && void joinGroup(user.id, selectedGroup)}>Join group</button>
-                <button type="button" onClick={() => {
-                  const group = groups.find((g) => g.id === selectedGroup);
-                  if (user && group) void joinGroupChat(user.id, group).then(refresh);
-                }}>Join Group Chat</button>
-              </div>
-              <form className={styles.stack} onSubmit={onPropose}>
-                <input value={proposalTitle} onChange={(e) => setProposalTitle(e.target.value)} placeholder="House rule or format" />
-                <textarea value={proposalBody} onChange={(e) => setProposalBody(e.target.value)} placeholder="What should the group vote on?" />
-                <button type="submit">Propose</button>
+            {showFinder && (
+              <form className={styles.stack} onSubmit={onCreateGroup}>
+                <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="New play group" />
+                <button type="submit">Create</button>
               </form>
-              <ul>
-                {proposals.map((p) => {
-                  const tally = votes.filter((v) => v.proposal_id === p.id);
-                  return (
-                    <li key={p.id}>
-                      <strong>{p.title}</strong>
-                      <span>{p.body}</span>
-                      <span>{tally.filter((v) => v.vote === "yes").length} yes / {tally.filter((v) => v.vote === "no").length} no</span>
-                      <button type="button" onClick={() => user && void vote(p.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Yes</button>
-                      <button type="button" onClick={() => user && void vote(p.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>No</button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
+            )}
+          </aside>
+          <div className={styles.groupMain}>
+            {!selectedGroup && <p>Create or pick a play group to set its format and house rules.</p>}
+            {selectedGroup && (
+              <>
+                <div className={styles.groupHead}>
+                  <div>
+                    <h2>{groups.find((g) => g.id === selectedGroup)?.name}</h2>
+                    <p>Set the format the group plays, then propose and vote on house rules.</p>
+                  </div>
+                  <div className={styles.row}>
+                    <button type="button" onClick={() => user && void joinGroup(user.id, selectedGroup)}>Join group</button>
+                    <button type="button" onClick={() => {
+                      const group = groups.find((g) => g.id === selectedGroup);
+                      if (user && group) void joinGroupChat(user.id, group).then(() => setParams({ tab: "messages" }));
+                    }}>Join Group Chat</button>
+                  </div>
+                </div>
+                <h3>Group format</h3>
+                <HouseFormatEditor
+                  draft={formatDraft}
+                  setDraft={setFormatDraft}
+                  saveLabel="Save group format"
+                  onSave={() => {
+                    localStorage.setItem(`deckapp-group-format:${selectedGroup}`, JSON.stringify(formatDraft));
+                    if (user) void createProposal(selectedGroup, user.id, formatDraft.name, formatDraft.notes || "Group format update");
+                  }}
+                />
+                <h3>House rules</h3>
+                <form className={styles.stack} onSubmit={onPropose}>
+                  <input value={proposalTitle} onChange={(e) => setProposalTitle(e.target.value)} placeholder="House rule" />
+                  <textarea value={proposalBody} onChange={(e) => setProposalBody(e.target.value)} placeholder="What should the group vote on?" />
+                  <button type="submit">Propose</button>
+                </form>
+                <ul>
+                  {proposals.map((p) => {
+                    const tally = votes.filter((v) => v.proposal_id === p.id);
+                    return (
+                      <li key={p.id}>
+                        <strong>{p.title}</strong>
+                        <span>{p.body}</span>
+                        <span>{tally.filter((v) => v.vote === "yes").length} yes / {tally.filter((v) => v.vote === "no").length} no</span>
+                        <button type="button" onClick={() => user && void vote(p.id, user.id, "yes").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>Yes</button>
+                        <button type="button" onClick={() => user && void vote(p.id, user.id, "no").then(() => listVotes(proposals.map((r) => r.id)).then(setVotes))}>No</button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </div>
         </section>
       )}
 

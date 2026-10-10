@@ -96,6 +96,44 @@
 .mine { justify-content: flex-end; }
 .error { color: #fca5a5; }
 
+.workspace {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0.8rem;
+}
+
+.groupRail,
+.groupMain {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+}
+
+.groupRail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.groupHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+
+.groupHead h2,
+.groupMain h3 {
+  margin: 0.4rem 0;
+}
+
+.groupHead p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+}
+
 @media (max-width: 760px) {
-  .header, .messages { display: flex; flex-direction: column; }
+  .header, .messages, .workspace { display: flex; flex-direction: column; }
 }
