@@ -2463,33 +2463,37 @@ export function DeckBuilderPage() {
                               {g.cards.map((c) => (
                                 <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
                                   <div className={styles.cardMain}>
-                                    <QtyControl
-                                      quantity={c.quantity}
-                                      disabled={!isOwner}
-                                      onDelta={(d) => void onQty(c, d)}
-                                      onCommit={(raw) => void onQtyCommit(c, raw)}
-                                    />
-                                    <button
-                                      type="button"
-                                      className={styles.cardName}
-                                      onMouseEnter={(e) => onNameEnter(c, e)}
-                                      onMouseMove={onNameMove}
-                                      onMouseLeave={onNameLeave}
-                                      onClick={() => openCardModal(c)}
-                              onContextMenu={(e) => onCardContext(e, c)}
-                                    >
-                                      {c.name}
-                                    </button>
-                                    <ManaCost cost={c.mana_cost} size={15} />
-                                    <span className={styles.cardType}>{c.type_line}</span>
-                                    {(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).length > 0 && (
-                                      <span
-                                        className={styles.legalBadge}
-                                        title={(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).map((i) => i.message).join(" ")}
+                                    <div className={styles.cardPrimary}>
+                                      <QtyControl
+                                        quantity={c.quantity}
+                                        disabled={!isOwner}
+                                        onDelta={(d) => void onQty(c, d)}
+                                        onCommit={(raw) => void onQtyCommit(c, raw)}
+                                      />
+                                      <button
+                                        type="button"
+                                        className={styles.cardName}
+                                        onMouseEnter={(e) => onNameEnter(c, e)}
+                                        onMouseMove={onNameMove}
+                                        onMouseLeave={onNameLeave}
+                                        onClick={() => openCardModal(c)}
+                                        onContextMenu={(e) => onCardContext(e, c)}
                                       >
-                                        Illegal
-                                      </span>
-                                    )}
+                                        {c.name}
+                                      </button>
+                                      <ManaCost cost={c.mana_cost} size={14} />
+                                    </div>
+                                    <div className={styles.cardSecondary}>
+                                      <span className={styles.cardType}>{c.type_line}</span>
+                                      {(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).length > 0 && (
+                                        <span
+                                          className={styles.legalBadge}
+                                          title={(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).map((i) => i.message).join(" ")}
+                                        >
+                                          Illegal
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   {isOwner && (
                                     <div className={styles.cardActions}>

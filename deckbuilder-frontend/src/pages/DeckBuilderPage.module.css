@@ -464,11 +464,10 @@
 
 .cardRow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding: 0.55rem 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  padding: 0.4rem 0.6rem 0.45rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
@@ -476,11 +475,25 @@
 
 .cardMain {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.4rem 0.65rem;
+  flex-direction: column;
+  gap: 0.12rem;
   min-width: 0;
-  flex: 1;
+  width: 100%;
+}
+
+.cardPrimary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.cardSecondary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding-left: 0.05rem;
 }
 
 .qty {
@@ -500,6 +513,11 @@
   text-decoration: none;
   cursor: pointer;
   text-align: left;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardName:hover {
@@ -507,15 +525,22 @@
 }
 
 .cardType {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .qtyBtn {
@@ -1671,17 +1696,17 @@
   border-radius: 8px;
 }
 
-/* Mobile touch targets */
+/* Mobile: compact cards + vertical board arrangement */
 @media (max-width: 768px) {
   .qtyBtn,
   .stackQtyBtn,
   .removeBtn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 40px;
+    min-height: 40px;
   }
   .qtyInput {
-    min-height: 40px;
-    font-size: 1rem;
+    min-height: 36px;
+    font-size: 0.95rem;
   }
   .toolBtn,
   .primaryBtn,
@@ -1689,5 +1714,85 @@
     min-height: 40px;
     padding-left: 0.85rem;
     padding-right: 0.85rem;
+  }
+
+  .cardRow {
+    padding: 0.35rem 0.5rem 0.4rem;
+    gap: 0.22rem;
+  }
+  .cardPrimary {
+    gap: 0.3rem;
+  }
+  .cardName {
+    font-size: 0.9rem;
+  }
+  .cardType {
+    font-size: 0.7rem;
+  }
+  .cardActions {
+    gap: 0.2rem;
+  }
+  .boardSelect {
+    max-width: 5.5rem;
+    font-size: 0.7rem;
+  }
+  .miniTag {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .boardZones {
+    gap: 0.85rem;
+  }
+  .boardZone {
+    padding: 0.45rem 0.5rem 0.65rem;
+    gap: 0.4rem;
+    overflow-x: hidden;
+  }
+  .boardZoneTitle {
+    font-size: 0.82rem;
+  }
+  .boardZoneCount {
+    font-size: 0.72rem;
+  }
+
+  /* Stack columns arranged vertically inside each board */
+  .stacksRow {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: visible;
+    min-height: 0;
+    gap: 0.65rem;
+    padding-bottom: 0.15rem;
+  }
+  .stackColumn {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.15rem 0.1rem;
+  }
+  .stackCards {
+    --stack-width: min(148px, 40vw);
+    --stack-card-h: 207px;
+    --stack-peek: 32px;
+    min-height: 0;
+    padding-bottom: 0.75rem;
+  }
+  .stackCardImg,
+  .stackCardPlaceholder {
+    height: var(--stack-card-h);
+  }
+  .stackHeader {
+    padding: 0 0.1rem 0.15rem;
+  }
+  .newColumnDrop {
+    min-height: 64px;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .imageGrid {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 0.4rem;
   }
 }
