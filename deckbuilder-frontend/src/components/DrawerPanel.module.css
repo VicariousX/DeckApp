@@ -669,3 +669,24 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Mobile touch targets */
+@media (max-width: 768px) {
+  .addBtn,
+  .qtyBtn,
+  .applyBtn,
+  .closeBtn,
+  .toggleBtn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .tab {
+    min-height: 36px;
+    padding: 0.35rem 0.7rem;
+  }
+  .filter,
+  .sortSelect {
+    min-height: 40px;
+    font-size: 0.9rem;
+  }
+}
