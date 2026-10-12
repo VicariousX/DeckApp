@@ -327,6 +327,7 @@ export function CardContextMenu({
         </>
       )}
 
+      {fly !== "move" && (
       <div className={styles.fly}>
         {(tabs
           ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
@@ -344,6 +345,7 @@ export function CardContextMenu({
           </button>
         ))}
       </div>
+      )}
 
       {onQty && (
         <div className={styles.stepper}>

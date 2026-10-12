@@ -94,7 +94,7 @@ import {
   stackDeckCards,
   updateDeck,
 } from "../services/deckService";
-import { loadBranchParent, loadHistory, rememberBranchNode, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
+import { branchTree, loadBranchParent, loadHistory, rememberBranchNode, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
@@ -222,6 +222,7 @@ export function DeckBuilderPage() {
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [branchManagerOpen, setBranchManagerOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [copyAsk, setCopyAsk] = useState<null | "clone" | "branch">(null);
   const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
@@ -284,6 +285,8 @@ export function DeckBuilderPage() {
   } | null>(null);
   const [imageActionId, setImageActionId] = useState<string | null>(null);
   const [imageActionPos, setImageActionPos] = useState({ x: 0, y: 0 });
+  const peekPending = useRef(false);
+  const peekScroll = useRef(0);
   const [enhanceCard, setEnhanceCard] = useState<DeckCard | null>(null);
   /** stack face flip: card id → front|back */
   const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
@@ -1424,6 +1427,8 @@ export function DeckBuilderPage() {
       const t = e.target as HTMLElement | null;
       if (!t) return;
       if (t.closest("[data-action-anchor]") || t.closest("[data-image-more]")) return;
+      peekPending.current = true;
+      peekScroll.current = window.scrollY;
       setImageActionId(null);
       document
         .querySelectorAll("[data-action-anchor]")
@@ -1431,6 +1436,34 @@ export function DeckBuilderPage() {
     }
     document.addEventListener("pointerdown", onAway);
     return () => document.removeEventListener("pointerdown", onAway);
+  }, [imageActionId]);
+
+  useEffect(() => {
+    if (imageActionId) {
+      peekPending.current = false;
+      return;
+    }
+    if (!peekPending.current) return;
+    function unreveal() {
+      peekPending.current = false;
+      window.dispatchEvent(new Event("deckapp:unreveal"));
+    }
+    function onSecondTap(e: PointerEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-stack-idx]") || t?.closest("[data-image-more]")) return;
+      unreveal();
+    }
+    function onScroll() {
+      if (Math.abs(window.scrollY - peekScroll.current) > window.innerHeight * 0.15) {
+        unreveal();
+      }
+    }
+    document.addEventListener("pointerdown", onSecondTap);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", onSecondTap);
+      window.removeEventListener("scroll", onScroll, true);
+    };
   }, [imageActionId]);
 
   useEffect(() => {
@@ -1731,8 +1764,7 @@ export function DeckBuilderPage() {
                       {user && (
                         <>
                           <button type="button" onClick={() => { setCopyAsk("clone"); setHeaderMenuOpen(false); }}>Clone</button>
-                          <button type="button" onClick={() => { setCopyAsk("branch"); setHeaderMenuOpen(false); }}>Branch</button>
-                          <Link to={`/deck/${id}/branches`} onClick={() => setHeaderMenuOpen(false)}>Branches</Link>
+                          <button type="button" onClick={() => { setBranchManagerOpen(true); setHeaderMenuOpen(false); }}>Branches</button>
                         </>
                       )}
                       {isOwner && (
@@ -1764,8 +1796,7 @@ export function DeckBuilderPage() {
               ) : user && (
                 <>
                   <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("clone")}>Clone</button>
-                  <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("branch")}>Branch</button>
-                  <Link to={`/deck/${id}/branches`} className={styles.backLink}>Branches</Link>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(true)}>Branches</button>
                 </>
               )}
               {!isMobile && isOwner && (
@@ -3034,6 +3065,36 @@ export function DeckBuilderPage() {
         />
       )}
 
+      {branchManagerOpen && id && (
+        <div className={styles.branchManager} role="dialog" aria-label="Branches">
+          <div className={styles.branchManagerHead}>
+            <h2>Branches</h2>
+            <button type="button" className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(false)}>Close</button>
+          </div>
+          <p className={styles.hint}>View existing branches or start a new one from this deck.</p>
+          <ul className={styles.branchList}>
+            {branchTree(id).length === 0 && <li className={styles.hint}>No branches yet.</li>}
+            {branchTree(id).map((node) => (
+              <li key={node.id}>
+                <Link to={`/deck/${node.id}`} onClick={() => setBranchManagerOpen(false)}>
+                  {node.name}
+                </Link>
+                <Link to={`/deck/${id}/branches`} className={styles.backLink} onClick={() => setBranchManagerOpen(false)}>
+                  Compare
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className={styles.branchManagerActions}>
+            <button type="button" className={styles.secondaryBtn} onClick={() => { setBranchManagerOpen(false); setCopyAsk("branch"); }}>
+              New branch
+            </button>
+            <Link to={`/deck/${id}/branches`} className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(false)}>
+              Open branch tool
+            </Link>
+          </div>
+        </div>
+      )}
       {copyAsk && (
         <CopyReadyDialog
           title={copyAsk === "branch" ? "Branch this deck?" : "Clone this deck?"}

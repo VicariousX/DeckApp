@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -141,6 +142,16 @@ export function StackCards({ count, className, children, lockOnTap = false }: Pr
     updateHoverFromPointer(e.clientX, e.clientY);
     lockedRef.current = hoverIdxRef.current != null;
   }
+
+  useEffect(() => {
+    if (!lockOnTap) return;
+    function unreveal() {
+      lockedRef.current = false;
+      setHover(null);
+    }
+    window.addEventListener("deckapp:unreveal", unreveal);
+    return () => window.removeEventListener("deckapp:unreveal", unreveal);
+  }, [lockOnTap, setHover]);
 
   return (
     <StackHoverContext.Provider value={hoverIdx}>
