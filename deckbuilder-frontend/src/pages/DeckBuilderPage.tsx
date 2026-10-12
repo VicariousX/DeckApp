@@ -2587,13 +2587,7 @@ export function DeckBuilderPage() {
                                         type="button"
                                         className={styles.cardName}
                                         onClick={() => void toggleOracle(c)}
-                                        onContextMenu={(e) => {
-                                if (isMobile && viewMode === "image") {
-                                  e.preventDefault();
-                                  return;
-                                }
-                                onCardContext(e, c);
-                              }}
+                                        onContextMenu={(e) => onCardContext(e, c)}
                                       >
                                         {c.name}
                                       </button>

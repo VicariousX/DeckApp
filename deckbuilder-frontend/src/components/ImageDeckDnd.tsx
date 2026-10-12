@@ -318,7 +318,7 @@ type DraggableCardProps = {
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: (e: ReactMouseEvent<HTMLDivElement>) => void;
   onContextMenu?: (e: ReactMouseEvent) => void;
   /** Index within its StackCards (0 = back of stack). */
   stackIndex?: number;
