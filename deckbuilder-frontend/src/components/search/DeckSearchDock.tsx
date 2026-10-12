@@ -3,6 +3,8 @@ import { CardSearch } from "../CardSearch";
 import { AdvancedSearch } from "./AdvancedSearch";
 import { SearchResultsPanel } from "./SearchResultsPanel";
 import type { ScryfallCard } from "../../types/scryfallCard";
+import { useIsMobile } from "../../hooks/useIsMobile";
+import { BottomSheet } from "../BottomSheet";
 import styles from "./DeckSearchDock.module.css";
 
 export type SearchKind = "standard" | "advanced";
@@ -44,10 +46,14 @@ export function DeckSearchToggle({
 export function DeckSearchDock({
   open,
   onAddCard,
+  onClose,
 }: {
   open: boolean;
   onAddCard?: (card: ScryfallCard) => void;
+  /** Called when the user closes the dock (required for mobile bottom sheet). */
+  onClose?: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [tabs, setTabs] = useState<Tab[]>([newTab("standard")]);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [modeMenu, setModeMenu] = useState(false);
@@ -82,8 +88,8 @@ export function DeckSearchDock({
     );
   }
 
-  return (
-    <div className={styles.dock}>
+  const content = (
+    <>
       <div className={styles.tabs}>
         {tabs.map((t) => (
           <button
@@ -170,6 +176,16 @@ export function DeckSearchDock({
       {active.query && (
         <SearchResultsPanel query={active.query} onAddToDeck={onAddCard} />
       )}
-    </div>
+    </>
   );
+
+  if (isMobile) {
+    return (
+      <BottomSheet open onClose={() => onClose?.()} title="Search">
+        {content}
+      </BottomSheet>
+    );
+  }
+
+  return <div className={styles.dock}>{content}</div>;
 }
