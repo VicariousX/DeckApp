@@ -1851,6 +1851,10 @@
     min-width: 0;
     min-height: 0;
     padding: 0.15rem 0.1rem;
+    align-items: center;
+  }
+  .stackCards {
+    align-items: center;
   }
   .stackCards {
     --stack-width: min(240px, 68vw);
@@ -1897,12 +1901,12 @@
   .commanderSlotCards {
     flex-direction: row;
     flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 0.4rem;
+    justify-content: center;
+    gap: 0.5rem;
   }
   .commanderCard {
-    width: min(140px, 42vw);
-    max-width: 140px;
+    width: min(280px, 72vw);
+    max-width: min(280px, 72vw);
   }
   .boardZones {
     display: flex;
@@ -1998,4 +2002,57 @@
   border-color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 28%, transparent);
   color: var(--color-accent);
+}
+
+.imageMoreBtn {
+  position: fixed;
+  z-index: 80;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+  color: var(--color-accent);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.dndOrb {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  opacity: 0.88;
+  background:
+    radial-gradient(circle at 32% 28%, color-mix(in srgb, #fff 55%, var(--color-accent)), transparent 42%),
+    radial-gradient(circle at 50% 55%, var(--color-accent), color-mix(in srgb, var(--color-accent) 35%, #000));
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    inset 0 0 14px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .stackCardDragging {
+    opacity: 1;
+    filter: none;
+    outline: 2px solid var(--color-accent);
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--color-accent) 40%, transparent),
+      0 8px 22px rgba(0, 0, 0, 0.45);
+  }
+  .stackCard,
+  .commanderCard {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
 }

@@ -20,6 +20,8 @@ type Props = {
   count: number;
   className?: string;
   children: ReactNode;
+  /** On touch, a tap locks the revealed card instead of following the pointer. */
+  lockOnTap?: boolean;
 };
 
 type CardRect = {
@@ -58,10 +60,11 @@ function readCardRects(container: HTMLElement): CardRect[] {
  * live visual bounding boxes (so shifted "front" cards remain reachable).
  * Gaps between cards never clear the reveal — they hand off to the nearest card.
  */
-export function StackCards({ count, className, children }: Props) {
+export function StackCards({ count, className, children, lockOnTap = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const hoverIdxRef = useRef<number | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const lockedRef = useRef(false);
 
   const setHover = useCallback((idx: number | null) => {
     if (hoverIdxRef.current === idx) return;
@@ -129,7 +132,14 @@ export function StackCards({ count, className, children }: Props) {
   }
 
   function onPointerLeave() {
+    if (lockedRef.current) return;
     setHover(null);
+  }
+
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!lockOnTap) return;
+    updateHoverFromPointer(e.clientX, e.clientY);
+    lockedRef.current = hoverIdxRef.current != null;
   }
 
   return (
@@ -140,6 +150,7 @@ export function StackCards({ count, className, children }: Props) {
         data-hover-idx={hoverIdx === null ? undefined : String(hoverIdx)}
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
+        onPointerUp={onPointerUp}
       >
         {children}
       </div>

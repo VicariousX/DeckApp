@@ -281,6 +281,11 @@ export function DeckBuilderPage() {
     y: number;
     card: DeckCard;
   } | null>(null);
+  const [imageAction, setImageAction] = useState<{
+    card: DeckCard;
+    x: number;
+    y: number;
+  } | null>(null);
   const [enhanceCard, setEnhanceCard] = useState<DeckCard | null>(null);
   /** stack face flip: card id → front|back */
   const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
@@ -1398,6 +1403,11 @@ export function DeckBuilderPage() {
     setCtxMenu({ x: e.clientX, y: e.clientY, card });
   }
 
+  function onImageCardTap(card: DeckCard, el: HTMLElement) {
+    const r = el.getBoundingClientRect();
+    setImageAction({ card, x: Math.min(r.right - 8, window.innerWidth - 48), y: r.top + 8 });
+  }
+
   const modalNavList = panel === "tokens" ? tokenCards : detail?.cards ?? [];
   const modalIndex = modalCard
     ? modalNavList.findIndex((c) => c.id === modalCard.id)
@@ -2022,6 +2032,13 @@ export function DeckBuilderPage() {
                   detail.cards.find((x) => x.id === cardId) ??
                   tokenCards.find((x) => x.id === cardId);
                 if (!c) return null;
+                if (isMobile) {
+                  return (
+                    <div className={styles.dndOrb} aria-hidden>
+                      <span>{c.name.slice(0, 1)}</span>
+                    </div>
+                  );
+                }
                 const src = stackImageSrc(c);
                 return src ? (
                   <img
@@ -2070,8 +2087,20 @@ export function DeckBuilderPage() {
                               disabled={!isOwner}
                               className={`${styles.commanderCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                               style={{ zIndex: cardIdx + 1 }}
-                              onClick={() => openCardModal(c)}
-                              onContextMenu={(e) => onCardContext(e, c)}
+                              onClick={(e) => {
+                                if (isMobile) {
+                                  onImageCardTap(c, e.currentTarget as HTMLElement);
+                                  return;
+                                }
+                                openCardModal(c);
+                              }}
+                              onContextMenu={(e) => {
+                                if (isMobile && viewMode === "image") {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                onCardContext(e, c);
+                              }}
                             >
                               <div
                                 className={styles.stackCardLink}
@@ -2160,8 +2189,20 @@ export function DeckBuilderPage() {
                               card={c}
                               disabled={!isOwner || panel === "tokens"}
                               className={styles.gridCard}
-                              onClick={() => openCardModal(c)}
-                              onContextMenu={(e) => onCardContext(e, c)}
+                              onClick={(e) => {
+                                if (isMobile) {
+                                  onImageCardTap(c, e.currentTarget as HTMLElement);
+                                  return;
+                                }
+                                openCardModal(c);
+                              }}
+                              onContextMenu={(e) => {
+                                if (isMobile && viewMode === "image") {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                onCardContext(e, c);
+                              }}
                             >
                               <div className={styles.stackCardLink} title={c.name}>
                                 {src ? (
@@ -2257,7 +2298,7 @@ export function DeckBuilderPage() {
                                 activeClassName={styles.stackColumnDropActive}
                                 disabled={!isOwner}
                               >
-                              <StackCards count={colCards.length}>
+                              <StackCards count={colCards.length} lockOnTap={isMobile}>
                                 {colCards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
@@ -2269,8 +2310,20 @@ export function DeckBuilderPage() {
                                       className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
-                                      onClick={() => openCardModal(c)}
-                              onContextMenu={(e) => onCardContext(e, c)}
+                                      onClick={(e) => {
+                                if (isMobile) {
+                                  onImageCardTap(c, e.currentTarget as HTMLElement);
+                                  return;
+                                }
+                                openCardModal(c);
+                              }}
+                              onContextMenu={(e) => {
+                                if (isMobile && viewMode === "image") {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                onCardContext(e, c);
+                              }}
                                     >
                                       <div
                                         className={styles.stackCardLink}
@@ -2388,7 +2441,7 @@ export function DeckBuilderPage() {
                                 <h3 className={styles.stackTitle}>{g.label}</h3>
                                 <span className={styles.stackCount}>{count}</span>
                               </div>
-                              <StackCards count={g.cards.length}>
+                              <StackCards count={g.cards.length} lockOnTap={isMobile}>
                                 {g.cards.map((c, cardIdx) => {
                                   const src = stackImageSrc(c);
                                   const multi = looksMultiFace(c);
@@ -2400,8 +2453,20 @@ export function DeckBuilderPage() {
                                       className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
                                       style={{ zIndex: cardIdx + 1 }}
                                       stackIndex={cardIdx}
-                                      onClick={() => openCardModal(c)}
-                              onContextMenu={(e) => onCardContext(e, c)}
+                                      onClick={(e) => {
+                                if (isMobile) {
+                                  onImageCardTap(c, e.currentTarget as HTMLElement);
+                                  return;
+                                }
+                                openCardModal(c);
+                              }}
+                              onContextMenu={(e) => {
+                                if (isMobile && viewMode === "image") {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                onCardContext(e, c);
+                              }}
                                     >
                                       <div
                                         className={styles.stackCardLink}
@@ -2522,20 +2587,26 @@ export function DeckBuilderPage() {
                                         type="button"
                                         className={styles.cardName}
                                         onClick={() => void toggleOracle(c)}
-                                        onContextMenu={(e) => onCardContext(e, c)}
+                                        onContextMenu={(e) => {
+                                if (isMobile && viewMode === "image") {
+                                  e.preventDefault();
+                                  return;
+                                }
+                                onCardContext(e, c);
+                              }}
                                       >
                                         {c.name}
                                       </button>
                                       <ManaCost cost={c.mana_cost} size={14} />
-                                      {isMobile && isOwner && (
+                                      {isMobile && (
                                         <button
                                           type="button"
                                           className={styles.moreBtn}
                                           aria-label={`Options for ${c.name}`}
-                                          aria-expanded={cardMenuId === c.id}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            setCardMenuId((id) => (id === c.id ? null : c.id));
+                                            const r = e.currentTarget.getBoundingClientRect();
+                                            setCtxMenu({ x: r.left, y: r.bottom + 4, card: c });
                                           }}
                                         >
                                           ⋮
@@ -2595,44 +2666,7 @@ export function DeckBuilderPage() {
                                         </span>
                                       </div>
                                     )}
-                                    {isMobile && isOwner && cardMenuId === c.id && (
-                                      <div className={styles.moreMenu} role="menu">
-                                        <button type="button" className={styles.moreMenuItem} onClick={() => { void onQty(c, 1); setCardMenuId(null); }}>+1 quantity</button>
-                                        <button type="button" className={styles.moreMenuItem} onClick={() => { void onQty(c, -1); setCardMenuId(null); }}>−1 quantity</button>
-                                        <button type="button" className={styles.moreMenuItem} onClick={() => { openCardModal(c); setCardMenuId(null); }}>Open card</button>
-                                        <div className={styles.moreMenuLabel}>Move to</div>
-                                        {BOARDS.map((b) => (
-                                          <button
-                                            key={b.id}
-                                            type="button"
-                                            className={c.board === b.id ? `${styles.moreMenuItem} ${styles.moreMenuItemOn}` : styles.moreMenuItem}
-                                            onClick={() => { void moveCardToBoard(c, b.id); setCardMenuId(null); }}
-                                          >
-                                            {b.label}
-                                          </button>
-                                        ))}
-                                        {detail.tags.length > 0 && (
-                                          <>
-                                            <div className={styles.moreMenuLabel}>Tags</div>
-                                            {detail.tags.map((t) => {
-                                              const on = (c.tag_ids ?? []).includes(t.id);
-                                              return (
-                                                <button
-                                                  key={t.id}
-                                                  type="button"
-                                                  className={on ? `${styles.moreMenuItem} ${styles.moreMenuItemOn}` : styles.moreMenuItem}
-                                                  onClick={() => void toggleTag(c, t)}
-                                                >
-                                                  {on ? "✓ " : ""}{t.name}
-                                                </button>
-                                              );
-                                            })}
-                                          </>
-                                        )}
-                                        <button type="button" className={`${styles.moreMenuItem} ${styles.moreMenuDanger}`} onClick={() => { void onRemove(c); setCardMenuId(null); }}>Remove</button>
-                                      </div>
-                                    )}
-                                  </div>
+                                    </div>
                                   {!isMobile && isOwner && (
                                     <div className={styles.cardActions}>
                                       {(c.tag_ids ?? []).length > 0 && (
@@ -2709,6 +2743,19 @@ export function DeckBuilderPage() {
         </>
       )}
 
+      {imageAction && isMobile && viewMode === "image" && (
+        <button
+          type="button"
+          className={styles.imageMoreBtn}
+          style={{ left: imageAction.x, top: imageAction.y }}
+          aria-label={`Options for ${imageAction.card.name}`}
+          onClick={() => {
+            setCtxMenu({ x: imageAction.x, y: imageAction.y + 40, card: imageAction.card });
+          }}
+        >
+          ⋮
+        </button>
+      )}
       {ctxMenu && (
         <CardContextMenu
           x={ctxMenu.x}

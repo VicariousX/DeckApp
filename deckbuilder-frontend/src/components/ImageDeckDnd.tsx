@@ -250,8 +250,8 @@ export function ImageDndProvider({
             className={styles.dndOverlay}
             style={{
               position: "fixed",
-              left: pointer.x - grabOffset.x,
-              top: pointer.y - grabOffset.y,
+              left: isMobile ? pointer.x - 36 : pointer.x - grabOffset.x,
+              top: isMobile ? pointer.y - 36 : pointer.y - grabOffset.y,
               zIndex: 10000,
               pointerEvents: "none",
               margin: 0,
