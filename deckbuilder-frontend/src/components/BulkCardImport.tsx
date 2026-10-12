@@ -1,6 +1,8 @@
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
+import { useIsMobile } from "../hooks/useIsMobile";
+import { BottomSheet } from "./BottomSheet";
 import {
   mergeParsedEntries,
   parseCardList,
@@ -39,9 +41,11 @@ export function BulkCardImport({
   existingOracleIds,
   triggerClassName,
 }: Props) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [missingOnly, setMissingOnly] = useState(false);
-  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(open, { w: 400, h: 440 });
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
+    useDraggablePanel(open && !isMobile, { w: 400, h: 440 });
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
@@ -177,7 +181,163 @@ export function BulkCardImport({
         {open ? "Close Import" : title}
       </button>
 
-      {open &&
+      {open && isMobile && (
+        <BottomSheet open onClose={() => setOpen(false)} title={title}>
+          <div className={styles.sheetContent}>
+            <p className={styles.hint}>
+              Paste a list, or a public Archidekt, Moxfield, MTGGoldfish, or Deckstats link.
+              Commander and sideboard sections stay on those boards.
+            </p>
+            <div className={styles.urlRow}>
+              <input
+                className={styles.urlInput}
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://www.archidekt.com/decks/…"
+                disabled={busy}
+              />
+              <button
+                type="button"
+                className={styles.ghostBtn}
+                disabled={busy || !link.trim()}
+                onClick={() => void fetchLink()}
+              >
+                Fetch
+              </button>
+            </div>
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const raw = await file.text();
+                const lines = namesFromTtsJson(raw).map((c) => `${c.quantity} ${c.name}`);
+                setText(lines.join("\n"));
+                e.target.value = "";
+              }}
+            />
+            <textarea
+              className={styles.textarea}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setPreview(null);
+                setNotFound([]);
+              }}
+              placeholder={placeholder}
+              rows={8}
+              disabled={busy}
+            />
+            {existingOracleIds && (
+              <label className={styles.missingToggle}>
+                <input
+                  type="checkbox"
+                  checked={missingOnly}
+                  onChange={(e) => {
+                    setMissingOnly(e.target.checked);
+                    setPreview(null);
+                  }}
+                />
+                Missing only
+              </label>
+            )}
+            <div className={styles.meta}>
+              <span>
+                {parsed.entries.length} unique name
+                {parsed.entries.length === 1 ? "" : "s"}
+                {respectQuantity
+                  ? ` · ${parsed.entries.reduce((n, e) => n + e.quantity, 0)} copies`
+                  : ""}
+              </span>
+              {parsed.skipped.length > 0 && (
+                <span className={styles.skipped}>
+                  {parsed.skipped.length} line
+                  {parsed.skipped.length === 1 ? "" : "s"} skipped
+                </span>
+              )}
+            </div>
+
+            {error && (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            )}
+            {progress && <p className={styles.progress}>{progress}</p>}
+
+            {preview && (
+              <div className={styles.preview}>
+                <p className={styles.previewTitle}>
+                  Ready to import {preview.length} card
+                  {preview.length === 1 ? "" : "s"}
+                </p>
+                <ul className={styles.previewList}>
+                  {preview.slice(0, 12).map((e) => (
+                    <li key={e.card.id}>
+                      {respectQuantity && e.quantity > 1
+                        ? `${e.quantity}× `
+                        : ""}
+                      {e.name}
+                    </li>
+                  ))}
+                  {preview.length > 12 && (
+                    <li className={styles.more}>
+                      +{preview.length - 12} more
+                    </li>
+                  )}
+                </ul>
+                {notFound.length > 0 && (
+                  <div className={styles.notFound}>
+                    <p className={styles.notFoundTitle}>
+                      Not found ({notFound.length})
+                    </p>
+                    <p className={styles.notFoundNames}>
+                      {notFound.slice(0, 8).join(", ")}
+                      {notFound.length > 8
+                        ? ` +${notFound.length - 8} more`
+                        : ""}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={styles.actions} data-no-drag>
+              {!preview ? (
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  disabled={busy || parsed.entries.length === 0}
+                  onClick={() => void resolve()}
+                >
+                  {busy ? "Looking up…" : "Preview"}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    disabled={busy}
+                    onClick={() => setPreview(null)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.primaryBtn}
+                    disabled={busy || preview.length === 0}
+                    onClick={() => void confirmImport()}
+                  >
+                    {busy ? "Importing…" : `Import ${preview.length}`}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </BottomSheet>
+      )}
+
+      {open && !isMobile &&
         createPortal(
         <div className={styles.panel} ref={panelRef} style={panelStyle}>
           <div className={styles.panelTop}>
