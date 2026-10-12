@@ -1783,6 +1783,7 @@ export function DeckBuilderPage() {
                 <DeckSearchDock
                   open={searchOpen}
                   onAddCard={(c) => void addScryfallCard(c)}
+                  onClose={() => setSearchOpen(false)}
                 />
               )}
               {panel === "deck" && (

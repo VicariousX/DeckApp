@@ -25,7 +25,9 @@ import {
   type DrawerViewMode,
 } from "../lib/deckPreferences";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { BottomSheet } from "./BottomSheet";
 import styles from "./DrawerPanel.module.css";
 
 type Props = {
@@ -101,9 +103,10 @@ export function DrawerPanel({
   deckQtyByOracle = {},
 }: Props) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } =
-    useDraggablePanel(open, { w: 420, h: 560 });
+    useDraggablePanel(open && !isMobile, { w: 420, h: 560 });
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cards, setCards] = useState<DrawerCardView[]>([]);
@@ -311,44 +314,9 @@ export function DrawerPanel({
     { id: "G", label: "G" },
   ];
 
-  return (
-    <div className={styles.wrap} ref={anchorRef}>
-      <button
-        type="button"
-        className={`${styles.toggleBtn}${open ? ` ${styles.toggleBtnOpen}` : ""}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {open ? "Close Drawers" : "Drawers"}
-      </button>
 
-      {open &&
-        createPortal(
-        <div className={styles.panel} ref={panelRef} style={panelStyle}>
-          <div
-            className={styles.panelHeader}
-            onPointerDown={onHandlePointerDown}
-          >
-            <span className={styles.panelTitle}>Drawers</span>
-            <Link
-              to="/drawers"
-              className={styles.manageLink}
-              data-no-drag
-              onClick={() => setOpen(false)}
-            >
-              Manage
-            </Link>
-            <button
-              type="button"
-              className={styles.closeBtn}
-              data-no-drag
-              onClick={() => setOpen(false)}
-              aria-label="Close drawers"
-            >
-              ×
-            </button>
-          </div>
-
+  const panelBody = (
+    <>
           {error && (
             <p className={styles.error} role="alert">
               {error}
@@ -765,6 +733,64 @@ export function DrawerPanel({
               );
             })}
           </div>
+    </>
+  );
+
+  return (
+    <div className={styles.wrap} ref={anchorRef}>
+      <button
+        type="button"
+        className={`${styles.toggleBtn}${open ? ` ${styles.toggleBtnOpen}` : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        {open ? "Close Drawers" : "Drawers"}
+      </button>
+
+      {open && isMobile && (
+        <BottomSheet open onClose={() => setOpen(false)} title="Drawers">
+          <div style={{ marginBottom: "0.5rem" }}>
+            <Link
+              to="/drawers"
+              className={styles.manageLink}
+              onClick={() => setOpen(false)}
+            >
+              Manage drawers →
+            </Link>
+          </div>
+          {panelBody}
+        </BottomSheet>
+      )}
+
+      {open && !isMobile &&
+        createPortal(
+        <div className={styles.panel} ref={panelRef} style={panelStyle}>
+          <div
+            className={styles.panelHeader}
+            onPointerDown={onHandlePointerDown}
+          >
+            <span className={styles.panelTitle}>Drawers</span>
+            <Link
+              to="/drawers"
+              className={styles.manageLink}
+              data-no-drag
+              onClick={() => setOpen(false)}
+            >
+              Manage
+            </Link>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              data-no-drag
+              onClick={() => setOpen(false)}
+              aria-label="Close drawers"
+            >
+              ×
+            </button>
+          </div>
+
+          {panelBody}
+
           <div
             className={`${styles.resizeHandle} ${styles.resizeE}`}
             data-no-drag

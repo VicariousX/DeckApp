@@ -584,6 +584,7 @@ export function DrawersPage() {
                 <DeckSearchDock
                   open={searchOpen}
                   onAddCard={(c) => void addScryfallCard(c)}
+                  onClose={() => setSearchOpen(false)}
                 />
                 <div className={styles.toolRow}>
                   <BulkCardImport

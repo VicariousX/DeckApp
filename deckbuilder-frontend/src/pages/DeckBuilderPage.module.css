@@ -1670,3 +1670,24 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* Mobile touch targets */
+@media (max-width: 768px) {
+  .qtyBtn,
+  .stackQtyBtn,
+  .removeBtn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .qtyInput {
+    min-height: 40px;
+    font-size: 1rem;
+  }
+  .toolBtn,
+  .primaryBtn,
+  .ghostBtn {
+    min-height: 40px;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}
