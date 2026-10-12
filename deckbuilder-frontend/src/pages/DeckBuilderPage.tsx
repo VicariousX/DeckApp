@@ -52,6 +52,7 @@ import {
   groupDropId,
   stopDndPropagation,
   type DropTarget,
+  type MobileDropZone,
 } from "../components/ImageDeckDnd"
 import { RateLimitedImg } from "../components/RateLimitedImg";
 import { StackCards } from "../components/StackCards";
@@ -212,9 +213,6 @@ export function DeckBuilderPage() {
     hoverCard,
     hoverSrc,
     hoverPos,
-    onNameEnter,
-    onNameMove,
-    onNameLeave,
     warmCache,
   } = useDeckCardHover();
   const { resolveImageUrl, artRevision } = useArtPreferences();
@@ -251,6 +249,8 @@ export function DeckBuilderPage() {
   const isMobile = useIsMobile();
   const [expandedOracleId, setExpandedOracleId] = useState<string | null>(null);
   const [oracleCache, setOracleCache] = useState<Record<string, string>>({});
+  const [oracleFace, setOracleFace] = useState<Record<string, "text" | "image">>({});
+  const oracleSwipeRef = useRef<{ id: string; x: number } | null>(null);
   const [cardMenuId, setCardMenuId] = useState<string | null>(null);
 
   async function refreshTokens() {
@@ -540,6 +540,28 @@ export function DeckBuilderPage() {
       };
     });
   }, [detail, groupMode, cardSort, cardFilter]);
+
+  const mobileDropZones = useMemo((): MobileDropZone[] => {
+    const zones: MobileDropZone[] = BOARDS.map((b) => ({
+      id: boardDropId(b.id),
+      label: b.label,
+      group: "Boards",
+    }));
+    if (groupMode === "none" && detail) {
+      for (const b of BOARDS) {
+        const layout =
+          listLayouts[b.id] ?? getListColumnLayout(detail.deck.id, b.id);
+        for (const col of layout.columns) {
+          zones.push({
+            id: listColDropId(b.id, col.id),
+            label: col.name,
+            group: `${b.label} columns`,
+          });
+        }
+      }
+    }
+    return zones;
+  }, [groupMode, detail, listLayouts]);
 
   const tokenCards: DeckCard[] = useMemo(() => {
     if (!detail) return [];
@@ -1222,6 +1244,7 @@ export function DeckBuilderPage() {
     if (!source) return;
 
     if (target.kind === "card") {
+      if (isMobile) return;
       const dest = detail.cards.find((c) => c.id === target.cardId);
       if (!dest) return;
 
@@ -1991,6 +2014,8 @@ export function DeckBuilderPage() {
           {(panel === "deck" || panel === "tokens") && viewMode === "image" && (
             <ImageDndProvider
               enabled={isOwner && panel === "deck"}
+              isMobile={isMobile}
+              mobileZones={mobileDropZones}
               onDropCard={handleImageDrop}
               renderOverlay={(cardId) => {
                 const c =
@@ -2496,9 +2521,6 @@ export function DeckBuilderPage() {
                                       <button
                                         type="button"
                                         className={styles.cardName}
-                                        onMouseEnter={(e) => onNameEnter(c, e)}
-                                        onMouseMove={onNameMove}
-                                        onMouseLeave={onNameLeave}
                                         onClick={() => void toggleOracle(c)}
                                         onContextMenu={(e) => onCardContext(e, c)}
                                       >
@@ -2532,8 +2554,45 @@ export function DeckBuilderPage() {
                                       )}
                                     </div>
                                     {expandedOracleId === c.id && (
-                                      <div className={styles.oracleDrop}>
-                                        {oracleCache[c.id] ?? "Loading…"}
+                                      <div
+                                        className={styles.oracleDrop}
+                                        onTouchStart={(e) => {
+                                          oracleSwipeRef.current = {
+                                            id: c.id,
+                                            x: e.touches[0].clientX,
+                                          };
+                                        }}
+                                        onTouchEnd={(e) => {
+                                          const start = oracleSwipeRef.current;
+                                          oracleSwipeRef.current = null;
+                                          if (!start || start.id !== c.id) return;
+                                          const dx = e.changedTouches[0].clientX - start.x;
+                                          if (Math.abs(dx) < 40) return;
+                                          setOracleFace((prev) => ({
+                                            ...prev,
+                                            [c.id]: (prev[c.id] ?? "text") === "text" ? "image" : "text",
+                                          }));
+                                        }}
+                                      >
+                                        {(oracleFace[c.id] ?? "text") === "image" ? (
+                                          stackImageSrc(c) ? (
+                                            <img
+                                              src={stackImageSrc(c)}
+                                              alt={c.name}
+                                              className={styles.oracleImage}
+                                              draggable={false}
+                                            />
+                                          ) : (
+                                            <span className={styles.oracleHint}>No image available</span>
+                                          )
+                                        ) : (
+                                          oracleCache[c.id] ?? "Loading…"
+                                        )}
+                                        <span className={styles.oracleHint}>
+                                          {(oracleFace[c.id] ?? "text") === "image"
+                                            ? "Swipe to see text"
+                                            : "Swipe to see art"}
+                                        </span>
                                       </div>
                                     )}
                                     {isMobile && isOwner && cardMenuId === c.id && (

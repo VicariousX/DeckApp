@@ -2,6 +2,7 @@ import {
   DndContext,
   MeasuringStrategy,
   PointerSensor,
+  TouchSensor,
   pointerWithin,
   closestCenter,
   useSensor,
@@ -96,12 +97,14 @@ const deckCollision: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
   if (pointerHits.length > 0) {
     const id = (h: { id: string | number }) => String(h.id);
-    const cards = pointerHits.filter((h) => id(h).startsWith("card:"));
-    if (cards.length > 0) return cards;
     const listCols = pointerHits.filter(
       (h) => id(h).startsWith("listcol:") && !id(h).startsWith("listcol-new:")
     );
     if (listCols.length > 0) return listCols;
+    const boards = pointerHits.filter((h) => id(h).startsWith("board:"));
+    if (boards.length > 0) return boards;
+    const cards = pointerHits.filter((h) => id(h).startsWith("card:"));
+    if (cards.length > 0) return cards;
     const listNew = pointerHits.filter((h) => id(h).startsWith("listcol-new:"));
     if (listNew.length > 0) return listNew;
     const groups = pointerHits.filter((h) => id(h).startsWith("group:"));
@@ -111,8 +114,16 @@ const deckCollision: CollisionDetection = (args) => {
   return closestCenter(args);
 };
 
+export type MobileDropZone = {
+  id: string;
+  label: string;
+  group: string;
+};
+
 type ImageDndProviderProps = {
   enabled: boolean;
+  isMobile?: boolean;
+  mobileZones?: MobileDropZone[];
   onDragCardStart?: (cardId: string) => void;
   onDragCardEnd?: () => void;
   onDropCard: (sourceCardId: string, target: DropTarget) => void;
@@ -128,6 +139,8 @@ export function useImageDndOverId() {
 
 export function ImageDndProvider({
   enabled,
+  isMobile = false,
+  mobileZones = [],
   onDragCardStart,
   onDragCardEnd,
   onDropCard,
@@ -139,10 +152,16 @@ export function ImageDndProvider({
   // Viewport-fixed overlay position (client coordinates) — immune to page scroll
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const [grabOffset, setGrabOffset] = useState({ x: 0, y: 0 });
+  const [zoneAnchor, setZoneAnchor] = useState<"top" | "bottom">("bottom");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: isMobile
+        ? { delay: 380, tolerance: 12 }
+        : { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 380, tolerance: 12 },
     })
   );
 
@@ -188,6 +207,9 @@ export function ImageDndProvider({
     }
 
     setActiveId(id.slice(5));
+    if (coords) {
+      setZoneAnchor(coords.y < window.innerHeight / 2 ? "bottom" : "top");
+    }
     onDragCardStart?.(id.slice(5));
   }
 
@@ -255,6 +277,35 @@ export function ImageDndProvider({
     >
       <ImageDndOverContext.Provider value={overId}>
         {children}
+        {isMobile && activeId && mobileZones.length > 0 &&
+          createPortal(
+            <div
+              className={`${styles.mobileDropBar} ${
+                zoneAnchor === "top" ? styles.mobileDropBarTop : styles.mobileDropBarBottom
+              }`}
+            >
+              {Array.from(new Set(mobileZones.map((z) => z.group))).map((group) => (
+                <div key={group} className={styles.mobileDropGroup}>
+                  <div className={styles.mobileDropGroupLabel}>{group}</div>
+                  <div className={styles.mobileDropRow}>
+                    {mobileZones
+                      .filter((z) => z.group === group)
+                      .map((z) => (
+                        <DroppableRegion
+                          key={z.id}
+                          id={z.id}
+                          className={styles.mobileDropZone}
+                          activeClassName={styles.mobileDropZoneActive}
+                        >
+                          {z.label}
+                        </DroppableRegion>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>,
+            document.body
+          )}
       </ImageDndOverContext.Provider>
       {overlay}
     </DndContext>

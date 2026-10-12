@@ -1853,9 +1853,9 @@
     padding: 0.15rem 0.1rem;
   }
   .stackCards {
-    --stack-width: min(148px, 40vw);
-    --stack-card-h: 207px;
-    --stack-peek: 32px;
+    --stack-width: min(240px, 68vw);
+    --stack-card-h: min(336px, 95vw);
+    --stack-peek: 42px;
     min-height: 0;
     padding-bottom: 0.75rem;
   }
@@ -1873,8 +1873,8 @@
   }
 
   .imageGrid {
-    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-    gap: 0.4rem;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
   }
 }
 
@@ -1912,4 +1912,90 @@
   .boardZones > [data-board="main"] { order: 2; }
   .boardZones > [data-board="side"] { order: 3; }
   .boardZones > [data-board="maybe"] { order: 4; }
+}
+
+.oracleImage {
+  display: block;
+  width: min(100%, 280px);
+  height: auto;
+  border-radius: 10px;
+  margin: 0 auto;
+}
+
+.oracleHint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.mobileDropBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--color-surface) 94%, #000);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.mobileDropBarTop {
+  top: 0;
+  border-top: none;
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+}
+
+.mobileDropBarBottom {
+  bottom: 0;
+}
+
+.mobileDropGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mobileDropGroupLabel {
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0.15rem;
+}
+
+.mobileDropRow {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.mobileDropZone {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.mobileDropZoneActive {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  color: var(--color-accent);
 }
