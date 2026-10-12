@@ -515,9 +515,10 @@
   text-align: left;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: visible;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .cardName:hover {
@@ -1696,6 +1697,86 @@
   border-radius: 8px;
 }
 
+.oracleDrop {
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.moreBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.moreBtn:hover,
+.moreBtn[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+}
+
+.moreMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-top: 0.3rem;
+  padding: 0.3rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.moreMenuLabel {
+  padding: 0.3rem 0.45rem 0.1rem;
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.moreMenuItem {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.moreMenuItem:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.moreMenuItemOn {
+  color: var(--color-accent);
+}
+
+.moreMenuDanger {
+  color: #f87171;
+}
+
 /* Mobile: compact cards + vertical board arrangement */
 @media (max-width: 768px) {
   .qtyBtn,
@@ -1795,4 +1876,40 @@
     grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
     gap: 0.4rem;
   }
+}
+
+/* Narrow / mobile: command zone above main board */
+@media (max-width: 900px) {
+  .imageBoardLayout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "commander"
+      "main"
+      "side"
+      "maybe";
+    gap: 0.85rem;
+  }
+  .commanderSlot {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .commanderSlotCards {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.4rem;
+  }
+  .commanderCard {
+    width: min(140px, 42vw);
+    max-width: 140px;
+  }
+  .boardZones {
+    display: flex;
+    flex-direction: column;
+  }
+  .boardZones > [data-board="commander"] { order: 1; }
+  .boardZones > [data-board="main"] { order: 2; }
+  .boardZones > [data-board="side"] { order: 3; }
+  .boardZones > [data-board="maybe"] { order: 4; }
 }

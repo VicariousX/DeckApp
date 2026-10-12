@@ -15,7 +15,7 @@ import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
 import { fetchAutocomplete, fetchCardById, fetchCollectionByIds, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
 import { parseExternalCardDrop } from "../lib/cardDrag";
-import { getFaceImage, isMultiCard } from "../utils/scryfall";
+import { getFaceImage, getOracleText, isMultiCard } from "../utils/scryfall";
 import { primaryTypeGroup, sortTypeGroups } from "../lib/cards/cardTypes";
 import {
   getTabViewPrefs,
@@ -32,6 +32,7 @@ import {
 } from "../lib/deckPreferences";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { CardHoverPreview } from "../components/CardHoverPreview";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardEnlargeOverlay } from "../components/CardImage";
@@ -247,6 +248,10 @@ export function DeckBuilderPage() {
   }, [id]);
 
   const [tokenBusy, setTokenBusy] = useState(false);
+  const isMobile = useIsMobile();
+  const [expandedOracleId, setExpandedOracleId] = useState<string | null>(null);
+  const [oracleCache, setOracleCache] = useState<Record<string, string>>({});
+  const [cardMenuId, setCardMenuId] = useState<string | null>(null);
 
   async function refreshTokens() {
     if (!detail) return;
@@ -1343,6 +1348,21 @@ export function DeckBuilderPage() {
       }
       return;
     }
+  }
+
+  async function toggleOracle(card: DeckCard) {
+    if (expandedOracleId === card.id) {
+      setExpandedOracleId(null);
+      return;
+    }
+    setExpandedOracleId(card.id);
+    if (oracleCache[card.id] != null) return;
+    const { card: sc } = await fetchCardById(card.scryfall_id);
+    const text = sc ? getOracleText(sc).trim() : "";
+    setOracleCache((prev) => ({
+      ...prev,
+      [card.id]: text || "No oracle text.",
+    }));
   }
 
   function openCardModal(card: DeckCard, jump: ModalJump = "info") {
@@ -2442,6 +2462,7 @@ export function DeckBuilderPage() {
                 <section
                   key={board.id}
                   className={styles.boardZone}
+                  data-board={board.id}
                 >
                   <header className={styles.boardZoneHeader}>
                     <h2 className={styles.boardZoneTitle}>{board.label}</h2>
@@ -2464,24 +2485,40 @@ export function DeckBuilderPage() {
                                 <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
                                   <div className={styles.cardMain}>
                                     <div className={styles.cardPrimary}>
-                                      <QtyControl
-                                        quantity={c.quantity}
-                                        disabled={!isOwner}
-                                        onDelta={(d) => void onQty(c, d)}
-                                        onCommit={(raw) => void onQtyCommit(c, raw)}
-                                      />
+                                      {!isMobile && (
+                                        <QtyControl
+                                          quantity={c.quantity}
+                                          disabled={!isOwner}
+                                          onDelta={(d) => void onQty(c, d)}
+                                          onCommit={(raw) => void onQtyCommit(c, raw)}
+                                        />
+                                      )}
                                       <button
                                         type="button"
                                         className={styles.cardName}
                                         onMouseEnter={(e) => onNameEnter(c, e)}
                                         onMouseMove={onNameMove}
                                         onMouseLeave={onNameLeave}
-                                        onClick={() => openCardModal(c)}
+                                        onClick={() => void toggleOracle(c)}
                                         onContextMenu={(e) => onCardContext(e, c)}
                                       >
                                         {c.name}
                                       </button>
                                       <ManaCost cost={c.mana_cost} size={14} />
+                                      {isMobile && isOwner && (
+                                        <button
+                                          type="button"
+                                          className={styles.moreBtn}
+                                          aria-label={`Options for ${c.name}`}
+                                          aria-expanded={cardMenuId === c.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCardMenuId((id) => (id === c.id ? null : c.id));
+                                          }}
+                                        >
+                                          ⋮
+                                        </button>
+                                      )}
                                     </div>
                                     <div className={styles.cardSecondary}>
                                       <span className={styles.cardType}>{c.type_line}</span>
@@ -2494,8 +2531,50 @@ export function DeckBuilderPage() {
                                         </span>
                                       )}
                                     </div>
+                                    {expandedOracleId === c.id && (
+                                      <div className={styles.oracleDrop}>
+                                        {oracleCache[c.id] ?? "Loading…"}
+                                      </div>
+                                    )}
+                                    {isMobile && isOwner && cardMenuId === c.id && (
+                                      <div className={styles.moreMenu} role="menu">
+                                        <button type="button" className={styles.moreMenuItem} onClick={() => { void onQty(c, 1); setCardMenuId(null); }}>+1 quantity</button>
+                                        <button type="button" className={styles.moreMenuItem} onClick={() => { void onQty(c, -1); setCardMenuId(null); }}>−1 quantity</button>
+                                        <button type="button" className={styles.moreMenuItem} onClick={() => { openCardModal(c); setCardMenuId(null); }}>Open card</button>
+                                        <div className={styles.moreMenuLabel}>Move to</div>
+                                        {BOARDS.map((b) => (
+                                          <button
+                                            key={b.id}
+                                            type="button"
+                                            className={c.board === b.id ? `${styles.moreMenuItem} ${styles.moreMenuItemOn}` : styles.moreMenuItem}
+                                            onClick={() => { void moveCardToBoard(c, b.id); setCardMenuId(null); }}
+                                          >
+                                            {b.label}
+                                          </button>
+                                        ))}
+                                        {detail.tags.length > 0 && (
+                                          <>
+                                            <div className={styles.moreMenuLabel}>Tags</div>
+                                            {detail.tags.map((t) => {
+                                              const on = (c.tag_ids ?? []).includes(t.id);
+                                              return (
+                                                <button
+                                                  key={t.id}
+                                                  type="button"
+                                                  className={on ? `${styles.moreMenuItem} ${styles.moreMenuItemOn}` : styles.moreMenuItem}
+                                                  onClick={() => void toggleTag(c, t)}
+                                                >
+                                                  {on ? "✓ " : ""}{t.name}
+                                                </button>
+                                              );
+                                            })}
+                                          </>
+                                        )}
+                                        <button type="button" className={`${styles.moreMenuItem} ${styles.moreMenuDanger}`} onClick={() => { void onRemove(c); setCardMenuId(null); }}>Remove</button>
+                                      </div>
+                                    )}
                                   </div>
-                                  {isOwner && (
+                                  {!isMobile && isOwner && (
                                     <div className={styles.cardActions}>
                                       {(c.tag_ids ?? []).length > 0 && (
                                         <div className={styles.cardTagRow}>
