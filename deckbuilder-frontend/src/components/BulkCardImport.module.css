@@ -1,8 +1,18 @@
-.wrap {
-  position: relative;
-  display: inline-flex;
+.sheetContent {
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.sheetContent .textarea {
+  min-height: 160px;
+  flex: 0 0 auto;
+}
+
+.sheetContent .actions {
+  margin-top: 0.75rem;
+  padding-bottom: 0.25rem;
 }
 
 .trigger {
@@ -267,4 +277,3 @@
   color: var(--color-text);
   cursor: pointer;
 }
-
