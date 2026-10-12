@@ -128,7 +128,7 @@ export function checkDeck(
 
   const copies = new Map<string, { name: string; qty: number; oracleId: string }>();
   for (const card of cards) {
-    if (card.board === "maybe") continue;
+    if (card.board === "maybe" || card.board === "side") continue;
     const key = card.oracle_id.toLowerCase();
     const row = copies.get(key) || { name: card.name, qty: 0, oracleId: key };
     row.qty += card.quantity;
@@ -203,7 +203,7 @@ export function checkDeck(
   }
 
   const deckPrice = cards
-    .filter((c) => c.board !== "maybe")
+    .filter((c) => c.board !== "maybe" && c.board !== "side")
     .reduce((sum, c) => sum + (byOracle[c.oracle_id.toLowerCase()]?.usd ?? 0) * c.quantity, 0);
   for (const extra of rule.rules ?? []) {
     if (extra.kind === "maxDeckPrice" && deckPrice > extra.value) {

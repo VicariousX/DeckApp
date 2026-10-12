@@ -221,6 +221,7 @@ export function DeckBuilderPage() {
   const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [copyAsk, setCopyAsk] = useState<null | "clone" | "branch">(null);
   const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
@@ -514,9 +515,13 @@ export function DeckBuilderPage() {
     void loadDeck({ silent: true });
   }
 
-  const totalCards = useMemo(
-    () => (detail?.cards ?? []).reduce((n, c) => n + c.quantity, 0),
+  const deckCards = useMemo(
+    () => (detail?.cards ?? []).filter((c) => c.board === "main" || c.board === "commander"),
     [detail]
+  );
+  const totalCards = useMemo(
+    () => deckCards.reduce((n, c) => n + c.quantity, 0),
+    [deckCards]
   );
 
   /** All boards with their cards + type/tag groups — shown together on Deck panel */
@@ -1415,6 +1420,21 @@ export function DeckBuilderPage() {
 
   useEffect(() => {
     if (!imageActionId) return;
+    function onAway(e: PointerEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (t.closest("[data-action-anchor]") || t.closest("[data-image-more]")) return;
+      setImageActionId(null);
+      document
+        .querySelectorAll("[data-action-anchor]")
+        .forEach((n) => n.removeAttribute("data-action-anchor"));
+    }
+    document.addEventListener("pointerdown", onAway);
+    return () => document.removeEventListener("pointerdown", onAway);
+  }, [imageActionId]);
+
+  useEffect(() => {
+    if (!imageActionId) return;
     function sync() {
       const el = document.querySelector(
         `[data-action-anchor="${imageActionId}"]`
@@ -1672,7 +1692,7 @@ export function DeckBuilderPage() {
                 )}
                 <span>
                   {totalCards} card{totalCards === 1 ? "" : "s"} ·{" "}
-                  {detail.cards.length} unique
+                  {deckCards.length} unique
                 </span>
                 <span className={styles.boardMeta}>
                   {BOARDS.map((b) => (
@@ -1696,20 +1716,65 @@ export function DeckBuilderPage() {
               )}
             </div>
             <div className={styles.headerActions}>
-              {user && (
+              {isMobile ? (
+                <div className={styles.headerMenuWrap}>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    aria-expanded={headerMenuOpen}
+                    onClick={() => setHeaderMenuOpen((v) => !v)}
+                  >
+                    ⋮
+                  </button>
+                  {headerMenuOpen && (
+                    <div className={styles.headerMenu}>
+                      {user && (
+                        <>
+                          <button type="button" onClick={() => { setCopyAsk("clone"); setHeaderMenuOpen(false); }}>Clone</button>
+                          <button type="button" onClick={() => { setCopyAsk("branch"); setHeaderMenuOpen(false); }}>Branch</button>
+                          <Link to={`/deck/${id}/branches`} onClick={() => setHeaderMenuOpen(false)}>Branches</Link>
+                        </>
+                      )}
+                      {isOwner && (
+                        <button type="button" onClick={() => { setHistoryOpen((v) => !v); setHeaderMenuOpen(false); }}>History</button>
+                      )}
+                      {parentId && <Link to={`/deck/${parentId}`} onClick={() => setHeaderMenuOpen(false)}>Parent</Link>}
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!id) return;
+                            const next = !detail.deck.is_public;
+                            void updateDeck(id, { is_public: next }).then(({ deck, error: err }) => {
+                              if (err || !deck) {
+                                setError(err ?? "Could not update visibility");
+                                return;
+                              }
+                              setDetail((prev) => (prev ? { ...prev, deck } : prev));
+                            });
+                            setHeaderMenuOpen(false);
+                          }}
+                        >
+                          {detail.deck.is_public ? "Public" : "Make public"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : user && (
                 <>
                   <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("clone")}>Clone</button>
                   <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("branch")}>Branch</button>
                   <Link to={`/deck/${id}/branches`} className={styles.backLink}>Branches</Link>
                 </>
               )}
-              {isOwner && (
+              {!isMobile && isOwner && (
                 <button type="button" className={styles.secondaryBtn} onClick={() => setHistoryOpen((v) => !v)}>
                   History
                 </button>
               )}
-              {parentId && <Link to={`/deck/${parentId}`} className={styles.backLink}>Parent</Link>}
-              {isOwner ? (
+              {!isMobile && parentId && <Link to={`/deck/${parentId}`} className={styles.backLink}>Parent</Link>}
+              {!isMobile && isOwner ? (
                 <button
                   type="button"
                   className={styles.secondaryBtn}
@@ -1727,7 +1792,7 @@ export function DeckBuilderPage() {
                 >
                   {detail.deck.is_public ? "Public" : "Make public"}
                 </button>
-              ) : detail.deck.is_public ? (
+              ) : !isMobile && detail.deck.is_public ? (
                 <span className={styles.format}>Public</span>
               ) : null}
             </div>
@@ -2786,6 +2851,7 @@ export function DeckBuilderPage() {
           <button
             type="button"
             className={styles.imageMoreBtn}
+            data-image-more=""
             style={{ left: imageActionPos.x, top: imageActionPos.y }}
             aria-label={`Options for ${card.name}`}
             onClick={() => {
