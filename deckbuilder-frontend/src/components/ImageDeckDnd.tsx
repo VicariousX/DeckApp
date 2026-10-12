@@ -132,6 +132,7 @@ type ImageDndProviderProps = {
 };
 
 const ImageDndOverContext = createContext<string | null>(null);
+const ImageDndMobileContext = createContext(false);
 
 export function useImageDndOverId() {
   return useContext(ImageDndOverContext);
@@ -164,6 +165,21 @@ export function ImageDndProvider({
       activationConstraint: { delay: 380, tolerance: 12 },
     })
   );
+
+  // While dragging on mobile: don't scroll the page
+  useEffect(() => {
+    if (!activeId || !isMobile) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function block(e: TouchEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("touchmove", block, { passive: false });
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("touchmove", block);
+    };
+  }, [activeId, isMobile]);
 
   // Track pointer in viewport coords for the entire drag
   useEffect(() => {
@@ -247,7 +263,7 @@ export function ImageDndProvider({
     activeId && renderOverlay && pointer
       ? createPortal(
           <div
-            className={styles.dndOverlay}
+            className={`${styles.dndOverlay}${isMobile ? ` ${styles.dndOverlayOrb}` : ""}`}
             style={{
               position: "fixed",
               left: isMobile ? pointer.x - 36 : pointer.x - grabOffset.x,
@@ -276,6 +292,7 @@ export function ImageDndProvider({
       onDragCancel={handleDragCancel}
     >
       <ImageDndOverContext.Provider value={overId}>
+      <ImageDndMobileContext.Provider value={isMobile}>
         {children}
         {isMobile && activeId && mobileZones.length > 0 &&
           createPortal(
@@ -306,6 +323,7 @@ export function ImageDndProvider({
             </div>,
             document.body
           )}
+      </ImageDndMobileContext.Provider>
       </ImageDndOverContext.Provider>
       {overlay}
     </DndContext>
@@ -341,10 +359,11 @@ export function DraggableStackCard({
     disabled: Boolean(disabled),
   });
 
+  const mobileDrag = useContext(ImageDndMobileContext);
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: cardDragId(card.id),
     data: { type: "card", cardId: card.id, board: card.board },
-    disabled: Boolean(disabled),
+    disabled: Boolean(disabled) || mobileDrag,
   });
 
   function setRefs(node: HTMLElement | null) {
@@ -367,7 +386,7 @@ export function DraggableStackCard({
     opacity: isDragging ? 0.25 : undefined,
     cursor: disabled ? undefined : isDragging ? "grabbing" : "grab",
     zIndex: isDragging ? 1 : style?.zIndex,
-    touchAction: "none",
+    touchAction: mobileDrag ? "pan-y" : "none",
     transform: revealShift
       ? "translateY(var(--stack-reveal))"
       : style?.transform,

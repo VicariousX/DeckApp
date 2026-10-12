@@ -45,7 +45,7 @@ export type CardContextTarget = {
   imageUrlBack?: string;
 };
 
-type Flyout = "decks" | "share" | null;
+type Flyout = "decks" | "share" | "move" | null;
 
 type Props = {
   x: number;
@@ -62,6 +62,7 @@ type Props = {
   tabs?: ModalJump[];
   hideAddToDeck?: boolean;
   linkChoices?: { id: string; name: string; on: boolean; onToggle: () => void }[];
+  moveTargets?: { label: string; onSelect: () => void }[];
 };
 
 const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
@@ -89,6 +90,7 @@ export function CardContextMenu({
   tabs,
   hideAddToDeck,
   linkChoices,
+  moveTargets,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -295,6 +297,34 @@ export function CardContextMenu({
             </button>
           ))}
         </div>
+      )}
+
+      {moveTargets && moveTargets.length > 0 && (
+        <>
+          <button
+            type="button"
+            className={fly === "move" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "move" ? null : "move"))}
+          >
+            Move to ▸
+          </button>
+          {fly === "move" && (
+            <div className={styles.fly}>
+              {moveTargets.map((t) => (
+                <button
+                  key={t.label}
+                  type="button"
+                  onClick={() => {
+                    t.onSelect();
+                    onClose();
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <div className={styles.fly}>

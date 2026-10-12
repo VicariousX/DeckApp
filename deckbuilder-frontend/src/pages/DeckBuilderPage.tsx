@@ -281,11 +281,8 @@ export function DeckBuilderPage() {
     y: number;
     card: DeckCard;
   } | null>(null);
-  const [imageAction, setImageAction] = useState<{
-    card: DeckCard;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [imageActionId, setImageActionId] = useState<string | null>(null);
+  const [imageActionPos, setImageActionPos] = useState({ x: 0, y: 0 });
   const [enhanceCard, setEnhanceCard] = useState<DeckCard | null>(null);
   /** stack face flip: card id → front|back */
   const [faceView, setFaceView] = useState<Record<string, "front" | "back">>({});
@@ -1404,9 +1401,52 @@ export function DeckBuilderPage() {
   }
 
   function onImageCardTap(card: DeckCard, el: HTMLElement) {
+    document
+      .querySelectorAll("[data-action-anchor]")
+      .forEach((n) => n.removeAttribute("data-action-anchor"));
+    el.setAttribute("data-action-anchor", card.id);
     const r = el.getBoundingClientRect();
-    setImageAction({ card, x: Math.min(r.right - 8, window.innerWidth - 48), y: r.top + 8 });
+    setImageActionPos({
+      x: Math.min(r.right - 8, window.innerWidth - 48),
+      y: r.top + 8,
+    });
+    setImageActionId(card.id);
   }
+
+  useEffect(() => {
+    if (!imageActionId) return;
+    function sync() {
+      const el = document.querySelector(
+        `[data-action-anchor="${imageActionId}"]`
+      ) as HTMLElement | null;
+      if (!el || !el.isConnected) {
+        setImageActionId(null);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const off =
+        r.bottom < 8 ||
+        r.top > window.innerHeight - 8 ||
+        r.right < 8 ||
+        r.left > window.innerWidth - 8;
+      if (off) {
+        setImageActionId(null);
+        el.removeAttribute("data-action-anchor");
+        return;
+      }
+      setImageActionPos({
+        x: Math.min(r.right - 8, window.innerWidth - 48),
+        y: Math.max(8, r.top + 8),
+      });
+    }
+    sync();
+    window.addEventListener("scroll", sync, true);
+    window.addEventListener("resize", sync);
+    return () => {
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
+    };
+  }, [imageActionId]);
 
   const modalNavList = panel === "tokens" ? tokenCards : detail?.cards ?? [];
   const modalIndex = modalCard
@@ -2737,19 +2777,25 @@ export function DeckBuilderPage() {
         </>
       )}
 
-      {imageAction && isMobile && viewMode === "image" && (
-        <button
-          type="button"
-          className={styles.imageMoreBtn}
-          style={{ left: imageAction.x, top: imageAction.y }}
-          aria-label={`Options for ${imageAction.card.name}`}
-          onClick={() => {
-            setCtxMenu({ x: imageAction.x, y: imageAction.y + 40, card: imageAction.card });
-          }}
-        >
-          ⋮
-        </button>
-      )}
+      {imageActionId && isMobile && viewMode === "image" && (() => {
+        const card =
+          detail?.cards.find((c) => c.id === imageActionId) ??
+          tokenCards.find((c) => c.id === imageActionId);
+        if (!card) return null;
+        return (
+          <button
+            type="button"
+            className={styles.imageMoreBtn}
+            style={{ left: imageActionPos.x, top: imageActionPos.y }}
+            aria-label={`Options for ${card.name}`}
+            onClick={() => {
+              setCtxMenu({ x: imageActionPos.x, y: imageActionPos.y + 40, card });
+            }}
+          >
+            ⋮
+          </button>
+        );
+      })()}
       {ctxMenu && (
         <CardContextMenu
           x={ctxMenu.x}
@@ -2769,6 +2815,34 @@ export function DeckBuilderPage() {
             ).quantity
           }
           onClose={() => setCtxMenu(null)}
+          moveTargets={
+            isOwner
+              ? [
+                  ...BOARDS.map((b) => ({
+                    label: b.label,
+                    onSelect: () => void moveCardToBoard(ctxMenu.card, b.id),
+                  })),
+                  ...(groupMode === "none" && detail
+                    ? BOARDS.flatMap((b) => {
+                        const layout =
+                          listLayouts[b.id] ??
+                          getListColumnLayout(detail.deck.id, b.id);
+                        return layout.columns.map((col) => ({
+                          label: `${b.label}: ${col.name}`,
+                          onSelect: () => {
+                            void (async () => {
+                              if (ctxMenu.card.board !== b.id) {
+                                await moveCardToBoard(ctxMenu.card, b.id);
+                              }
+                              placeCardInListColumn(b.id, ctxMenu.card.id, col.id);
+                            })();
+                          },
+                        }));
+                      })
+                    : []),
+                ]
+              : undefined
+          }
           onEnhance={() => setEnhanceCard(ctxMenu.card)}
           onOpenModal={(jump) => openCardModal(ctxMenu.card, jump)}
           onQty={
