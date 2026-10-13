@@ -428,7 +428,12 @@
   font-size: 0.78rem;
   font-weight: 800;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  animation: badgeFade 1.6s ease forwards;
+}
+.qtyBadgeStay {
+  animation: none;
+}
+.qtyBadgeFlash {
+  animation: badgePop 0.7s ease forwards;
 }
 .addEmblem {
   position: absolute;
@@ -444,7 +449,7 @@
   font-weight: 800;
   letter-spacing: 0.01em;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-  animation: emblemFade 1.5s ease forwards;
+  animation: emblemFade 0.7s ease forwards;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -454,10 +459,15 @@
   70% { opacity: 1; }
   100% { opacity: 0; }
 }
+@keyframes badgePop {
+  0% { transform: scale(0.7); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
 @keyframes emblemFade {
-  0% { opacity: 0; transform: translate(-50%, -40%) scale(0.92); }
-  12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  65% { opacity: 1; }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.86); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  55% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -58%) scale(0.98); }
 }
 

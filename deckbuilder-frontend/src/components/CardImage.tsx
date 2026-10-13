@@ -145,6 +145,7 @@ export function CardEnlargeOverlay({
   onActivate,
   onSwipeRight,
   onSwipeLeft,
+  onLongPress,
   onSwipeUp,
   onSwipeDown,
   enterFrom,
@@ -153,6 +154,7 @@ export function CardEnlargeOverlay({
   prevSrc,
   keepOpenOnRight,
   rightLabel = "Open",
+  leftLabel = "Dismiss",
   onToggleRight,
   toast,
   addedQty,
@@ -179,6 +181,8 @@ export function CardEnlargeOverlay({
   prevSrc?: string;
   keepOpenOnRight?: boolean;
   rightLabel?: string;
+  leftLabel?: string;
+  onLongPress?: () => void;
   onToggleRight?: () => void;
   toast?: string | null;
   addedQty?: number | null;
@@ -192,6 +196,7 @@ export function CardEnlargeOverlay({
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const longPress = useRef(0);
   const [offset, setOffset] = useState(0);
   const [vOffset, setVOffset] = useState(0);
   const [axis, setAxis] = useState<"x" | "y" | null>(null);
@@ -290,6 +295,10 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
+          if (Math.hypot(dx, dy) > 10 && longPress.current) {
+            window.clearTimeout(longPress.current);
+            longPress.current = 0;
+          }
           if (!axis && Math.hypot(dx, dy) < 8) return;
           const next = axis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
           if (!axis) setAxis(next);
@@ -302,6 +311,10 @@ export function CardEnlargeOverlay({
           }
         } : undefined}
         onPointerUp={swipe ? (e) => {
+          if (longPress.current) {
+            window.clearTimeout(longPress.current);
+            longPress.current = 0;
+          }
           const start = drag.current;
           drag.current = null;
           setDragging(false);
@@ -406,7 +419,9 @@ export function CardEnlargeOverlay({
               }}
             >
               <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
-              {addedQty != null && <span className={styles.qtyBadge}>×{addedQty}</span>}
+              {addedQty != null && addedQty > 0 && (
+                <span key={addedQty} className={`${styles.qtyBadge} ${styles.qtyBadgeStay} ${styles.qtyBadgeFlash}`}>×{addedQty}</span>
+              )}
               {toast && <span className={styles.addEmblem}>{toast}</span>}
             </div>
             {nextSrc && (
@@ -433,7 +448,7 @@ export function CardEnlargeOverlay({
               className={`${styles.swipeHint} ${styles.swipeHintLeft}`}
               style={{ opacity: Math.min(1, Math.max(0, -offset / 90)) }}
             >
-              Dismiss
+              {leftLabel}
             </span>
             <span
               className={`${styles.swipeHint} ${styles.swipeHintRight}`}

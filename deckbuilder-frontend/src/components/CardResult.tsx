@@ -123,6 +123,7 @@ export function CardResult({
     name: string;
     count: number;
     card: ScryfallCard;
+    kind: "added" | "removed";
   } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
@@ -132,7 +133,7 @@ export function CardResult({
 
   useEffect(() => {
     if (!addedToast) return;
-    const t = window.setTimeout(() => setAddedToast(null), 1600);
+    const t = window.setTimeout(() => setAddedToast(null), 700);
     return () => window.clearTimeout(t);
   }, [addedToast]);
 
@@ -282,7 +283,7 @@ export function CardResult({
             if (!onAddToDeck) return;
             onAddToDeck(preview.display);
             const count = (countInDeck?.(preview.display) ?? 0) + 1;
-            setAddedToast({ name: preview.display.name, count, card: preview.display });
+            setAddedToast({ name: preview.display.name, count, card: preview.display, kind: "added" });
           }}
           keepOpenOnRight
           nextSrc={
@@ -317,8 +318,9 @@ export function CardResult({
             }
           }}
           rightLabel="Add"
-          toast={addedToast ? "Card added" : null}
-          addedQty={addedToast?.count ?? null}
+          leftLabel={(countInDeck?.(preview.display) ?? 0) > 0 ? "−1" : ""}
+          toast={addedToast ? (addedToast.kind === "removed" ? "Card removed" : "Card added") : null}
+          addedQty={countInDeck?.(preview.display) ?? 0}
           onUndo={
             addedToast && onUndoAdd
               ? () => {
@@ -328,6 +330,13 @@ export function CardResult({
               : undefined
           }
           onActivate={() => setSelectedIndex(previewIndex)}
+          onLongPress={() => {
+            setCtx({
+              x: Math.min(window.innerWidth - 220, window.innerWidth / 2),
+              y: Math.min(window.innerHeight - 280, window.innerHeight / 3),
+              index: previewIndex,
+            });
+          }}
           onSwipeLeft={() => {
             const count = countInDeck?.(preview.display) ?? 0;
             if (count <= 0 || !onUndoAdd) return;
@@ -336,6 +345,7 @@ export function CardResult({
               name: preview.display.name,
               count: count - 1,
               card: preview.display,
+              kind: "removed",
             });
           }}
           hint="Swipe right to add · left to remove · up/down next card · tap for details"
