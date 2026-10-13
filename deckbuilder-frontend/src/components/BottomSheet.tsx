@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import styles from "./BottomSheet.module.css";
 import { lockBodyScroll } from "../lib/scrollLock";
+import { pushOverlay } from "../lib/overlayHistory";
 
 type Props = {
   open: boolean;
@@ -27,6 +28,7 @@ export function BottomSheet({
   useEffect(() => {
     if (!open) return;
     const unlock = lockBodyScroll();
+    const release = pushOverlay(onClose);
 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -34,6 +36,7 @@ export function BottomSheet({
     window.addEventListener("keydown", onKey);
 
     return () => {
+      release();
       unlock();
       window.removeEventListener("keydown", onKey);
     };

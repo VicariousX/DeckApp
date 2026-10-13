@@ -19,6 +19,7 @@ import {
 } from "../utils/scryfall";
 
 import { lockBodyScroll } from "../lib/scrollLock";
+import { pushOverlay } from "../lib/overlayHistory";
 import styles from "./CardImage.module.css";
 
 export type CardFaceView = "front" | "back" | "both";
@@ -190,6 +191,7 @@ export function CardEnlargeOverlay({
 
   useEffect(() => {
     const unlock = lockBodyScroll();
+    const release = pushOverlay(onClose);
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -217,6 +219,7 @@ export function CardEnlargeOverlay({
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
+      release();
       unlock();
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("wheel", onWheel, true);

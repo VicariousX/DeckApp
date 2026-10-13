@@ -23,6 +23,7 @@ import { DrawerPicker } from "./DrawerPicker";
 import { UsefulInPicker } from "./UsefulInPicker";
 import { MechanicMarkPicker } from "./MechanicMarkPicker";
 import { Modal } from "./Modal";
+import { pushOverlay } from "../lib/overlayHistory";
 import styles from "./CardInspectorModal.module.css";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
@@ -452,8 +453,13 @@ export function CardInspectorModal({
     infoSub,
   ]);
 
-  // Mouse back (3) / forward (4) — prev/next card while the modal is open
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Mobile back closes the modal. Desktop mouse back/forward moves cards.
   useEffect(() => {
+    const mobile = window.innerWidth <= 768;
+    const release = mobile ? pushOverlay(() => closeRef.current()) : null;
     function onMouseButton(e: MouseEvent) {
       if (e.button !== 3 && e.button !== 4) return;
       e.preventDefault();
@@ -461,20 +467,19 @@ export function CardInspectorModal({
       if (e.button === 3 && hasPrev && onPrev) onPrev();
       if (e.button === 4 && hasNext && onNext) onNext();
     }
-    function onPopState() {
-      // Swallow history navigation triggered by mouse back while modal is open
+    if (!mobile) {
       history.pushState({ deckappModal: 1 }, "");
+      window.addEventListener("mouseup", onMouseButton, true);
+      window.addEventListener("auxclick", onMouseButton, true);
     }
-    history.pushState({ deckappModal: 1 }, "");
-    window.addEventListener("mouseup", onMouseButton, true);
-    window.addEventListener("auxclick", onMouseButton, true);
-    window.addEventListener("popstate", onPopState);
     return () => {
-      window.removeEventListener("mouseup", onMouseButton, true);
-      window.removeEventListener("auxclick", onMouseButton, true);
-      window.removeEventListener("popstate", onPopState);
-      if (history.state && (history.state as { deckappModal?: number }).deckappModal) {
-        history.back();
+      release?.();
+      if (!mobile) {
+        window.removeEventListener("mouseup", onMouseButton, true);
+        window.removeEventListener("auxclick", onMouseButton, true);
+        if (history.state && (history.state as { deckappModal?: number }).deckappModal) {
+          history.back();
+        }
       }
     };
   }, [hasPrev, hasNext, onPrev, onNext]);
