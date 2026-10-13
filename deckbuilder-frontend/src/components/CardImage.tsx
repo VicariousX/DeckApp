@@ -187,6 +187,8 @@ export function CardEnlargeOverlay({
   const [vOffset, setVOffset] = useState(0);
   const [axis, setAxis] = useState<"x" | "y" | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const stackRef = useRef<HTMLDivElement>(null);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
   const swipe = mode === "swipe";
@@ -290,15 +292,27 @@ export function CardEnlargeOverlay({
             setOffset(-window.innerWidth);
             window.setTimeout(onClose, 160);
           } else if (!horizontal && dy < -90 && nextSrc) {
-            onSwipeUp?.();
-            setAxis(null);
-            setOffset(0);
-            setVOffset(0);
+            const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
+            setVOffset(-gap);
+            window.setTimeout(() => {
+              setSettling(true);
+              onSwipeUp?.();
+              setAxis(null);
+              setOffset(0);
+              setVOffset(0);
+              requestAnimationFrame(() => setSettling(false));
+            }, 230);
           } else if (!horizontal && dy > 90 && prevSrc) {
-            onSwipeDown?.();
-            setAxis(null);
-            setOffset(0);
-            setVOffset(0);
+            const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
+            setVOffset(gap);
+            window.setTimeout(() => {
+              setSettling(true);
+              onSwipeDown?.();
+              setAxis(null);
+              setOffset(0);
+              setVOffset(0);
+              requestAnimationFrame(() => setSettling(false));
+            }, 230);
           } else {
             setAxis(null);
             setOffset(0);
@@ -314,14 +328,14 @@ export function CardEnlargeOverlay({
         } : undefined}
       >
         {swipe ? (
-          <div className={styles.swipeStack}>
+          <div className={styles.swipeStack} ref={stackRef}>
             {axis === "y" && vOffset > 0 && prevSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
-                  transform: `translateY(calc(-145% + ${vOffset}px))`,
+                  transform: `translateY(calc(-100% - 18px + ${vOffset}px))`,
                   opacity: Math.min(1, Math.max(0, vOffset / 140)),
-                  transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+                  transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
                 }}
               >
                 <img src={prevSrc} alt="" className={styles.enlargeImage} draggable={false} />
@@ -332,7 +346,7 @@ export function CardEnlargeOverlay({
               style={{
                 transform: `perspective(900px) translate(${offset}px, ${vOffset}px) rotateY(${offset / 16}deg)`,
                 opacity: Math.max(0.35, 1 - Math.abs(offset) / 520),
-                transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+                transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
               }}
             >
               <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
@@ -343,9 +357,9 @@ export function CardEnlargeOverlay({
               <div
                 className={styles.swipeCard}
                 style={{
-                  transform: `translateY(calc(145% + ${vOffset}px))`,
+                  transform: `translateY(calc(100% + 18px + ${vOffset}px))`,
                   opacity: Math.min(1, Math.max(0, -vOffset / 140)),
-                  transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+                  transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
                 }}
               >
                 <img src={nextSrc} alt="" className={styles.enlargeImage} draggable={false} />

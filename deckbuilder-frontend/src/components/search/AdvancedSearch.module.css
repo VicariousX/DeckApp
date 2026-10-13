@@ -11,10 +11,11 @@
 }
 
 .wrapCompact .liveBar {
-  position: static;
-  top: auto;
-  padding: 0.25rem 0;
-  background: transparent;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding: 0.35rem 0 0.5rem;
+  background: var(--color-surface);
   backdrop-filter: none;
 }
 
@@ -634,12 +635,18 @@
 
 @media (max-width: 720px) {
   .liveBar {
-    grid-template-columns: 1fr auto auto;
-    top: 4.2rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "input input"
+      "check search"
+      "clear clear";
+    top: 0;
   }
-  .liveLabel {
-    display: none;
-  }
+  .liveLabel { display: none; }
+  .liveInput { grid-area: input; }
+  .iconBtn { grid-area: check; }
+  .liveBar .primary { grid-area: search; }
+  .liveBar .ghost { grid-area: clear; }
 }
 
 .liveBarPinned {

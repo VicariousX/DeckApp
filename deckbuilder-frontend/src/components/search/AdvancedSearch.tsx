@@ -546,9 +546,7 @@ export function AdvancedSearch({
 
   return (
     <div className={`${styles.wrap}${compact ? ` ${styles.wrapCompact}` : ""}`}>
-      {(() => {
-        const barEl = (
-          <div className={styles.liveBar}>
+      <div className={styles.liveBar}>
         <label className={styles.liveLabel} htmlFor="adv-live">
           Syntax
         </label>
@@ -592,10 +590,7 @@ export function AdvancedSearch({
         >
           Clear
         </button>
-          </div>
-        );
-        return pinHost ? createPortal(barEl, pinHost) : barEl;
-      })()}
+      </div>
 
       <div className={styles.saveRow}>
         <span ref={drawerPanel.anchorRef}>
