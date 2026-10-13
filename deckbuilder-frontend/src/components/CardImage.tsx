@@ -180,6 +180,8 @@ export function CardEnlargeOverlay({
   /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right action. */
   mode?: "tilt" | "swipe";
 }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const drag = useRef<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState(0);
   const [vOffset, setVOffset] = useState(0);
@@ -191,7 +193,7 @@ export function CardEnlargeOverlay({
 
   useEffect(() => {
     const unlock = lockBodyScroll();
-    const release = pushOverlay(onClose);
+    const release = pushOverlay(() => closeRef.current());
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -225,7 +227,7 @@ export function CardEnlargeOverlay({
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };
-  }, [canFlip, onClose]);
+  }, [canFlip]);
 
   const src = face === 1 && backSrc ? backSrc : frontSrc;
   const alt = face === 1 ? backName || "Back" : frontName;

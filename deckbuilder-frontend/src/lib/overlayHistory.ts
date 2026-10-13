@@ -5,7 +5,10 @@ let nextId = 1;
 const stack: Entry[] = [];
 let listening = false;
 
+let ignoring = false;
+
 function onPop() {
+  if (ignoring) return;
   const top = stack.pop();
   if (top) top.close();
 }
@@ -28,7 +31,11 @@ export function pushOverlay(close: () => void): () => void {
     const idx = stack.findIndex((e) => e.id === entry.id);
     if (idx >= 0) stack.splice(idx, 1);
     if (history.state && (history.state as { deckappOverlay?: number }).deckappOverlay === entry.id) {
+      ignoring = true;
       history.back();
+      window.setTimeout(() => {
+        ignoring = false;
+      }, 0);
     }
   };
 }
