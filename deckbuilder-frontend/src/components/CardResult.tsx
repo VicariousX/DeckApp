@@ -172,7 +172,10 @@ export function CardResult({
               key={item.originalId}
               display={item.display}
               originalId={item.originalId}
-              onSelect={() => setSelectedIndex(i)}
+              onSelect={() => {
+                if (window.innerWidth <= 768) setPreviewIndex(i);
+                else setSelectedIndex(i);
+              }}
               onContext={(e) =>
                 setCtx({ x: e.clientX, y: e.clientY, index: i })
               }
@@ -191,10 +194,22 @@ export function CardResult({
           multi={isMultiCard(preview.display)}
           onClose={() => setPreviewIndex(null)}
           onActivate={() => {
+            if (window.innerWidth <= 768 && previewIndex != null) {
+              setCtx({
+                x: Math.min(window.innerWidth - 220, window.innerWidth / 2),
+                y: Math.min(window.innerHeight - 280, window.innerHeight / 2),
+                index: previewIndex,
+              });
+              return;
+            }
             setSelectedIndex(previewIndex);
             setPreviewIndex(null);
           }}
-          hint="Click the card for details · click outside to close"
+          hint={
+            window.innerWidth <= 768
+              ? "Tap again for options · swipe to dismiss · tap outside to close"
+              : "Click the card for details · click outside to close"
+          }
         />
       )}
 

@@ -764,7 +764,25 @@ export function CardInspectorModal({
         maxHeight: "none",
       }}
     >
-      <div className={styles.shell} ref={shellRef}>
+      <div
+        className={styles.shell}
+        ref={shellRef}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          (shellRef.current as HTMLElement & { _swipe?: { x: number; y: number } })._swipe = {
+            x: t.clientX,
+            y: t.clientY,
+          };
+        }}
+        onTouchEnd={(e) => {
+          const start = (shellRef.current as HTMLElement & { _swipe?: { x: number; y: number } })._swipe;
+          if (!start) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.3) onClose();
+        }}
+      >
         {(hasPrev || hasNext) && (
           <div className={styles.navRow}>
             <button

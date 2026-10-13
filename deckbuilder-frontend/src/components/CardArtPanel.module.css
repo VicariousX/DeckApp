@@ -458,3 +458,12 @@
   width: 100%;
   height: auto;
 }
+
+@media (max-width: 768px) {
+  .printGrid,
+  .printGridFill {
+    max-height: 46vh;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 0.75rem;
+  }
+}

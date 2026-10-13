@@ -153,6 +153,7 @@ export function CardEnlargeOverlay({
   onActivate?: () => void;
   hint?: string;
 }) {
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
 
@@ -207,6 +208,21 @@ export function CardEnlargeOverlay({
       <div
         className={styles.enlargeStage}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          swipe.current = { x: t.clientX, y: t.clientY };
+        }}
+        onTouchEnd={(e) => {
+          const start = swipe.current;
+          swipe.current = null;
+          if (!start) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+            onClose();
+          }
+        }}
       >
         <TiltFace enabled onFaceClick={onActivate}>
           <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />

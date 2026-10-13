@@ -1415,8 +1415,8 @@ export function DeckBuilderPage() {
     el.setAttribute("data-action-anchor", card.id);
     const r = el.getBoundingClientRect();
     setImageActionPos({
-      x: Math.min(r.right - 8, window.innerWidth - 48),
-      y: r.top + 8,
+      x: Math.max(8, Math.min(r.right - 46, window.innerWidth - 50)),
+      y: Math.max(8, r.top + 6),
     });
     setImageActionId(card.id);
   }
@@ -1454,7 +1454,7 @@ export function DeckBuilderPage() {
       unreveal();
     }
     function onScroll() {
-      if (Math.abs(window.scrollY - peekScroll.current) > window.innerHeight * 0.15) {
+      if (Math.abs(window.scrollY - peekScroll.current) > window.innerHeight * 0.3) {
         unreveal();
       }
     }
@@ -1488,8 +1488,8 @@ export function DeckBuilderPage() {
         return;
       }
       setImageActionPos({
-        x: Math.min(r.right - 8, window.innerWidth - 48),
-        y: Math.max(8, r.top + 8),
+        x: Math.max(8, Math.min(r.right - 46, window.innerWidth - 50)),
+        y: Math.max(8, r.top + 6),
       });
     }
     sync();

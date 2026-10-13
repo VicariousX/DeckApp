@@ -654,3 +654,31 @@
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
+
+@media (max-width: 768px) {
+  .shell {
+    overflow-y: auto;
+    height: auto;
+    max-height: 100%;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .visual {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.25rem 0.4rem 0.4rem;
+  }
+  .visual :global(img),
+  .image,
+  .imagePlaceholder {
+    max-height: 40vh;
+  }
+  .body {
+    overflow: visible;
+  }
+  .tabPanel {
+    min-height: 12rem;
+  }
+}
