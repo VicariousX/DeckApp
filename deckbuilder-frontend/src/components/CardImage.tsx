@@ -146,6 +146,8 @@ export function CardEnlargeOverlay({
   onSwipeRight,
   onSwipeUp,
   onSwipeDown,
+  enterFrom,
+  onEntered,
   nextSrc,
   prevSrc,
   keepOpenOnRight,
@@ -168,6 +170,8 @@ export function CardEnlargeOverlay({
   onSwipeRight?: () => void;
   onSwipeUp?: () => void;
   onSwipeDown?: () => void;
+  enterFrom?: "up" | "down" | null;
+  onEntered?: () => void;
   nextSrc?: string;
   prevSrc?: string;
   keepOpenOnRight?: boolean;
@@ -232,6 +236,16 @@ export function CardEnlargeOverlay({
   }, [canFlip]);
 
   useEffect(() => {
+    if (enterFrom) {
+      setSettling(true);
+      setVOffset(enterFrom === "up" ? 160 : -160);
+      window.setTimeout(() => {
+        setSettling(false);
+        setVOffset(0);
+        onEntered?.();
+      }, 30);
+      return;
+    }
     setOffset(0);
     setVOffset(0);
     setAxis(null);
@@ -253,6 +267,9 @@ export function CardEnlargeOverlay({
         onClick={(e) => e.stopPropagation()}
         onPointerDown={swipe ? (e) => {
           drag.current = { x: e.clientX, y: e.clientY };
+          setAxis(null);
+          setOffset(0);
+          setVOffset(0);
           setDragging(true);
           try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
         } : undefined}
@@ -283,6 +300,7 @@ export function CardEnlargeOverlay({
           if (horizontal && dx > 110) {
             if (keepOpenOnRight) {
               onSwipeRight?.();
+              setAxis(null);
               setOffset(0);
             } else {
               setOffset(window.innerWidth);
@@ -291,28 +309,42 @@ export function CardEnlargeOverlay({
           } else if (horizontal && dx < -110) {
             setOffset(-window.innerWidth);
             window.setTimeout(onClose, 160);
-          } else if (!horizontal && dy < -90 && nextSrc) {
-            const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
-            setVOffset(-gap);
-            window.setTimeout(() => {
-              setSettling(true);
+          } else if (!horizontal && dy < -90 && (nextSrc || onSwipeUp)) {
+            if (nextSrc) {
+              const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
+              setVOffset(-gap);
+              window.setTimeout(() => {
+                setSettling(true);
+                onSwipeUp?.();
+                setAxis(null);
+                setOffset(0);
+                setVOffset(0);
+                requestAnimationFrame(() => setSettling(false));
+              }, 230);
+            } else {
               onSwipeUp?.();
               setAxis(null);
               setOffset(0);
               setVOffset(0);
-              requestAnimationFrame(() => setSettling(false));
-            }, 230);
-          } else if (!horizontal && dy > 90 && prevSrc) {
-            const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
-            setVOffset(gap);
-            window.setTimeout(() => {
-              setSettling(true);
+            }
+          } else if (!horizontal && dy > 90 && (prevSrc || onSwipeDown)) {
+            if (prevSrc) {
+              const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
+              setVOffset(gap);
+              window.setTimeout(() => {
+                setSettling(true);
+                onSwipeDown?.();
+                setAxis(null);
+                setOffset(0);
+                setVOffset(0);
+                requestAnimationFrame(() => setSettling(false));
+              }, 230);
+            } else {
               onSwipeDown?.();
               setAxis(null);
               setOffset(0);
               setVOffset(0);
-              requestAnimationFrame(() => setSettling(false));
-            }, 230);
+            }
           } else {
             setAxis(null);
             setOffset(0);

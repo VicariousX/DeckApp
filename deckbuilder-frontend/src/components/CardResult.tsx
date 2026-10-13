@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -24,6 +24,8 @@ type CardResultProps = {
   onAddToDeck?: (card: ScryfallCard) => void;
   countInDeck?: (card: ScryfallCard) => number;
   onUndoAdd?: (card: ScryfallCard) => void;
+  onReachEnd?: () => void;
+  onReachStart?: () => void;
 };
 
 function ResultCard({
@@ -99,11 +101,16 @@ export function CardResult({
   onAddToDeck,
   countInDeck,
   onUndoAdd,
+  onReachEnd,
+  onReachStart,
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<"swipe" | "tilt">("swipe");
   const [rightAction, setRightAction] = useState<"open" | "add">("open");
+  const pendingPage = useRef<"next" | "prev" | null>(null);
+  const [enterFrom, setEnterFrom] = useState<"up" | "down" | null>(null);
+  const anchorId = useRef<string | null>(null);
   const [addedToast, setAddedToast] = useState<{
     name: string;
     count: number;
@@ -114,6 +121,24 @@ export function CardResult({
   const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
     null
   );
+
+  useEffect(() => {
+    if (!pendingPage.current || previewIndex == null) return;
+    if (pendingPage.current === "next" && previewIndex < list.length - 1) {
+      setEnterFrom("up");
+      setPreviewIndex(previewIndex + 1);
+      pendingPage.current = null;
+      return;
+    }
+    if (pendingPage.current === "prev" && anchorId.current) {
+      const at = list.findIndex((c) => c.originalId === anchorId.current);
+      if (at > 0) {
+        setEnterFrom("down");
+        setPreviewIndex(at - 1);
+        pendingPage.current = null;
+      }
+    }
+  }, [list, previewIndex]);
 
   useEffect(() => {
     if (!addedToast) return;
@@ -213,6 +238,8 @@ export function CardResult({
           multi={isMultiCard(preview.display)}
           mode={previewMode}
           onClose={() => setPreviewIndex(null)}
+          enterFrom={enterFrom}
+          onEntered={() => setEnterFrom(null)}
           onSwipeRight={() => {
             if (rightAction === "add" && onAddToDeck) {
               onAddToDeck(preview.display);
@@ -235,10 +262,25 @@ export function CardResult({
               : undefined
           }
           onSwipeUp={() => {
-            setPreviewIndex((i) => (i != null && i < list.length - 1 ? i + 1 : i));
+            if (previewIndex < list.length - 1) {
+              setPreviewIndex(previewIndex + 1);
+              return;
+            }
+            if (onReachEnd) {
+              pendingPage.current = "next";
+              onReachEnd();
+            }
           }}
           onSwipeDown={() => {
-            setPreviewIndex((i) => (i != null && i > 0 ? i - 1 : i));
+            if (previewIndex > 0) {
+              setPreviewIndex(previewIndex - 1);
+              return;
+            }
+            if (onReachStart) {
+              anchorId.current = list[0]?.originalId ?? null;
+              pendingPage.current = "prev";
+              onReachStart();
+            }
           }}
           rightLabel={rightAction === "add" ? "Add" : "Open"}
           onToggleRight={

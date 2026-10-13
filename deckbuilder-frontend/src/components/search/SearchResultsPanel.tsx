@@ -71,6 +71,7 @@ export function SearchResultsPanel({
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [viewPage, setViewPage] = useState(1);
+  const [stream, setStream] = useState<{ page: number; cards: ScryfallCard[] }[]>([]);
   const [viewMode, setViewMode] = useState<"image" | "text">("image");
   const { cards, total, hasMoreApi, apiPage, isLoading, isError, run, goApiPage } =
     useScryfallSearch();
@@ -79,8 +80,19 @@ export function SearchResultsPanel({
 
   useEffect(() => {
     setViewPage(1);
+    setStream([]);
     if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
   }, [scryfallQ, apiOrder, sortDir, run]);
+
+  useEffect(() => {
+    if (!cards.length) return;
+    setStream((prev) => {
+      const next = prev.filter((p) => p.page !== apiPage);
+      next.push({ page: apiPage, cards });
+      next.sort((a, b) => a.page - b.page);
+      return next;
+    });
+  }, [cards, apiPage]);
 
   useEffect(() => {
     if (!mechParsed.terms.length) {
@@ -213,7 +225,17 @@ export function SearchResultsPanel({
       <CardResult
         countInDeck={countInDeck}
         onUndoAdd={onUndoAdd}
-        cards={visible}
+        cards={stream.length ? stream.flatMap((p) => p.cards) : visible}
+        onReachEnd={
+          hasMoreApi && !isLoading
+            ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
+            : undefined
+        }
+        onReachStart={
+          (stream[0]?.page ?? apiPage) > 1 && !isLoading
+            ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
+            : undefined
+        }
         cardSize={180}
         viewMode={viewMode}
         onAddToDeck={onAddToDeck}
