@@ -1990,6 +1990,13 @@ export function DeckBuilderPage() {
                     if (live) void onQty(live, -1);
                   }}
                   onClose={() => setSearchOpen(false)}
+                  seedQuery={
+                    formatRule.colorIdentity && commanderColorIdentity.length
+                      ? `id<=${commanderColorIdentity.join("").toLowerCase()}`
+                      : formatRule.colorIdentity
+                        ? "id:c"
+                        : undefined
+                  }
                 />
               )}
               {panel === "deck" && (

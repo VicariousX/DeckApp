@@ -518,7 +518,7 @@ export function AdvancedSearch({
 
   return (
     <div className={`${styles.wrap}${compact ? ` ${styles.wrapCompact}` : ""}`}>
-      <div className={styles.liveBar}>
+      <div className={`${styles.liveBar}${compact ? ` ${styles.liveBarPinned}` : ""}`}>
         <label className={styles.liveLabel} htmlFor="adv-live">
           Syntax
         </label>

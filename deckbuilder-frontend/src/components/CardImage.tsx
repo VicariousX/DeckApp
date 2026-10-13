@@ -151,6 +151,7 @@ export function CardEnlargeOverlay({
   rightLabel = "Open",
   onToggleRight,
   toast,
+  addedQty,
   onUndo,
   hint,
   mode = "tilt",
@@ -172,6 +173,7 @@ export function CardEnlargeOverlay({
   rightLabel?: string;
   onToggleRight?: () => void;
   toast?: string | null;
+  addedQty?: number | null;
   onUndo?: () => void;
   hint?: string;
   /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right action. */
@@ -319,6 +321,8 @@ export function CardEnlargeOverlay({
               }}
             >
               <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+              {addedQty != null && <span className={styles.qtyBadge}>×{addedQty}</span>}
+              {toast && <span className={styles.addEmblem}>{toast}</span>}
             </div>
             {axis === "y" && vOffset < 0 && nextSrc && (
               <div
@@ -364,7 +368,6 @@ export function CardEnlargeOverlay({
                 </button>
               )}
             </div>
-            {toast && <p className={styles.swipeToast}>{toast}</p>}
           </>
         )}
         <p className={styles.enlargeHint}>

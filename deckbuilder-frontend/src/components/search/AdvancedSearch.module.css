@@ -641,3 +641,13 @@
     display: none;
   }
 }
+
+.liveBarPinned {
+  position: sticky;
+  top: 2.7rem;
+  z-index: 5;
+  background: var(--color-surface);
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid var(--color-border);
+}

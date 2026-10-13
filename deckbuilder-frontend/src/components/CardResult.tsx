@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -114,6 +114,12 @@ export function CardResult({
   const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
     null
   );
+
+  useEffect(() => {
+    if (!addedToast) return;
+    const t = window.setTimeout(() => setAddedToast(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [addedToast]);
 
   const list = useMemo(
     () =>
@@ -241,11 +247,8 @@ export function CardResult({
               ? () => setRightAction((v) => (v === "open" ? "add" : "open"))
               : undefined
           }
-          toast={
-            addedToast
-              ? `${addedToast.name} added · ${addedToast.count} in deck`
-              : null
-          }
+          toast={addedToast ? "Card added" : null}
+          addedQty={addedToast?.count ?? null}
           onUndo={
             addedToast && onUndoAdd
               ? () => {

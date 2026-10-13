@@ -49,6 +49,7 @@ export function DeckSearchDock({
   onClose,
   countInDeck,
   onUndoAdd,
+  seedQuery,
 }: {
   open: boolean;
   onAddCard?: (card: ScryfallCard) => void;
@@ -56,9 +57,13 @@ export function DeckSearchDock({
   onClose?: () => void;
   countInDeck?: (card: ScryfallCard) => number;
   onUndoAdd?: (card: ScryfallCard) => void;
+  /** Prefill for formats that care about color identity. */
+  seedQuery?: string;
 }) {
   const isMobile = useIsMobile();
-  const [tabs, setTabs] = useState<Tab[]>([newTab("advanced")]);
+  const [tabs, setTabs] = useState<Tab[]>([
+    newTab("advanced", seedQuery?.trim() ?? ""),
+  ]);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -176,7 +181,7 @@ export function DeckSearchDock({
       {active.mode === "advanced" ? (
         <AdvancedSearch
           compact
-          initialQuery={active.query}
+          initialQuery={active.query || seedQuery || ""}
           onSearch={(q) => runQuery(q, "advanced")}
         />
       ) : (
