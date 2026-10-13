@@ -62,22 +62,13 @@ export function DeckSearchDock({
 }) {
   const isMobile = useIsMobile();
   const [pinHost, setPinHost] = useState<HTMLDivElement | null>(null);
-  const [tabs, setTabs] = useState<Tab[]>([
-    newTab("advanced", seedQuery?.trim() ?? ""),
-  ]);
+  const [tabs, setTabs] = useState<Tab[]>([newTab("advanced")]);
+  const [identityOn, setIdentityOn] = useState(false);
+  const [identityNonce, setIdentityNonce] = useState(0);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const resultsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!seedQuery) return;
-    setTabs((list) =>
-      list.map((t, i) =>
-        i === 0 && !t.query ? { ...t, query: seedQuery, title: seedQuery } : t
-      )
-    );
-  }, [seedQuery]);
 
   useEffect(() => {
     if (!active.query) return;
@@ -194,14 +185,17 @@ export function DeckSearchDock({
       {active.mode === "advanced" ? (
         <AdvancedSearch
           compact
-          initialQuery={active.query || seedQuery || ""}
+          initialQuery={active.query}
           pinHost={isMobile ? pinHost : null}
+          identityToken={identityOn ? seedQuery : undefined}
+          identityNonce={identityNonce}
           onSearch={(q) => runQuery(q, "advanced")}
         />
       ) : (
         <CardSearch
           compact
           mode="standard"
+          extraQuery={identityOn ? seedQuery : undefined}
           onSearch={(q) => runQuery(q, "standard")}
         />
       )}
@@ -223,12 +217,36 @@ export function DeckSearchDock({
       <div className={styles.sheetPinned}>
         {tabBar}
         <div ref={setPinHost} />
+        {seedQuery && (
+          <button
+            type="button"
+            className={styles.identityBtn}
+            onClick={() => {
+              setIdentityOn(true);
+              setIdentityNonce((n) => n + 1);
+            }}
+          >
+            {identityOn ? "Commander ID applied" : "Apply commander ID"}
+          </button>
+        )}
       </div>
       <div className={styles.sheetScroll}>{searchBody}</div>
     </div>
   ) : (
     <>
       {tabBar}
+      {seedQuery && (
+        <button
+          type="button"
+          className={styles.identityBtn}
+          onClick={() => {
+            setIdentityOn(true);
+            setIdentityNonce((n) => n + 1);
+          }}
+        >
+          {identityOn ? "Commander ID applied" : "Apply commander ID"}
+        </button>
+      )}
       {searchBody}
     </>
   );

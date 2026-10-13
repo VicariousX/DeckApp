@@ -300,11 +300,15 @@ export function AdvancedSearch({
   onSearch,
   compact = false,
   pinHost = null,
+  identityToken,
+  identityNonce = 0,
 }: {
   initialQuery?: string;
   onSearch?: (query: string) => void;
   compact?: boolean;
   pinHost?: HTMLElement | null;
+  identityToken?: string;
+  identityNonce?: number;
 }) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -346,6 +350,12 @@ export function AdvancedSearch({
   const [pinLayout, setPinLayout] = useState<PinLayout>(loadPinLayout);
   const [pinDrafts, setPinDrafts] = useState<Record<string, Draft>>({});
   const [editPins, setEditPins] = useState(false);
+
+  useEffect(() => {
+    if (!identityToken || !identityNonce) return;
+    setBar((prev) => (prev.includes(identityToken) ? prev : `${prev} ${identityToken}`.trim()));
+    setBarDirty(true);
+  }, [identityNonce, identityToken]);
 
   useEffect(() => {
     if (!user) return;

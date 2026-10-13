@@ -229,6 +229,12 @@ export function CardEnlargeOverlay({
     };
   }, [canFlip]);
 
+  useEffect(() => {
+    setOffset(0);
+    setVOffset(0);
+    setAxis(null);
+  }, [frontSrc]);
+
   const src = face === 1 && backSrc ? backSrc : frontSrc;
   const alt = face === 1 ? backName || "Back" : frontName;
 

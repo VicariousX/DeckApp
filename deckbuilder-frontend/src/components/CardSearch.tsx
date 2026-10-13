@@ -10,10 +10,13 @@ export function CardSearch({
   mode = "standard",
   onSearch,
   compact = false,
+  extraQuery,
 }: {
   mode?: "standard" | "advanced";
   onSearch?: (query: string) => void;
   compact?: boolean;
+  /** Appended to the query without showing it in the box. */
+  extraQuery?: string;
 }) {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
@@ -60,11 +63,12 @@ export function CardSearch({
   function runSearch(term: string) {
     const t = term.trim();
     if (!t) return;
+    const full = extraQuery ? `${t} ${extraQuery}` : t;
     setInputValue(t);
     setSubmitted(true);
     setSuggestOpen(false);
-    if (onSearch) onSearch(t);
-    else navigate(`/search/results?mode=${mode}&q=${encodeURIComponent(t)}&n=30`);
+    if (onSearch) onSearch(full);
+    else navigate(`/search/results?mode=${mode}&q=${encodeURIComponent(full)}&n=30`);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {

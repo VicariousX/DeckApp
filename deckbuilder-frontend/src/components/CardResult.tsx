@@ -206,7 +206,6 @@ export function CardResult({
 
       {preview && previewIndex != null && (
         <CardEnlargeOverlay
-          key={previewIndex}
           frontSrc={getFaceImage(preview.display, 0)}
           backSrc={getFaceImage(preview.display, 1) || ""}
           frontName={preview.display.name}
