@@ -119,6 +119,7 @@ export function CardResult({
   const pendingPage = useRef<"next" | "prev" | null>(null);
   const [enterFrom, setEnterFrom] = useState<"up" | "down" | null>(null);
   const anchorId = useRef<string | null>(null);
+  const [optimisticQty, setOptimisticQty] = useState<Record<string, number>>({});
   const [addedToast, setAddedToast] = useState<{
     name: string;
     count: number;
@@ -281,8 +282,10 @@ export function CardResult({
           onEntered={() => setEnterFrom(null)}
           onSwipeRight={() => {
             if (!onAddToDeck) return;
+            const id = preview.display.oracle_id || preview.display.id;
+            const count = (optimisticQty[id] ?? countInDeck?.(preview.display) ?? 0) + 1;
+            setOptimisticQty((m) => ({ ...m, [id]: count }));
             onAddToDeck(preview.display);
-            const count = (countInDeck?.(preview.display) ?? 0) + 1;
             setAddedToast({ name: preview.display.name, count, card: preview.display, kind: "added" });
           }}
           keepOpenOnRight
@@ -318,17 +321,9 @@ export function CardResult({
             }
           }}
           rightLabel="Add"
-          leftLabel={(countInDeck?.(preview.display) ?? 0) > 0 ? "−1" : ""}
+          leftLabel={((optimisticQty[preview.display.oracle_id || preview.display.id] ?? countInDeck?.(preview.display)) ?? 0) > 0 ? "−1" : ""}
           toast={addedToast ? (addedToast.kind === "removed" ? "Card removed" : "Card added") : null}
-          addedQty={countInDeck?.(preview.display) ?? 0}
-          onUndo={
-            addedToast && onUndoAdd
-              ? () => {
-                  onUndoAdd(addedToast.card);
-                  setAddedToast(null);
-                }
-              : undefined
-          }
+          addedQty={optimisticQty[preview.display.oracle_id || preview.display.id] ?? countInDeck?.(preview.display) ?? 0}
           onActivate={() => setSelectedIndex(previewIndex)}
           onLongPress={() => {
             setCtx({
@@ -338,8 +333,10 @@ export function CardResult({
             });
           }}
           onSwipeLeft={() => {
-            const count = countInDeck?.(preview.display) ?? 0;
+            const id = preview.display.oracle_id || preview.display.id;
+            const count = optimisticQty[id] ?? countInDeck?.(preview.display) ?? 0;
             if (count <= 0 || !onUndoAdd) return;
+            setOptimisticQty((m) => ({ ...m, [id]: count - 1 }));
             onUndoAdd(preview.display);
             setAddedToast({
               name: preview.display.name,

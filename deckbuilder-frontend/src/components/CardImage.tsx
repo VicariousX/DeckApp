@@ -462,11 +462,6 @@ export function CardEnlargeOverlay({
                   Right swipe: {rightLabel}
                 </button>
               )}
-              {onUndo && (
-                <button type="button" className={styles.swipeUndo} onClick={onUndo}>
-                  Undo
-                </button>
-              )}
             </div>
           </>
         )}
