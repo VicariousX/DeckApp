@@ -35,7 +35,7 @@ export function pushOverlay(close: () => void): () => void {
       history.back();
       window.setTimeout(() => {
         ignoring = false;
-      }, 0);
+      }, 50);
     }
   };
 }

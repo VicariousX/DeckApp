@@ -10,6 +10,7 @@ import type { CardFaceView } from "./CardImage";
 import styles from "./CardResult.module.css";
 import { CardEnlargeOverlay, CardImage } from "./CardImage";
 import { CardInspectorModal } from "./CardInspectorModal";
+import { pushOverlay } from "../lib/overlayHistory";
 import {
   CardContextMenu,
   modalJumpFromState,
@@ -165,6 +166,12 @@ export function CardResult({
   }, [list, previewIndex]);
 
   const openedScroll = useRef(false);
+  const exitRef = useRef(onExitScroll);
+  exitRef.current = onExitScroll;
+  useEffect(() => {
+    if (browseMode !== "scroll") return;
+    return pushOverlay(() => exitRef.current?.());
+  }, [browseMode]);
   useEffect(() => {
     if (browseMode !== "scroll" || viewMode !== "image") {
       openedScroll.current = false;
@@ -256,7 +263,7 @@ export function CardResult({
       )}
 
       {browseMode === "scroll" && preview && previewIndex != null && createPortal(
-        <div className={styles.scrollStage}>
+        <div className={styles.scrollStage} onPointerDown={(e) => e.stopPropagation()}>
           <button type="button" className={styles.scrollExit} onClick={() => onExitScroll?.()}>
             ×
           </button>

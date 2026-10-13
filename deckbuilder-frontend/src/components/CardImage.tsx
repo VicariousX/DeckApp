@@ -290,7 +290,7 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
-          if (!axis && Math.hypot(dx, dy) < 14) return;
+          if (!axis && Math.hypot(dx, dy) < 8) return;
           const next = axis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
           if (!axis) setAxis(next);
           if (next === "x") {
@@ -385,7 +385,7 @@ export function CardEnlargeOverlay({
       >
         {swipe ? (
           <div className={styles.swipeStack} ref={stackRef}>
-            {axis === "y" && vOffset > 0 && prevSrc && (
+            {prevSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
@@ -409,7 +409,7 @@ export function CardEnlargeOverlay({
               {addedQty != null && <span className={styles.qtyBadge}>×{addedQty}</span>}
               {toast && <span className={styles.addEmblem}>{toast}</span>}
             </div>
-            {axis === "y" && vOffset < 0 && nextSrc && (
+            {nextSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
