@@ -158,6 +158,7 @@ export function CardEnlargeOverlay({
   onUndo,
   hint,
   mode = "tilt",
+  embedded = false,
 }: {
   frontSrc: string;
   backSrc?: string;
@@ -183,6 +184,8 @@ export function CardEnlargeOverlay({
   hint?: string;
   /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right action. */
   mode?: "tilt" | "swipe";
+  /** Render in place as the primary view instead of a pop-out overlay. */
+  embedded?: boolean;
 }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -198,6 +201,7 @@ export function CardEnlargeOverlay({
   const swipe = mode === "swipe";
 
   useEffect(() => {
+    if (embedded) return;
     const unlock = lockBodyScroll();
     const release = pushOverlay(() => closeRef.current());
     function onKey(e: KeyboardEvent) {
@@ -233,7 +237,7 @@ export function CardEnlargeOverlay({
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };
-  }, [canFlip]);
+  }, [canFlip, embedded]);
 
   useEffect(() => {
     if (enterFrom) {
@@ -254,12 +258,12 @@ export function CardEnlargeOverlay({
   const src = face === 1 && backSrc ? backSrc : frontSrc;
   const alt = face === 1 ? backName || "Back" : frontName;
 
-  return createPortal(
+  const stage = (
     <div
-      className={styles.enlargeOverlay}
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+      className={embedded ? styles.scrollView : styles.enlargeOverlay}
+      onClick={embedded ? undefined : onClose}
+      role={embedded ? undefined : "dialog"}
+      aria-modal={embedded ? undefined : true}
       aria-label={alt}
     >
       <div
@@ -447,9 +451,9 @@ export function CardEnlargeOverlay({
                 : "Click outside to close")}
         </p>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+  return embedded ? stage : createPortal(stage, document.body);
 }
 
 export function CardImage({

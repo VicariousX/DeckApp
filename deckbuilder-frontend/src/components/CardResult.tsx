@@ -222,11 +222,10 @@ export function CardResult({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : browseMode === "scroll" ? null : (
         <div
           className={styles.resultsGrid}
           style={gridStyle}
-          hidden={browseMode === "scroll" && previewIndex != null}
         >
           {list.map((item, i) => (
             <ResultCard
@@ -253,6 +252,7 @@ export function CardResult({
 
       {browseMode === "scroll" && preview && previewIndex != null && (
         <CardEnlargeOverlay
+          embedded
           frontSrc={getFaceImage(preview.display, 0)}
           backSrc={getFaceImage(preview.display, 1) || ""}
           frontName={preview.display.name}
