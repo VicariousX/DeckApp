@@ -88,6 +88,11 @@
   padding: 0.5rem 0.75rem 1.25rem;
   min-height: 0;
 }
+.bodyLock {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; }

@@ -146,3 +146,27 @@
   color: var(--color-on-accent, #fff);
   filter: brightness(1.05);
 }
+
+.sheetCol {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.sheetPinned {
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.35rem;
+}
+.sheetScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.sheetBody {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

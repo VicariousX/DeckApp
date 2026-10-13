@@ -4,9 +4,11 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type CSSProperties,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { useDraggablePanel } from "../../hooks/useDraggablePanel";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, FIELD_TO_CATEGORY } from "../../lib/search/categories";
@@ -297,13 +299,29 @@ export function AdvancedSearch({
   initialQuery = "",
   onSearch,
   compact = false,
+  pinHost = null,
 }: {
   initialQuery?: string;
   onSearch?: (query: string) => void;
   compact?: boolean;
+  pinHost?: HTMLElement | null;
 }) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { user } = useAuth();
+  const mobilePanel: CSSProperties = {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: "auto",
+    width: "100%",
+    height: "72vh",
+    zIndex: 2200,
+    borderRadius: "16px 16px 0 0",
+    maxWidth: "100%",
+  };
+
   const [root, setRoot] = useState<Group>(() => parseQuery(initialQuery, FIELD_TO_CATEGORY));
   const [bar, setBar] = useState(initialQuery);
   const [barDirty, setBarDirty] = useState(false);
@@ -518,7 +536,9 @@ export function AdvancedSearch({
 
   return (
     <div className={`${styles.wrap}${compact ? ` ${styles.wrapCompact}` : ""}`}>
-      <div className={`${styles.liveBar}${compact ? ` ${styles.liveBarPinned}` : ""}`}>
+      {(() => {
+        const barEl = (
+          <div className={styles.liveBar}>
         <label className={styles.liveLabel} htmlFor="adv-live">
           Syntax
         </label>
@@ -562,7 +582,10 @@ export function AdvancedSearch({
         >
           Clear
         </button>
-      </div>
+          </div>
+        );
+        return pinHost ? createPortal(barEl, pinHost) : barEl;
+      })()}
 
       <div className={styles.saveRow}>
         <span ref={drawerPanel.anchorRef}>
@@ -679,7 +702,7 @@ export function AdvancedSearch({
           <div
             className={styles.catalogPanel}
             ref={catalogPanel.panelRef}
-            style={catalogPanel.panelStyle}
+            style={isMobile ? mobilePanel : catalogPanel.panelStyle}
           >
             <div className={styles.catalogTop}>
               <div
@@ -760,7 +783,7 @@ export function AdvancedSearch({
           <div
             className={styles.catalogPanel}
             ref={drawerPanel.panelRef}
-            style={drawerPanel.panelStyle}
+            style={isMobile ? mobilePanel : drawerPanel.panelStyle}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();

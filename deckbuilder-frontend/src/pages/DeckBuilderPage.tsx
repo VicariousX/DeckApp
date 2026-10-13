@@ -1990,13 +1990,16 @@ export function DeckBuilderPage() {
                     if (live) void onQty(live, -1);
                   }}
                   onClose={() => setSearchOpen(false)}
-                  seedQuery={
-                    formatRule.colorIdentity && commanderColorIdentity.length
+                  seedQuery={(() => {
+                    if (!formatRule.colorIdentity) return undefined;
+                    const hasCommander = (detail?.cards ?? []).some(
+                      (c) => c.board === "commander"
+                    );
+                    if (!hasCommander) return undefined;
+                    return commanderColorIdentity.length
                       ? `id<=${commanderColorIdentity.join("").toLowerCase()}`
-                      : formatRule.colorIdentity
-                        ? "id:c"
-                        : undefined
-                  }
+                      : "id:c";
+                  })()}
                 />
               )}
               {panel === "deck" && (

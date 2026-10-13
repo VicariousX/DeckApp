@@ -61,6 +61,7 @@ export function DeckSearchDock({
   seedQuery?: string;
 }) {
   const isMobile = useIsMobile();
+  const [pinHost, setPinHost] = useState<HTMLDivElement | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([
     newTab("advanced", seedQuery?.trim() ?? ""),
   ]);
@@ -68,6 +69,15 @@ export function DeckSearchDock({
   const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!seedQuery) return;
+    setTabs((list) =>
+      list.map((t, i) =>
+        i === 0 && !t.query ? { ...t, query: seedQuery, title: seedQuery } : t
+      )
+    );
+  }, [seedQuery]);
 
   useEffect(() => {
     if (!active.query) return;
@@ -106,9 +116,8 @@ export function DeckSearchDock({
     );
   }
 
-  const content = (
-    <>
-      <div className={`${styles.tabs} ${styles.tabsSticky}`}>
+  const tabBar = (
+      <div className={`${styles.tabs} ${isMobile ? styles.tabsSticky : ""}`}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -178,10 +187,15 @@ export function DeckSearchDock({
           )}
         </div>
       </div>
+  );
+
+  const searchBody = (
+    <>
       {active.mode === "advanced" ? (
         <AdvancedSearch
           compact
           initialQuery={active.query || seedQuery || ""}
+          pinHost={isMobile ? pinHost : null}
           onSearch={(q) => runQuery(q, "advanced")}
         />
       ) : (
@@ -204,9 +218,24 @@ export function DeckSearchDock({
     </>
   );
 
+  const content = isMobile ? (
+    <div className={styles.sheetCol}>
+      <div className={styles.sheetPinned}>
+        {tabBar}
+        <div ref={setPinHost} />
+      </div>
+      <div className={styles.sheetScroll}>{searchBody}</div>
+    </div>
+  ) : (
+    <>
+      {tabBar}
+      {searchBody}
+    </>
+  );
+
   if (isMobile) {
     return (
-      <BottomSheet open onClose={() => onClose?.()} title="Search">
+      <BottomSheet open onClose={() => onClose?.()} title="Search" bodyClassName={styles.sheetBody}>
         {content}
       </BottomSheet>
     );
