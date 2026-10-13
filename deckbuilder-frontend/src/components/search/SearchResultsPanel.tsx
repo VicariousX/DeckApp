@@ -55,9 +55,13 @@ function attr(card: ScryfallCard, key: string): string | number {
 export function SearchResultsPanel({
   query,
   onAddToDeck,
+  countInDeck,
+  onUndoAdd,
 }: {
   query: string;
   onAddToDeck?: (card: ScryfallCard) => void;
+  countInDeck?: (card: ScryfallCard) => number;
+  onUndoAdd?: (card: ScryfallCard) => void;
 }) {
   const mechParsed = useMemo(() => extractMechanicTerms(query), [query]);
   const scryfallQ = mechParsed.rest || (mechParsed.terms.length ? "" : query);
@@ -207,6 +211,8 @@ export function SearchResultsPanel({
         <code>{query}</code>
       </p>
       <CardResult
+        countInDeck={countInDeck}
+        onUndoAdd={onUndoAdd}
         cards={visible}
         cardSize={180}
         viewMode={viewMode}

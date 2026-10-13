@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CardSearch } from "../CardSearch";
 import { AdvancedSearch } from "./AdvancedSearch";
 import { SearchResultsPanel } from "./SearchResultsPanel";
@@ -35,7 +35,7 @@ export function DeckSearchToggle({
   return (
     <button
       type="button"
-      className={styles.cycleBtn}
+      className={`${styles.cycleBtn} ${styles.searchOpenBtn}`}
       onClick={onToggle}
     >
       {open ? "Close search" : "Open search"}
@@ -47,17 +47,30 @@ export function DeckSearchDock({
   open,
   onAddCard,
   onClose,
+  countInDeck,
+  onUndoAdd,
 }: {
   open: boolean;
   onAddCard?: (card: ScryfallCard) => void;
   /** Called when the user closes the dock (required for mobile bottom sheet). */
   onClose?: () => void;
+  countInDeck?: (card: ScryfallCard) => number;
+  onUndoAdd?: (card: ScryfallCard) => void;
 }) {
   const isMobile = useIsMobile();
-  const [tabs, setTabs] = useState<Tab[]>([newTab("standard")]);
+  const [tabs, setTabs] = useState<Tab[]>([newTab("advanced")]);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!active.query) return;
+    const t = window.setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [active.query]);
 
   if (!open) return null;
 
@@ -90,7 +103,7 @@ export function DeckSearchDock({
 
   const content = (
     <>
-      <div className={styles.tabs}>
+      <div className={`${styles.tabs} ${styles.tabsSticky}`}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -107,7 +120,7 @@ export function DeckSearchDock({
                   setTabs((list) => {
                     const next = list.filter((x) => x.id !== t.id);
                     if (activeId === t.id) setActiveId(next[0]?.id ?? "");
-                    return next.length ? next : [newTab("standard")];
+                    return next.length ? next : [newTab("advanced")];
                   });
                 }}
               >
@@ -174,7 +187,14 @@ export function DeckSearchDock({
         />
       )}
       {active.query && (
-        <SearchResultsPanel query={active.query} onAddToDeck={onAddCard} />
+        <div ref={resultsRef}>
+          <SearchResultsPanel
+            query={active.query}
+            onAddToDeck={onAddCard}
+            countInDeck={countInDeck}
+            onUndoAdd={onUndoAdd}
+          />
+        </div>
       )}
     </>
   );

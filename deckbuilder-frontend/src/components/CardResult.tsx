@@ -22,6 +22,8 @@ type CardResultProps = {
   viewMode?: "image" | "text";
   previewFirst?: boolean;
   onAddToDeck?: (card: ScryfallCard) => void;
+  countInDeck?: (card: ScryfallCard) => number;
+  onUndoAdd?: (card: ScryfallCard) => void;
 };
 
 function ResultCard({
@@ -95,11 +97,18 @@ export function CardResult({
   viewMode = "image",
   previewFirst = false,
   onAddToDeck,
+  countInDeck,
+  onUndoAdd,
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<"swipe" | "tilt">("swipe");
   const [rightAction, setRightAction] = useState<"open" | "add">("open");
+  const [addedToast, setAddedToast] = useState<{
+    name: string;
+    count: number;
+    card: ScryfallCard;
+  } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
   const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
@@ -202,6 +211,8 @@ export function CardResult({
           onSwipeRight={() => {
             if (rightAction === "add" && onAddToDeck) {
               onAddToDeck(preview.display);
+              const count = (countInDeck?.(preview.display) ?? 0) + 1;
+              setAddedToast({ name: preview.display.name, count, card: preview.display });
               return;
             }
             setSelectedIndex(previewIndex);
@@ -228,6 +239,19 @@ export function CardResult({
           onToggleRight={
             onAddToDeck
               ? () => setRightAction((v) => (v === "open" ? "add" : "open"))
+              : undefined
+          }
+          toast={
+            addedToast
+              ? `${addedToast.name} added · ${addedToast.count} in deck`
+              : null
+          }
+          onUndo={
+            addedToast && onUndoAdd
+              ? () => {
+                  onUndoAdd(addedToast.card);
+                  setAddedToast(null);
+                }
               : undefined
           }
           onActivate={() => {

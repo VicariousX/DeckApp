@@ -126,3 +126,23 @@
 .tabs .cycleWrap {
   margin-left: auto;
 }
+
+.tabsSticky {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--color-surface);
+  padding-bottom: 0.35rem;
+}
+.searchOpenBtn {
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+  border-color: transparent;
+  font-weight: 800;
+  padding: 0.5rem 0.95rem;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.searchOpenBtn:hover {
+  color: var(--color-on-accent, #fff);
+  filter: brightness(1.05);
+}

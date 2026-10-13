@@ -386,3 +386,28 @@
   position: absolute;
   inset: 0;
 }
+
+.swipeActions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.swipeUndo {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.swipeToast {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}

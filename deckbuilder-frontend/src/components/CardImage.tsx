@@ -150,6 +150,8 @@ export function CardEnlargeOverlay({
   keepOpenOnRight,
   rightLabel = "Open",
   onToggleRight,
+  toast,
+  onUndo,
   hint,
   mode = "tilt",
 }: {
@@ -169,6 +171,8 @@ export function CardEnlargeOverlay({
   keepOpenOnRight?: boolean;
   rightLabel?: string;
   onToggleRight?: () => void;
+  toast?: string | null;
+  onUndo?: () => void;
   hint?: string;
   /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right action. */
   mode?: "tilt" | "swipe";
@@ -294,12 +298,13 @@ export function CardEnlargeOverlay({
       >
         {swipe ? (
           <div className={styles.swipeStack}>
-            {axis === "y" && prevSrc && (
+            {axis === "y" && vOffset > 0 && prevSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
-                  transform: `translateY(calc(-105% + ${vOffset}px))`,
-                  transition: dragging ? "none" : "transform 0.28s ease",
+                  transform: `translateY(calc(-145% + ${vOffset}px))`,
+                  opacity: Math.min(1, Math.max(0, vOffset / 140)),
+                  transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
                 }}
               >
                 <img src={prevSrc} alt="" className={styles.enlargeImage} draggable={false} />
@@ -315,12 +320,13 @@ export function CardEnlargeOverlay({
             >
               <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
             </div>
-            {axis === "y" && nextSrc && (
+            {axis === "y" && vOffset < 0 && nextSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
-                  transform: `translateY(calc(105% + ${vOffset}px))`,
-                  transition: dragging ? "none" : "transform 0.28s ease",
+                  transform: `translateY(calc(145% + ${vOffset}px))`,
+                  opacity: Math.min(1, Math.max(0, -vOffset / 140)),
+                  transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
                 }}
               >
                 <img src={nextSrc} alt="" className={styles.enlargeImage} draggable={false} />
@@ -346,11 +352,19 @@ export function CardEnlargeOverlay({
             >
               {rightLabel}
             </span>
-            {onToggleRight && (
-              <button type="button" className={styles.swipeToggle} onClick={onToggleRight}>
-                Right swipe: {rightLabel}
-              </button>
-            )}
+            <div className={styles.swipeActions}>
+              {onToggleRight && (
+                <button type="button" className={styles.swipeToggle} onClick={onToggleRight}>
+                  Right swipe: {rightLabel}
+                </button>
+              )}
+              {onUndo && (
+                <button type="button" className={styles.swipeUndo} onClick={onUndo}>
+                  Undo
+                </button>
+              )}
+            </div>
+            {toast && <p className={styles.swipeToast}>{toast}</p>}
           </>
         )}
         <p className={styles.enlargeHint}>

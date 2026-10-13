@@ -1972,6 +1972,23 @@ export function DeckBuilderPage() {
                 <DeckSearchDock
                   open={searchOpen}
                   onAddCard={(c) => void addScryfallCard(c)}
+                  countInDeck={(c) =>
+                    (detail?.cards ?? [])
+                      .filter(
+                        (x) =>
+                          x.oracle_id.toLowerCase() ===
+                          (c.oracle_id ?? c.id).toLowerCase()
+                      )
+                      .reduce((n, x) => n + x.quantity, 0)
+                  }
+                  onUndoAdd={(c) => {
+                    const live = detail?.cards.find(
+                      (x) =>
+                        x.oracle_id.toLowerCase() ===
+                        (c.oracle_id ?? c.id).toLowerCase()
+                    );
+                    if (live) void onQty(live, -1);
+                  }}
                   onClose={() => setSearchOpen(false)}
                 />
               )}
