@@ -289,12 +289,16 @@ export function CardEnlargeOverlay({
           } else if (horizontal && dx < -110) {
             setOffset(-window.innerWidth);
             window.setTimeout(onClose, 160);
-          } else if (!horizontal && dy < -90) {
-            setVOffset(-window.innerHeight);
-            window.setTimeout(() => onSwipeUp?.(), 140);
-          } else if (!horizontal && dy > 90) {
-            setVOffset(window.innerHeight);
-            window.setTimeout(() => onSwipeDown?.(), 140);
+          } else if (!horizontal && dy < -90 && nextSrc) {
+            onSwipeUp?.();
+            setAxis(null);
+            setOffset(0);
+            setVOffset(0);
+          } else if (!horizontal && dy > 90 && prevSrc) {
+            onSwipeDown?.();
+            setAxis(null);
+            setOffset(0);
+            setVOffset(0);
           } else {
             setAxis(null);
             setOffset(0);

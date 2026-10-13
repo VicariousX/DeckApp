@@ -65,6 +65,7 @@ export function DeckSearchDock({
   const [tabs, setTabs] = useState<Tab[]>([newTab("advanced")]);
   const [identityOn, setIdentityOn] = useState(false);
   const [identityNonce, setIdentityNonce] = useState(0);
+  const [pinOpen, setPinOpen] = useState(true);
   const [activeId, setActiveId] = useState(tabs[0].id);
   const [modeMenu, setModeMenu] = useState(false);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -199,6 +200,18 @@ export function DeckSearchDock({
           onSearch={(q) => runQuery(q, "standard")}
         />
       )}
+              {seedQuery && (
+          <button
+            type="button"
+            className={styles.identityBtn}
+            onClick={() => {
+              setIdentityOn(true);
+              setIdentityNonce((n) => n + 1);
+            }}
+          >
+            {identityOn ? "Commander ID applied" : "Apply commander ID"}
+          </button>
+        )}
       {active.query && (
         <div ref={resultsRef}>
           <SearchResultsPanel
@@ -215,19 +228,14 @@ export function DeckSearchDock({
   const content = isMobile ? (
     <div className={styles.sheetCol}>
       <div className={styles.sheetPinned}>
-        {tabBar}
-        <div ref={setPinHost} />
-        {seedQuery && (
-          <button
-            type="button"
-            className={styles.identityBtn}
-            onClick={() => {
-              setIdentityOn(true);
-              setIdentityNonce((n) => n + 1);
-            }}
-          >
-            {identityOn ? "Commander ID applied" : "Apply commander ID"}
-          </button>
+        <button type="button" className={styles.pinToggle} onClick={() => setPinOpen((v) => !v)}>
+          {pinOpen ? "Hide search" : "Show search"}
+        </button>
+        {pinOpen && (
+          <>
+            {tabBar}
+            <div ref={setPinHost} />
+          </>
         )}
       </div>
       <div className={styles.sheetScroll}>{searchBody}</div>
