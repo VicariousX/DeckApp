@@ -682,3 +682,71 @@
     min-height: 12rem;
   }
 }
+
+.addDeckList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.addDeckBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  font-weight: 650;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.addDeckBtn:hover {
+  border-color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .shell {
+    overflow-y: auto;
+    height: auto;
+    max-height: 100%;
+    gap: 0.5rem;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .visual {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.2rem 0.5rem 0.2rem;
+    align-items: center;
+  }
+  .visual :global(img),
+  .image {
+    max-height: 38vh;
+    width: min(280px, 72vw);
+  }
+  .tabRail {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--color-surface);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0.3rem 0.1rem;
+  }
+  .tabPill {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.82rem;
+    flex: 0 0 auto;
+  }
+  .tabPanel {
+    min-height: 14rem;
+    border: none;
+    background: transparent;
+  }
+  .panelScroll {
+    max-height: none;
+  }
+}

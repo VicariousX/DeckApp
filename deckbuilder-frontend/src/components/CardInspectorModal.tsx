@@ -8,10 +8,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
+import { addCardToDeck, listMyDecks } from "../services/deckService";
 import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
 import { cardArtPublicUrl } from "../services/cardArtService";
-import type { DeckBoard, DeckCard, DeckTag } from "../types/deck";
+import type { Deck, DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
 import { CardDetail } from "./CardDetail";
@@ -237,8 +239,10 @@ export function CardInspectorModal({
   const [backSrc, setBackSrc] = useState<string | undefined>(imageUrlBack);
 
   const tabs = useMemo(() => {
-    const list: { id: TabId; label: string }[] = [{ id: "info", label: "Info" }];
-    if (deck) list.push({ id: "deck", label: "Deck" });
+    const list: { id: TabId; label: string }[] = [
+      { id: "info", label: "Info" },
+      { id: "deck", label: "Deck" },
+    ];
     list.push(
       { id: "drawers", label: "Drawers" },
       { id: "mechanics", label: "Mechanics" },
@@ -973,6 +977,15 @@ export function CardInspectorModal({
                 </div>
               )}
 
+              {active === "deck" && !deck && (
+                <AddToDeckPanel
+                  scryfallId={scryfallId}
+                  oracleId={displayCard?.oracle_id ?? baseCard?.oracle_id}
+                  name={displayName}
+                  typeLine={displayCard?.type_line ?? baseCard?.type_line}
+                />
+              )}
+
               {active === "deck" && deck && (
                 <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
                   <div className={styles.deckExtras}>
@@ -1212,3 +1225,66 @@ export function CardInspectorModal({
     </Modal>
   );
 }
+
+function AddToDeckPanel({
+  scryfallId,
+  oracleId,
+  name,
+  typeLine,
+}: {
+  scryfallId: string;
+  oracleId?: string;
+  name: string;
+  typeLine?: string;
+}) {
+  const { user } = useAuth();
+  const [decks, setDecks] = useState<Deck[] | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
+  }, [user]);
+
+  async function add(deckId: string) {
+    setBusy(true);
+    const { error } = await addCardToDeck(deckId, {
+      oracle_id: oracleId || scryfallId,
+      scryfall_id: scryfallId,
+      name,
+      type_line: typeLine || "",
+      quantity: 1,
+      board: "maybe",
+    });
+    setBusy(false);
+    setStatus(error ?? "Added to maybeboard");
+  }
+
+  if (!user) {
+    return <p className={styles.muted}>Sign in to add this card to a deck.</p>;
+  }
+
+  return (
+    <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+      <p className={styles.extraLabel}>Add {name} to a deck</p>
+      {status && <p className={styles.muted}>{status}</p>}
+      {!decks && <p className={styles.muted}>Loading decks…</p>}
+      {decks?.length === 0 && <p className={styles.muted}>No decks yet.</p>}
+      <div className={styles.addDeckList}>
+        {decks?.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className={styles.addDeckBtn}
+            disabled={busy}
+            onClick={() => void add(d.id)}
+          >
+            {d.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+

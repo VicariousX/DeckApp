@@ -153,7 +153,9 @@ export function CardEnlargeOverlay({
   onActivate?: () => void;
   hint?: string;
 }) {
-  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
 
@@ -208,24 +210,54 @@ export function CardEnlargeOverlay({
       <div
         className={styles.enlargeStage}
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => {
-          const t = e.touches[0];
-          swipe.current = { x: t.clientX, y: t.clientY };
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX, y: e.clientY, moved: false };
+          setDragging(true);
+          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
         }}
-        onTouchEnd={(e) => {
-          const start = swipe.current;
-          swipe.current = null;
+        onPointerMove={(e) => {
+          const start = drag.current;
           if (!start) return;
-          const t = e.changedTouches[0];
-          const dx = t.clientX - start.x;
-          const dy = t.clientY - start.y;
-          if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-            onClose();
+          const dx = e.clientX - start.x;
+          const dy = e.clientY - start.y;
+          if (Math.abs(dx) > 6 || Math.abs(dy) > 6) start.moved = true;
+          if (start.moved && Math.abs(dx) >= Math.abs(dy)) setOffset(dx);
+        }}
+        onPointerUp={(e) => {
+          const start = drag.current;
+          drag.current = null;
+          setDragging(false);
+          if (!start) return;
+          const dx = e.clientX - start.x;
+          if (!start.moved) {
+            onActivate?.();
+            return;
+          }
+          if (Math.abs(offset) > 110 || Math.abs(dx) > 110) {
+            setOffset(dx >= 0 ? window.innerWidth : -window.innerWidth);
+            window.setTimeout(onClose, 180);
+          } else {
+            setOffset(0);
           }
         }}
+        onPointerCancel={() => {
+          drag.current = null;
+          setDragging(false);
+          setOffset(0);
+        }}
       >
-        <TiltFace enabled onFaceClick={onActivate}>
-          <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+        <TiltFace enabled>
+          <img
+            src={src}
+            alt={alt}
+            className={styles.enlargeImage}
+            draggable={false}
+            style={{
+              transform: `perspective(900px) translateX(${offset}px) rotateY(${offset / 14}deg) rotateZ(${offset / 48}deg)`,
+              opacity: Math.max(0.3, 1 - Math.abs(offset) / 420),
+              transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+            }}
+          />
         </TiltFace>
         <p className={styles.enlargeHint}>
           {hint ??
