@@ -141,7 +141,9 @@ export function CardEnlargeOverlay({
   initialFace = 0,
   onClose,
   onActivate,
+  onSwipeRight,
   hint,
+  mode = "tilt",
 }: {
   frontSrc: string;
   backSrc?: string;
@@ -151,13 +153,17 @@ export function CardEnlargeOverlay({
   initialFace?: 0 | 1;
   onClose: () => void;
   onActivate?: () => void;
+  onSwipeRight?: () => void;
   hint?: string;
+  /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right open. */
+  mode?: "tilt" | "swipe";
 }) {
-  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
+  const swipe = mode === "swipe";
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -210,60 +216,79 @@ export function CardEnlargeOverlay({
       <div
         className={styles.enlargeStage}
         onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => {
-          drag.current = { x: e.clientX, y: e.clientY, moved: false };
+        onPointerDown={swipe ? (e) => {
+          drag.current = { x: e.clientX, y: e.clientY };
           setDragging(true);
           try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
-        }}
-        onPointerMove={(e) => {
+        } : undefined}
+        onPointerMove={swipe ? (e) => {
           const start = drag.current;
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
-          if (Math.abs(dx) > 6 || Math.abs(dy) > 6) start.moved = true;
-          if (start.moved && Math.abs(dx) >= Math.abs(dy)) setOffset(dx);
-        }}
-        onPointerUp={(e) => {
+          if (Math.abs(dx) >= Math.abs(dy)) setOffset(dx);
+        } : undefined}
+        onPointerUp={swipe ? (e) => {
           const start = drag.current;
           drag.current = null;
           setDragging(false);
           if (!start) return;
           const dx = e.clientX - start.x;
-          if (!start.moved) {
-            onActivate?.();
-            return;
-          }
-          if (Math.abs(offset) > 110 || Math.abs(dx) > 110) {
-            setOffset(dx >= 0 ? window.innerWidth : -window.innerWidth);
-            window.setTimeout(onClose, 180);
+          if (dx > 110) {
+            setOffset(window.innerWidth);
+            window.setTimeout(() => onSwipeRight?.(), 160);
+          } else if (dx < -110) {
+            setOffset(-window.innerWidth);
+            window.setTimeout(onClose, 160);
           } else {
             setOffset(0);
           }
-        }}
-        onPointerCancel={() => {
+        } : undefined}
+        onPointerCancel={swipe ? () => {
           drag.current = null;
           setDragging(false);
           setOffset(0);
-        }}
+        } : undefined}
       >
-        <TiltFace enabled>
-          <img
-            src={src}
-            alt={alt}
-            className={styles.enlargeImage}
-            draggable={false}
+        {swipe ? (
+          <div
+            className={styles.swipeCard}
             style={{
-              transform: `perspective(900px) translateX(${offset}px) rotateY(${offset / 14}deg) rotateZ(${offset / 48}deg)`,
-              opacity: Math.max(0.3, 1 - Math.abs(offset) / 420),
+              transform: `perspective(900px) translateX(${offset}px) rotateY(${offset / 16}deg) rotateZ(${offset / 60}deg)`,
+              opacity: Math.max(0.35, 1 - Math.abs(offset) / 480),
               transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
             }}
-          />
-        </TiltFace>
+          >
+            <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+          </div>
+        ) : (
+          <TiltFace enabled onFaceClick={onActivate}>
+            <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+          </TiltFace>
+        )}
+        {swipe && (
+          <>
+            <span
+              className={`${styles.swipeHint} ${styles.swipeHintLeft}`}
+              style={{ opacity: Math.min(1, Math.max(0, -offset / 90)) }}
+            >
+              Dismiss
+            </span>
+            <span
+              className={`${styles.swipeHint} ${styles.swipeHintRight}`}
+              style={{ opacity: Math.min(1, Math.max(0, offset / 90)) }}
+            >
+              Open
+            </span>
+          </>
+        )}
         <p className={styles.enlargeHint}>
           {hint ??
-            (canFlip
-              ? "Scroll to flip · click outside to close"
-              : "Click outside to close")}
+            (swipe
+              ? "Swipe right to open · swipe left to dismiss"
+              : canFlip
+                ? "Scroll to flip · click outside to close"
+                : "Click outside to close")}
         </p>
       </div>
     </div>,

@@ -98,6 +98,7 @@ export function CardResult({
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [previewMode, setPreviewMode] = useState<"swipe" | "tilt">("swipe");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
   const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
@@ -173,8 +174,10 @@ export function CardResult({
               display={item.display}
               originalId={item.originalId}
               onSelect={() => {
-                if (window.innerWidth <= 768) setPreviewIndex(i);
-                else setSelectedIndex(i);
+                if (window.innerWidth <= 768) {
+                  setPreviewMode("swipe");
+                  setPreviewIndex(i);
+                } else setSelectedIndex(i);
               }}
               onContext={(e) =>
                 setCtx({ x: e.clientX, y: e.clientY, index: i })
@@ -192,22 +195,19 @@ export function CardResult({
           frontName={preview.display.name}
           backName={preview.display.card_faces?.[1]?.name ?? "Back"}
           multi={isMultiCard(preview.display)}
+          mode={previewMode}
           onClose={() => setPreviewIndex(null)}
+          onSwipeRight={() => {
+            setSelectedIndex(previewIndex);
+            setPreviewIndex(null);
+          }}
           onActivate={() => {
-            if (window.innerWidth <= 768 && previewIndex != null) {
-              setCtx({
-                x: Math.min(window.innerWidth - 220, window.innerWidth / 2),
-                y: Math.min(window.innerHeight - 280, window.innerHeight / 2),
-                index: previewIndex,
-              });
-              return;
-            }
             setSelectedIndex(previewIndex);
             setPreviewIndex(null);
           }}
           hint={
-            window.innerWidth <= 768
-              ? "Tap again for options · swipe to dismiss · tap outside to close"
+            previewMode === "swipe"
+              ? "Swipe right to open · swipe left to dismiss"
               : "Click the card for details · click outside to close"
           }
         />
@@ -227,6 +227,7 @@ export function CardResult({
           }}
           onClose={() => setCtx(null)}
           onEnhance={() => {
+            setPreviewMode("tilt");
             setPreviewIndex(ctx.index);
             setCtx(null);
           }}

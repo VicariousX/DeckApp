@@ -307,6 +307,7 @@
 }
 
 .enlargeStage {
+  position: relative;
   width: min(340px, 78vw);
   display: flex;
   flex-direction: column;
@@ -334,3 +335,25 @@
   color: rgba(255, 255, 255, 0.72);
   font-weight: 600;
 }
+
+.swipeCard {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+}
+.swipeHint {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+.swipeHintLeft { left: 0.4rem; }
+.swipeHintRight { right: 0.4rem; }
