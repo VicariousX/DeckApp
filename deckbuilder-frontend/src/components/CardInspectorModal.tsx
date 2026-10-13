@@ -906,8 +906,9 @@ export function CardInspectorModal({
                 return !v;
               })}
               aria-expanded={imageOpen}
+              aria-label={imageOpen ? "Hide image" : "Show image"}
             >
-              {imageOpen ? "Hide image" : "Show image"}
+              {imageOpen ? "⌃" : displayName}
             </button>
             {deck?.isOwner && (
               <div className={styles.quickQty}>
