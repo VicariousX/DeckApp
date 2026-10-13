@@ -353,8 +353,31 @@ export function AdvancedSearch({
 
   useEffect(() => {
     if (!identityToken || !identityNonce) return;
-    setBar((prev) => (prev.includes(identityToken) ? prev : `${prev} ${identityToken}`.trim()));
-    setBarDirty(true);
+    const match = identityToken.match(/^id(:|<=)(.+)$/i);
+    if (!match) return;
+    const op = match[1] as CmpOp;
+    const value = match[2];
+    setRoot((r) => {
+      const exists = r.items.some(
+        (n) =>
+          n.kind === "clause" &&
+          n.field === "id" &&
+          n.op === op &&
+          n.value.toLowerCase() === value.toLowerCase()
+      );
+      if (exists) return r;
+      const clause: Clause = {
+        kind: "clause",
+        id: uid(),
+        category: "colors",
+        field: "id",
+        op,
+        value,
+        excluded: false,
+        joinAfter: "and",
+      };
+      return { ...r, join: "and", items: [...r.items, clause] };
+    });
   }, [identityNonce, identityToken]);
 
   useEffect(() => {
@@ -535,8 +558,15 @@ export function AdvancedSearch({
   }
 
   function submit(q: string) {
-    const trimmed = q.trim();
+    let trimmed = q.trim();
+    if (!trimmed && identityToken) trimmed = identityToken;
     if (!trimmed) return;
+    if (
+      identityToken &&
+      !trimmed.toLowerCase().includes(identityToken.toLowerCase())
+    ) {
+      trimmed = `${trimmed} ${identityToken}`;
+    }
     if (onSearch) {
       onSearch(trimmed);
       return;
