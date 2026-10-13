@@ -123,6 +123,23 @@ export function CardResult({
   );
 
   useEffect(() => {
+    if (!addedToast) return;
+    const t = window.setTimeout(() => setAddedToast(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [addedToast]);
+
+  const list = useMemo(
+    () =>
+      pairs.map(({ original, display, resolved }) => ({
+        originalId: original.id,
+        display,
+        hidePrintingMeta:
+          resolved.has_custom_art || resolved.has_preferred_printing,
+      })),
+    [pairs]
+  );
+
+  useEffect(() => {
     if (!pendingPage.current || previewIndex == null) return;
     if (pendingPage.current === "next" && previewIndex < list.length - 1) {
       setEnterFrom("up");
@@ -139,23 +156,6 @@ export function CardResult({
       }
     }
   }, [list, previewIndex]);
-
-  useEffect(() => {
-    if (!addedToast) return;
-    const t = window.setTimeout(() => setAddedToast(null), 1600);
-    return () => window.clearTimeout(t);
-  }, [addedToast]);
-
-  const list = useMemo(
-    () =>
-      pairs.map(({ original, display, resolved }) => ({
-        originalId: original.id,
-        display,
-        hidePrintingMeta:
-          resolved.has_custom_art || resolved.has_preferred_printing,
-      })),
-    [pairs]
-  );
 
   if (cards.length === 0) {
     return null;
