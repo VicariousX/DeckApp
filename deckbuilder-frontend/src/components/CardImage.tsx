@@ -296,6 +296,13 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
+          if (Math.hypot(dx, dy) < 12) {
+            onActivate?.();
+            setAxis(null);
+            setOffset(0);
+            setVOffset(0);
+            return;
+          }
           const horizontal = Math.abs(dx) >= Math.abs(dy);
           if (horizontal && dx > 110) {
             if (keepOpenOnRight) {

@@ -73,6 +73,7 @@ export function SearchResultsPanel({
   const [viewPage, setViewPage] = useState(1);
   const [stream, setStream] = useState<{ page: number; cards: ScryfallCard[] }[]>([]);
   const [viewMode, setViewMode] = useState<"image" | "text">("image");
+  const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
   const { cards, total, hasMoreApi, apiPage, isLoading, isError, run, goApiPage } =
     useScryfallSearch();
 
@@ -184,6 +185,20 @@ export function SearchResultsPanel({
           >
             Images
           </button>
+          <button
+            type="button"
+            className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
+            onClick={() => setBrowseMode("catalog")}
+          >
+            Catalog
+          </button>
+          <button
+            type="button"
+            className={`${resultStyles.viewBtn}${browseMode === "scroll" ? ` ${resultStyles.viewOn}` : ""}`}
+            onClick={() => setBrowseMode("scroll")}
+          >
+            Scroll
+          </button>
         </div>
         <label className={resultStyles.size}>
           Sort
@@ -236,8 +251,9 @@ export function SearchResultsPanel({
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
-        cardSize={180}
+        cardSize={browseMode === "catalog" ? 112 : 180}
         viewMode={viewMode}
+        browseMode={browseMode}
         onAddToDeck={onAddToDeck}
       />
       <div className={resultStyles.moreRow}>

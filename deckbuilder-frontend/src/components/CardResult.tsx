@@ -20,6 +20,7 @@ type CardResultProps = {
   cards: ScryfallCard[];
   cardSize?: number;
   viewMode?: "image" | "text";
+  browseMode?: "catalog" | "scroll";
   previewFirst?: boolean;
   onAddToDeck?: (card: ScryfallCard) => void;
   countInDeck?: (card: ScryfallCard) => number;
@@ -97,6 +98,7 @@ export function CardResult({
   cards,
   cardSize = 240,
   viewMode = "image",
+  browseMode = "catalog",
   previewFirst = false,
   onAddToDeck,
   countInDeck,
@@ -157,6 +159,19 @@ export function CardResult({
     }
   }, [list, previewIndex]);
 
+  const openedScroll = useRef(false);
+  useEffect(() => {
+    if (browseMode !== "scroll" || viewMode !== "image") {
+      openedScroll.current = false;
+      if (browseMode !== "scroll") setPreviewIndex(null);
+      return;
+    }
+    if (openedScroll.current || !list.length) return;
+    openedScroll.current = true;
+    setPreviewMode("swipe");
+    setPreviewIndex(0);
+  }, [browseMode, viewMode, list.length]);
+
   if (cards.length === 0) {
     return null;
   }
@@ -208,17 +223,24 @@ export function CardResult({
           ))}
         </ul>
       ) : (
-        <div className={styles.resultsGrid} style={gridStyle}>
+        <div
+          className={styles.resultsGrid}
+          style={gridStyle}
+          hidden={browseMode === "scroll" && previewIndex != null}
+        >
           {list.map((item, i) => (
             <ResultCard
               key={item.originalId}
               display={item.display}
               originalId={item.originalId}
               onSelect={() => {
-                if (window.innerWidth <= 768) {
-                  setPreviewMode("swipe");
-                  setPreviewIndex(i);
-                } else setSelectedIndex(i);
+                if (window.innerWidth <= 768 && browseMode === "catalog") {
+                  const x = Math.min(window.innerWidth - 220, window.innerWidth / 2);
+                  const y = Math.min(window.innerHeight - 280, window.innerHeight / 2);
+                  setCtx({ x, y, index: i });
+                  return;
+                }
+                setSelectedIndex(i);
               }}
               onContext={(e) =>
                 setCtx({ x: e.clientX, y: e.clientY, index: i })
@@ -229,7 +251,7 @@ export function CardResult({
         </div>
       )}
 
-      {preview && previewIndex != null && (
+      {browseMode === "scroll" && preview && previewIndex != null && (
         <CardEnlargeOverlay
           frontSrc={getFaceImage(preview.display, 0)}
           backSrc={getFaceImage(preview.display, 1) || ""}
