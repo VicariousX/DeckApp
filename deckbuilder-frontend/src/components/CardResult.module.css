@@ -196,6 +196,8 @@
   position: absolute;
   top: 0.7rem;
   right: 0.7rem;
+  z-index: 20;
+  pointer-events: auto;
   width: 44px;
   height: 44px;
   border: none;

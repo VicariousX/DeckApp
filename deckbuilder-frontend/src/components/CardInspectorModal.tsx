@@ -205,6 +205,9 @@ export function CardInspectorModal({
   const [active, setActive] = useState<TabId>(initialTab);
   const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
   const [imageOpen, setImageOpen] = useState(true);
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
   const [infoSub, setInfoSub] = useState<"details" | "rulings">(initialInfoSub);
 
   useEffect(() => {
@@ -763,6 +766,22 @@ export function CardInspectorModal({
     else onClose();
   }
 
+
+  function shiftSub(direction: "up" | "down") {
+    if (direction === "up") {
+      if (active === "info" && infoSub === "rulings") { setInfoSub("details"); return; }
+      if (active === "artwork" && artSub === "upload") { setArtSub("prints"); return; }
+      const next = Math.max(0, activeIndex - 1);
+      selectTab(tabs[next].id);
+      return;
+    }
+    if (active === "info" && infoSub === "details") { setInfoSub("rulings"); return; }
+    if (active === "artwork" && artSub === "prints") { setArtSub("upload"); return; }
+    if (active === "artwork" && artSub === "upload") return;
+    const next = Math.min(tabs.length - 1, activeIndex + 1);
+    selectTab(tabs[next].id);
+  }
+
   return (
     <Modal
       onClose={onClose}
@@ -777,20 +796,50 @@ export function CardInspectorModal({
       <div
         className={styles.shell}
         ref={shellRef}
-        onTouchStart={(e) => {
-          const t = e.touches[0];
-          (shellRef.current as HTMLElement & { _swipe?: { x: number; y: number } })._swipe = {
-            x: t.clientX,
-            y: t.clientY,
-          };
+        style={{
+          transform: `translate(${drag.x}px, ${drag.y}px)`,
+          transition: dragging ? "none" : "transform 0.22s ease",
         }}
-        onTouchEnd={(e) => {
-          const start = (shellRef.current as HTMLElement & { _swipe?: { x: number; y: number } })._swipe;
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest("button, input, textarea, a")) return;
+          const top = shellRef.current?.getBoundingClientRect().top ?? 0;
+          gesture.current = { x: e.clientX, y: e.clientY, fromTop: e.clientY - top < 56 };
+          setDragging(true);
+        }}
+        onPointerMove={(e) => {
+          const start = gesture.current;
           if (!start) return;
-          const t = e.changedTouches[0];
-          const dx = t.clientX - start.x;
-          const dy = t.clientY - start.y;
-          if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.3) onClose();
+          const dx = e.clientX - start.x;
+          const dy = e.clientY - start.y;
+          if (Math.abs(dx) > Math.abs(dy)) setDrag({ x: dx, y: 0 });
+          else if (start.fromTop && dy > 0) setDrag({ x: 0, y: dy });
+          else setDrag({ x: 0, y: Math.max(-40, Math.min(40, dy * 0.25)) });
+        }}
+        onPointerUp={(e) => {
+          const start = gesture.current;
+          gesture.current = null;
+          setDragging(false);
+          if (!start) return;
+          const dx = e.clientX - start.x;
+          const dy = e.clientY - start.y;
+          setDrag({ x: 0, y: 0 });
+          if (start.fromTop && dy > 110 && Math.abs(dy) > Math.abs(dx)) {
+            onClose();
+            return;
+          }
+          if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy)) {
+            if (dx < 0 && hasNext && onNext) onNext();
+            if (dx > 0 && hasPrev && onPrev) onPrev();
+            return;
+          }
+          if (Math.abs(dy) > 70 && Math.abs(dy) > Math.abs(dx) && !start.fromTop) {
+            shiftSub(dy < 0 ? "down" : "up");
+          }
+        }}
+        onPointerCancel={() => {
+          gesture.current = null;
+          setDragging(false);
+          setDrag({ x: 0, y: 0 });
         }}
       >
         {(hasPrev || hasNext) && (
@@ -855,6 +904,14 @@ export function CardInspectorModal({
                 <div className={styles.imagePlaceholder}>{displayName}</div>
               )
             )}
+            <button
+              type="button"
+              className={styles.collapseBtn}
+              onClick={() => setImageOpen((v) => !v)}
+              aria-expanded={imageOpen}
+            >
+              {imageOpen ? "Hide image" : "Show image"}
+            </button>
             {deck?.isOwner && (
               <div className={styles.quickQty}>
                 <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">

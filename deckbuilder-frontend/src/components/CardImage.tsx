@@ -211,6 +211,8 @@ export function CardEnlargeOverlay({
     if (embedded) {
       const unlock = lockBodyScroll();
       function onTouch(e: TouchEvent) {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("button")) return;
         e.preventDefault();
       }
       window.addEventListener("touchmove", onTouch, { passive: false, capture: true });

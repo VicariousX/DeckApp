@@ -266,7 +266,15 @@ export function CardResult({
 
       {browseMode === "scroll" && preview && previewIndex != null && createPortal(
         <div className={styles.scrollStage} onPointerDown={(e) => e.stopPropagation()}>
-          <button type="button" className={styles.scrollExit} onClick={() => onExitScroll?.()}>
+          <button
+            type="button"
+            className={styles.scrollExit}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onExitScroll?.();
+            }}
+          >
             ×
           </button>
         <CardEnlargeOverlay
