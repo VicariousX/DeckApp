@@ -254,6 +254,8 @@ export function SearchResultsPanel({
         cardSize={browseMode === "catalog" ? 112 : 180}
         viewMode={viewMode}
         browseMode={browseMode}
+        onEnterScroll={() => setBrowseMode("scroll")}
+        onExitScroll={() => setBrowseMode("catalog")}
         onAddToDeck={onAddToDeck}
       />
       <div className={resultStyles.moreRow}>

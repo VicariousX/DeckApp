@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -27,6 +28,8 @@ type CardResultProps = {
   onUndoAdd?: (card: ScryfallCard) => void;
   onReachEnd?: () => void;
   onReachStart?: () => void;
+  onEnterScroll?: () => void;
+  onExitScroll?: () => void;
 };
 
 function ResultCard({
@@ -105,6 +108,8 @@ export function CardResult({
   onUndoAdd,
   onReachEnd,
   onReachStart,
+  onEnterScroll,
+  onExitScroll,
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -169,7 +174,7 @@ export function CardResult({
     if (openedScroll.current || !list.length) return;
     openedScroll.current = true;
     setPreviewMode("swipe");
-    setPreviewIndex(0);
+    setPreviewIndex((i) => (i == null ? 0 : Math.min(i, list.length - 1)));
   }, [browseMode, viewMode, list.length]);
 
   if (cards.length === 0) {
@@ -250,7 +255,11 @@ export function CardResult({
         </div>
       )}
 
-      {browseMode === "scroll" && preview && previewIndex != null && (
+      {browseMode === "scroll" && preview && previewIndex != null && createPortal(
+        <div className={styles.scrollStage}>
+          <button type="button" className={styles.scrollExit} onClick={() => onExitScroll?.()}>
+            ×
+          </button>
         <CardEnlargeOverlay
           embedded
           frontSrc={getFaceImage(preview.display, 0)}
@@ -324,10 +333,16 @@ export function CardResult({
           }}
           hint="Swipe right to add · left to remove · up/down next card · tap for details"
         />
+        </div>,
+        document.body
       )}
 
       {ctx && list[ctx.index] && (
         <CardContextMenu
+          onStartScroll={() => {
+            setPreviewIndex(ctx.index);
+            onEnterScroll?.();
+          }}
           x={ctx.x}
           y={ctx.y}
           target={{

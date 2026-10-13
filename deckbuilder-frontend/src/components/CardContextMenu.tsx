@@ -63,6 +63,7 @@ type Props = {
   hideAddToDeck?: boolean;
   linkChoices?: { id: string; name: string; on: boolean; onToggle: () => void }[];
   moveTargets?: { label: string; onSelect: () => void }[];
+  onStartScroll?: () => void;
 };
 
 const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
@@ -91,6 +92,7 @@ export function CardContextMenu({
   hideAddToDeck,
   linkChoices,
   moveTargets,
+  onStartScroll,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -281,6 +283,18 @@ export function CardContextMenu({
           Card page
         </button>
       </div>
+
+      {onStartScroll && (
+        <button
+          type="button"
+          onClick={() => {
+            onStartScroll();
+            onClose();
+          }}
+        >
+          Start scroll from this card
+        </button>
+      )}
 
       {linkChoices && linkChoices.length > 0 && (
         <div className={styles.fly}>

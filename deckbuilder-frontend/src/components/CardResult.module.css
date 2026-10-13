@@ -180,3 +180,28 @@
     transform: translateY(0);
   }
 }
+
+.scrollStage {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 3.2rem 0.75rem 1.5rem;
+}
+.scrollExit {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
