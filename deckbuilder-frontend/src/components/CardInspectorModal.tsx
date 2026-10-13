@@ -203,6 +203,7 @@ export function CardInspectorModal({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>(initialTab);
   const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
+  const [imageOpen, setImageOpen] = useState(true);
   const [infoSub, setInfoSub] = useState<"details" | "rulings">(initialInfoSub);
 
   useEffect(() => {
@@ -814,7 +815,15 @@ export function CardInspectorModal({
         )}
 
         <div className={styles.layout}>
-          <div className={styles.visual}>
+          <div className={`${styles.visual}${imageOpen ? "" : ` ${styles.visualCollapsed}`}`}>
+            <button
+              type="button"
+              className={styles.collapseBtn}
+              onClick={() => setImageOpen((v) => !v)}
+              aria-expanded={imageOpen}
+            >
+              {imageOpen ? "Hide image" : "Show image"}
+            </button>
             {loading && (
               <div className={styles.imagePlaceholder}>Loading…</div>
             )}

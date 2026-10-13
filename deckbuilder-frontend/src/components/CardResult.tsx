@@ -99,6 +99,7 @@ export function CardResult({
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<"swipe" | "tilt">("swipe");
+  const [rightAction, setRightAction] = useState<"open" | "add">("open");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
   const [ctx, setCtx] = useState<{ x: number; y: number; index: number } | null>(
@@ -190,6 +191,7 @@ export function CardResult({
 
       {preview && previewIndex != null && (
         <CardEnlargeOverlay
+          key={previewIndex}
           frontSrc={getFaceImage(preview.display, 0)}
           backSrc={getFaceImage(preview.display, 1) || ""}
           frontName={preview.display.name}
@@ -198,16 +200,33 @@ export function CardResult({
           mode={previewMode}
           onClose={() => setPreviewIndex(null)}
           onSwipeRight={() => {
+            if (rightAction === "add" && onAddToDeck) {
+              onAddToDeck(preview.display);
+              setPreviewIndex(null);
+              return;
+            }
             setSelectedIndex(previewIndex);
             setPreviewIndex(null);
           }}
+          onSwipeUp={() => {
+            setPreviewIndex((i) => (i != null && i < list.length - 1 ? i + 1 : i));
+          }}
+          onSwipeDown={() => {
+            setPreviewIndex((i) => (i != null && i > 0 ? i - 1 : i));
+          }}
+          rightLabel={rightAction === "add" ? "Add" : "Open"}
+          onToggleRight={
+            onAddToDeck
+              ? () => setRightAction((v) => (v === "open" ? "add" : "open"))
+              : undefined
+          }
           onActivate={() => {
             setSelectedIndex(previewIndex);
             setPreviewIndex(null);
           }}
           hint={
             previewMode === "swipe"
-              ? "Swipe right to open · swipe left to dismiss"
+              ? `Swipe right to ${rightAction === "add" ? "add" : "open"} · left dismiss · up/down next card`
               : "Click the card for details · click outside to close"
           }
         />

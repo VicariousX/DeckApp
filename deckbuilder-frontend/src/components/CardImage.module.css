@@ -314,6 +314,9 @@
   align-items: center;
   gap: 0.65rem;
 }
+.enlargeStage:has(.swipeCard) {
+  width: min(92vw, 520px);
+}
 
 .enlargeStage .faceObject {
   width: 100%;
@@ -338,6 +341,7 @@
 
 .swipeCard {
   width: 100%;
+  max-height: 86vh;
   aspect-ratio: 5 / 7;
   border-radius: 14px;
   background: transparent;
@@ -357,3 +361,18 @@
 }
 .swipeHintLeft { left: 0.4rem; }
 .swipeHintRight { right: 0.4rem; }
+
+.swipeHintUp { top: 0.2rem; left: 50%; transform: translate(-50%, 0); }
+.swipeHintDown { bottom: 2.4rem; top: auto; left: 50%; transform: translate(-50%, 0); }
+.swipeToggle {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}

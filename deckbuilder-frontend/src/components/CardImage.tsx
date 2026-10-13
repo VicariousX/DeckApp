@@ -142,6 +142,10 @@ export function CardEnlargeOverlay({
   onClose,
   onActivate,
   onSwipeRight,
+  onSwipeUp,
+  onSwipeDown,
+  rightLabel = "Open",
+  onToggleRight,
   hint,
   mode = "tilt",
 }: {
@@ -154,12 +158,17 @@ export function CardEnlargeOverlay({
   onClose: () => void;
   onActivate?: () => void;
   onSwipeRight?: () => void;
+  onSwipeUp?: () => void;
+  onSwipeDown?: () => void;
+  rightLabel?: string;
+  onToggleRight?: () => void;
   hint?: string;
-  /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right open. */
+  /** tilt = pointer-tracked 3D (Enhance). swipe = left dismiss / right action. */
   mode?: "tilt" | "swipe";
 }) {
   const drag = useRef<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState(0);
+  const [vOffset, setVOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
@@ -226,7 +235,13 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
-          if (Math.abs(dx) >= Math.abs(dy)) setOffset(dx);
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            setOffset(dx);
+            setVOffset(0);
+          } else {
+            setVOffset(dy);
+            setOffset(0);
+          }
         } : undefined}
         onPointerUp={swipe ? (e) => {
           const start = drag.current;
@@ -234,28 +249,38 @@ export function CardEnlargeOverlay({
           setDragging(false);
           if (!start) return;
           const dx = e.clientX - start.x;
-          if (dx > 110) {
+          const dy = e.clientY - start.y;
+          const horizontal = Math.abs(dx) >= Math.abs(dy);
+          if (horizontal && dx > 110) {
             setOffset(window.innerWidth);
             window.setTimeout(() => onSwipeRight?.(), 160);
-          } else if (dx < -110) {
+          } else if (horizontal && dx < -110) {
             setOffset(-window.innerWidth);
             window.setTimeout(onClose, 160);
+          } else if (!horizontal && dy < -90) {
+            setVOffset(-window.innerHeight);
+            window.setTimeout(() => onSwipeUp?.(), 140);
+          } else if (!horizontal && dy > 90) {
+            setVOffset(window.innerHeight);
+            window.setTimeout(() => onSwipeDown?.(), 140);
           } else {
             setOffset(0);
+            setVOffset(0);
           }
         } : undefined}
         onPointerCancel={swipe ? () => {
           drag.current = null;
           setDragging(false);
           setOffset(0);
+          setVOffset(0);
         } : undefined}
       >
         {swipe ? (
           <div
             className={styles.swipeCard}
             style={{
-              transform: `perspective(900px) translateX(${offset}px) rotateY(${offset / 16}deg) rotateZ(${offset / 60}deg)`,
-              opacity: Math.max(0.35, 1 - Math.abs(offset) / 480),
+              transform: `perspective(900px) translate(${offset}px, ${vOffset}px) rotateY(${offset / 16}deg) rotateX(${-vOffset / 22}deg)`,
+              opacity: Math.max(0.35, 1 - (Math.abs(offset) + Math.abs(vOffset)) / 520),
               transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
             }}
           >
@@ -278,8 +303,25 @@ export function CardEnlargeOverlay({
               className={`${styles.swipeHint} ${styles.swipeHintRight}`}
               style={{ opacity: Math.min(1, Math.max(0, offset / 90)) }}
             >
-              Open
+              {rightLabel}
             </span>
+            <span
+              className={`${styles.swipeHint} ${styles.swipeHintUp}`}
+              style={{ opacity: Math.min(1, Math.max(0, -vOffset / 80)) }}
+            >
+              Next
+            </span>
+            <span
+              className={`${styles.swipeHint} ${styles.swipeHintDown}`}
+              style={{ opacity: Math.min(1, Math.max(0, vOffset / 80)) }}
+            >
+              Previous
+            </span>
+            {onToggleRight && (
+              <button type="button" className={styles.swipeToggle} onClick={onToggleRight}>
+                Right swipe: {rightLabel}
+              </button>
+            )}
           </>
         )}
         <p className={styles.enlargeHint}>
