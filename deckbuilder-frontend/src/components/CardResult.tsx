@@ -263,16 +263,12 @@ export function CardResult({
           enterFrom={enterFrom}
           onEntered={() => setEnterFrom(null)}
           onSwipeRight={() => {
-            if (rightAction === "add" && onAddToDeck) {
-              onAddToDeck(preview.display);
-              const count = (countInDeck?.(preview.display) ?? 0) + 1;
-              setAddedToast({ name: preview.display.name, count, card: preview.display });
-              return;
-            }
-            setSelectedIndex(previewIndex);
-            setPreviewIndex(null);
+            if (!onAddToDeck) return;
+            onAddToDeck(preview.display);
+            const count = (countInDeck?.(preview.display) ?? 0) + 1;
+            setAddedToast({ name: preview.display.name, count, card: preview.display });
           }}
-          keepOpenOnRight={rightAction === "add"}
+          keepOpenOnRight
           nextSrc={
             previewIndex < list.length - 1
               ? getFaceImage(list[previewIndex + 1].display, 0)
@@ -304,12 +300,7 @@ export function CardResult({
               onReachStart();
             }
           }}
-          rightLabel={rightAction === "add" ? "Add" : "Open"}
-          onToggleRight={
-            onAddToDeck
-              ? () => setRightAction((v) => (v === "open" ? "add" : "open"))
-              : undefined
-          }
+          rightLabel="Add"
           toast={addedToast ? "Card added" : null}
           addedQty={addedToast?.count ?? null}
           onUndo={
@@ -320,15 +311,18 @@ export function CardResult({
                 }
               : undefined
           }
-          onActivate={() => {
-            setSelectedIndex(previewIndex);
-            setPreviewIndex(null);
+          onActivate={() => setSelectedIndex(previewIndex)}
+          onSwipeLeft={() => {
+            const count = countInDeck?.(preview.display) ?? 0;
+            if (count <= 0 || !onUndoAdd) return;
+            onUndoAdd(preview.display);
+            setAddedToast({
+              name: preview.display.name,
+              count: count - 1,
+              card: preview.display,
+            });
           }}
-          hint={
-            previewMode === "swipe"
-              ? `Swipe right to ${rightAction === "add" ? "add" : "open"} · left dismiss · up/down next card`
-              : "Click the card for details · click outside to close"
-          }
+          hint="Swipe right to add · left to remove · up/down next card · tap for details"
         />
       )}
 

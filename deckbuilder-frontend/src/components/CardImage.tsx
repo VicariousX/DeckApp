@@ -144,6 +144,7 @@ export function CardEnlargeOverlay({
   onClose,
   onActivate,
   onSwipeRight,
+  onSwipeLeft,
   onSwipeUp,
   onSwipeDown,
   enterFrom,
@@ -169,6 +170,7 @@ export function CardEnlargeOverlay({
   onClose: () => void;
   onActivate?: () => void;
   onSwipeRight?: () => void;
+  onSwipeLeft?: () => void;
   onSwipeUp?: () => void;
   onSwipeDown?: () => void;
   enterFrom?: "up" | "down" | null;
@@ -318,8 +320,9 @@ export function CardEnlargeOverlay({
               window.setTimeout(() => onSwipeRight?.(), 160);
             }
           } else if (horizontal && dx < -110) {
-            setOffset(-window.innerWidth);
-            window.setTimeout(onClose, 160);
+            onSwipeLeft?.();
+            setAxis(null);
+            setOffset(0);
           } else if (!horizontal && dy < -90 && (nextSrc || onSwipeUp)) {
             if (nextSrc) {
               const gap = (stackRef.current?.offsetHeight ?? 480) + 18;
