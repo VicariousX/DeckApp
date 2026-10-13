@@ -27,6 +27,7 @@ import { createPortal } from "react-dom";
 import type { DeckBoard, DeckCard } from "../types/deck";
 import styles from "../pages/DeckBuilderPage.module.css";
 import { useStackHoverIndex } from "./StackCards";
+import { lockBodyScroll } from "../lib/scrollLock";
 
 export type DropTarget =
   | { kind: "card"; cardId: string }
@@ -169,14 +170,13 @@ export function ImageDndProvider({
   // While dragging on mobile: don't scroll the page
   useEffect(() => {
     if (!activeId || !isMobile) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     function block(e: TouchEvent) {
       e.preventDefault();
     }
     window.addEventListener("touchmove", block, { passive: false });
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       window.removeEventListener("touchmove", block);
     };
   }, [activeId, isMobile]);

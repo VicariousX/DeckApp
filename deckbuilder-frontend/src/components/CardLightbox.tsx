@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import styles from "./CardLightbox.module.css";
+import { lockBodyScroll } from "../lib/scrollLock";
 
 type Props = {
   src: string;
@@ -15,11 +16,10 @@ export function CardLightbox({ src, alt, onClose }: Props) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+      unlock();
     };
   }, [onClose]);
 

@@ -18,6 +18,7 @@ import {
   isMultiCard,
 } from "../utils/scryfall";
 
+import { lockBodyScroll } from "../lib/scrollLock";
 import styles from "./CardImage.module.css";
 
 export type CardFaceView = "front" | "back" | "both";
@@ -175,14 +176,14 @@ export function CardEnlargeOverlay({
   const drag = useRef<{ x: number; y: number } | null>(null);
   const [offset, setOffset] = useState(0);
   const [vOffset, setVOffset] = useState(0);
+  const [axis, setAxis] = useState<"x" | "y" | null>(null);
   const [dragging, setDragging] = useState(false);
   const [face, setFace] = useState<0 | 1>(initialFace);
   const canFlip = Boolean(multi && backSrc);
   const swipe = mode === "swipe";
 
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -210,7 +211,7 @@ export function CardEnlargeOverlay({
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
@@ -241,7 +242,10 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
-          if (Math.abs(dx) >= Math.abs(dy)) {
+          if (!axis && Math.hypot(dx, dy) < 14) return;
+          const next = axis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
+          if (!axis) setAxis(next);
+          if (next === "x") {
             setOffset(dx);
             setVOffset(0);
           } else {
@@ -275,6 +279,7 @@ export function CardEnlargeOverlay({
             setVOffset(window.innerHeight);
             window.setTimeout(() => onSwipeDown?.(), 140);
           } else {
+            setAxis(null);
             setOffset(0);
             setVOffset(0);
           }
@@ -282,13 +287,14 @@ export function CardEnlargeOverlay({
         onPointerCancel={swipe ? () => {
           drag.current = null;
           setDragging(false);
+          setAxis(null);
           setOffset(0);
           setVOffset(0);
         } : undefined}
       >
         {swipe ? (
           <div className={styles.swipeStack}>
-            {prevSrc && (
+            {axis === "y" && prevSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
@@ -309,7 +315,7 @@ export function CardEnlargeOverlay({
             >
               <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
             </div>
-            {nextSrc && (
+            {axis === "y" && nextSrc && (
               <div
                 className={styles.swipeCard}
                 style={{
@@ -391,8 +397,7 @@ export function CardImage({
 
   useEffect(() => {
     if (!enlarged) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -420,7 +425,7 @@ export function CardImage({
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);

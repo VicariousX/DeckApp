@@ -1,5 +1,6 @@
 import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { lockBodyScroll } from "../lib/scrollLock";
 import styles from "./Modal.module.css";
 
 export function Modal({
@@ -15,8 +16,7 @@ export function Modal({
   style?: CSSProperties;
 }) {
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     function onWheel(e: WheelEvent) {
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-modal-root]")) return;
@@ -30,7 +30,7 @@ export function Modal({
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchmove", onTouch, { passive: false });
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouch);
     };

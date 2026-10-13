@@ -55,6 +55,7 @@ import { emptyJournal, recordAction, replayJournal, truncateJournal } from "../l
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./PlaytestPage.module.css";
+import { lockBodyScroll } from "../lib/scrollLock";
 
 const MOVE_ZONES: { id: PlayZone; label: string }[] = [
   { id: "battlefield", label: "Battlefield" },
@@ -387,11 +388,10 @@ export function PlaytestPage() {
   const ptrRef = useRef({ x: 0, y: 0 });
   const grabRef = useRef({ dx: 0, dy: 0, w: 76.8, h: 107.4 });
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     document.documentElement.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       document.documentElement.style.overflow = "";
     };
   }, []);
