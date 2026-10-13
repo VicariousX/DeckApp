@@ -202,12 +202,22 @@ export function CardResult({
           onSwipeRight={() => {
             if (rightAction === "add" && onAddToDeck) {
               onAddToDeck(preview.display);
-              setPreviewIndex(null);
               return;
             }
             setSelectedIndex(previewIndex);
             setPreviewIndex(null);
           }}
+          keepOpenOnRight={rightAction === "add"}
+          nextSrc={
+            previewIndex < list.length - 1
+              ? getFaceImage(list[previewIndex + 1].display, 0)
+              : undefined
+          }
+          prevSrc={
+            previewIndex > 0
+              ? getFaceImage(list[previewIndex - 1].display, 0)
+              : undefined
+          }
           onSwipeUp={() => {
             setPreviewIndex((i) => (i != null && i < list.length - 1 ? i + 1 : i));
           }}

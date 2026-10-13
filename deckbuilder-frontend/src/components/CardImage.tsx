@@ -144,6 +144,9 @@ export function CardEnlargeOverlay({
   onSwipeRight,
   onSwipeUp,
   onSwipeDown,
+  nextSrc,
+  prevSrc,
+  keepOpenOnRight,
   rightLabel = "Open",
   onToggleRight,
   hint,
@@ -160,6 +163,9 @@ export function CardEnlargeOverlay({
   onSwipeRight?: () => void;
   onSwipeUp?: () => void;
   onSwipeDown?: () => void;
+  nextSrc?: string;
+  prevSrc?: string;
+  keepOpenOnRight?: boolean;
   rightLabel?: string;
   onToggleRight?: () => void;
   hint?: string;
@@ -252,8 +258,13 @@ export function CardEnlargeOverlay({
           const dy = e.clientY - start.y;
           const horizontal = Math.abs(dx) >= Math.abs(dy);
           if (horizontal && dx > 110) {
-            setOffset(window.innerWidth);
-            window.setTimeout(() => onSwipeRight?.(), 160);
+            if (keepOpenOnRight) {
+              onSwipeRight?.();
+              setOffset(0);
+            } else {
+              setOffset(window.innerWidth);
+              window.setTimeout(() => onSwipeRight?.(), 160);
+            }
           } else if (horizontal && dx < -110) {
             setOffset(-window.innerWidth);
             window.setTimeout(onClose, 160);
@@ -276,15 +287,39 @@ export function CardEnlargeOverlay({
         } : undefined}
       >
         {swipe ? (
-          <div
-            className={styles.swipeCard}
-            style={{
-              transform: `perspective(900px) translate(${offset}px, ${vOffset}px) rotateY(${offset / 16}deg) rotateX(${-vOffset / 22}deg)`,
-              opacity: Math.max(0.35, 1 - (Math.abs(offset) + Math.abs(vOffset)) / 520),
-              transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
-            }}
-          >
-            <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+          <div className={styles.swipeStack}>
+            {prevSrc && (
+              <div
+                className={styles.swipeCard}
+                style={{
+                  transform: `translateY(calc(-105% + ${vOffset}px))`,
+                  transition: dragging ? "none" : "transform 0.28s ease",
+                }}
+              >
+                <img src={prevSrc} alt="" className={styles.enlargeImage} draggable={false} />
+              </div>
+            )}
+            <div
+              className={styles.swipeCard}
+              style={{
+                transform: `perspective(900px) translate(${offset}px, ${vOffset}px) rotateY(${offset / 16}deg)`,
+                opacity: Math.max(0.35, 1 - Math.abs(offset) / 520),
+                transition: dragging ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+              }}
+            >
+              <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+            </div>
+            {nextSrc && (
+              <div
+                className={styles.swipeCard}
+                style={{
+                  transform: `translateY(calc(105% + ${vOffset}px))`,
+                  transition: dragging ? "none" : "transform 0.28s ease",
+                }}
+              >
+                <img src={nextSrc} alt="" className={styles.enlargeImage} draggable={false} />
+              </div>
+            )}
           </div>
         ) : (
           <TiltFace enabled onFaceClick={onActivate}>
@@ -304,18 +339,6 @@ export function CardEnlargeOverlay({
               style={{ opacity: Math.min(1, Math.max(0, offset / 90)) }}
             >
               {rightLabel}
-            </span>
-            <span
-              className={`${styles.swipeHint} ${styles.swipeHintUp}`}
-              style={{ opacity: Math.min(1, Math.max(0, -vOffset / 80)) }}
-            >
-              Next
-            </span>
-            <span
-              className={`${styles.swipeHint} ${styles.swipeHintDown}`}
-              style={{ opacity: Math.min(1, Math.max(0, vOffset / 80)) }}
-            >
-              Previous
             </span>
             {onToggleRight && (
               <button type="button" className={styles.swipeToggle} onClick={onToggleRight}>
