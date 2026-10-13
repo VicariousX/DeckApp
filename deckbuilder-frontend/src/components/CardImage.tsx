@@ -203,7 +203,17 @@ export function CardEnlargeOverlay({
   const swipe = mode === "swipe";
 
   useEffect(() => {
-    if (embedded) return;
+    if (embedded) {
+      const unlock = lockBodyScroll();
+      function onTouch(e: TouchEvent) {
+        e.preventDefault();
+      }
+      window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
+      return () => {
+        unlock();
+        window.removeEventListener("touchmove", onTouch, true);
+      };
+    }
     const unlock = lockBodyScroll();
     const release = pushOverlay(() => closeRef.current());
     function onKey(e: KeyboardEvent) {
@@ -267,11 +277,7 @@ export function CardEnlargeOverlay({
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : true}
       aria-label={alt}
-    >
-      <div
-        className={styles.enlargeStage}
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={swipe ? (e) => {
+      onPointerDown={swipe ? (e) => {
           drag.current = { x: e.clientX, y: e.clientY };
           setAxis(null);
           setOffset(0);
@@ -372,6 +378,10 @@ export function CardEnlargeOverlay({
           setOffset(0);
           setVOffset(0);
         } : undefined}
+    >
+      <div
+        className={styles.enlargeStage}
+        onClick={(e) => e.stopPropagation()}
       >
         {swipe ? (
           <div className={styles.swipeStack} ref={stackRef}>

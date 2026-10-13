@@ -185,6 +185,7 @@
   position: fixed;
   inset: 0;
   z-index: 4000;
+  touch-action: none;
   display: flex;
   align-items: center;
   justify-content: center;

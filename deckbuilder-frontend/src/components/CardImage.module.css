@@ -309,6 +309,7 @@
 .enlargeStage {
   position: relative;
   width: min(340px, 78vw);
+  touch-action: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -463,6 +464,7 @@
 .scrollView {
   position: relative;
   width: 100%;
+  touch-action: none;
   min-height: 78vh;
   display: flex;
   flex-direction: column;
