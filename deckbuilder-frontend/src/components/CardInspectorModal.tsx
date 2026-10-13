@@ -26,6 +26,8 @@ import { Modal } from "./Modal";
 import { pushOverlay } from "../lib/overlayHistory";
 import styles from "./CardInspectorModal.module.css";
 
+let imageShown = true;
+
 const BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "commander", label: "Commander" },
   { id: "main", label: "Mainboard" },
@@ -204,7 +206,7 @@ export function CardInspectorModal({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>(initialTab);
   const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
-  const [imageOpen, setImageOpen] = useState(true);
+  const [imageOpen, setImageOpen] = useState(imageShown);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
@@ -870,14 +872,6 @@ export function CardInspectorModal({
 
         <div className={styles.layout}>
           <div className={`${styles.visual}${imageOpen ? "" : ` ${styles.visualCollapsed}`}`}>
-            <button
-              type="button"
-              className={styles.collapseBtn}
-              onClick={() => setImageOpen((v) => !v)}
-              aria-expanded={imageOpen}
-            >
-              {imageOpen ? "Hide image" : "Show image"}
-            </button>
             {loading && (
               <div className={styles.imagePlaceholder}>Loading…</div>
             )}
@@ -907,7 +901,10 @@ export function CardInspectorModal({
             <button
               type="button"
               className={styles.collapseBtn}
-              onClick={() => setImageOpen((v) => !v)}
+              onClick={() => setImageOpen((v) => {
+                imageShown = !v;
+                return !v;
+              })}
               aria-expanded={imageOpen}
             >
               {imageOpen ? "Hide image" : "Show image"}
