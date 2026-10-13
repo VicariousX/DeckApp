@@ -10,14 +10,14 @@
   align-items: center;
   padding: 1rem;
   animation: fadeIn var(--motion-medium) var(--motion-ease);
-  z-index: 3000;
+  z-index: 6000;
 }
 
 /* --- Modal Container --- */
 
 .modal {
   position: relative;
-  z-index: 3001;
+  z-index: 6001;
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
