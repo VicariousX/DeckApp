@@ -15,6 +15,7 @@ export function useScryfallSearch() {
   const [apiPage, setApiPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState("");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
@@ -30,10 +31,13 @@ export function useScryfallSearch() {
       if (!trimmed) {
         setCards([]);
         setTotal(0);
+        setIsError(false);
+        setErrorMessage(null);
         return;
       }
       setIsLoading(true);
       setIsError(false);
+      setErrorMessage(null);
       try {
         const qs = new URLSearchParams({
           q: trimmed,
@@ -43,17 +47,22 @@ export function useScryfallSearch() {
           qs.set("order", ord);
           qs.set("dir", direction);
         }
-        const response = await fetch(
-          apiUrl(`/api/scryfall?${qs.toString()}`)
-        );
-        if (!response.ok) throw new Error("fail");
+        const url = apiUrl(`/api/scryfall?${qs.toString()}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(`HTTP ${response.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
+        }
         const json: SearchJson = await response.json();
         setCards(json.data ?? []);
         setTotal(json.total_cards ?? json.data?.length ?? 0);
         setHasMoreApi(Boolean(json.has_more));
         setApiPage(page);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        console.error("Scryfall search failed:", msg, err);
         setIsError(true);
+        setErrorMessage(msg);
         setCards([]);
       } finally {
         setIsLoading(false);
@@ -88,6 +97,7 @@ export function useScryfallSearch() {
     apiPage,
     isLoading,
     isError,
+    errorMessage,
     query,
     run,
     goApiPage,

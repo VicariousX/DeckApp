@@ -10,6 +10,8 @@ import {
   type CollectionCard,
 } from "../services/collectionService";
 import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
+import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
+import type { DrawerCardView } from "../types/drawer";
 import styles from "./DrawersPage.module.css";
 
 const EMPTY: CollectionInput = {
@@ -35,6 +37,7 @@ export function CollectionsPage() {
   const [draft, setDraft] = useState<CollectionInput>(EMPTY);
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"text" | "image">("text");
 
   useEffect(() => {
     if (!user) return;
@@ -106,9 +109,29 @@ export function CollectionsPage() {
           <h1 className={styles.title}>Collections</h1>
           <p className={styles.subtitle}>Owned cards, liked cards, and inventory.</p>
         </div>
-        <button type="button" className={styles.primaryBtn} onClick={() => { setCreating(true); setDraft(EMPTY); }}>
-          New collection
-        </button>
+        <div className={styles.headerTools}>
+          <div className={styles.viewToggle} role="group" aria-label="Collection view mode">
+            <button
+              type="button"
+              className={`${styles.viewBtn}${viewMode === "text" ? ` ${styles.viewBtnActive}` : ""}`}
+              onClick={() => setViewMode("text")}
+              aria-pressed={viewMode === "text"}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewBtn}${viewMode === "image" ? ` ${styles.viewBtnActive}` : ""}`}
+              onClick={() => setViewMode("image")}
+              aria-pressed={viewMode === "image"}
+            >
+              Images
+            </button>
+          </div>
+          <button type="button" className={styles.primaryBtn} onClick={() => { setCreating(true); setDraft(EMPTY); }}>
+            New collection
+          </button>
+        </div>
       </header>
       {status && <p className={styles.muted}>{status}</p>}
       <div className={styles.layout}>
@@ -164,14 +187,52 @@ export function CollectionsPage() {
                 <button type="button" className={styles.ghostBtn} onClick={() => void remove()}>Delete</button>
               </div>
               <p className={styles.muted}>{cards.length} cards</p>
-              <ul className={styles.drawerList}>
-                {cards.map((card) => (
-                  <li key={card.id} className={styles.drawerItem}>
-                    <span className={styles.drawerName}>{card.name}</span>
-                    <span className={styles.drawerCount}>{selected.quantity_counters ? `×${card.quantity}` : "✓"}</span>
-                  </li>
-                ))}
-              </ul>
+              {viewMode === "image" ? (
+                <DrawerTileField>
+                  <div className={styles.tileGrid}>
+                    {cards.map((card) => {
+                      const tile: DrawerCardView = {
+                        id: card.id,
+                        drawer_id: card.collection_id,
+                        oracle_id: card.oracle_id,
+                        sort_order: 0,
+                        tier: 1,
+                        created_at: "",
+                        name: card.name,
+                        type_line: "",
+                        mana_cost: null,
+                        cmc: null,
+                        color_identity: [],
+                        imposed_color_identity: null,
+                        useful_in: [],
+                        effective_color_identity: [],
+                        oracle_text: null,
+                        image_url: card.image_url,
+                        scryfall_id: card.scryfall_id,
+                      };
+                      return (
+                        <DrawerCardTile
+                          key={card.id}
+                          card={tile}
+                          showTierMark={false}
+                          onOpen={() => {}}
+                          onRemove={() => {}}
+                          onTier={() => {}}
+                        />
+                      );
+                    })}
+                  </div>
+                </DrawerTileField>
+              ) : (
+                <ul className={styles.drawerList}>
+                  {cards.map((card) => (
+                    <li key={card.id} className={styles.drawerItem}>
+                      <span className={styles.drawerName}>{card.name}</span>
+                      <span className={styles.drawerCount}>{selected.quantity_counters ? `\u00d7${card.quantity}` : "\u2713"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </section>
