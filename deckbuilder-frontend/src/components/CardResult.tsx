@@ -29,7 +29,6 @@ type CardResultProps = {
   onUndoAdd?: (card: ScryfallCard) => void;
   onReachEnd?: () => void;
   onReachStart?: () => void;
-  onPreviewIndexChange?: (index: number) => void;
   onEnterScroll?: () => void;
   onExitScroll?: () => void;
   presenceOnly?: boolean;
@@ -111,7 +110,6 @@ export function CardResult({
   onUndoAdd,
   onReachEnd,
   onReachStart,
-  onPreviewIndexChange,
   onEnterScroll,
   onExitScroll,
   presenceOnly = false,
@@ -123,7 +121,6 @@ export function CardResult({
   const pendingPage = useRef<"next" | "prev" | null>(null);
   const [enterFrom, setEnterFrom] = useState<"up" | "down" | null>(null);
   const anchorId = useRef<string | null>(null);
-  const previewCardId = useRef<string | null>(null);
   const [optimisticQty, setOptimisticQty] = useState<Record<string, number>>({});
   const [addedToast, setAddedToast] = useState<{
     name: string;
@@ -153,21 +150,6 @@ export function CardResult({
       })),
     [pairs]
   );
-
-  // Keep the same card in view when the parent shifts the scroll window.
-  useEffect(() => {
-    if (browseMode !== "scroll" || previewCardId.current == null) return;
-    const next = list.findIndex((c) => c.originalId === previewCardId.current);
-    if (next >= 0 && next !== previewIndex) {
-      setPreviewIndex(next);
-    }
-  }, [list, browseMode, previewIndex]);
-
-  useEffect(() => {
-    if (previewIndex == null || !list[previewIndex]) return;
-    previewCardId.current = list[previewIndex].originalId;
-    onPreviewIndexChange?.(previewIndex);
-  }, [previewIndex, list, onPreviewIndexChange]);
 
   useEffect(() => {
     if (!pendingPage.current || previewIndex == null) return;
