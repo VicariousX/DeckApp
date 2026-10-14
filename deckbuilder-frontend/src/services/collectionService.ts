@@ -146,7 +146,7 @@ export async function listCollectionCards(collectionId: string): Promise<Collect
 
 export async function addCardToCollection(
   collection: Collection,
-  card: { id: string; oracle_id?: string; name: string; image_uris?: { normal?: string }; card_faces?: { image_uris?: { normal?: string } }[] }
+  card: { id: string; oracle_id?: string | null; name: string; image_uris?: { normal?: string | null } | null; card_faces?: { image_uris?: { normal?: string | null } | null }[] | null }
 ): Promise<{ quantity: number; error: string | null }> {
   const identity = identityFor(collection, card);
   const image = card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || null;
