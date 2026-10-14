@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CardResult } from "../CardResult";
 import { useScryfallSearch } from "../../hooks/useScryfallSearch";
+import { useScrollWindow } from "../../hooks/useScrollWindow";
 import { extractMechanicTerms } from "../../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../../services/mechanicMarkService";
 import { fetchCollectionByIds } from "../../lib/scryfallApi";
@@ -158,6 +159,22 @@ export function SearchResultsPanel({
   const canPrev = safePage > 1 || apiPage > 1;
   const canNext = safePage < pagesHere || hasMoreApi;
 
+  const { scrollCards, onPreviewIndex } = useScrollWindow(
+    stream,
+    pageSize,
+    hasMoreApi,
+    isLoading,
+    goApiPage,
+    browseMode === "scroll"
+  );
+
+  const resultCards =
+    browseMode === "scroll" && scrollCards.length
+      ? scrollCards
+      : stream.length
+        ? stream.flatMap((p) => p.cards)
+        : visible;
+
   if (!query.trim()) return null;
 
   return (
@@ -240,7 +257,7 @@ export function SearchResultsPanel({
       <CardResult
         countInDeck={countInDeck}
         onUndoAdd={onUndoAdd}
-        cards={stream.length ? stream.flatMap((p) => p.cards) : visible}
+        cards={resultCards}
         onReachEnd={
           hasMoreApi && !isLoading
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
@@ -251,6 +268,7 @@ export function SearchResultsPanel({
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
+        onPreviewIndexChange={browseMode === "scroll" ? onPreviewIndex : undefined}
         cardSize={browseMode === "catalog" ? 112 : 180}
         viewMode={viewMode}
         browseMode={browseMode}
