@@ -11,6 +11,7 @@ import type { Collection } from "../types/collection";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { useScryfallSearch } from "../hooks/useScryfallSearch";
+import { useScrollWindow } from "../hooks/useScrollWindow";
 import { extractMechanicTerms } from "../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../services/mechanicMarkService";
 import { fetchCollectionByIds } from "../lib/scryfallApi";
@@ -125,14 +126,26 @@ export function SearchResultsPage() {
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
   const [cardSize, setCardSize] = useState(SIZE_DEFAULT);
   const [viewMode, setViewMode] = useState<"image" | "text">("image");
-  const { cards, total, hasMoreApi, apiPage, isLoading, isError, run, goApiPage } =
+  const [stream, setStream] = useState<{ page: number; cards: ScryfallCard[] }[]>([]);
+  const { cards, total, hasMoreApi, apiPage, isLoading, isError, errorMessage, run, goApiPage } =
     useScryfallSearch();
 
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
 
   useEffect(() => {
+    setStream([]);
     if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
   }, [scryfallQ, apiOrder, sortDir, run]);
+
+  useEffect(() => {
+    if (!cards.length) return;
+    setStream((prev) => {
+      const next = prev.filter((p) => p.page !== apiPage);
+      next.push({ page: apiPage, cards });
+      next.sort((a, b) => a.page - b.page);
+      return next;
+    });
+  }, [cards, apiPage]);
 
   useEffect(() => {
     if (!mechParsed.terms.length) {
@@ -227,6 +240,17 @@ export function SearchResultsPage() {
   const canPrev = safePage > 1 || apiPage > 1;
   const canNext = safePage < pagesHere || hasMoreApi;
 
+  const { scrollCards, onPreviewIndex } = useScrollWindow(
+    stream,
+    pageSize,
+    hasMoreApi,
+    isLoading,
+    goApiPage,
+    browseMode === "scroll"
+  );
+
+  const resultCards = browseMode === "scroll" && scrollCards.length ? scrollCards : visible;
+
   return (
     <div className={`${transitions.page} ${styles.page}`}>
       <ToolsMenu cardSize={cardSize} onCardSizeChange={setCardSize} />
@@ -308,17 +332,32 @@ export function SearchResultsPage() {
       <p className={resultStyles.query}>
         <code>{q}</code>
       </p>
-      {isError && <p className={resultStyles.query}>Search failed. Edit the query and try again.</p>}
+      {isError && (
+        <p className={resultStyles.query}>
+          Search failed{errorMessage ? `: ${errorMessage}` : "."} Edit the query and try again.
+        </p>
+      )}
       {!isLoading && !isError && sorted.length === 0 && (
         <p className={resultStyles.query}>No cards matched. <Link to={editTo}>Edit search</Link></p>
       )}
       <CardResult
-        cards={visible}
+        cards={resultCards}
         cardSize={browseMode === "catalog" ? Math.min(cardSize, 140) : cardSize}
         viewMode={viewMode}
         browseMode={browseMode}
         onEnterScroll={() => setBrowseMode("scroll")}
         onExitScroll={() => setBrowseMode("catalog")}
+        onPreviewIndexChange={browseMode === "scroll" ? onPreviewIndex : undefined}
+        onReachEnd={
+          browseMode === "scroll" && hasMoreApi && !isLoading
+            ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
+            : undefined
+        }
+        onReachStart={
+          browseMode === "scroll" && (stream[0]?.page ?? apiPage) > 1 && !isLoading
+            ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
+            : undefined
+        }
         presenceOnly={target ? !target.quantity_counters : false}
         countInDeck={(card) => counts[target?.print_specific ? card.id : (card.oracle_id || card.id)] ?? 0}
         onAddToDeck={target ? (card) => {
