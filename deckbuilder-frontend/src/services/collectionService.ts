@@ -113,3 +113,91 @@ export async function ensureStarterCollections(userId: string): Promise<Collecti
   const next = await listMyCollections(userId);
   return next.collections;
 }
+
+export type CollectionCard = {
+  id: string;
+  collection_id: string;
+  oracle_id: string;
+  scryfall_id: string | null;
+  identity: string;
+  name: string;
+  image_url: string | null;
+  quantity: number;
+};
+
+function identityFor(collection: Collection, card: { oracle_id?: string; id: string }) {
+  const oracle = card.oracle_id || card.id;
+  return collection.print_specific ? card.id : oracle;
+}
+
+export async function getDefaultCollection(userId: string): Promise<Collection | null> {
+  const { collections } = await listMyCollections(userId);
+  return collections.find((c) => c.is_default) ?? collections[0] ?? null;
+}
+
+export async function listCollectionCards(collectionId: string): Promise<CollectionCard[]> {
+  const { data } = await supabase
+    .from("collection_cards")
+    .select("*")
+    .eq("collection_id", collectionId)
+    .order("name");
+  return (data ?? []) as CollectionCard[];
+}
+
+export async function addCardToCollection(
+  collection: Collection,
+  card: { id: string; oracle_id?: string; name: string; image_uris?: { normal?: string }; card_faces?: { image_uris?: { normal?: string } }[] }
+): Promise<{ quantity: number; error: string | null }> {
+  const identity = identityFor(collection, card);
+  const image = card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || null;
+  const existing = await supabase
+    .from("collection_cards")
+    .select("*")
+    .eq("collection_id", collection.id)
+    .eq("identity", identity)
+    .maybeSingle();
+  if (existing.data) {
+    if (!collection.quantity_counters) return { quantity: 1, error: null };
+    const next = (existing.data.quantity ?? 1) + 1;
+    const { error } = await supabase
+      .from("collection_cards")
+      .update({ quantity: next })
+      .eq("id", existing.data.id);
+    return { quantity: next, error: error?.message ?? null };
+  }
+  const { error } = await supabase.from("collection_cards").insert({
+    collection_id: collection.id,
+    oracle_id: card.oracle_id || card.id,
+    scryfall_id: card.id,
+    identity,
+    name: card.name,
+    image_url: image,
+    quantity: 1,
+  });
+  return { quantity: 1, error: error?.message ?? null };
+}
+
+export async function removeCardFromCollection(
+  collection: Collection,
+  card: { id: string; oracle_id?: string }
+): Promise<{ quantity: number; error: string | null }> {
+  const identity = identityFor(collection, card);
+  const existing = await supabase
+    .from("collection_cards")
+    .select("*")
+    .eq("collection_id", collection.id)
+    .eq("identity", identity)
+    .maybeSingle();
+  if (!existing.data) return { quantity: 0, error: null };
+  const qty = existing.data.quantity ?? 1;
+  if (collection.quantity_counters && qty > 1) {
+    const next = qty - 1;
+    const { error } = await supabase
+      .from("collection_cards")
+      .update({ quantity: next })
+      .eq("id", existing.data.id);
+    return { quantity: next, error: error?.message ?? null };
+  }
+  const { error } = await supabase.from("collection_cards").delete().eq("id", existing.data.id);
+  return { quantity: 0, error: error?.message ?? null };
+}

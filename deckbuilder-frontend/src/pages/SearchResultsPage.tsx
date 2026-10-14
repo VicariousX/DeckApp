@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
+import {
+  addCardToCollection,
+  getDefaultCollection,
+  listCollectionCards,
+  removeCardFromCollection,
+} from "../services/collectionService";
+import type { Collection } from "../types/collection";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { useScryfallSearch } from "../hooks/useScryfallSearch";
@@ -88,7 +96,22 @@ function attr(card: ScryfallCard, key: string): string | number {
 }
 
 export function SearchResultsPage() {
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
+  const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
+  const [target, setTarget] = useState<Collection | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!user) return;
+    void getDefaultCollection(user.id).then(async (collection) => {
+      setTarget(collection);
+      if (!collection) return;
+      const rows = await listCollectionCards(collection.id);
+      const next: Record<string, number> = {};
+      for (const row of rows) next[row.identity] = row.quantity;
+      setCounts(next);
+    });
+  }, [user]);
   const q = params.get("q") ?? "";
   const mechParsed = useMemo(() => extractMechanicTerms(q), [q]);
   const scryfallQ = mechParsed.rest || (mechParsed.terms.length ? "" : q);
@@ -233,6 +256,20 @@ export function SearchResultsPage() {
           >
             Images
           </button>
+          <button
+            type="button"
+            className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
+            onClick={() => setBrowseMode("catalog")}
+          >
+            Catalog
+          </button>
+          <button
+            type="button"
+            className={`${resultStyles.viewBtn}${browseMode === "scroll" ? ` ${resultStyles.viewOn}` : ""}`}
+            onClick={() => setBrowseMode("scroll")}
+          >
+            Scroll
+          </button>
         </div>
         <label className={resultStyles.size}>
           Sort
@@ -277,8 +314,23 @@ export function SearchResultsPage() {
       )}
       <CardResult
         cards={visible}
-        cardSize={cardSize}
+        cardSize={browseMode === "catalog" ? Math.min(cardSize, 140) : cardSize}
         viewMode={viewMode}
+        browseMode={browseMode}
+        onEnterScroll={() => setBrowseMode("scroll")}
+        onExitScroll={() => setBrowseMode("catalog")}
+        presenceOnly={target ? !target.quantity_counters : false}
+        countInDeck={(card) => counts[target?.print_specific ? card.id : (card.oracle_id || card.id)] ?? 0}
+        onAddToDeck={target ? (card) => {
+          const key = target.print_specific ? card.id : (card.oracle_id || card.id);
+          setCounts((m) => ({ ...m, [key]: target.quantity_counters ? (m[key] ?? 0) + 1 : 1 }));
+          void addCardToCollection(target, card);
+        } : undefined}
+        onUndoAdd={target ? (card) => {
+          const key = target.print_specific ? card.id : (card.oracle_id || card.id);
+          setCounts((m) => ({ ...m, [key]: Math.max(0, (m[key] ?? 0) - 1) }));
+          void removeCardFromCollection(target, card);
+        } : undefined}
       />
       <div className={resultStyles.moreRow}>
         <button

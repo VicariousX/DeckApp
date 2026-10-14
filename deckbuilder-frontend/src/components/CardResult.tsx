@@ -31,6 +31,7 @@ type CardResultProps = {
   onReachStart?: () => void;
   onEnterScroll?: () => void;
   onExitScroll?: () => void;
+  presenceOnly?: boolean;
 };
 
 function ResultCard({
@@ -111,6 +112,7 @@ export function CardResult({
   onReachStart,
   onEnterScroll,
   onExitScroll,
+  presenceOnly = false,
 }: CardResultProps) {
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -332,6 +334,7 @@ export function CardResult({
           leftLabel={((optimisticQty[preview.display.oracle_id || preview.display.id] ?? countInDeck?.(preview.display)) ?? 0) > 0 ? "−1" : ""}
           toast={addedToast ? (addedToast.kind === "removed" ? "Card removed" : "Card added") : null}
           addedQty={optimisticQty[preview.display.oracle_id || preview.display.id] ?? countInDeck?.(preview.display) ?? 0}
+          presenceOnly={presenceOnly}
           onActivate={() => setSelectedIndex(previewIndex)}
           onLongPress={() => {
             setCtx({
