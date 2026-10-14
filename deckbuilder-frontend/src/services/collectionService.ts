@@ -125,7 +125,7 @@ export type CollectionCard = {
   quantity: number;
 };
 
-function identityFor(collection: Collection, card: { oracle_id?: string; id: string }) {
+function identityFor(collection: Collection, card: { oracle_id?: string | null; id: string }) {
   const oracle = card.oracle_id || card.id;
   return collection.print_specific ? card.id : oracle;
 }
@@ -179,7 +179,7 @@ export async function addCardToCollection(
 
 export async function removeCardFromCollection(
   collection: Collection,
-  card: { id: string; oracle_id?: string }
+  card: { id: string; oracle_id?: string | null }
 ): Promise<{ quantity: number; error: string | null }> {
   const identity = identityFor(collection, card);
   const existing = await supabase
