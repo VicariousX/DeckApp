@@ -92,7 +92,7 @@ const STARTERS: CollectionInput[] = [
     print_specific: false,
     quantity_counters: false,
     is_public: false,
-    is_default: false,
+    is_default: true,
   },
   {
     name: "My Physical Collection",
@@ -100,7 +100,7 @@ const STARTERS: CollectionInput[] = [
     print_specific: true,
     quantity_counters: true,
     is_public: false,
-    is_default: true,
+    is_default: false,
   },
 ];
 

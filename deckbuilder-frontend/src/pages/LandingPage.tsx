@@ -159,7 +159,7 @@ export function LandingPage() {
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
         { to: "/combos", mark: "C", title: "Combos" },
-        { to: "/formats", mark: "F", title: "Formats" },
+        { to: "/collections", mark: "L", title: "Collections" },
       ]}
       rail={{ kind: "link", to: "/login", label: "Profile" }}
     />
@@ -188,6 +188,7 @@ export function LandingPage() {
       slots={[
         { to: "/social", mark: "S", title: "Social" },
         { to: "/decks", mark: "P", title: "Public decks" },
+        { to: "/formats", mark: "F", title: "Formats" },
       ]}
       rail={{
         kind: "link",
