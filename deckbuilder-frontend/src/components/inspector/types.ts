@@ -25,6 +25,7 @@ export type InspectorTabId =
   | "deck"
   | "drawer"
   | "drawers"
+  | "collections"
   | "mechanics"
   | "artwork";
 

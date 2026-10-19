@@ -1,6 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { addCardToDeck, listMyDecks } from "../../services/deckService";
+import {
+  addCardToDeck,
+  listDecksContainingOracle,
+  listMyDecks,
+  type DeckCardPresence,
+} from "../../services/deckService";
 import type { Deck, DeckBoard, DeckTag } from "../../types/deck";
 import type { CardInspectorDeckControls } from "./types";
 import styles from "../CardInspectorModal.module.css";
@@ -128,13 +134,18 @@ function AddToDeckPanel({
 }) {
   const { user } = useAuth();
   const [decks, setDecks] = useState<Deck[] | null>(null);
+  const [presence, setPresence] = useState<DeckCardPresence[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
-  }, [user]);
+    const oracle = oracleId || scryfallId;
+    void listDecksContainingOracle(user.id, oracle).then(({ rows }) =>
+      setPresence(rows)
+    );
+  }, [user, oracleId, scryfallId]);
 
   async function add(deckId: string) {
     setBusy(true);
@@ -148,6 +159,11 @@ function AddToDeckPanel({
     });
     setBusy(false);
     setStatus(error ?? "Added to maybeboard");
+    if (!error && user) {
+      const oracle = oracleId || scryfallId;
+      const { rows } = await listDecksContainingOracle(user.id, oracle);
+      setPresence(rows);
+    }
   }
 
   if (!user) {
@@ -156,6 +172,26 @@ function AddToDeckPanel({
 
   return (
     <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+      <p className={styles.extraLabel}>This card is in</p>
+      {presence.length === 0 ? (
+        <p className={styles.muted}>None yet.</p>
+      ) : (
+        <div className={styles.addDeckList}>
+          {presence.map((p) => (
+            <Link
+              key={`${p.deck.id}-${p.board}`}
+              to={`/deck/${p.deck.id}`}
+              className={styles.addDeckBtn}
+            >
+              {p.deck.name}
+              <span className={styles.muted}>
+                {" "}
+                · {p.board} · ×{p.quantity}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
       <p className={styles.extraLabel}>Add {name} to a deck</p>
       {status && <p className={styles.muted}>{status}</p>}
       {!decks && <p className={styles.muted}>Loading decks…</p>}

@@ -19,6 +19,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import {
   ArtworkTab,
   ART_SUBS,
+  CollectionsTab,
   DeckTab,
   DrawersTab,
   InfoTab,
@@ -185,8 +186,19 @@ export function CardInspectorModal({
             card={card}
             usefulInTags={usefulInTags}
             onUsefulInChange={setUsefulInTags}
+            drawer={drawer}
           />
         ),
+      },
+      {
+        id: "collections",
+        label: "Collections",
+        titleExtra: (
+          <Link to="/collections" className={styles.manageLink} onClick={onClose}>
+            Manage collections →
+          </Link>
+        ),
+        render: () => <CollectionsTab card={card} name={displayName} />,
       },
       {
         id: "mechanics",
@@ -220,6 +232,7 @@ export function CardInspectorModal({
     rulingsLoading,
     rulingsError,
     deck,
+    drawer,
     card,
     usefulInTags,
   ]);

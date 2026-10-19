@@ -8,6 +8,6 @@ export type {
 export { InfoTab, INFO_SUBS } from "./InfoTab";
 export { DeckTab } from "./DeckTab";
 export { DrawersTab } from "./DrawersTab";
-export { MechanicsTab } from "./MechanicsTab";
+export { CollectionsTab } from "./CollectionsTab";
 export { ArtworkTab, ART_SUBS } from "./ArtworkTab";
 export { SubTabRail } from "./SubTabRail";

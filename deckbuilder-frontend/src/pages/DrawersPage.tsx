@@ -953,7 +953,7 @@ export function DrawersPage() {
               ? "artwork"
               : modalJump.startsWith("info")
                 ? "info"
-                : modalJump === "deck" || modalJump === "drawers" || modalJump === "mechanics"
+                : modalJump === "deck" || modalJump === "drawers" || modalJump === "collections" || modalJump === "mechanics"
                   ? modalJump
                   : "info"
           }
@@ -976,6 +976,17 @@ export function DrawersPage() {
               setInspectId(inspectNav[inspectIndex + 1].id);
             }
           }}
+          drawer={
+            selected
+              ? {
+                  drawerName: selected.name,
+                  tier: inspectCard.tier ?? 1,
+                  isOwner: true,
+                  onTier: (n) => void onTier(inspectCard.id, n),
+                  onRemove: () => void onRemoveCard(inspectCard.oracle_id),
+                }
+              : undefined
+          }
         />
       )}
       {deleteTarget && (

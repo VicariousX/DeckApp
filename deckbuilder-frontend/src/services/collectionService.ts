@@ -201,3 +201,42 @@ export async function removeCardFromCollection(
   const { error } = await supabase.from("collection_cards").delete().eq("id", existing.data.id);
   return { quantity: 0, error: error?.message ?? null };
 }
+
+export type CollectionPresence = {
+  collection: Collection;
+  quantity: number;
+  identity: string;
+};
+
+/** Collections owned by the user that contain this card (oracle or printing). */
+export async function listCollectionsContainingCard(
+  userId: string,
+  card: { id: string; oracle_id?: string | null }
+): Promise<{ rows: CollectionPresence[]; error: string | null }> {
+  const { collections, error: listErr } = await listMyCollections(userId);
+  if (listErr) return { rows: [], error: listErr };
+  if (!collections.length) return { rows: [], error: null };
+  const oracle = (card.oracle_id || card.id).toLowerCase();
+  const printing = card.id.toLowerCase();
+  const { data, error } = await supabase
+    .from("collection_cards")
+    .select("collection_id, identity, quantity")
+    .in(
+      "collection_id",
+      collections.map((c) => c.id)
+    )
+    .or(`identity.eq.${oracle},identity.eq.${printing}`);
+  if (error) return { rows: [], error: error.message };
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const rows: CollectionPresence[] = [];
+  for (const row of data ?? []) {
+    const collection = byId.get((row as { collection_id: string }).collection_id);
+    if (!collection) continue;
+    rows.push({
+      collection,
+      quantity: (row as { quantity: number }).quantity ?? 1,
+      identity: (row as { identity: string }).identity,
+    });
+  }
+  return { rows, error: null };
+}
