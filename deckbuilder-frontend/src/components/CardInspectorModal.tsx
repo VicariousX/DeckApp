@@ -23,10 +23,9 @@ import { DrawerPicker } from "./DrawerPicker";
 import { UsefulInPicker } from "./UsefulInPicker";
 import { MechanicMarkPicker } from "./MechanicMarkPicker";
 import { Modal } from "./Modal";
-import { pushOverlay } from "../lib/overlayHistory";
+import { readImageShown, writeImageShown } from "../lib/inspectorPrefs";
+import { useIsMobile } from "../hooks/useIsMobile";
 import styles from "./CardInspectorModal.module.css";
-
-let imageShown = true;
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "commander", label: "Commander" },
@@ -199,6 +198,7 @@ export function CardInspectorModal({
   initialArtSub = "prints",
   onTabChange,
 }: Props) {
+  const isMobile = useIsMobile();
   const { artByOracleId, preferredPrintings, artRevision } = useArtPreferences();
   const [baseCard, setBaseCard] = useState<ScryfallCard | null>(null);
   const [displayCard, setDisplayCard] = useState<ScryfallCard | null>(null);
@@ -206,7 +206,7 @@ export function CardInspectorModal({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>(initialTab);
   const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
-  const [imageOpen, setImageOpen] = useState(imageShown);
+  const [imageOpen, setImageOpen] = useState(readImageShown);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
@@ -458,13 +458,10 @@ export function CardInspectorModal({
     infoSub,
   ]);
 
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  // Mobile back closes the modal. Desktop mouse back/forward moves cards.
+  // Mobile back and Escape are handled by the overlay manager (via Modal).
+  // Desktop mouse back/forward moves cards.
   useEffect(() => {
-    const mobile = window.innerWidth <= 768;
-    const release = mobile ? pushOverlay(() => closeRef.current()) : null;
+    if (isMobile) return;
     function onMouseButton(e: MouseEvent) {
       if (e.button !== 3 && e.button !== 4) return;
       e.preventDefault();
@@ -472,22 +469,13 @@ export function CardInspectorModal({
       if (e.button === 3 && hasPrev && onPrev) onPrev();
       if (e.button === 4 && hasNext && onNext) onNext();
     }
-    if (!mobile) {
-      history.pushState({ deckappModal: 1 }, "");
-      window.addEventListener("mouseup", onMouseButton, true);
-      window.addEventListener("auxclick", onMouseButton, true);
-    }
+    window.addEventListener("mouseup", onMouseButton, true);
+    window.addEventListener("auxclick", onMouseButton, true);
     return () => {
-      release?.();
-      if (!mobile) {
-        window.removeEventListener("mouseup", onMouseButton, true);
-        window.removeEventListener("auxclick", onMouseButton, true);
-        if (history.state && (history.state as { deckappModal?: number }).deckappModal) {
-          history.back();
-        }
-      }
+      window.removeEventListener("mouseup", onMouseButton, true);
+      window.removeEventListener("auxclick", onMouseButton, true);
     };
-  }, [hasPrev, hasNext, onPrev, onNext]);
+  }, [isMobile, hasPrev, hasNext, onPrev, onNext]);
 
 
   // Wheel: vertical = tabs (only outside scrollable regions);
@@ -901,10 +889,11 @@ export function CardInspectorModal({
             <button
               type="button"
               className={styles.collapseBtn}
-              onClick={() => setImageOpen((v) => {
-                imageShown = !v;
-                return !v;
-              })}
+              onClick={() => {
+                const next = !imageOpen;
+                setImageOpen(next);
+                writeImageShown(next);
+              }}
               aria-expanded={imageOpen}
               aria-label={imageOpen ? "Hide image" : "Show image"}
             >
