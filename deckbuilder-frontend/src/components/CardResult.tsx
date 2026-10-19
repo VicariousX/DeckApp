@@ -197,7 +197,7 @@ export function CardResult({
     return pushOverlayEntry({
       type: "scroll",
       close: () => exitRef.current?.(),
-    });
+    }).release;
   }, [browseMode]);
   useEffect(() => {
     if (browseMode !== "scroll" || viewMode !== "image") {

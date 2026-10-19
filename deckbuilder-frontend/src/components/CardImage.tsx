@@ -18,7 +18,7 @@ import {
   isMultiCard,
 } from "../utils/scryfall";
 
-import { pushOverlayEntry } from "../lib/overlayManager";
+import { peekNextZ, pushOverlayEntry } from "../lib/overlayManager";
 import styles from "./CardImage.module.css";
 
 export type CardFaceView = "front" | "back" | "both";
@@ -196,6 +196,7 @@ export function CardEnlargeOverlay({
 }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const [zIndex, setZIndex] = useState(() => peekNextZ());
   const drag = useRef<{ x: number; y: number } | null>(null);
   const longPress = useRef(0);
   const [offset, setOffset] = useState(0);
@@ -221,10 +222,11 @@ export function CardEnlargeOverlay({
         window.removeEventListener("touchmove", onTouch, true);
       };
     }
-    const release = pushOverlayEntry({
+    const handle = pushOverlayEntry({
       type: "enlarge",
       close: () => closeRef.current(),
     });
+    setZIndex(handle.zIndex);
     let flipLock = false;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
@@ -244,7 +246,7 @@ export function CardEnlargeOverlay({
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
-      release();
+      handle.release();
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };
@@ -272,6 +274,7 @@ export function CardEnlargeOverlay({
   const stage = (
     <div
       className={embedded ? styles.scrollView : styles.enlargeOverlay}
+      style={embedded ? undefined : { zIndex }}
       onClick={embedded ? undefined : onClose}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : true}
@@ -505,10 +508,6 @@ export function CardImage({
 
   useEffect(() => {
     if (!enlarged) return;
-    const release = pushOverlayEntry({
-      type: "enlarge",
-      close: () => setEnlarged(null),
-    });
     let flipLock = false;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
@@ -528,7 +527,6 @@ export function CardImage({
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
-      release();
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };

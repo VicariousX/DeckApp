@@ -30,6 +30,7 @@ type Entry = {
   type: OverlayType;
   close: () => void;
   locksScroll: boolean;
+  zIndex: number;
 };
 
 let nextSeq = 1;
@@ -37,6 +38,15 @@ const stack: Entry[] = [];
 let listening = false;
 let ignoring = false;
 let unlockScroll: (() => void) | null = null;
+
+/** Base stacking value. Each later overlay is 20 above the one below it. */
+const Z_BASE = 5000;
+const Z_STEP = 20;
+
+function nextZ(): number {
+  const top = stack[stack.length - 1];
+  return top ? top.zIndex + Z_STEP : Z_BASE;
+}
 
 function ensureListener() {
   if (listening || typeof window === "undefined") return;
@@ -79,11 +89,18 @@ export type PushOptions = {
   locksScroll?: boolean;
 };
 
+export type OverlayHandle = {
+  id: string;
+  /** Apply this as the surface z-index so later overlays paint above earlier ones. */
+  zIndex: number;
+  release: () => void;
+};
+
 /**
- * Register an overlay. Returns a release function to call on close/unmount.
- * The release is idempotent.
+ * Register an overlay. Returns a handle with the z-index this surface must use
+ * so it paints above whatever is already open. release is idempotent.
  */
-export function pushOverlayEntry(opts: PushOptions): () => void {
+export function pushOverlayEntry(opts: PushOptions): OverlayHandle {
   ensureListener();
   const id = `ov-${nextSeq++}`;
   const entry: Entry = {
@@ -91,6 +108,7 @@ export function pushOverlayEntry(opts: PushOptions): () => void {
     type: opts.type ?? "other",
     close: opts.close,
     locksScroll: opts.locksScroll !== false,
+    zIndex: nextZ(),
   };
   stack.push(entry);
   try {
@@ -101,7 +119,7 @@ export function pushOverlayEntry(opts: PushOptions): () => void {
   syncScrollLock();
 
   let released = false;
-  return () => {
+  const release = () => {
     if (released) return;
     released = true;
     const idx = stack.findIndex((e) => e.id === id);
@@ -120,11 +138,12 @@ export function pushOverlayEntry(opts: PushOptions): () => void {
       }, 50);
     }
   };
+  return { id, zIndex: entry.zIndex, release };
 }
 
 /** Back-compat for existing call sites. Prefer pushOverlayEntry. */
 export function pushOverlay(close: () => void): () => void {
-  return pushOverlayEntry({ close, type: "other" });
+  return pushOverlayEntry({ close, type: "other" }).release;
 }
 
 export function getTop(): { id: string; type: OverlayType } | null {
@@ -134,6 +153,10 @@ export function getTop(): { id: string; type: OverlayType } | null {
 
 export function isTop(id: string): boolean {
   return stack[stack.length - 1]?.id === id;
+}
+
+export function peekNextZ(): number {
+  return nextZ();
 }
 
 export function overlayCount(): number {

@@ -1,7 +1,7 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import styles from "./BottomSheet.module.css";
-import { pushOverlayEntry } from "../lib/overlayManager";
+import { peekNextZ, pushOverlayEntry } from "../lib/overlayManager";
 
 type Props = {
   open: boolean;
@@ -26,23 +26,25 @@ export function BottomSheet({
 }: Props) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const [zIndex, setZIndex] = useState(() => peekNextZ());
 
   useEffect(() => {
     if (!open) return;
-    const release = pushOverlayEntry({
+    const handle = pushOverlayEntry({
       type: "sheet",
       close: () => closeRef.current(),
     });
+    setZIndex(handle.zIndex);
 
     return () => {
-      release();
+      handle.release();
     };
   }, [open]);
 
   if (!open) return null;
 
   return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} style={{ zIndex }} onClick={onClose}>
       <div
         className={styles.sheet}
         role="dialog"

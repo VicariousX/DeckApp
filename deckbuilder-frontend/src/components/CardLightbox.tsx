@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./CardLightbox.module.css";
-import { pushOverlayEntry } from "../lib/overlayManager";
+import { peekNextZ, pushOverlayEntry } from "../lib/overlayManager";
 
 type Props = {
   src: string;
@@ -11,19 +11,22 @@ type Props = {
 
 /** Full-screen centered card image; click outside or press Escape to close. */
 export function CardLightbox({ src, alt, onClose }: Props) {
+  const [zIndex, setZIndex] = useState(() => peekNextZ());
   useEffect(() => {
-    const release = pushOverlayEntry({
+    const handle = pushOverlayEntry({
       type: "lightbox",
       close: onClose,
     });
+    setZIndex(handle.zIndex);
     return () => {
-      release();
+      handle.release();
     };
   }, [onClose]);
 
   return createPortal(
     <div
       className={styles.overlay}
+      style={{ zIndex }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"

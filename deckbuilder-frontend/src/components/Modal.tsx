@@ -1,6 +1,6 @@
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { pushOverlayEntry } from "../lib/overlayManager";
+import { peekNextZ, pushOverlayEntry } from "../lib/overlayManager";
 import styles from "./Modal.module.css";
 
 export function Modal({
@@ -15,11 +15,14 @@ export function Modal({
   hideClose?: boolean;
   style?: CSSProperties;
 }) {
+  const [zIndex, setZIndex] = useState(() => peekNextZ());
+
   useEffect(() => {
-    const release = pushOverlayEntry({
+    const handle = pushOverlayEntry({
       type: "modal",
       close: onClose,
     });
+    setZIndex(handle.zIndex);
     function onWheel(e: WheelEvent) {
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-modal-root]")) return;
@@ -33,14 +36,14 @@ export function Modal({
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchmove", onTouch, { passive: false });
     return () => {
-      release();
+      handle.release();
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouch);
     };
   }, [onClose]);
 
   return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} style={{ zIndex }} onClick={onClose}>
       <div
         className={styles.modal}
         data-modal-root

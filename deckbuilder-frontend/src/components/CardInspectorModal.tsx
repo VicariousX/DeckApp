@@ -741,7 +741,7 @@ export function CardInspectorModal({
           transition: dragging ? "none" : "transform 0.22s ease",
         }}
         onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest("button, input, textarea, a")) return;
+          if ((e.target as HTMLElement).closest("button, input, textarea, a, [role='button']")) return;
           const top = shellRef.current?.getBoundingClientRect().top ?? 0;
           gesture.current = { x: e.clientX, y: e.clientY, fromTop: e.clientY - top < 56 };
           setDragging(true);
