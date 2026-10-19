@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { createDeck, deleteDeck, listMyDecks } from "../services/deckService";
+import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
 import { hasBranches, pruneBranches } from "../services/deckHistory";
 import {
   deleteFolder,
@@ -190,6 +191,17 @@ export function MyDecksPage() {
               {hasBranches(deck.id) && (
                 <Link to={`/deck/${deck.id}/branches`} className={styles.menuLink}>View Branches</Link>
               )}
+              <button
+                type="button"
+                className={styles.menuLink}
+                onClick={() => {
+                  if (!user) return;
+                  void setTargetable(user.id, { kind: "deck", id: deck.id, name: deck.name }, true);
+                  setOpen(false);
+                }}
+              >
+                Make search target
+              </button>
               <button type="button" className={styles.menuDanger} onClick={() => onDelete(deck.id, deck.name)}>
                 Delete
               </button>

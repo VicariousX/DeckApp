@@ -3,11 +3,19 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   addCardToCollection,
-  getDefaultCollection,
   listCollectionCards,
+  listMyCollections,
   removeCardFromCollection,
 } from "../services/collectionService";
-import type { Collection } from "../types/collection";
+import { addCardToDeck } from "../services/deckService";
+import {
+  addOracleToDrawer,
+  fetchDrawerCards,
+  removeOracleFromDrawer,
+} from "../services/drawerService";
+import { ensureUserCardFromScryfall } from "../services/userCardService";
+import { loadSearchTargets, type SearchTargetRef } from "../services/searchTargetService";
+import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { useSearchStream } from "../hooks/useSearchStream";
@@ -96,19 +104,52 @@ export function SearchResultsPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
-  const [target, setTarget] = useState<Collection | null>(null);
+  const [targets, setTargets] = useState<SearchTargetRef[]>([]);
+  const [targetKey, setTargetKey] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [presenceOnly, setPresenceOnly] = useState(false);
+  const target = targets.find((t) => `${t.kind}:${t.id}` === targetKey) ?? null;
+
   useEffect(() => {
     if (!user) return;
-    void getDefaultCollection(user.id).then(async (collection) => {
-      setTarget(collection);
-      if (!collection) return;
-      const rows = await listCollectionCards(collection.id);
-      const next: Record<string, number> = {};
-      for (const row of rows) next[row.identity] = row.quantity;
-      setCounts(next);
+    void loadSearchTargets(user.id).then((list) => {
+      setTargets(list);
+      setTargetKey((cur) => cur || (list[0] ? `${list[0].kind}:${list[0].id}` : ""));
     });
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !target) {
+      setCounts({});
+      return;
+    }
+    let cancel = false;
+    void (async () => {
+      if (target.kind === "collection") {
+        const { collections } = await listMyCollections(user.id);
+        const collection = collections.find((c) => c.id === target.id);
+        setPresenceOnly(collection ? !collection.quantity_counters : false);
+        const rows = await listCollectionCards(target.id);
+        if (cancel) return;
+        const next: Record<string, number> = {};
+        for (const row of rows) next[row.identity] = row.quantity;
+        setCounts(next);
+      } else if (target.kind === "drawer") {
+        setPresenceOnly(false);
+        const { cards: rows } = await fetchDrawerCards(target.id, user.id);
+        if (cancel) return;
+        const next: Record<string, number> = {};
+        for (const row of rows) next[row.oracle_id] = row.tier ?? 1;
+        setCounts(next);
+      } else {
+        setPresenceOnly(false);
+        setCounts({});
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [user, target?.kind, target?.id]);
   const q = params.get("q") ?? "";
   const mode = params.get("mode") === "advanced" ? "advanced" : "standard";
   const nParam = parseInt(params.get("n") ?? "30", 10);
@@ -219,6 +260,21 @@ export function SearchResultsPage() {
               ? "Search failed."
               : `${start}–${end} of ${total || sorted.length}`}
         </p>
+        {targets.length > 0 && (
+          <label className={resultStyles.count}>
+            Target{" "}
+            <select
+              value={targetKey}
+              onChange={(e) => setTargetKey(e.target.value)}
+            >
+              {targets.map((t) => (
+                <option key={`${t.kind}:${t.id}`} value={`${t.kind}:${t.id}`}>
+                  {t.kind} · {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className={resultStyles.toggles}>
           <button
             type="button"
@@ -312,17 +368,102 @@ export function SearchResultsPage() {
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
-        presenceOnly={target ? !target.quantity_counters : false}
-        countInDeck={(card) => counts[target?.print_specific ? card.id : (card.oracle_id || card.id)] ?? 0}
-        onAddToDeck={target ? (card) => {
-          const key = target.print_specific ? card.id : (card.oracle_id || card.id);
-          setCounts((m) => ({ ...m, [key]: target.quantity_counters ? (m[key] ?? 0) + 1 : 1 }));
-          void addCardToCollection(target, card);
+        presenceOnly={presenceOnly}
+        countInDeck={(card) => {
+          const key = card.oracle_id || card.id;
+          return counts[key] ?? counts[card.id] ?? 0;
+        }}
+        onAddToDeck={target && user ? (card) => {
+          const key = card.oracle_id || card.id;
+          if (target.kind === "collection") {
+            setCounts((m) => ({ ...m, [key]: presenceOnly ? 1 : (m[key] ?? 0) + 1 }));
+            void listMyCollections(user.id).then(({ collections }) => {
+              const collection = collections.find((c) => c.id === target.id);
+              if (collection) void addCardToCollection(collection, card);
+            });
+          } else if (target.kind === "drawer") {
+            setCounts((m) => ({ ...m, [key]: m[key] ?? 1 }));
+            void ensureUserCardFromScryfall(user.id, card).then(({ card: uc }) => {
+              if (uc) void addOracleToDrawer(target.id, uc.oracle_id);
+            });
+          } else {
+            setCounts((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
+            void addCardToDeck(target.id, {
+              oracle_id: key,
+              scryfall_id: card.id,
+              name: card.name,
+              type_line: card.type_line ?? "",
+              quantity: 1,
+              board: "maybe",
+            });
+          }
         } : undefined}
-        onUndoAdd={target ? (card) => {
-          const key = target.print_specific ? card.id : (card.oracle_id || card.id);
-          setCounts((m) => ({ ...m, [key]: Math.max(0, (m[key] ?? 0) - 1) }));
-          void removeCardFromCollection(target, card);
+        onUndoAdd={target && user ? (card) => {
+          const key = card.oracle_id || card.id;
+          setCounts((m) => ({ ...m, [key]: Math.max(0, (m[key] ?? 1) - 1) }));
+          if (target.kind === "collection") {
+            void listMyCollections(user.id).then(({ collections }) => {
+              const collection = collections.find((c) => c.id === target.id);
+              if (collection) void removeCardFromCollection(collection, card);
+            });
+          } else if (target.kind === "drawer") {
+            void removeOracleFromDrawer(target.id, key);
+          }
+        } : undefined}
+        catalogTile={viewMode === "image" ? (card, _index, open) => {
+          const key = card.oracle_id || card.id;
+          const n = counts[key] ?? counts[card.id] ?? 0;
+          const ear = target?.kind === "drawer" ? (n || "") : presenceOnly ? (n ? "✓" : "") : n || "";
+          return (
+            <CardTile
+              face={{ name: card.name, imageUrl: card.image_uris?.normal, scryfallId: card.id, oracleId: card.oracle_id }}
+              ear={ear}
+              onOpen={open}
+              right={target ? [
+                <span key="measure">
+                  {target.kind === "drawer" ? `Tier ${n || "—"}` : presenceOnly ? (n ? "✓" : "Add") : n ? `×${n}` : "Add"}
+                </span>,
+              ] : undefined}
+              bottom={target ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const add = target.kind === "collection"
+                      ? () => {
+                          setCounts((m) => ({ ...m, [key]: presenceOnly ? 1 : (m[key] ?? 0) + 1 }));
+                          void listMyCollections(user!.id).then(({ collections }) => {
+                            const collection = collections.find((c) => c.id === target.id);
+                            if (collection) void addCardToCollection(collection, card);
+                          });
+                        }
+                      : target.kind === "drawer"
+                        ? () => {
+                            setCounts((m) => ({ ...m, [key]: m[key] ?? 1 }));
+                            void ensureUserCardFromScryfall(user!.id, card).then(({ card: uc }) => {
+                              if (uc) void addOracleToDrawer(target.id, uc.oracle_id);
+                            });
+                          }
+                        : () => {
+                            setCounts((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
+                            void addCardToDeck(target.id, {
+                              oracle_id: key,
+                              scryfall_id: card.id,
+                              name: card.name,
+                              type_line: card.type_line ?? "",
+                              quantity: 1,
+                              board: "maybe",
+                            });
+                          };
+                    add();
+                  }}
+                  style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center" }}
+                >
+                  Add
+                </button>
+              ) : undefined}
+            />
+          );
         } : undefined}
       />
       <div className={resultStyles.moreRow}>

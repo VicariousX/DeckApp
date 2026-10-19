@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import type { CardFaceView } from "./CardImage";
 
 import styles from "./CardResult.module.css";
 import { CardEnlargeOverlay, CardImage } from "./CardImage";
+import { CardTileField } from "./CardTile";
 import { CardInspectorModal } from "./CardInspectorModal";
 import { pushOverlayEntry } from "../lib/overlayManager";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -35,6 +36,8 @@ type CardResultProps = {
   onExitScroll?: () => void;
   presenceOnly?: boolean;
   scrollStartIndex?: number;
+  /** When set, catalog mode renders this instead of the default result card. */
+  catalogTile?: (card: ScryfallCard, index: number, open: () => void) => ReactNode;
 };
 
 function ResultCard({
@@ -117,6 +120,7 @@ export function CardResult({
   onExitScroll,
   presenceOnly = false,
   scrollStartIndex = 0,
+  catalogTile,
 }: CardResultProps) {
   const isMobile = useIsMobile();
   const { pairs } = useDisplayCards(cards);
@@ -264,7 +268,17 @@ export function CardResult({
             </li>
           ))}
         </ul>
-      ) : browseMode === "scroll" ? null : (
+      ) : browseMode === "scroll" ? null : catalogTile ? (
+        <CardTileField>
+          <div className={styles.resultsGrid} style={gridStyle}>
+            {list.map((item, i) => (
+              <div key={item.originalId}>
+                {catalogTile(item.display, i, () => setSelectedIndex(i))}
+              </div>
+            ))}
+          </div>
+        </CardTileField>
+      ) : (
         <div
           className={styles.resultsGrid}
           style={gridStyle}

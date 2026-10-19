@@ -11,10 +11,10 @@ import {
   updateCollection,
   type CollectionCard,
 } from "../services/collectionService";
-import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
-import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
+import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
+import { DrawerTileField } from "../components/DrawerCardTile";
+import { CardTile } from "../components/CardTile";
 import { CardInspectorModal } from "../components/CardInspectorModal";
-import type { DrawerCardView } from "../types/drawer";
 import styles from "./DrawersPage.module.css";
 
 const EMPTY: CollectionInput = {
@@ -42,6 +42,7 @@ export function CollectionsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"text" | "image">("text");
   const [inspectId, setInspectId] = useState<string | null>(null);
+  const [targetable, setTargetableOn] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -67,7 +68,12 @@ export function CollectionsPage() {
       is_default: selected.is_default,
     });
     void listCollectionCards(selected.id).then(setCards);
-  }, [selected?.id]);
+    if (user) {
+      void loadSearchTargets(user.id).then((list) =>
+        setTargetableOn(list.some((t) => t.kind === "collection" && t.id === selected.id))
+      );
+    }
+  }, [selected?.id, user]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -199,6 +205,19 @@ export function CollectionsPage() {
                 <label><input type="checkbox" checked={draft.is_default} onChange={(e) => setDraft((d) => ({ ...d, is_default: e.target.checked }))} /> Default target</label>
               </div>
               <div className={styles.mainActions}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={targetable}
+                    onChange={(e) => {
+                      if (!user || !selected) return;
+                      const on = e.target.checked;
+                      setTargetableOn(on);
+                      void setTargetable(user.id, { kind: "collection", id: selected.id, name: selected.name }, on);
+                    }}
+                  />{" "}
+                  Search target
+                </label>
                 <button type="button" className={styles.primaryBtn} onClick={() => void saveSettings()}>Save settings</button>
                 <button type="button" className={styles.ghostBtn} onClick={() => void remove()}>Delete</button>
               </div>
@@ -206,39 +225,43 @@ export function CollectionsPage() {
               {viewMode === "image" ? (
                 <DrawerTileField>
                   <div className={styles.tileGrid}>
-                    {cards.map((card) => {
-                      const tile: DrawerCardView = {
-                        id: card.id,
-                        drawer_id: card.collection_id,
-                        oracle_id: card.oracle_id,
-                        sort_order: 0,
-                        tier: 1,
-                        created_at: "",
-                        name: card.name,
-                        type_line: "",
-                        mana_cost: null,
-                        cmc: null,
-                        color_identity: [],
-                        imposed_color_identity: null,
-                        useful_in: [],
-                        effective_color_identity: [],
-                        oracle_text: null,
-                        image_url: card.image_url,
-                        scryfall_id: card.scryfall_id,
-                      };
-                      return (
-                        <DrawerCardTile
-                          key={card.id}
-                          card={tile}
-                          showTierMark={false}
-                          onOpen={() => {
-                            if (card.scryfall_id) setInspectId(card.id);
-                          }}
-                          onRemove={() => {}}
-                          onTier={() => {}}
-                        />
-                      );
-                    })}
+                    {cards.map((card) => (
+                      <CardTile
+                        key={card.id}
+                        face={{
+                          name: card.name,
+                          imageUrl: card.image_url,
+                          scryfallId: card.scryfall_id,
+                          oracleId: card.oracle_id,
+                        }}
+                        ear={selected.quantity_counters ? card.quantity : "✓"}
+                        onOpen={() => {
+                          if (card.scryfall_id) setInspectId(card.id);
+                        }}
+                        right={[
+                          selected.quantity_counters ? (
+                            <span key="qty" className={styles.drawerCount}>×{card.quantity}</span>
+                          ) : (
+                            <span key="check">✓</span>
+                          ),
+                        ]}
+                        bottom={
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void removeCardFromCollection(selected, {
+                                id: card.scryfall_id || card.oracle_id,
+                                oracle_id: card.oracle_id,
+                              }).then(() => refreshCards());
+                            }}
+                            style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center" }}
+                          >
+                            Remove
+                          </button>
+                        }
+                      />
+                    ))}
                   </div>
                 </DrawerTileField>
               ) : (

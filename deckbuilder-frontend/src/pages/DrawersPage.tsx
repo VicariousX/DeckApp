@@ -35,7 +35,7 @@ import {
   setDrawerViewMode,
   type DrawerViewMode,
 } from "../lib/deckPreferences";
-import { CardInspectorModal } from "../components/CardInspectorModal";
+import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
@@ -74,6 +74,7 @@ export function DrawersPage() {
   } | null>(null);
   const [enhanceCard, setEnhanceCard] = useState<DrawerCardView | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [targetable, setTargetableOn] = useState(false);
   const [sortKey, setSortKey] = useState<CardSortKey>(() => {
     const k = getDrawerSortKey();
     return (CARD_SORT_OPTIONS.some((o) => o.id === k) ? k : "name") as CardSortKey;
@@ -128,6 +129,10 @@ export function DrawersPage() {
       if (err) setError(err);
       setCards(list);
       setCardsLoading(false);
+      const targets = await loadSearchTargets(user!.id);
+      if (!cancelled) {
+        setTargetableOn(targets.some((t) => t.kind === "drawer" && t.id === selectedId));
+      }
     }
     void load();
     return () => {
@@ -526,6 +531,19 @@ export function DrawersPage() {
                       >
                         Delete
                       </button>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={targetable}
+                          onChange={(e) => {
+                            if (!user) return;
+                            const on = e.target.checked;
+                            setTargetableOn(on);
+                            void setTargetable(user.id, { kind: "drawer", id: selected.id, name: selected.name }, on);
+                          }}
+                        />{" "}
+                        Search target
+                      </label>
                     </div>
                   </>
                 )}
