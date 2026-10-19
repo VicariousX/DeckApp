@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CardResult } from "../CardResult";
-import { useScryfallSearch } from "../../hooks/useScryfallSearch";
-import { useScrollWindow } from "../../hooks/useScrollWindow";
-import { extractMechanicTerms } from "../../lib/mechanics/search";
-import { oracleIdsForMechanic } from "../../services/mechanicMarkService";
-import { fetchCollectionByIds } from "../../lib/scryfallApi";
+import { useSearchStream } from "../../hooks/useSearchStream";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import resultStyles from "../../pages/SearchResultsPage.module.css";
 
@@ -64,68 +60,32 @@ export function SearchResultsPanel({
   countInDeck?: (card: ScryfallCard) => number;
   onUndoAdd?: (card: ScryfallCard) => void;
 }) {
-  const mechParsed = useMemo(() => extractMechanicTerms(query), [query]);
-  const scryfallQ = mechParsed.rest || (mechParsed.terms.length ? "" : query);
-  const [mechCards, setMechCards] = useState<ScryfallCard[]>([]);
-  const [mechIds, setMechIds] = useState<Set<string> | null>(null);
   const [pageSize, setPageSize] = useState(30);
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [viewPage, setViewPage] = useState(1);
-  const [stream, setStream] = useState<{ page: number; cards: ScryfallCard[] }[]>([]);
   const [viewMode, setViewMode] = useState<"image" | "text">("image");
   const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
-  const { cards, total, hasMoreApi, apiPage, isLoading, isError, run, goApiPage } =
-    useScryfallSearch();
-
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
+  const {
+    scryfallQ,
+    mechCards,
+    mechIds,
+    stream,
+    cards,
+    total,
+    hasMoreApi,
+    apiPage,
+    isLoading,
+    isError,
+    goApiPage,
+    scrollCards,
+    scrollStartIndexFor,
+  } = useSearchStream(query, apiOrder, sortDir);
 
   useEffect(() => {
     setViewPage(1);
-    setStream([]);
-    if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
-  }, [scryfallQ, apiOrder, sortDir, run]);
-
-  useEffect(() => {
-    if (!cards.length) return;
-    setStream((prev) => {
-      const next = prev.filter((p) => p.page !== apiPage);
-      next.push({ page: apiPage, cards });
-      next.sort((a, b) => a.page - b.page);
-      return next;
-    });
-  }, [cards, apiPage]);
-
-  useEffect(() => {
-    if (!mechParsed.terms.length) {
-      setMechIds(null);
-      setMechCards([]);
-      return;
-    }
-    let cancel = false;
-    void (async () => {
-      const sets: string[][] = [];
-      for (const t of mechParsed.terms) {
-        const { ids } = await oracleIdsForMechanic(t.id, t.economy);
-        sets.push(ids);
-      }
-      if (cancel) return;
-      let acc = new Set(sets[0] ?? []);
-      mechParsed.terms.forEach((t, i) => {
-        const s = new Set(sets[i] ?? []);
-        if (t.negate) acc = new Set([...acc].filter((id) => !s.has(id)));
-        else if (i > 0) acc = new Set([...acc].filter((id) => s.has(id)));
-      });
-      setMechIds(acc);
-      if (!scryfallQ && acc.size) {
-        const { cards: found } = await fetchCollectionByIds([...acc].slice(0, 75));
-        if (!cancel) setMechCards(found);
-      } else setMechCards([]);
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, [mechParsed, scryfallQ]);
+  }, [scryfallQ, apiOrder, sortDir]);
 
   const sorted = useMemo(() => {
     const source = scryfallQ ? cards : mechCards.length ? mechCards : cards;
@@ -159,8 +119,6 @@ export function SearchResultsPanel({
   const canPrev = safePage > 1 || apiPage > 1;
   const canNext = safePage < pagesHere || hasMoreApi;
 
-  const { scrollCards } = useScrollWindow(stream);
-
   const resultCards =
     browseMode === "scroll" && scrollCards.length
       ? scrollCards
@@ -168,12 +126,10 @@ export function SearchResultsPanel({
         ? stream.flatMap((p) => p.cards)
         : visible;
 
-  const scrollStartIndex = useMemo(() => {
-    if (browseMode !== "scroll" || !scrollCards.length || !visible.length) return 0;
-    const firstVisibleId = visible[0].id;
-    const idx = scrollCards.findIndex((c) => c.id === firstVisibleId);
-    return idx >= 0 ? idx : 0;
-  }, [browseMode, scrollCards, visible]);
+  const scrollStartIndex = useMemo(
+    () => (browseMode === "scroll" ? scrollStartIndexFor(visible) : 0),
+    [browseMode, scrollCards, visible]
+  );
 
   if (!query.trim()) return null;
 
