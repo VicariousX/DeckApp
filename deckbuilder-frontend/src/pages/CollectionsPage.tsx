@@ -12,6 +12,7 @@ import {
   type CollectionCard,
 } from "../services/collectionService";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
+import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
 import { DrawerTileField } from "../components/DrawerCardTile";
 import { CardTile } from "../components/CardTile";
 import { CardInspectorModal } from "../components/CardInspectorModal";

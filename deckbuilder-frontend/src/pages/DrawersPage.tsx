@@ -36,6 +36,7 @@ import {
   type DrawerViewMode,
 } from "../lib/deckPreferences";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
+import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
