@@ -10,7 +10,8 @@ import type { CardFaceView } from "./CardImage";
 import styles from "./CardResult.module.css";
 import { CardEnlargeOverlay, CardImage } from "./CardImage";
 import { CardInspectorModal } from "./CardInspectorModal";
-import { pushOverlay } from "../lib/overlayHistory";
+import { pushOverlayEntry } from "../lib/overlayManager";
+import { useIsMobile } from "../hooks/useIsMobile";
 import {
   CardContextMenu,
   modalJumpFromState,
@@ -116,6 +117,7 @@ export function CardResult({
   presenceOnly = false,
   scrollStartIndex = 0,
 }: CardResultProps) {
+  const isMobile = useIsMobile();
   const { pairs } = useDisplayCards(cards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState<"swipe" | "tilt">("swipe");
@@ -191,7 +193,10 @@ export function CardResult({
   exitRef.current = onExitScroll;
   useEffect(() => {
     if (browseMode !== "scroll") return;
-    return pushOverlay(() => exitRef.current?.());
+    return pushOverlayEntry({
+      type: "scroll",
+      close: () => exitRef.current?.(),
+    });
   }, [browseMode]);
   useEffect(() => {
     if (browseMode !== "scroll" || viewMode !== "image") {
@@ -269,7 +274,7 @@ export function CardResult({
               display={item.display}
               originalId={item.originalId}
               onSelect={() => {
-                if (window.innerWidth <= 768 && browseMode === "catalog") {
+                if (isMobile && browseMode === "catalog") {
                   const x = Math.min(window.innerWidth - 220, window.innerWidth / 2);
                   const y = Math.min(window.innerHeight - 280, window.innerHeight / 2);
                   setCtx({ x, y, index: i });
