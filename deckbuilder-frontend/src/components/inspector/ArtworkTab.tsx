@@ -1,4 +1,5 @@
 import type { ScryfallCard } from "../../types/scryfallCard";
+import type { DeckAppCard } from "../../types/deckAppCard";
 import { CardArtPanel } from "../CardArtPanel";
 import { SubTabRail } from "./SubTabRail";
 import type { SubTab } from "./types";
@@ -13,10 +14,12 @@ export function ArtworkTab({
   subId,
   onSelectSub,
   card,
+  onResolvedChange,
 }: {
   subId: string;
   onSelectSub: (id: string) => void;
   card: ScryfallCard | null;
+  onResolvedChange?: (resolved: DeckAppCard) => void;
 }) {
   return (
     <div className={styles.panelScroll}>
@@ -26,6 +29,7 @@ export function ArtworkTab({
           card={card}
           embedded
           forceSub={subId === "upload" ? "upload" : "prints"}
+          onResolvedChange={onResolvedChange}
         />
       ) : (
         <p className={styles.muted}>Load card to edit art.</p>

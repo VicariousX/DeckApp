@@ -22,6 +22,7 @@ export function InfoTab({
   loading,
   error,
   onClose,
+  hidePageLink = false,
   rulings,
   rulingsLoading,
   rulingsError,
@@ -35,6 +36,7 @@ export function InfoTab({
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  hidePageLink?: boolean;
   rulings: ScryfallRuling[];
   rulingsLoading: boolean;
   rulingsError: string | null;
@@ -60,13 +62,15 @@ export function InfoTab({
           {!displayCard && !loading && (
             <h2 className={styles.fallbackTitle}>{displayName}</h2>
           )}
-          <Link
-            to={`/card/${scryfallId}`}
-            className={styles.detailLink}
-            onClick={onClose}
-          >
-            Open card page →
-          </Link>
+          {!hidePageLink && (
+            <Link
+              to={`/card/${scryfallId}`}
+              className={styles.detailLink}
+              onClick={onClose}
+            >
+              Open card page →
+            </Link>
+          )}
         </>
       )}
       {subId === "rulings" && (
