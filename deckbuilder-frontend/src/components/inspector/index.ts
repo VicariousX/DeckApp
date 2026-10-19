@@ -1,6 +1,7 @@
 export type {
   CardInspectorDeckControls,
   CardInspectorDrawerControls,
+  CardInspectorCollectionControls,
   InspectorTab,
   InspectorTabId,
   SubTab,

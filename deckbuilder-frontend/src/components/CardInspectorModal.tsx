@@ -25,6 +25,7 @@ import {
   InfoTab,
   INFO_SUBS,
   MechanicsTab,
+  type CardInspectorCollectionControls,
   type CardInspectorDeckControls,
   type CardInspectorDrawerControls,
   type InspectorTab,
@@ -35,6 +36,7 @@ import styles from "./CardInspectorModal.module.css";
 export type {
   CardInspectorDeckControls,
   CardInspectorDrawerControls,
+  CardInspectorCollectionControls,
   InspectorTabId,
 } from "./inspector";
 
@@ -52,6 +54,7 @@ type Props = {
   hasNext?: boolean;
   deck?: CardInspectorDeckControls;
   drawer?: CardInspectorDrawerControls;
+  collection?: CardInspectorCollectionControls;
   initialTab?: TabId;
   initialInfoSub?: "details" | "rulings";
   initialArtSub?: "upload" | "prints";
@@ -74,6 +77,7 @@ export function CardInspectorModal({
   hasNext = false,
   deck,
   drawer,
+  collection,
   initialTab = "info",
   initialInfoSub = "details",
   initialArtSub = "prints",
@@ -198,7 +202,13 @@ export function CardInspectorModal({
             Manage collections →
           </Link>
         ),
-        render: () => <CollectionsTab card={card} name={displayName} />,
+        render: () => (
+          <CollectionsTab
+            card={card}
+            name={displayName}
+            collection={collection}
+          />
+        ),
       },
       {
         id: "mechanics",
@@ -233,6 +243,7 @@ export function CardInspectorModal({
     rulingsError,
     deck,
     drawer,
+    collection,
     card,
     usefulInTags,
   ]);

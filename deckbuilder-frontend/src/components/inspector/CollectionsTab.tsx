@@ -9,14 +9,17 @@ import {
 } from "../../services/collectionService";
 import type { Collection } from "../../types/collection";
 import type { ScryfallCard } from "../../types/scryfallCard";
+import type { CardInspectorCollectionControls } from "./types";
 import styles from "../CardInspectorModal.module.css";
 
 export function CollectionsTab({
   card,
   name,
+  collection,
 }: {
   card: ScryfallCard | null;
   name: string;
+  collection?: CardInspectorCollectionControls;
 }) {
   const { user } = useAuth();
   const [collections, setCollections] = useState<Collection[] | null>(null);
@@ -69,6 +72,41 @@ export function CollectionsTab({
   return (
     <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
       <p className={styles.extraLabel}>{name} in collections</p>
+      {collection && (
+        <div className={styles.deckExtras}>
+          <div className={styles.deckGroup}>
+            <span className={styles.extraLabel}>This collection</span>
+            <p className={styles.qtyValue}>{collection.collectionName}</p>
+          </div>
+          <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
+            <span className={styles.extraLabel}>
+              {collection.quantityCounters ? "Quantity" : "In collection"}
+            </span>
+            <div className={styles.qtyControls}>
+              {collection.quantityCounters && collection.quantity > 0 && (
+                <button type="button" className={styles.qtyBtn} onClick={collection.onRemove}>
+                  −
+                </button>
+              )}
+              <span className={styles.qtyValue}>
+                {collection.quantityCounters
+                  ? collection.quantity
+                  : collection.quantity > 0
+                    ? "✓"
+                    : "—"}
+              </span>
+              <button type="button" className={styles.qtyBtn} onClick={collection.onAdd}>
+                +
+              </button>
+              {!collection.quantityCounters && collection.quantity > 0 && (
+                <button type="button" className={styles.qtyBtn} onClick={collection.onRemove}>
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {status && <p className={styles.muted}>{status}</p>}
       {!collections && <p className={styles.muted}>Loading collections…</p>}
       {collections?.length === 0 && (

@@ -15,6 +15,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import {
   CardContextMenu,
   modalJumpFromState,
+  initialTabFromJump,
   type ModalJump,
 } from "./CardContextMenu";
 import { getFaceImage } from "../utils/scryfall";
@@ -427,15 +428,7 @@ export function CardResult({
       {selected && selectedIndex != null && (
         <CardInspectorModal
           key={selected.originalId}
-          initialTab={
-            modalJump.startsWith("artwork")
-              ? "artwork"
-              : modalJump.startsWith("info")
-                ? "info"
-                : modalJump === "deck" || modalJump === "drawers" || modalJump === "collections" || modalJump === "mechanics"
-                  ? modalJump
-                  : "info"
-          }
+          initialTab={initialTabFromJump(modalJump)}
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
           onTabChange={(tab, infoSub, artSub) =>

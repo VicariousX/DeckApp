@@ -2,15 +2,18 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
+  addCardToCollection,
   createCollection,
   deleteCollection,
   ensureStarterCollections,
   listCollectionCards,
+  removeCardFromCollection,
   updateCollection,
   type CollectionCard,
 } from "../services/collectionService";
 import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
 import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
+import { CardInspectorModal } from "../components/CardInspectorModal";
 import type { DrawerCardView } from "../types/drawer";
 import styles from "./DrawersPage.module.css";
 
@@ -38,6 +41,7 @@ export function CollectionsPage() {
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"text" | "image">("text");
+  const [inspectId, setInspectId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -99,6 +103,18 @@ export function CollectionsPage() {
     setCollections(next);
     setSelectedId(next[0]?.id ?? null);
   }
+
+  async function refreshCards() {
+    if (!selected) return;
+    setCards(await listCollectionCards(selected.id));
+  }
+
+  const inspectNav = cards.filter((c) => c.scryfall_id);
+  const inspectIndex = inspectNav.findIndex((c) => c.id === inspectId);
+  const inspectCard =
+    inspectIndex >= 0
+      ? inspectNav[inspectIndex]
+      : cards.find((c) => c.id === inspectId) ?? null;
 
   if (!authLoading && !user) return <Navigate to="/login" replace />;
 
@@ -215,7 +231,9 @@ export function CollectionsPage() {
                           key={card.id}
                           card={tile}
                           showTierMark={false}
-                          onOpen={() => {}}
+                          onOpen={() => {
+                            if (card.scryfall_id) setInspectId(card.id);
+                          }}
                           onRemove={() => {}}
                           onTier={() => {}}
                         />
@@ -226,9 +244,16 @@ export function CollectionsPage() {
               ) : (
                 <ul className={styles.drawerList}>
                   {cards.map((card) => (
-                    <li key={card.id} className={styles.drawerItem}>
+                    <li
+                      key={card.id}
+                      className={styles.drawerItem}
+                      onClick={() => {
+                        if (card.scryfall_id) setInspectId(card.id);
+                      }}
+                      style={{ cursor: card.scryfall_id ? "pointer" : undefined }}
+                    >
                       <span className={styles.drawerName}>{card.name}</span>
-                      <span className={styles.drawerCount}>{selected.quantity_counters ? `\u00d7${card.quantity}` : "\u2713"}</span>
+                      <span className={styles.drawerCount}>{selected.quantity_counters ? `×${card.quantity}` : "✓"}</span>
                     </li>
                   ))}
                 </ul>
@@ -237,6 +262,44 @@ export function CollectionsPage() {
           )}
         </section>
       </div>
+      {inspectCard?.scryfall_id && selected && (
+        <CardInspectorModal
+          key={inspectCard.id}
+          initialTab="collections"
+          scryfallId={inspectCard.scryfall_id}
+          name={inspectCard.name}
+          imageUrl={inspectCard.image_url ?? undefined}
+          onClose={() => setInspectId(null)}
+          hasPrev={inspectIndex > 0}
+          hasNext={inspectIndex >= 0 && inspectIndex < inspectNav.length - 1}
+          onPrev={() => {
+            if (inspectIndex > 0) setInspectId(inspectNav[inspectIndex - 1].id);
+          }}
+          onNext={() => {
+            if (inspectIndex >= 0 && inspectIndex < inspectNav.length - 1) {
+              setInspectId(inspectNav[inspectIndex + 1].id);
+            }
+          }}
+          collection={{
+            collectionName: selected.name,
+            quantity: inspectCard.quantity,
+            quantityCounters: selected.quantity_counters,
+            onAdd: () => {
+              void addCardToCollection(selected, {
+                id: inspectCard.scryfall_id || inspectCard.oracle_id,
+                oracle_id: inspectCard.oracle_id,
+                name: inspectCard.name,
+              }).then(() => refreshCards());
+            },
+            onRemove: () => {
+              void removeCardFromCollection(selected, {
+                id: inspectCard.scryfall_id || inspectCard.oracle_id,
+                oracle_id: inspectCard.oracle_id,
+              }).then(() => refreshCards());
+            },
+          }}
+        />
+      )}
     </div>
   );
 }

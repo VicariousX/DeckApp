@@ -20,6 +20,14 @@ export type CardInspectorDrawerControls = {
   onRemove: () => void;
 };
 
+export type CardInspectorCollectionControls = {
+  collectionName: string;
+  quantity: number;
+  quantityCounters: boolean;
+  onAdd: () => void;
+  onRemove: () => void;
+};
+
 export type InspectorTabId =
   | "info"
   | "deck"

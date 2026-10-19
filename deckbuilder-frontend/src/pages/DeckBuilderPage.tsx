@@ -39,6 +39,7 @@ import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
   modalJumpFromState,
+  initialTabFromJump,
   type ModalJump,
 } from "../components/CardContextMenu";
 import {
@@ -3012,15 +3013,7 @@ export function DeckBuilderPage() {
       {modalCard && (
         <CardInspectorModal
           key={modalCard.id}
-          initialTab={
-            modalJump.startsWith("artwork")
-              ? "artwork"
-              : modalJump.startsWith("info")
-                ? "info"
-                : modalJump === "deck" || modalJump === "drawers" || modalJump === "collections" || modalJump === "mechanics"
-                  ? modalJump
-                  : "info"
-          }
+          initialTab={initialTabFromJump(modalJump)}
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
           initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
           onTabChange={(tab, infoSub, artSub) =>

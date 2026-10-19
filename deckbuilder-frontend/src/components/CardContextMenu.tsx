@@ -38,6 +38,21 @@ export function modalJumpFromState(
   return tab;
 }
 
+/** Map a context-menu jump onto a main tab id. */
+export function initialTabFromJump(jump: ModalJump): InspectorTabName {
+  if (jump.startsWith("artwork")) return "artwork";
+  if (jump.startsWith("info")) return "info";
+  if (
+    jump === "deck" ||
+    jump === "drawers" ||
+    jump === "collections" ||
+    jump === "mechanics"
+  ) {
+    return jump;
+  }
+  return "info";
+}
+
 export type CardContextTarget = {
   scryfallId: string;
   oracleId?: string;
