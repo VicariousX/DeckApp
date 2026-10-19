@@ -18,8 +18,7 @@ import {
   isMultiCard,
 } from "../utils/scryfall";
 
-import { lockBodyScroll } from "../lib/scrollLock";
-import { pushOverlay } from "../lib/overlayHistory";
+import { pushOverlayEntry } from "../lib/overlayManager";
 import styles from "./CardImage.module.css";
 
 export type CardFaceView = "front" | "back" | "both";
@@ -211,7 +210,7 @@ export function CardEnlargeOverlay({
 
   useEffect(() => {
     if (embedded) {
-      const unlock = lockBodyScroll();
+      // Parent (scroll stage) owns the overlay entry and scroll lock.
       function onTouch(e: TouchEvent) {
         const target = e.target as HTMLElement | null;
         if (target?.closest("button")) return;
@@ -219,19 +218,13 @@ export function CardEnlargeOverlay({
       }
       window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
       return () => {
-        unlock();
         window.removeEventListener("touchmove", onTouch, true);
       };
     }
-    const unlock = lockBodyScroll();
-    const release = pushOverlay(() => closeRef.current());
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        e.preventDefault();
-        onClose();
-      }
-    }
+    const release = pushOverlayEntry({
+      type: "enlarge",
+      close: () => closeRef.current(),
+    });
     let flipLock = false;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
@@ -248,13 +241,10 @@ export function CardEnlargeOverlay({
     function onTouch(e: TouchEvent) {
       e.preventDefault();
     }
-    window.addEventListener("keydown", onKey, true);
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
       release();
-      unlock();
-      window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };
@@ -515,14 +505,10 @@ export function CardImage({
 
   useEffect(() => {
     if (!enlarged) return;
-    const unlock = lockBodyScroll();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        e.preventDefault();
-        setEnlarged(null);
-      }
-    }
+    const release = pushOverlayEntry({
+      type: "enlarge",
+      close: () => setEnlarged(null),
+    });
     let flipLock = false;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
@@ -539,12 +525,10 @@ export function CardImage({
     function onTouch(e: TouchEvent) {
       e.preventDefault();
     }
-    window.addEventListener("keydown", onKey, true);
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     window.addEventListener("touchmove", onTouch, { passive: false, capture: true });
     return () => {
-      unlock();
-      window.removeEventListener("keydown", onKey, true);
+      release();
       window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("touchmove", onTouch, true);
     };
