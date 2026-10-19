@@ -1,6 +1,6 @@
 import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { lockBodyScroll } from "../lib/scrollLock";
+import { pushOverlayEntry } from "../lib/overlayManager";
 import styles from "./Modal.module.css";
 
 export function Modal({
@@ -16,7 +16,10 @@ export function Modal({
   style?: CSSProperties;
 }) {
   useEffect(() => {
-    const unlock = lockBodyScroll();
+    const release = pushOverlayEntry({
+      type: "modal",
+      close: onClose,
+    });
     function onWheel(e: WheelEvent) {
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-modal-root]")) return;
@@ -30,11 +33,11 @@ export function Modal({
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchmove", onTouch, { passive: false });
     return () => {
-      unlock();
+      release();
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouch);
     };
-  }, []);
+  }, [onClose]);
 
   return createPortal(
     <div className={styles.overlay} onClick={onClose}>

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import styles from "./CardLightbox.module.css";
-import { lockBodyScroll } from "../lib/scrollLock";
+import { pushOverlayEntry } from "../lib/overlayManager";
 
 type Props = {
   src: string;
@@ -12,14 +12,12 @@ type Props = {
 /** Full-screen centered card image; click outside or press Escape to close. */
 export function CardLightbox({ src, alt, onClose }: Props) {
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    const unlock = lockBodyScroll();
+    const release = pushOverlayEntry({
+      type: "lightbox",
+      close: onClose,
+    });
     return () => {
-      document.removeEventListener("keydown", onKey);
-      unlock();
+      release();
     };
   }, [onClose]);
 
