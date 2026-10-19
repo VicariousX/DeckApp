@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -8,44 +7,36 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
-import { addCardToDeck, listMyDecks } from "../services/deckService";
 import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
 import { cardArtPublicUrl } from "../services/cardArtService";
-import type { Deck, DeckBoard, DeckCard, DeckTag } from "../types/deck";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
-import { CardDetail } from "./CardDetail";
 import { CardImage } from "./CardImage";
-import { CardArtPanel } from "./CardArtPanel";
-import { DrawerPicker } from "./DrawerPicker";
-import { UsefulInPicker } from "./UsefulInPicker";
-import { MechanicMarkPicker } from "./MechanicMarkPicker";
 import { Modal } from "./Modal";
 import { readImageShown, writeImageShown } from "../lib/inspectorPrefs";
 import { useIsMobile } from "../hooks/useIsMobile";
+import {
+  ArtworkTab,
+  ART_SUBS,
+  DeckTab,
+  DrawersTab,
+  InfoTab,
+  INFO_SUBS,
+  MechanicsTab,
+  type CardInspectorDeckControls,
+  type CardInspectorDrawerControls,
+  type InspectorTab,
+  type InspectorTabId,
+} from "./inspector";
 import styles from "./CardInspectorModal.module.css";
 
-const BOARDS: { id: DeckBoard; label: string }[] = [
-  { id: "commander", label: "Commander" },
-  { id: "main", label: "Mainboard" },
-  { id: "side", label: "Sideboard" },
-  { id: "maybe", label: "Maybeboard" },
-];
+export type {
+  CardInspectorDeckControls,
+  CardInspectorDrawerControls,
+  InspectorTabId,
+} from "./inspector";
 
-export type CardInspectorDeckControls = {
-  card: DeckCard;
-  isOwner: boolean;
-  tags: DeckTag[];
-  onQty: (delta: number) => void;
-  onBoard: (board: DeckBoard) => void;
-  onRemove: () => void;
-  onToggleTag: (tag: DeckTag) => void;
-  onCreateTag?: (name: string) => Promise<void> | void;
-};
-
-export type InspectorTabId = "info" | "deck" | "drawer" | "drawers" | "mechanics" | "artwork";
 type TabId = InspectorTabId;
 
 type Props = {
@@ -69,117 +60,6 @@ type Props = {
     artSub: "upload" | "prints"
   ) => void;
 };
-
-export type CardInspectorDrawerControls = {
-  drawerName: string;
-  tier: number;
-  isOwner: boolean;
-  onTier: (next: number) => void;
-  onRemove: () => void;
-};
-
-function DeckTagRows({
-  tags,
-  assigned,
-  isOwner,
-  onToggle,
-}: {
-  tags: DeckTag[];
-  assigned: Set<string>;
-  isOwner: boolean;
-  onToggle: (tag: DeckTag) => void;
-}) {
-  const nodes = useRef(new Map<string, HTMLButtonElement>());
-  const pendingRects = useRef<Map<string, DOMRect> | null>(null);
-  const [exitingId, setExitingId] = useState<string | null>(null);
-  const [arrivingId, setArrivingId] = useState<string | null>(null);
-  const busy = useRef(false);
-
-  useLayoutEffect(() => {
-    const firsts = pendingRects.current;
-    if (!firsts) return;
-    pendingRects.current = null;
-    for (const [id, first] of firsts) {
-      const node = nodes.current.get(id);
-      if (!node) continue;
-      const last = node.getBoundingClientRect();
-      const dx = first.left - last.left;
-      const dy = first.top - last.top;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
-      node.animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px)` },
-          { transform: "translate(0, 0)" },
-        ],
-        { duration: 360, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
-      );
-    }
-  }, [assigned]);
-
-  function handleToggle(tag: DeckTag) {
-    if (!isOwner || busy.current) return;
-    busy.current = true;
-    setExitingId(tag.id);
-    window.setTimeout(() => {
-      const rects = new Map<string, DOMRect>();
-      for (const [id, node] of nodes.current) {
-        if (id === tag.id) continue;
-        rects.set(id, node.getBoundingClientRect());
-      }
-      pendingRects.current = rects;
-      onToggle(tag);
-      setExitingId(null);
-      setArrivingId(tag.id);
-      window.setTimeout(() => {
-        setArrivingId((cur) => (cur === tag.id ? null : cur));
-        busy.current = false;
-      }, 280);
-    }, 280);
-  }
-
-  const activeTags = tags.filter((t) => assigned.has(t.id));
-  const availableTags = tags.filter((t) => !assigned.has(t.id));
-
-  function chip(tag: DeckTag, on: boolean) {
-    return (
-      <button
-        key={tag.id}
-        type="button"
-        ref={(n) => {
-          if (n) nodes.current.set(tag.id, n);
-          else nodes.current.delete(tag.id);
-        }}
-        className={`${styles.tagChip}${on ? ` ${styles.tagChipOn}` : ""}${
-          exitingId === tag.id ? ` ${styles.tagChipExit}` : ""
-        }${arrivingId === tag.id ? ` ${styles.tagChipEnter}` : ""}`}
-        disabled={!isOwner}
-        style={
-          on
-            ? { borderColor: tag.color, background: `${tag.color}33` }
-            : undefined
-        }
-        onClick={() => handleToggle(tag)}
-      >
-        <span className={styles.tagLabel}>{tag.name}</span>
-      </button>
-    );
-  }
-
-  return (
-    <>
-      <div className={styles.tagLane}>
-        <span className={styles.extraLabel}>Active tags</span>
-        <div className={styles.tagList}>{activeTags.map((t) => chip(t, true))}</div>
-      </div>
-      <div className={styles.tagLane}>
-        <span className={styles.extraLabel}>Available tags</span>
-        <div className={styles.tagList}>
-          {availableTags.map((t) => chip(t, false))}
-        </div>
-      </div>
-    </>
-  );
-}
 
 export function CardInspectorModal({
   scryfallId,
@@ -205,12 +85,20 @@ export function CardInspectorModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<TabId>(initialTab);
-  const [artSub, setArtSub] = useState<"upload" | "prints">(initialArtSub);
+  const [subByTab, setSubByTab] = useState<Record<string, string>>({
+    info: initialInfoSub,
+    artwork: initialArtSub,
+  });
+  const infoSub = (subByTab.info ?? "details") as "details" | "rulings";
+  const artSub = (subByTab.artwork ?? "prints") as "upload" | "prints";
   const [imageOpen, setImageOpen] = useState(readImageShown);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
-  const [infoSub, setInfoSub] = useState<"details" | "rulings">(initialInfoSub);
+
+  function setSub(tabId: string, subId: string) {
+    setSubByTab((prev) => (prev[tabId] === subId ? prev : { ...prev, [tabId]: subId }));
+  }
 
   useEffect(() => {
     onTabChange?.(active, infoSub, artSub);
@@ -219,8 +107,6 @@ export function CardInspectorModal({
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
-  const [newTagName, setNewTagName] = useState("");
-  const [tagBusy, setTagBusy] = useState(false);
   const [overscrollHint, setOverscrollHint] = useState<{
     dir: "up" | "down";
     ticks: number;
@@ -245,23 +131,104 @@ export function CardInspectorModal({
   const [frontSrc, setFrontSrc] = useState<string | undefined>(imageUrl);
   const [backSrc, setBackSrc] = useState<string | undefined>(imageUrlBack);
 
-  const tabs = useMemo(() => {
-    const list: { id: TabId; label: string }[] = [
-      { id: "info", label: "Info" },
-      { id: "deck", label: "Deck" },
+  const card = displayCard ?? baseCard;
+  const displayName = card?.name ?? name ?? "Card";
+
+  const tabs = useMemo<InspectorTab[]>(() => {
+    return [
+      {
+        id: "info",
+        label: "Info",
+        subTabs: INFO_SUBS,
+        render: (subId) => (
+          <InfoTab
+            subId={subId ?? "details"}
+            onSelectSub={(id) => setSub("info", id)}
+            displayCard={displayCard}
+            displayName={displayName}
+            scryfallId={scryfallId}
+            frontSrc={frontSrc}
+            loading={loading}
+            error={error}
+            onClose={onClose}
+            rulings={rulings}
+            rulingsLoading={rulingsLoading}
+            rulingsError={rulingsError}
+          />
+        ),
+      },
+      {
+        id: "deck",
+        label: "Deck",
+        render: () => (
+          <DeckTab
+            deck={deck}
+            scryfallId={scryfallId}
+            oracleId={card?.oracle_id}
+            name={displayName}
+            typeLine={card?.type_line}
+            onRemove={handleRemove}
+          />
+        ),
+      },
+      {
+        id: "drawers",
+        label: "Drawers",
+        keepMounted: true,
+        titleExtra: (
+          <Link to="/drawers" className={styles.manageLink} onClick={onClose}>
+            Manage drawers →
+          </Link>
+        ),
+        render: () => (
+          <DrawersTab
+            card={card}
+            usefulInTags={usefulInTags}
+            onUsefulInChange={setUsefulInTags}
+          />
+        ),
+      },
+      {
+        id: "mechanics",
+        label: "Mechanics",
+        render: () => <MechanicsTab card={card} />,
+      },
+      {
+        id: "artwork",
+        label: "Artwork",
+        subTabs: ART_SUBS,
+        render: (subId) => (
+          <ArtworkTab
+            subId={subId ?? "prints"}
+            onSelectSub={(id) => setSub("artwork", id)}
+            card={card}
+          />
+        ),
+      },
     ];
-    list.push(
-      { id: "drawers", label: "Drawers" },
-      { id: "mechanics", label: "Mechanics" },
-      { id: "artwork", label: "Artwork" }
-    );
-    return list;
-  }, [deck]);
+    // handleRemove is stable enough for this list; card identity drives content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    displayCard,
+    displayName,
+    scryfallId,
+    frontSrc,
+    loading,
+    error,
+    onClose,
+    rulings,
+    rulingsLoading,
+    rulingsError,
+    deck,
+    card,
+    usefulInTags,
+  ]);
 
   const activeIndex = Math.max(
     0,
     tabs.findIndex((t) => t.id === active)
   );
+  const activeTab = tabs[activeIndex];
 
   useEffect(() => {
     if (!tabs.some((t) => t.id === active)) setActive("info");
@@ -413,33 +380,12 @@ export function CardInspectorModal({
       // Sub-tabs use ↑/↓; overflow moves between main tabs.
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (active === "info" && infoSub === "rulings") {
-          setInfoSub("details");
-          return;
-        }
-        if (active === "artwork" && artSub === "upload") {
-          setArtSub("prints");
-          return;
-        }
-        const next = Math.max(0, activeIndex - 1);
-        selectTab(tabs[next].id);
+        shiftVertical(-1);
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (active === "info" && infoSub === "details") {
-          setInfoSub("rulings");
-          return;
-        }
-        if (active === "artwork" && artSub === "prints") {
-          setArtSub("upload");
-          return;
-        }
-        if (active === "artwork" && artSub === "upload") {
-          return;
-        }
-        const next = Math.min(tabs.length - 1, activeIndex + 1);
-        selectTab(tabs[next].id);
+        shiftVertical(1);
         return;
       }
     }
@@ -569,30 +515,7 @@ export function CardInspectorModal({
     }
 
     function navVertical(deltaY: number) {
-      if (deltaY < 0) {
-        if (active === "info" && infoSub === "rulings") {
-          setInfoSub("details");
-          return;
-        }
-        if (active === "artwork" && artSub === "upload") {
-          setArtSub("prints");
-          return;
-        }
-        const next = Math.max(0, activeIndex - 1);
-        selectTab(tabs[next].id);
-      } else {
-        if (active === "info" && infoSub === "details") {
-          setInfoSub("rulings");
-          return;
-        }
-        if (active === "artwork" && artSub === "prints") {
-          setArtSub("upload");
-          return;
-        }
-        if (active === "artwork" && artSub === "upload") return;
-        const next = Math.min(tabs.length - 1, activeIndex + 1);
-        selectTab(tabs[next].id);
-      }
+      shiftVertical(deltaY < 0 ? -1 : 1);
     }
 
     function navHorizontal(deltaX: number) {
@@ -744,8 +667,6 @@ export function CardInspectorModal({
     };
   }, []);
 
-  const displayName = displayCard?.name ?? baseCard?.name ?? name ?? "Card";
-  const assigned = new Set(deck?.card.tag_ids ?? []);
   const above = tabs.slice(0, activeIndex);
   const below = tabs.slice(activeIndex + 1);
 
@@ -757,19 +678,24 @@ export function CardInspectorModal({
   }
 
 
-  function shiftSub(direction: "up" | "down") {
-    if (direction === "up") {
-      if (active === "info" && infoSub === "rulings") { setInfoSub("details"); return; }
-      if (active === "artwork" && artSub === "upload") { setArtSub("prints"); return; }
-      const next = Math.max(0, activeIndex - 1);
-      selectTab(tabs[next].id);
-      return;
+  function shiftVertical(dir: -1 | 1) {
+    const tab = tabs[activeIndex];
+    const subs = tab?.subTabs;
+    if (subs && subs.length) {
+      const cur = subByTab[tab.id] ?? subs[0].id;
+      const idx = Math.max(0, subs.findIndex((s) => s.id === cur));
+      const nextIdx = idx + dir;
+      if (nextIdx >= 0 && nextIdx < subs.length) {
+        setSub(tab.id, subs[nextIdx].id);
+        return;
+      }
     }
-    if (active === "info" && infoSub === "details") { setInfoSub("rulings"); return; }
-    if (active === "artwork" && artSub === "prints") { setArtSub("upload"); return; }
-    if (active === "artwork" && artSub === "upload") return;
-    const next = Math.min(tabs.length - 1, activeIndex + 1);
+    const next = Math.min(tabs.length - 1, Math.max(0, activeIndex + dir));
     selectTab(tabs[next].id);
+  }
+
+  function shiftSub(direction: "up" | "down") {
+    shiftVertical(direction === "up" ? -1 : 1);
   }
 
   return (
@@ -938,300 +864,31 @@ export function CardInspectorModal({
               role="tabpanel"
             >
               <div className={styles.tabPanelTitle}>
-                <span>{tabs[activeIndex]?.label}</span>
-                {active === "drawers" && (
-                  <Link
-                    to="/drawers"
-                    className={styles.manageLink}
-                    onClick={onClose}
-                  >
-                    Manage drawers →
-                  </Link>
-                )}
+                <span>{activeTab?.label}</span>
+                {activeTab?.titleExtra}
               </div>
 
-              {active === "info" && (
-                <div className={styles.panelScroll}>
-                  <div className={styles.subTabRail} role="tablist">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={infoSub === "details"}
-                      className={`${styles.subTab}${
-                        infoSub === "details" ? ` ${styles.subTabActive}` : ""
-                      }`}
-                      onClick={() => setInfoSub("details")}
+              {tabs.map((tab) => {
+                if (!tab.keepMounted && tab.id !== active) return null;
+                const subId = tab.subTabs
+                  ? subByTab[tab.id] ?? tab.subTabs[0]?.id ?? null
+                  : null;
+                const hidden = tab.keepMounted && tab.id !== active;
+                const body = tab.render(subId);
+                if (tab.keepMounted) {
+                  return (
+                    <div
+                      key={tab.id}
+                      className={styles.panelScroll}
+                      hidden={hidden}
+                      style={hidden ? { display: "none" } : undefined}
                     >
-                      Details
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={infoSub === "rulings"}
-                      className={`${styles.subTab}${
-                        infoSub === "rulings" ? ` ${styles.subTabActive}` : ""
-                      }`}
-                      onClick={() => setInfoSub("rulings")}
-                    >
-                      Rulings
-                    </button>
-                  </div>
-                  {infoSub === "details" && (
-                    <>
-                      {error && (
-                        <p className={styles.error} role="alert">
-                          {error}
-                        </p>
-                      )}
-                      {displayCard && (
-                        <CardDetail
-                          card={displayCard}
-                          hidePrintingMeta={Boolean(
-                            frontSrc &&
-                              frontSrc !== getFaceImage(displayCard, 0)
-                          )}
-                        />
-                      )}
-                      {!displayCard && !loading && (
-                        <h2 className={styles.fallbackTitle}>{displayName}</h2>
-                      )}
-                      <Link
-                        to={`/card/${scryfallId}`}
-                        className={styles.detailLink}
-                        onClick={onClose}
-                      >
-                        Open card page →
-                      </Link>
-                    </>
-                  )}
-                  {infoSub === "rulings" && (
-                    <div className={styles.rulingsList}>
-                      {rulingsLoading && (
-                        <p className={styles.rulingsMuted}>Loading rulings…</p>
-                      )}
-                      {rulingsError && (
-                        <p className={styles.error} role="alert">
-                          {rulingsError}
-                        </p>
-                      )}
-                      {!rulingsLoading &&
-                        !rulingsError &&
-                        rulings.length === 0 && (
-                          <p className={styles.rulingsMuted}>
-                            No official rulings for this card.
-                          </p>
-                        )}
-                      {rulings.map((r, i) => (
-                        <article key={`${r.published_at ?? "r"}-${i}`} className={styles.ruling}>
-                          <header className={styles.rulingMeta}>
-                            <span>{r.source === "wotc" ? "WotC" : r.source ?? "Ruling"}</span>
-                            {r.published_at && <time>{r.published_at}</time>}
-                          </header>
-                          <p className={styles.rulingBody}>{r.comment}</p>
-                        </article>
-                      ))}
+                      {body}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {active === "deck" && !deck && (
-                <AddToDeckPanel
-                  scryfallId={scryfallId}
-                  oracleId={displayCard?.oracle_id ?? baseCard?.oracle_id}
-                  name={displayName}
-                  typeLine={displayCard?.type_line ?? baseCard?.type_line}
-                />
-              )}
-
-              {active === "deck" && deck && (
-                <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
-                  <div className={styles.deckExtras}>
-                    <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
-                      <span className={styles.extraLabel}>Quantity</span>
-                      <div className={styles.qtyControls}>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          disabled={!deck.isOwner}
-                          onClick={() => deck.onQty(-1)}
-                        >
-                          −
-                        </button>
-                        <span className={styles.qtyValue}>
-                          {deck.card.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          className={styles.qtyBtn}
-                          disabled={!deck.isOwner}
-                          onClick={() => deck.onQty(1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <label className={`${styles.boardRow} ${styles.deckGroup}`}>
-                      <span className={styles.extraLabel}>Board</span>
-                      <select
-                        className={styles.boardSelect}
-                        value={deck.card.board}
-                        disabled={!deck.isOwner}
-                        onChange={(e) =>
-                          deck.onBoard(e.target.value as DeckBoard)
-                        }
-                      >
-                        {BOARDS.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className={`${styles.tagsBlock} ${styles.deckGroup}`}>
-                      <DeckTagRows
-                        tags={deck.tags}
-                        assigned={assigned}
-                        isOwner={deck.isOwner}
-                        onToggle={deck.onToggleTag}
-                      />
-                      {deck.isOwner && deck.onCreateTag && (
-                        <form
-                          className={styles.tagCreate}
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const name = newTagName.trim();
-                            if (!name || tagBusy) return;
-                            setTagBusy(true);
-                            void Promise.resolve(deck.onCreateTag!(name)).finally(
-                              () => {
-                                setNewTagName("");
-                                setTagBusy(false);
-                              }
-                            );
-                          }}
-                        >
-                          <input
-                            className={styles.tagCreateInput}
-                            value={newTagName}
-                            onChange={(e) => setNewTagName(e.target.value)}
-                            placeholder="New tag"
-                            maxLength={32}
-                            aria-label="New deck tag"
-                          />
-                          <button
-                            type="submit"
-                            className={styles.tagCreateBtn}
-                            disabled={tagBusy || !newTagName.trim()}
-                          >
-                            Add
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  </div>
-                  {deck.isOwner && (
-                    <div className={styles.deckFooter}>
-                      <button
-                        type="button"
-                        className={styles.removeBtn}
-                        onClick={handleRemove}
-                      >
-                        Remove from deck
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Keep mounted so drawer list cache survives tab switches */}
-              <div
-                className={styles.panelScroll}
-                hidden={active !== "drawers"}
-                style={active !== "drawers" ? { display: "none" } : undefined}
-              >
-                {displayCard || baseCard ? (
-                  <>
-                    <div className={styles.usefulInBlock}>
-                      <UsefulInPicker
-                        oracleId={(
-                          (displayCard ?? baseCard)!.oracle_id ??
-                          (displayCard ?? baseCard)!.id
-                        ).toLowerCase()}
-                        scryfallCard={displayCard ?? baseCard!}
-                        value={usefulInTags}
-                        onChange={setUsefulInTags}
-                      />
-                    </div>
-                    <div className={styles.drawersBlock}>
-                      <p className={styles.drawersBlockLabel}>Drawer membership</p>
-                      <DrawerPicker
-                        oracleId={(
-                          (displayCard ?? baseCard)!.oracle_id ??
-                          (displayCard ?? baseCard)!.id
-                        ).toLowerCase()}
-                        scryfallCard={displayCard ?? baseCard!}
-                        inline
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <p className={styles.muted}>Load card to manage drawers.</p>
-                )}
-              </div>
-
-              {active === "mechanics" && (
-                <div className={styles.panelScroll}>
-                  {(displayCard ?? baseCard)?.oracle_id || (displayCard ?? baseCard)?.id ? (
-                    <MechanicMarkPicker
-                      oracleId={(
-                        (displayCard ?? baseCard)!.oracle_id ??
-                        (displayCard ?? baseCard)!.id
-                      ).toLowerCase()}
-                    />
-                  ) : (
-                    <p className={styles.muted}>Load card to mark mechanics.</p>
-                  )}
-                </div>
-              )}
-
-              {active === "artwork" && (
-                <div className={styles.panelScroll}>
-                  <div className={styles.subTabRail} role="tablist">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={artSub === "prints"}
-                      className={`${styles.subTab}${
-                        artSub === "prints" ? ` ${styles.subTabActive}` : ""
-                      }`}
-                      onClick={() => setArtSub("prints")}
-                    >
-                      Printings
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={artSub === "upload"}
-                      className={`${styles.subTab}${
-                        artSub === "upload" ? ` ${styles.subTabActive}` : ""
-                      }`}
-                      onClick={() => setArtSub("upload")}
-                    >
-                      Upload
-                    </button>
-                  </div>
-                  {displayCard || baseCard ? (
-                    <CardArtPanel
-                      card={displayCard ?? baseCard!}
-                      embedded
-                      forceSub={artSub}
-                    />
-                  ) : (
-                    <p className={styles.muted}>Load card to edit art.</p>
-                  )}
-                </div>
-              )}
+                  );
+                }
+                return <div key={tab.id}>{body}</div>;
+              })}
             </div>
 
             {below.length > 0 && (
@@ -1283,66 +940,3 @@ export function CardInspectorModal({
     </Modal>
   );
 }
-
-function AddToDeckPanel({
-  scryfallId,
-  oracleId,
-  name,
-  typeLine,
-}: {
-  scryfallId: string;
-  oracleId?: string;
-  name: string;
-  typeLine?: string;
-}) {
-  const { user } = useAuth();
-  const [decks, setDecks] = useState<Deck[] | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
-  }, [user]);
-
-  async function add(deckId: string) {
-    setBusy(true);
-    const { error } = await addCardToDeck(deckId, {
-      oracle_id: oracleId || scryfallId,
-      scryfall_id: scryfallId,
-      name,
-      type_line: typeLine || "",
-      quantity: 1,
-      board: "maybe",
-    });
-    setBusy(false);
-    setStatus(error ?? "Added to maybeboard");
-  }
-
-  if (!user) {
-    return <p className={styles.muted}>Sign in to add this card to a deck.</p>;
-  }
-
-  return (
-    <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
-      <p className={styles.extraLabel}>Add {name} to a deck</p>
-      {status && <p className={styles.muted}>{status}</p>}
-      {!decks && <p className={styles.muted}>Loading decks…</p>}
-      {decks?.length === 0 && <p className={styles.muted}>No decks yet.</p>}
-      <div className={styles.addDeckList}>
-        {decks?.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            className={styles.addDeckBtn}
-            disabled={busy}
-            onClick={() => void add(d.id)}
-          >
-            {d.name}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
