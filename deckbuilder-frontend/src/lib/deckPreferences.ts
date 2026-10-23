@@ -243,3 +243,22 @@ export function setDrawerSortKey(key: string): void {
     /* ignore */
   }
 }
+
+const COLLECTION_VIEW_KEY = "deckapp.collectionViewMode";
+
+export function getCollectionViewMode(): DrawerViewMode {
+  try {
+    const v = localStorage.getItem(COLLECTION_VIEW_KEY);
+    return v === "image" ? "image" : "text";
+  } catch {
+    return "text";
+  }
+}
+
+export function setCollectionViewMode(mode: DrawerViewMode): void {
+  try {
+    localStorage.setItem(COLLECTION_VIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
