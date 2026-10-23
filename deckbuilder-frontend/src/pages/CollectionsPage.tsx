@@ -12,10 +12,18 @@ import {
   type CollectionCard,
 } from "../services/collectionService";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
+import { getCollectionViewMode, setCollectionViewMode } from "../lib/deckPreferences";
 import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
 import { DrawerTileField } from "../components/DrawerCardTile";
 import { CardTile } from "../components/CardTile";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import {
+  GroupPageShell,
+  GroupSidebar,
+  GroupSidebarItem,
+  GroupSidebarList,
+  ViewModeToggle,
+} from "../components/GroupBrowser";
 import styles from "./DrawersPage.module.css";
 
 const EMPTY: CollectionInput = {
@@ -41,7 +49,7 @@ export function CollectionsPage() {
   const [draft, setDraft] = useState<CollectionInput>(EMPTY);
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"text" | "image">("text");
+  const [viewMode, setViewMode] = useState<"text" | "image">(() => getCollectionViewMode());
   const [inspectId, setInspectId] = useState<string | null>(null);
   const [targetable, setTargetableOn] = useState(false);
 
@@ -126,67 +134,50 @@ export function CollectionsPage() {
   if (!authLoading && !user) return <Navigate to="/login" replace />;
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Collections</h1>
-          <p className={styles.subtitle}>Owned cards, liked cards, and inventory.</p>
-        </div>
-        <div className={styles.headerTools}>
-          <div className={styles.viewToggle} role="group" aria-label="Collection view mode">
-            <button
-              type="button"
-              className={`${styles.viewBtn}${viewMode === "text" ? ` ${styles.viewBtnActive}` : ""}`}
-              onClick={() => setViewMode("text")}
-              aria-pressed={viewMode === "text"}
-            >
-              Text
-            </button>
-            <button
-              type="button"
-              className={`${styles.viewBtn}${viewMode === "image" ? ` ${styles.viewBtnActive}` : ""}`}
-              onClick={() => setViewMode("image")}
-              aria-pressed={viewMode === "image"}
-            >
-              Images
-            </button>
-          </div>
+    <GroupPageShell
+      title="Collections"
+      subtitle="Owned cards, liked cards, and inventory."
+      error={status}
+      headerTools={
+        <>
+          <ViewModeToggle
+            mode={viewMode}
+            onChange={(m) => {
+              setViewMode(m);
+              setCollectionViewMode(m);
+            }}
+            label="Collection view mode"
+          />
           <button type="button" className={styles.primaryBtn} onClick={() => { setCreating(true); setDraft(EMPTY); }}>
             New collection
           </button>
-        </div>
-      </header>
-      {status && <p className={styles.muted}>{status}</p>}
-      <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <div className={styles.sidebarHead}>Your collections</div>
-          <ul className={styles.drawerList}>
+        </>
+      }
+      sidebar={
+        <GroupSidebar heading="Your collections">
+          <GroupSidebarList>
             {collections.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className={`${styles.drawerItem}${c.id === selectedId ? ` ${styles.drawerItemActive}` : ""}`}
-                  onClick={() => setSelectedId(c.id)}
-                >
-                  <span className={styles.drawerName}>{c.name}</span>
-                  <span className={styles.drawerCountMeta}>
-                    {c.is_default ? "Default" : ownershipLabel(c.ownership)}
-                  </span>
-                </button>
-              </li>
+              <GroupSidebarItem
+                key={c.id}
+                name={c.name}
+                meta={c.is_default ? "Default" : ownershipLabel(c.ownership)}
+                active={c.id === selectedId}
+                onClick={() => setSelectedId(c.id)}
+              />
             ))}
-          </ul>
-        </aside>
-        <section className={styles.main}>
-          {creating && (
-            <form className={styles.createForm} onSubmit={(e) => void onCreate(e)}>
-              <input className={styles.input} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Collection name" />
-              <button type="submit" className={styles.primaryBtn}>Create</button>
-            </form>
-          )}
-          {selected && (
-            <>
-              <h2 className={styles.drawerTitle}>{selected.name}</h2>
+          </GroupSidebarList>
+        </GroupSidebar>
+      }
+    >
+      {creating && (
+        <form className={styles.createForm} onSubmit={(e) => void onCreate(e)}>
+          <input className={styles.input} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Collection name" />
+          <button type="submit" className={styles.primaryBtn}>Create</button>
+        </form>
+      )}
+      {selected && (
+        <>
+          <h2 className={styles.drawerTitle}>{selected.name}</h2>
               <label className={styles.createForm}>
                 <span>Name</span>
                 <input className={styles.input} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
@@ -284,8 +275,6 @@ export function CollectionsPage() {
               )}
             </>
           )}
-        </section>
-      </div>
       {inspectCard?.scryfall_id && selected && (
         <CardInspectorModal
           key={inspectCard.id}
@@ -324,6 +313,6 @@ export function CollectionsPage() {
           }}
         />
       )}
-    </div>
+    </GroupPageShell>
   );
 }
