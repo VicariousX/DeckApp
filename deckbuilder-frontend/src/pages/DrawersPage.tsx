@@ -50,6 +50,7 @@ import {
 } from "../components/search/DeckSearchDock";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
+import { ViewModeToggle } from "../components/GroupBrowser";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
 
@@ -398,24 +399,7 @@ export function DrawersPage() {
           </p>
         </div>
         <div className={styles.headerTools}>
-          <div className={styles.viewToggle} role="group" aria-label="Drawer view mode">
-            <button
-              type="button"
-              className={`${styles.viewBtn}${viewMode === "text" ? ` ${styles.viewBtnActive}` : ""}`}
-              onClick={() => onViewMode("text")}
-              aria-pressed={viewMode === "text"}
-            >
-              Text
-            </button>
-            <button
-              type="button"
-              className={`${styles.viewBtn}${viewMode === "image" ? ` ${styles.viewBtnActive}` : ""}`}
-              onClick={() => onViewMode("image")}
-              aria-pressed={viewMode === "image"}
-            >
-              Images
-            </button>
-          </div>
+          <ViewModeToggle mode={viewMode} onChange={onViewMode} label="Drawer view mode" />
           {viewMode === "image" && (
             <button
               type="button"

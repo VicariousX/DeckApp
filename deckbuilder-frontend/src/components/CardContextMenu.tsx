@@ -3,7 +3,12 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { addCardToDeck, listMyDecks } from "../services/deckService";
+import { listDrawers } from "../services/drawerService";
+import { listMyCollections } from "../services/collectionService";
+import { addToGroup } from "../services/membershipService";
 import type { Deck } from "../types/deck";
+import type { Drawer } from "../types/drawer";
+import type { Collection } from "../types/collection";
 import styles from "./CardContextMenu.module.css";
 
 export type ModalJump =
@@ -62,7 +67,7 @@ export type CardContextTarget = {
   imageUrlBack?: string;
 };
 
-type Flyout = "decks" | "share" | "move" | null;
+type Flyout = "decks" | "drawers" | "collections" | "share" | "move" | null;
 
 type Props = {
   x: number;
@@ -115,6 +120,8 @@ export function CardContextMenu({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [decks, setDecks] = useState<Deck[] | null>(null);
+  const [drawers, setDrawers] = useState<Drawer[] | null>(null);
+  const [collections, setCollections] = useState<Collection[] | null>(null);
   const [fly, setFly] = useState<Flyout>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pos, setPos] = useState({ left: x, top: y });
@@ -141,6 +148,16 @@ export function CardContextMenu({
     void listMyDecks(user.id).then(({ decks: list }) => setDecks(list ?? []));
   }, [user, fly, decks]);
 
+  useEffect(() => {
+    if (!user || fly !== "drawers" || drawers) return;
+    void listDrawers(user.id).then(({ drawers: list }) => setDrawers(list ?? []));
+  }, [user, fly, drawers]);
+
+  useEffect(() => {
+    if (!user || fly !== "collections" || collections) return;
+    void listMyCollections(user.id).then(({ collections: list }) => setCollections(list ?? []));
+  }, [user, fly, collections]);
+
   useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
@@ -159,7 +176,7 @@ export function CardContextMenu({
     setPos({ left, top });
   }, [x, y, fly, quantity, tier, status]);
 
-  async function addTo(deckId: string) {
+  async function addToDeck(deckId: string) {
     const { error } = await addCardToDeck(deckId, {
       oracle_id: target.oracleId || target.scryfallId,
       scryfall_id: target.scryfallId,
@@ -169,6 +186,24 @@ export function CardContextMenu({
       board: "maybe",
     });
     setStatus(error ?? "Added to maybeboard");
+  }
+
+  async function addToDrawer(drawerId: string) {
+    const { error } = await addToGroup("drawer", drawerId, {
+      oracleId: target.oracleId || target.scryfallId,
+      scryfallId: target.scryfallId,
+      name: target.name,
+    });
+    setStatus(error ?? "Added to drawer");
+  }
+
+  async function addToCollection(collection: Collection) {
+    const { error } = await addToGroup("collection", collection.id, {
+      oracleId: target.oracleId || target.scryfallId,
+      scryfallId: target.scryfallId,
+      name: target.name,
+    }, { collection });
+    setStatus(error ?? `Added to ${collection.name}`);
   }
 
   async function copyUrl() {
@@ -418,8 +453,46 @@ export function CardContextMenu({
               {!decks && <p className={styles.hint}>Loading…</p>}
               {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
               {decks?.map((d) => (
-                <button key={d.id} type="button" onClick={() => void addTo(d.id)}>
+                <button key={d.id} type="button" onClick={() => void addToDeck(d.id)}>
                   {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={fly === "drawers" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "drawers" ? null : "drawers"))}
+          >
+            Add to drawer ▸
+          </button>
+          {fly === "drawers" && (
+            <div className={styles.fly}>
+              {!drawers && <p className={styles.hint}>Loading…</p>}
+              {drawers?.length === 0 && <p className={styles.hint}>No drawers</p>}
+              {drawers?.map((d) => (
+                <button key={d.id} type="button" onClick={() => void addToDrawer(d.id)}>
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={fly === "collections" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "collections" ? null : "collections"))}
+          >
+            Add to collection ▸
+          </button>
+          {fly === "collections" && (
+            <div className={styles.fly}>
+              {!collections && <p className={styles.hint}>Loading…</p>}
+              {collections?.length === 0 && <p className={styles.hint}>No collections</p>}
+              {collections?.map((c) => (
+                <button key={c.id} type="button" onClick={() => void addToCollection(c)}>
+                  {c.name}
                 </button>
               ))}
             </div>
