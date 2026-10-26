@@ -7,6 +7,8 @@ import {
   listMyDecks,
   type DeckCardPresence,
 } from "../../services/deckService";
+import { listMembershipsForCard, type MembershipMeasure } from "../../services/membershipService";
+import { MembershipList } from "../MembershipList";
 import type { Deck, DeckBoard, DeckTag } from "../../types/deck";
 import type { CardInspectorDeckControls } from "./types";
 import styles from "../CardInspectorModal.module.css";
@@ -135,6 +137,7 @@ function AddToDeckPanel({
   const { user } = useAuth();
   const [decks, setDecks] = useState<Deck[] | null>(null);
   const [presence, setPresence] = useState<DeckCardPresence[]>([]);
+  const [memberships, setMemberships] = useState<MembershipMeasure[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -145,7 +148,12 @@ function AddToDeckPanel({
     void listDecksContainingOracle(user.id, oracle).then(({ rows }) =>
       setPresence(rows)
     );
-  }, [user, oracleId, scryfallId]);
+    void listMembershipsForCard(user.id, {
+      oracleId: oracle,
+      scryfallId,
+      name,
+    }).then(setMemberships);
+  }, [user, oracleId, scryfallId, name]);
 
   async function add(deckId: string) {
     setBusy(true);
@@ -173,25 +181,15 @@ function AddToDeckPanel({
   return (
     <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
       <p className={styles.extraLabel}>This card is in</p>
-      {presence.length === 0 ? (
-        <p className={styles.muted}>None yet.</p>
-      ) : (
-        <div className={styles.addDeckList}>
-          {presence.map((p) => (
-            <Link
-              key={`${p.deck.id}-${p.board}`}
-              to={`/deck/${p.deck.id}`}
-              className={styles.addDeckBtn}
-            >
-              {p.deck.name}
-              <span className={styles.muted}>
-                {" "}
-                · {p.board} · ×{p.quantity}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
+      <MembershipList
+        memberships={memberships.filter((m) => m.kind === "deck")}
+        emptyText="None yet."
+        className={styles.addDeckList}
+        itemClassName={styles.addDeckBtn}
+        nameClassName=""
+        measureClassName={styles.muted}
+        emptyClassName={styles.muted}
+      />
       <p className={styles.extraLabel}>Add {name} to a deck</p>
       {status && <p className={styles.muted}>{status}</p>}
       {!decks && <p className={styles.muted}>Loading decks…</p>}

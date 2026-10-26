@@ -50,7 +50,13 @@ import {
 } from "../components/search/DeckSearchDock";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { DrawerCardTile, DrawerTileField } from "../components/DrawerCardTile";
-import { ViewModeToggle } from "../components/GroupBrowser";
+import {
+  GroupPageShell,
+  GroupSidebar,
+  GroupSidebarItem,
+  GroupSidebarList,
+  ViewModeToggle,
+} from "../components/GroupBrowser";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DrawersPage.module.css";
 
@@ -369,8 +375,11 @@ export function DrawersPage() {
       : sortedCards.find((c) => c.id === inspectId) ?? null;
 
   return (
-    <div
-      className={`${transitions.page} ${styles.page}`}
+    <GroupPageShell
+      title="Drawers"
+      subtitle="Saved groups you can pull into any deck."
+      className={transitions.page}
+      error={error}
       onDragOver={(e) => {
         const types = [...e.dataTransfer.types];
         if (
@@ -382,7 +391,7 @@ export function DrawersPage() {
           e.dataTransfer.dropEffect = "copy";
         }
       }}
-      onDrop={(e: ReactDragEvent) => {
+      onDrop={(e) => {
         const hints = parseExternalCardDrop(e.dataTransfer);
         if (!hints.length) return;
         e.preventDefault();
@@ -390,15 +399,8 @@ export function DrawersPage() {
           for (const h of hints) await addByName(h.name);
         })();
       }}
-    >
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Drawers</h1>
-          <p className={styles.subtitle}>
-            Saved groups you can pull into any deck.
-          </p>
-        </div>
-        <div className={styles.headerTools}>
+      headerTools={
+        <>
           <ViewModeToggle mode={viewMode} onChange={onViewMode} label="Drawer view mode" />
           {viewMode === "image" && (
             <button
@@ -415,18 +417,10 @@ export function DrawersPage() {
               Tiers
             </button>
           )}
-        </div>
-      </header>
-
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className={styles.layout}>
-        <aside className={styles.sidebar}>
-          <div className={styles.sidebarHead}>Your drawers</div>
+        </>
+      }
+      sidebar={
+        <GroupSidebar heading="Your drawers">
           <form className={styles.createForm} onSubmit={(e) => void onCreate(e)}>
             <input
               className={styles.input}
@@ -439,36 +433,31 @@ export function DrawersPage() {
               Create
             </button>
           </form>
-
           {loading && <p className={styles.muted}>Loading…</p>}
-
-          <ul className={styles.drawerList}>
+          <GroupSidebarList>
             {drawers.map((d) => (
-              <li key={d.id}>
-                <button
-                  type="button"
-                  className={`${styles.drawerItem}${
-                    d.id === selectedId ? ` ${styles.drawerItemActive}` : ""
-                  }`}
-                  onClick={() => setSelectedId(d.id)}
-                >
-                  <span className={styles.drawerName}>{d.name}</span>
-                  <span className={styles.drawerCountMeta}>
+              <GroupSidebarItem
+                key={d.id}
+                name={d.name}
+                meta={
+                  <>
                     <span className={styles.countLabel}>Cards</span>
                     <span className={styles.drawerCount}>{d.card_count ?? 0}</span>
-                  </span>
-                </button>
-              </li>
+                  </>
+                }
+                active={d.id === selectedId}
+                onClick={() => setSelectedId(d.id)}
+              />
             ))}
-          </ul>
-        </aside>
-
-        <section className={styles.main}>
-          {!selected && !loading && (
-            <p className={styles.muted}>Select a drawer, or create one on the left.</p>
-          )}
-          {selected && (
-            <>
+          </GroupSidebarList>
+        </GroupSidebar>
+      }
+    >
+      {!selected && !loading && (
+        <p className={styles.muted}>Select a drawer, or create one on the left.</p>
+      )}
+      {selected && (
+        <>
               <div className={styles.mainHeader}>
                 {renamingId === selected.id ? (
                   <form
@@ -907,8 +896,6 @@ export function DrawersPage() {
               )}
             </>
           )}
-        </section>
-      </div>
       {ctxCard && ctxCard.card.scryfall_id && (
         <CardContextMenu
           x={ctxCard.x}
@@ -1011,6 +998,6 @@ export function DrawersPage() {
           </div>,
           document.body
         )}
-    </div>
+    </GroupPageShell>
   );
 }

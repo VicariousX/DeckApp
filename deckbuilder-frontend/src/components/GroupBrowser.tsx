@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { DragEventHandler, ReactNode } from "react";
 import styles from "../pages/DrawersPage.module.css";
 
 export type ViewMode = "text" | "image";
@@ -39,11 +39,29 @@ type ShellProps = {
   sidebar: ReactNode;
   children: ReactNode;
   error?: string | null;
+  /** Extra class on the outer page (e.g. page transitions). */
+  className?: string;
+  onDragOver?: DragEventHandler<HTMLDivElement>;
+  onDrop?: DragEventHandler<HTMLDivElement>;
 };
 
-export function GroupPageShell({ title, subtitle, headerTools, sidebar, children, error }: ShellProps) {
+export function GroupPageShell({
+  title,
+  subtitle,
+  headerTools,
+  sidebar,
+  children,
+  error,
+  className,
+  onDragOver,
+  onDrop,
+}: ShellProps) {
   return (
-    <div className={styles.page}>
+    <div
+      className={className ? `${styles.page} ${className}` : styles.page}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{title}</h1>

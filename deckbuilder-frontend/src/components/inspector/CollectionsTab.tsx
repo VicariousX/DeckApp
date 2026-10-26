@@ -7,6 +7,8 @@ import {
   removeCardFromCollection,
   type CollectionPresence,
 } from "../../services/collectionService";
+import { listMembershipsForCard, type MembershipMeasure } from "../../services/membershipService";
+import { MembershipList } from "../MembershipList";
 import type { Collection } from "../../types/collection";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import type { CardInspectorCollectionControls } from "./types";
@@ -24,6 +26,7 @@ export function CollectionsTab({
   const { user } = useAuth();
   const [collections, setCollections] = useState<Collection[] | null>(null);
   const [presence, setPresence] = useState<CollectionPresence[]>([]);
+  const [memberships, setMemberships] = useState<MembershipMeasure[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -35,6 +38,12 @@ export function CollectionsTab({
     ]);
     setCollections(list ?? []);
     setPresence(rows);
+    const ms = await listMembershipsForCard(user.id, {
+      oracleId: card.oracle_id || card.id,
+      scryfallId: card.id,
+      name,
+    });
+    setMemberships(ms.filter((m) => m.kind === "collection"));
   }
 
   useEffect(() => {
@@ -72,6 +81,14 @@ export function CollectionsTab({
   return (
     <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
       <p className={styles.extraLabel}>{name} in collections</p>
+      <MembershipList
+        memberships={memberships}
+        emptyText="Not in any collections."
+        className={styles.addDeckList}
+        itemClassName={styles.addDeckBtn}
+        measureClassName={styles.muted}
+        emptyClassName={styles.muted}
+      />
       {collection && (
         <div className={styles.deckExtras}>
           <div className={styles.deckGroup}>
