@@ -708,6 +708,55 @@ export function DeckBuilderPage() {
     setDetail,
   });
 
+  async function onCreateTag(e: FormEvent) {
+    e.preventDefault();
+    if (!id || !isOwner || !newTagName.trim()) return;
+    const { tag, error: err } = await createDeckTag(id, newTagName.trim());
+    if (err || !tag) {
+      setError(err ?? "Could not create tag.");
+      return;
+    }
+    setNewTagName("");
+    setDetail((prev) =>
+      prev ? { ...prev, tags: [...prev.tags, tag].sort((a, b) => a.name.localeCompare(b.name)) } : prev
+    );
+  }
+
+  async function onDeleteTag(tag: DeckTag) {
+    if (!isOwner) return;
+    if (!confirm(`Delete tag “${tag.name}”?`)) return;
+    const { error: err } = await deleteDeckTag(tag.id);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setDetail((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tags: prev.tags.filter((t) => t.id !== tag.id),
+        cards: prev.cards.map((c) => ({
+          ...c,
+          tag_ids: (c.tag_ids ?? []).filter((tid) => tid !== tag.id),
+        })),
+      };
+    });
+  }
+
+  async function toggleTag(card: DeckCard, tag: DeckTag) {
+    if (!isOwner) return;
+    const has = (card.tag_ids ?? []).includes(tag.id);
+    const nextIds = has
+      ? (card.tag_ids ?? []).filter((t) => t !== tag.id)
+      : [...(card.tag_ids ?? []), tag.id];
+    patchCard(card.id, { tag_ids: nextIds });
+    const { error: err } = await setCardTag(card.id, tag.id, !has);
+    if (err) {
+      setError(err);
+      patchCard(card.id, { tag_ids: card.tag_ids });
+    }
+  }
+
   async function addScryfallCard(
     card: ScryfallCard,
     board: DeckBoard = addTargetBoard

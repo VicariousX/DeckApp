@@ -115,6 +115,7 @@ export async function addToGroup(
       oracle_id: card.oracleId,
       scryfall_id: card.scryfallId || card.oracleId,
       name: card.name,
+      type_line: "",
       quantity: 1,
       board: opts?.board ?? "maybe",
     });
