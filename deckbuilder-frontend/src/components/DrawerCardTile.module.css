@@ -4,6 +4,7 @@
   aspect-ratio: 5 / 7;
   z-index: 1;
   overflow: visible;
+  container-type: inline-size;
 }
 
 .tileLive {
@@ -103,9 +104,9 @@
   right: 8%;
   top: 0;
   transform: translateY(70%);
-  padding: 0.32rem 0.45rem 1.15rem;
+  padding: 4% 6% 14%;
   border-radius: 8px 8px 0 0;
-  font-size: 0.72rem;
+  font-size: clamp(0.58rem, 7.2cqw, 0.9rem);
   font-weight: 700;
   text-align: center;
   text-decoration: none;
@@ -130,8 +131,9 @@
   flex-direction: column;
   align-items: center;
   gap: 0.18rem;
-  padding: 0.35rem 0.32rem 0.35rem 1.15rem;
+  padding: 5% 4% 5% 14%;
   border-radius: 0 8px 8px 0;
+  font-size: clamp(0.58rem, 7cqw, 0.88rem);
   transform: translateX(-55%);
 }
 
@@ -142,9 +144,9 @@
 .flipSlide {
   top: 62%;
   right: 0;
-  padding: 0.35rem 0.45rem 0.35rem 1.15rem;
+  padding: 5% 5% 5% 14%;
   border-radius: 0 8px 8px 0;
-  font-size: 0.68rem;
+  font-size: clamp(0.55rem, 6.6cqw, 0.82rem);
   font-weight: 700;
   cursor: pointer;
   transform: translateX(-55%);
@@ -190,9 +192,9 @@
   right: 14%;
   bottom: 0;
   transform: translateY(-70%);
-  padding: 1.15rem 0.45rem 0.32rem;
+  padding: 14% 6% 4%;
   border-radius: 0 0 8px 8px;
-  font-size: 0.72rem;
+  font-size: clamp(0.58rem, 7.2cqw, 0.9rem);
   font-weight: 700;
   color: #f87171;
   cursor: pointer;

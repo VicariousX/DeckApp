@@ -54,6 +54,7 @@ import type { TableWire } from "../lib/playtest/sync";
 import { emptyJournal, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
+import { PillSwitch } from "../components/PillSwitch";
 import styles from "./PlaytestPage.module.css";
 import { lockBodyScroll } from "../lib/scrollLock";
 
@@ -1804,22 +1805,8 @@ export function PlaytestPage() {
                   onChange={(e) => persist({ ...settings, nextTurnDraw: Number(e.target.value) || 0 })}
                 />
               </label>
-              <label className={styles.setting}>
-                <input
-                  type="checkbox"
-                  checked={settings.nextTurnUntap}
-                  onChange={(e) => persist({ ...settings, nextTurnUntap: e.target.checked })}
-                />
-                Next turn untaps
-              </label>
-              <label className={styles.setting}>
-                <input
-                  type="checkbox"
-                  checked={settings.showXGlyph}
-                  onChange={(e) => persist({ ...settings, showXGlyph: e.target.checked })}
-                />
-                Show X on actions (off = show the number)
-              </label>
+              <PillSwitch checked={settings.nextTurnUntap} onChange={(on) => persist({ ...settings, nextTurnUntap: on })} label="Next turn untaps" />
+              <PillSwitch checked={settings.showXGlyph} onChange={(on) => persist({ ...settings, showXGlyph: on })} label="Show X on actions" />
               <label className={styles.setting}>
                 Board card size
                 <select
@@ -1854,23 +1841,14 @@ export function PlaytestPage() {
                   <option value="plain">Plain</option>
                 </select>
               </label>
-              <label className={styles.setting}>
-                <input
-                  type="checkbox"
-                  checked={settings.hideHand}
-                  onChange={(e) => persist({ ...settings, hideHand: e.target.checked })}
-                />
-                Hide hand (streamer)
-              </label>
+              <PillSwitch checked={settings.hideHand} onChange={(on) => persist({ ...settings, hideHand: on })} label="Hide hand (streamer)" />
               {(["autoTap", "death", "tax", "legend"] as const).map((key) => (
-                <label key={key} className={styles.setting}>
-                  <input
-                    type="checkbox"
-                    checked={settings.assistants?.[key] !== false}
-                    onChange={(e) => persist({ ...settings, assistants: { ...settings.assistants, [key]: e.target.checked } })}
-                  />
-                  Assistant: {key}
-                </label>
+                <PillSwitch
+                  key={key}
+                  checked={settings.assistants?.[key] !== false}
+                  onChange={(on) => persist({ ...settings, assistants: { ...settings.assistants, [key]: on } })}
+                  label={`Assistant: ${key}`}
+                />
               ))}
               <button type="button" className={styles.primary} onClick={() => setSettingsOpen(false)}>
                 Close

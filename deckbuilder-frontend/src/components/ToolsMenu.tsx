@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./ToolsMenu.module.css";
 import type { SearchTargetRef } from "../services/searchTargetService";
+import { PillSwitch } from "./PillSwitch";
 
 export type ToolsMenuProps = {
   targets?: SearchTargetRef[];
@@ -94,14 +95,11 @@ export function ToolsMenu({
           </div>
           {onShowTargetChipChange && (
             <div className={styles.menuSection}>
-              <label className={styles.checkRow}>
-                <input
-                  type="checkbox"
-                  checked={showTargetChip}
-                  onChange={(e) => onShowTargetChipChange(e.target.checked)}
-                />
-                Show target indicator
-              </label>
+              <PillSwitch
+                checked={showTargetChip}
+                onChange={onShowTargetChipChange}
+                label="Show target indicator"
+              />
             </div>
           )}
           {onColumnsChange && columns != null && (

@@ -35,6 +35,7 @@ import {
   type SavedToken,
 } from "../../services/searchTokenService";
 import { loadRemotePins, saveRemotePins } from "../../services/comboService";
+import { PillSwitch } from "../PillSwitch";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -1325,20 +1326,17 @@ function ClauseRow({
                       ×
                     </button>
                   </div>
-                  <label className={styles.pinToggle}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(pin.docked)}
-                      onChange={() =>
-                        savePins(
-                          pinList.map((p, j) =>
-                            j === i ? { ...p, docked: !p.docked } : p
-                          )
+                  <PillSwitch
+                    checked={Boolean(pin.docked)}
+                    onChange={() =>
+                      savePins(
+                        pinList.map((p, j) =>
+                          j === i ? { ...p, docked: !p.docked } : p
                         )
-                      }
-                    />
-                    Dedicated row
-                  </label>
+                      )
+                    }
+                    label="Dedicated row"
+                  />
                 </div>
               ))}
               <button

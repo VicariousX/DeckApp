@@ -275,7 +275,12 @@ export function CardEnlargeOverlay({
     <div
       className={embedded ? styles.scrollView : styles.enlargeOverlay}
       style={embedded ? undefined : { zIndex }}
-      onClick={embedded ? undefined : onClose}
+      onClick={embedded ? (e) => {
+        if (window.innerWidth <= 768) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("img, button, a")) return;
+        onClose?.();
+      } : onClose}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : true}
       aria-label={alt}
@@ -391,7 +396,16 @@ export function CardEnlargeOverlay({
     >
       <div
         className={styles.enlargeStage}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          if (!embedded) {
+            e.stopPropagation();
+            return;
+          }
+          if (window.innerWidth <= 768) return;
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("img, button, a")) return;
+          onClose?.();
+        }}
       >
         {swipe ? (
           <div className={styles.swipeStack} ref={stackRef}>

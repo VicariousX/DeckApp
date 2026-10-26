@@ -9,6 +9,7 @@ import {
   type UserCardSkin,
 } from "../services/cardSkinService";
 import styles from "../pages/LoginPage.module.css";
+import { PillSwitch } from "./PillSwitch";
 
 export function CardSkinsPanel() {
   const user = useAuth().user!;
@@ -107,14 +108,7 @@ export function CardSkinsPanel() {
           />
         </div>
         <div className={styles.field}>
-          <label className={styles.label}>
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-            />{" "}
-            Public in TTS
-          </label>
+          <PillSwitch checked={isPublic} onChange={setIsPublic} label="Public in TTS" />
         </div>
         <button type="submit" className={styles.primaryBtn} disabled={busy}>
           {busy ? "Uploading..." : "Upload skin"}

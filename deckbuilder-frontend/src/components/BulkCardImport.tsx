@@ -12,6 +12,7 @@ import { namesFromTtsJson } from "../lib/cards/ttsDeck";
 import { fetchCardsByNames } from "../lib/scryfallApi";
 import { apiUrl } from "../lib/apiBase";
 import type { ScryfallCard } from "../types/scryfallCard";
+import { PillSwitch } from "./PillSwitch";
 import styles from "./BulkCardImport.module.css";
 
 export type BulkResolvedEntry = {
@@ -230,17 +231,14 @@ export function BulkCardImport({
               disabled={busy}
             />
             {existingOracleIds && (
-              <label className={styles.missingToggle}>
-                <input
-                  type="checkbox"
-                  checked={missingOnly}
-                  onChange={(e) => {
-                    setMissingOnly(e.target.checked);
-                    setPreview(null);
-                  }}
-                />
-                Missing only
-              </label>
+              <PillSwitch
+                checked={missingOnly}
+                onChange={(on) => {
+                  setMissingOnly(on);
+                  setPreview(null);
+                }}
+                label="Missing only"
+              />
             )}
             <div className={styles.meta}>
               <span>
@@ -403,17 +401,14 @@ export function BulkCardImport({
             disabled={busy}
           />
           {existingOracleIds && (
-            <label className={styles.missingToggle}>
-              <input
-                type="checkbox"
-                checked={missingOnly}
-                onChange={(e) => {
-                  setMissingOnly(e.target.checked);
-                  setPreview(null);
-                }}
-              />
-              Missing only
-            </label>
+            <PillSwitch
+              checked={missingOnly}
+              onChange={(on) => {
+                setMissingOnly(on);
+                setPreview(null);
+              }}
+              label="Missing only"
+            />
           )}
           <div className={styles.meta}>
             <span>

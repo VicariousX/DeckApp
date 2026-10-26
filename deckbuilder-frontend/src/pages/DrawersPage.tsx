@@ -21,6 +21,7 @@ import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { PillSwitch } from "../components/PillSwitch";
 import {
   CARD_SORT_OPTIONS,
   sortCardsBy,
@@ -505,19 +506,15 @@ export function DrawersPage() {
                       >
                         Delete
                       </button>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={targetable}
-                          onChange={(e) => {
-                            if (!user) return;
-                            const on = e.target.checked;
-                            setTargetableOn(on);
-                            void setTargetable(user.id, { kind: "drawer", id: selected.id, name: selected.name }, on);
-                          }}
-                        />{" "}
-                        Search target
-                      </label>
+                      <PillSwitch
+                        checked={targetable}
+                        onChange={(on) => {
+                          if (!user) return;
+                          setTargetableOn(on);
+                          void setTargetable(user.id, { kind: "drawer", id: selected.id, name: selected.name }, on);
+                        }}
+                        label="Search target"
+                      />
                     </div>
                   </>
                 )}

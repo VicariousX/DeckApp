@@ -10,6 +10,7 @@ import {
   type TextExportOptions,
 } from "../lib/cards/exportCardList";
 import { buildTtsSavedObject, type TtsDeckPart } from "../lib/cards/ttsDeck";
+import { PillSwitch } from "./PillSwitch";
 import styles from "./TextExportMenu.module.css";
 
 type Props = {
@@ -124,24 +125,18 @@ export function TextExportMenu({
             {total} card{total === 1 ? "" : "s"} · plain text
           </p>
           {allSections && (
-            <label className={styles.meta}>
-              <input
-                type="checkbox"
-                checked={useFilter}
-                onChange={(e) => setUseFilter(e.target.checked)}
-              />{" "}
-              Use current filters
-            </label>
+            <PillSwitch
+              checked={useFilter}
+              onChange={setUseFilter}
+              label="Use current filters"
+            />
           )}
           {extraSections && extraSections.length > 0 && (
-            <label className={styles.meta}>
-              <input
-                type="checkbox"
-                checked={includeExtra}
-                onChange={(e) => setIncludeExtra(e.target.checked)}
-              />{" "}
-              {extraLabel}
-            </label>
+            <PillSwitch
+              checked={includeExtra}
+              onChange={setIncludeExtra}
+              label={extraLabel}
+            />
           )}
           <pre className={styles.preview}>{text}</pre>
           <div

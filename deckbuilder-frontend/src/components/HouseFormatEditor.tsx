@@ -1,4 +1,5 @@
 import { BUILTIN_FORMATS, type DynamicRule, type HouseFormat } from "../lib/formats/rules";
+import { PillSwitch } from "./PillSwitch";
 import styles from "../pages/FormatsPage.module.css";
 
 const RULE_LABELS: Record<DynamicRule["kind"], string> = {
@@ -81,18 +82,9 @@ export function HouseFormatEditor({
         </label>
       </div>
       <div className={styles.toggles}>
-        <label className={styles.toggle}>
-          <input type="checkbox" checked={draft.singleton} onChange={(e) => setDraft({ ...draft, singleton: e.target.checked })} />
-          <span>Singleton</span>
-        </label>
-        <label className={styles.toggle}>
-          <input type="checkbox" checked={draft.commanderRequired} onChange={(e) => setDraft({ ...draft, commanderRequired: e.target.checked })} />
-          <span>Commander required</span>
-        </label>
-        <label className={styles.toggle}>
-          <input type="checkbox" checked={draft.colorIdentity} onChange={(e) => setDraft({ ...draft, colorIdentity: e.target.checked })} />
-          <span>Color identity</span>
-        </label>
+        <PillSwitch checked={draft.singleton} onChange={(on) => setDraft({ ...draft, singleton: on })} label="Singleton" />
+        <PillSwitch checked={draft.commanderRequired} onChange={(on) => setDraft({ ...draft, commanderRequired: on })} label="Commander required" />
+        <PillSwitch checked={draft.colorIdentity} onChange={(on) => setDraft({ ...draft, colorIdentity: on })} label="Color identity" />
       </div>
       <label className={styles.field}>
         <span>Whitelist — unban these cards</span>

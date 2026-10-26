@@ -412,6 +412,7 @@ export function CardResult({
           onClose={() => {
             setPreviewIndex(null);
             stableId.current = null;
+            onExitScroll?.();
           }}
           enterFrom={enterFrom}
           onEntered={() => setEnterFrom(null)}

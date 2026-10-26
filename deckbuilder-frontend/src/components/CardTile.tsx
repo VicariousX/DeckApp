@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById } from "../lib/scryfallApi";
 import { getFaceImage, isMultiCard } from "../utils/scryfall";
@@ -107,6 +108,7 @@ export function CardTile({
   resolveArt = true,
 }: Props) {
   const id = useId();
+  const isMobile = useIsMobile();
   const { awake, wake: wakeField, scheduleSleep: sleepField } = useContext(AwakeCtx);
   const open = awake === id;
   const faceRef = useRef<HTMLButtonElement | null>(null);
@@ -205,13 +207,13 @@ export function CardTile({
         onContextMenu(e);
       }}
     >
-      {topNode}
-      {right?.map((node, i) => (
+      {!isMobile && topNode}
+      {!isMobile && right?.map((node, i) => (
         <div key={i} className={`${styles.slide} ${styles.tierSlide}`} style={{ top: `${8 + i * 28}%` }}>
           {node}
         </div>
       ))}
-      {multi && back && (
+      {!isMobile && multi && back && (
         <button
           type="button"
           className={`${styles.slide} ${styles.flipSlide}`}
@@ -223,7 +225,7 @@ export function CardTile({
           Flip
         </button>
       )}
-      {bottom && <div className={`${styles.slide} ${styles.removeSlide}`}>{bottom}</div>}
+      {!isMobile && bottom && <div className={`${styles.slide} ${styles.removeSlide}`}>{bottom}</div>}
       <button
         ref={faceRef}
         type="button"

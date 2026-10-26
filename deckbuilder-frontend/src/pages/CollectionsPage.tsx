@@ -16,6 +16,7 @@ import { getCollectionViewMode, setCollectionViewMode } from "../lib/deckPrefere
 import type { Collection, CollectionInput, CollectionOwnership } from "../types/collection";
 import { DrawerTileField } from "../components/DrawerCardTile";
 import { CardTile } from "../components/CardTile";
+import { PillSwitch } from "../components/PillSwitch";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import {
   GroupPageShell,
@@ -160,7 +161,7 @@ export function CollectionsPage() {
               <GroupSidebarItem
                 key={c.id}
                 name={c.name}
-                meta={c.is_default ? "Default" : ownershipLabel(c.ownership)}
+                meta={ownershipLabel(c.ownership)}
                 active={c.id === selectedId}
                 onClick={() => setSelectedId(c.id)}
               />
@@ -191,25 +192,20 @@ export function CollectionsPage() {
                 </select>
               </label>
               <div className={styles.mainActions}>
-                <label><input type="checkbox" checked={draft.print_specific} onChange={(e) => setDraft((d) => ({ ...d, print_specific: e.target.checked }))} /> Print specific</label>
-                <label><input type="checkbox" checked={draft.quantity_counters} onChange={(e) => setDraft((d) => ({ ...d, quantity_counters: e.target.checked }))} /> Quantity counters</label>
-                <label><input type="checkbox" checked={draft.is_public} onChange={(e) => setDraft((d) => ({ ...d, is_public: e.target.checked }))} /> Public</label>
-                <label><input type="checkbox" checked={draft.is_default} onChange={(e) => setDraft((d) => ({ ...d, is_default: e.target.checked }))} /> Default target</label>
+                <PillSwitch checked={draft.print_specific} onChange={(on) => setDraft((d) => ({ ...d, print_specific: on }))} label="Print specific" />
+                <PillSwitch checked={draft.quantity_counters} onChange={(on) => setDraft((d) => ({ ...d, quantity_counters: on }))} label="Quantity counters" />
+                <PillSwitch checked={draft.is_public} onChange={(on) => setDraft((d) => ({ ...d, is_public: on }))} label="Public" />
               </div>
               <div className={styles.mainActions}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={targetable}
-                    onChange={(e) => {
-                      if (!user || !selected) return;
-                      const on = e.target.checked;
-                      setTargetableOn(on);
-                      void setTargetable(user.id, { kind: "collection", id: selected.id, name: selected.name }, on);
-                    }}
-                  />{" "}
-                  Search target
-                </label>
+                <PillSwitch
+                  checked={targetable}
+                  onChange={(on) => {
+                    if (!user || !selected) return;
+                    setTargetableOn(on);
+                    void setTargetable(user.id, { kind: "collection", id: selected.id, name: selected.name }, on);
+                  }}
+                  label="Search target"
+                />
                 <button type="button" className={styles.primaryBtn} onClick={() => void saveSettings()}>Save settings</button>
                 <button type="button" className={styles.ghostBtn} onClick={() => void remove()}>Delete</button>
               </div>
