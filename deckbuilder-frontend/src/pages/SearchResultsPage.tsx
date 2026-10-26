@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -105,6 +105,7 @@ export function SearchResultsPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [browseMode, setBrowseMode] = useState<"text" | "catalog" | "scroll">("catalog");
+  const lastMode = useRef<"text" | "catalog">("catalog");
   const [targets, setTargets] = useState<SearchTargetRef[]>([]);
   const [targetKey, setTargetKey] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -169,7 +170,13 @@ export function SearchResultsPage() {
   const sortKey = params.get("sort") || "name";
   const sortDir = params.get("dir") === "desc" ? "desc" : "asc";
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
-  const [cardSize, setCardSize] = useState(SIZE_DEFAULT);
+  const [cardSize, setCardSize] = useState(() => {
+    if (typeof window === "undefined") return SIZE_DEFAULT;
+    const cols = window.innerWidth <= 768 ? 2 : 5;
+    const gutter = 16;
+    const pad = 48;
+    return Math.max(96, Math.floor((window.innerWidth - pad - gutter * (cols - 1)) / cols));
+  });
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     scryfallQ,
@@ -265,6 +272,8 @@ export function SearchResultsPage() {
         onTargetChange={setTargetKey}
         showTargetChip={showTargetChip}
         onShowTargetChipChange={setShowTargetChip}
+        cardSize={cardSize}
+        onCardSizeChange={setCardSize}
       />
       <div className={resultStyles.meta}>
         <Link to={editTo} className={resultStyles.back}>
@@ -289,14 +298,20 @@ export function SearchResultsPage() {
           <button
             type="button"
             className={`${resultStyles.viewBtn}${browseMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => setBrowseMode("text")}
+            onClick={() => {
+              lastMode.current = "text";
+              setBrowseMode("text");
+            }}
           >
             Text
           </button>
           <button
             type="button"
             className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => setBrowseMode("catalog")}
+            onClick={() => {
+              lastMode.current = "catalog";
+              setBrowseMode("catalog");
+            }}
           >
             Catalog
           </button>
@@ -355,12 +370,12 @@ export function SearchResultsPage() {
       )}
       <CardResult
         cards={resultCards}
-        cardSize={browseMode === "catalog" ? Math.min(cardSize, 140) : cardSize}
+        cardSize={cardSize}
         viewMode={browseMode === "text" ? "text" : "image"}
         browseMode={browseMode === "scroll" ? "scroll" : "catalog"}
         scrollStartIndex={scrollStartIndex}
         onEnterScroll={() => setBrowseMode("scroll")}
-        onExitScroll={() => setBrowseMode("catalog")}
+        onExitScroll={() => setBrowseMode(lastMode.current)}
         onReachEnd={
           browseMode === "scroll" && hasMoreApi && !isLoading
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)

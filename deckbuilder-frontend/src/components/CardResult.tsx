@@ -199,6 +199,7 @@ export function CardResult({
   }, [list, browseMode]); // run on list change; previewIndex not needed
 
   const openedScroll = useRef(false);
+  const pendingStartId = useRef<string | null>(null);
   const exitRef = useRef(onExitScroll);
   exitRef.current = onExitScroll;
   useEffect(() => {
@@ -211,17 +212,77 @@ export function CardResult({
   useEffect(() => {
     if (browseMode !== "scroll" || viewMode !== "image") {
       openedScroll.current = false;
-      stableId.current = null;
       if (browseMode !== "scroll") setPreviewIndex(null);
       return;
     }
     if (openedScroll.current || !list.length) return;
     openedScroll.current = true;
     setPreviewMode("swipe");
-    const start = Math.min(Math.max(0, scrollStartIndex), list.length - 1);
+    const wanted = pendingStartId.current;
+    pendingStartId.current = null;
+    const found = wanted ? list.findIndex((item) => item.originalId === wanted || item.display.id === wanted) : -1;
+    const start = found >= 0 ? found : Math.min(Math.max(0, scrollStartIndex), list.length - 1);
     setPreviewIndex(start);
     stableId.current = list[start]?.originalId ?? null;
   }, [browseMode, viewMode, list.length, scrollStartIndex]);
+
+  useEffect(() => {
+    if (browseMode !== "scroll" || previewIndex == null) return;
+    const index = previewIndex;
+    let lock = false;
+    function go(delta: number) {
+      if (lock) return;
+      lock = true;
+      window.setTimeout(() => {
+        lock = false;
+      }, 220);
+      setPreviewIndex((cur) => {
+        if (cur == null) return cur;
+        const next = cur + delta;
+        if (next >= 0 && next < list.length) {
+          stableId.current = list[next]?.originalId ?? null;
+          return next;
+        }
+        if (delta > 0) onReachEnd?.();
+        if (delta < 0) onReachStart?.();
+        return cur;
+      });
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        go(e.key === "ArrowDown" ? 1 : -1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const card = list[index]?.display;
+        if (card) onAddToDeck?.(card);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const card = list[index]?.display;
+        if (card) onUndoAdd?.(card);
+      } else if (e.key === "Escape") {
+        onExitScroll?.();
+      }
+    }
+    function onWheel(e: WheelEvent) {
+      if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
+      e.preventDefault();
+      const card = list[index]?.display;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        if (!card) return;
+        if (e.deltaX > 0) onAddToDeck?.(card);
+        else onUndoAdd?.(card);
+        return;
+      }
+      go(e.deltaY > 0 ? 1 : -1);
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, [browseMode, previewIndex, list, onAddToDeck, onUndoAdd, onExitScroll, onReachEnd, onReachStart]);
 
   if (cards.length === 0) {
     return null;
@@ -317,7 +378,15 @@ export function CardResult({
       )}
 
       {browseMode === "scroll" && preview && previewIndex != null && createPortal(
-        <div className={styles.scrollStage} onPointerDown={(e) => e.stopPropagation()}>
+        <div
+          className={styles.scrollStage}
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) onExitScroll?.();
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onExitScroll?.();
+          }}
+        >
           <button
             type="button"
             className={styles.scrollExit}
@@ -421,8 +490,10 @@ export function CardResult({
       {ctx && list[ctx.index] && (
         <CardContextMenu
           onStartScroll={() => {
+            const item = list[ctx.index];
+            pendingStartId.current = item?.originalId ?? item?.display.id ?? null;
             setPreviewIndex(ctx.index);
-            stableId.current = list[ctx.index]?.originalId ?? null;
+            stableId.current = item?.originalId ?? null;
             onEnterScroll?.();
           }}
           x={ctx.x}

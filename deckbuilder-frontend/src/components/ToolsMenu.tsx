@@ -8,6 +8,10 @@ export type ToolsMenuProps = {
   onTargetChange?: (key: string) => void;
   showTargetChip?: boolean;
   onShowTargetChipChange?: (on: boolean) => void;
+  cardSize?: number;
+  onCardSizeChange?: (size: number) => void;
+  sizeMin?: number;
+  sizeMax?: number;
 };
 
 /**
@@ -20,6 +24,10 @@ export function ToolsMenu({
   onTargetChange,
   showTargetChip = true,
   onShowTargetChipChange,
+  cardSize,
+  onCardSizeChange,
+  sizeMin = 96,
+  sizeMax = 360,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -93,6 +101,24 @@ export function ToolsMenu({
                   onChange={(e) => onShowTargetChipChange(e.target.checked)}
                 />
                 Show target indicator
+              </label>
+            </div>
+          )}
+          {onCardSizeChange && cardSize != null && (
+            <div className={styles.menuSection}>
+              <div className={styles.menuHeading}>Catalog tile size</div>
+              <label className={styles.sizeRow} htmlFor="tools-card-size">
+                <input
+                  id="tools-card-size"
+                  className={styles.sizeRange}
+                  type="range"
+                  min={sizeMin}
+                  max={sizeMax}
+                  step={8}
+                  value={cardSize}
+                  onChange={(e) => onCardSizeChange(Number(e.target.value))}
+                />
+                <span className={styles.sizeValue}>{cardSize}px</span>
               </label>
             </div>
           )}

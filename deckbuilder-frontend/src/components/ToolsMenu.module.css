@@ -99,6 +99,27 @@
   cursor: pointer;
 }
 
+.sizeRow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sizeRange {
+  flex: 1;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.sizeValue {
+  min-width: 3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 @keyframes menuIn {
   from {
     opacity: 0;
