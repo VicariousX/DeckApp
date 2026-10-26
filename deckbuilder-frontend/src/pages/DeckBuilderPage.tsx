@@ -20,9 +20,7 @@ import {
   getTabViewPrefs,
   setTabViewPrefs,
   getListColumnLayout,
-  newListColumnId,
   setLastViewedDeck,
-  setListColumnLayout,
   type BuilderTabKey,
   type CardSortKey,
   type DeckGroupMode,
@@ -32,6 +30,8 @@ import {
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { useDeckCardHover } from "../hooks/useDeckCardHover";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useListColumns } from "../hooks/useListColumns";
+import { useDeckCardActions } from "../hooks/useDeckCardActions";
 import { CardHoverPreview } from "../components/CardHoverPreview";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardEnlargeOverlay } from "../components/CardImage";
@@ -218,6 +218,15 @@ export function DeckBuilderPage() {
   const [listLayouts, setListLayouts] = useState<
     Partial<Record<DeckBoard, ListColumnLayout>>
   >({});
+
+  const {
+    persistListLayout,
+    renameListColumn,
+    addListColumn,
+    placeCardInListColumn,
+    removeListColumn,
+    createColumnAndPlace,
+  } = useListColumns(detail?.deck?.id, listLayouts, setListLayouts);
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -685,6 +694,20 @@ export function DeckBuilderPage() {
     });
   }
 
+  const { applyQuantity, onQty, onQtyCommit, onRemove, moveCardToBoard } = useDeckCardActions({
+    isOwner,
+    panel,
+    deckTokens,
+    setDeckTokens,
+    deckId: id,
+    saveDeckTokens,
+    patchCard,
+    setError,
+    loadDeck,
+    snapshot,
+    setDetail,
+  });
+
   async function addScryfallCard(
     card: ScryfallCard,
     board: DeckBoard = addTargetBoard
@@ -830,199 +853,6 @@ export function DeckBuilderPage() {
           { ...saved, tag_ids: saved.tag_ids ?? [] },
         ]),
       };
-    });
-  }
-
-  async function applyQuantity(card: DeckCard, next: number) {
-    if (!isOwner) return;
-    if (panel === "tokens" || deckTokens.some((t) => t.id === card.id)) {
-      setDeckTokens((prev) => {
-        const nextList =
-          next <= 0
-            ? prev.filter((t) => t.id !== card.id)
-            : prev.map((t) => (t.id === card.id ? { ...t, quantity: next } : t));
-        if (id) saveDeckTokens(id, nextList);
-        return nextList;
-      });
-      return;
-    }
-    const prevQty = card.quantity;
-    if (next <= 0) {
-      patchCard(card.id, null);
-      const { error: err } = await removeCardFromDeck(card.id);
-      if (err) {
-        setError(err);
-        patchCard(card.id, { quantity: prevQty }); // rollback remove needs full card — reload silent
-        void loadDeck({ silent: true });
-      }
-      return;
-    }
-    patchCard(card.id, { quantity: next });
-    const { error: err } = await setCardQuantity(card.id, next);
-    if (err) {
-      setError(err);
-      patchCard(card.id, { quantity: prevQty });
-    }
-  }
-
-  async function onQty(card: DeckCard, delta: number) {
-    await applyQuantity(card, card.quantity + delta);
-  }
-
-  async function onQtyCommit(card: DeckCard, raw: string) {
-    const n = parseInt(raw, 10);
-    if (Number.isNaN(n)) return;
-    await applyQuantity(card, n);
-  }
-
-  async function onRemove(card: DeckCard) {
-    if (!isOwner) return;
-    snapshot("Removed card");
-    const removed = card;
-    patchCard(card.id, null);
-    const { error: err } = await removeCardFromDeck(card.id);
-    if (err) {
-      setError(err);
-      setDetail((prev) =>
-        prev
-          ? { ...prev, cards: sortCards([...prev.cards, removed]) }
-          : prev
-      );
-    }
-  }
-
-  async function onCreateTag(e: FormEvent) {
-    e.preventDefault();
-    if (!id || !isOwner || !newTagName.trim()) return;
-    const { tag, error: err } = await createDeckTag(id, newTagName.trim());
-    if (err || !tag) {
-      setError(err ?? "Could not create tag.");
-      return;
-    }
-    setNewTagName("");
-    setDetail((prev) =>
-      prev ? { ...prev, tags: [...prev.tags, tag].sort((a, b) => a.name.localeCompare(b.name)) } : prev
-    );
-  }
-
-  async function onDeleteTag(tag: DeckTag) {
-    if (!isOwner) return;
-    if (!confirm(`Delete tag “${tag.name}”?`)) return;
-    const { error: err } = await deleteDeckTag(tag.id);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setDetail((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tags: prev.tags.filter((t) => t.id !== tag.id),
-        cards: prev.cards.map((c) => ({
-          ...c,
-          tag_ids: (c.tag_ids ?? []).filter((tid) => tid !== tag.id),
-        })),
-      };
-    });
-  }
-
-  async function toggleTag(card: DeckCard, tag: DeckTag) {
-    if (!isOwner) return;
-    const has = (card.tag_ids ?? []).includes(tag.id);
-    const nextIds = has
-      ? (card.tag_ids ?? []).filter((t) => t !== tag.id)
-      : [...(card.tag_ids ?? []), tag.id];
-    patchCard(card.id, { tag_ids: nextIds });
-    const { error: err } = await setCardTag(card.id, tag.id, !has);
-    if (err) {
-      setError(err);
-      patchCard(card.id, { tag_ids: card.tag_ids });
-    }
-  }
-
-  async function moveCardToBoard(card: DeckCard, board: DeckBoard) {
-    if (!isOwner || card.board === board) return;
-    snapshot("Moved card");
-    const { card: saved, removedId, error: err } = await setCardBoard(card, board);
-    if (err || !saved) {
-      setError(err ?? "Could not move card.");
-      return;
-    }
-    setDetail((prev) => {
-      if (!prev) return prev;
-      // Remove source (and merge target if different)
-      let cards = prev.cards.filter(
-        (c) => c.id !== card.id && c.id !== removedId
-      );
-      const exists = cards.find((c) => c.id === saved.id);
-      if (exists) {
-        cards = cards.map((c) =>
-          c.id === saved.id
-            ? { ...c, ...saved, tag_ids: c.tag_ids ?? saved.tag_ids }
-            : c
-        );
-      } else {
-        cards = [
-          ...cards,
-          { ...saved, tag_ids: card.tag_ids ?? saved.tag_ids ?? [] },
-        ];
-      }
-      return { ...prev, cards: sortCards(cards) };
-    });
-  }
-
-
-  function persistListLayout(board: DeckBoard, layout: ListColumnLayout) {
-    if (!detail?.deck?.id) return;
-    setListLayouts((prev) => ({ ...prev, [board]: layout }));
-    setListColumnLayout(detail.deck.id, board, layout);
-  }
-
-  function renameListColumn(board: DeckBoard, colId: string, name: string) {
-    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
-    persistListLayout(board, {
-      ...layout,
-      columns: layout.columns.map((c) =>
-        c.id === colId ? { ...c, name } : c
-      ),
-    });
-  }
-
-  function addListColumn(board: DeckBoard) {
-    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
-    const id = newListColumnId();
-    persistListLayout(board, {
-      ...layout,
-      columns: [...layout.columns, { id, name: "New column" }],
-    });
-  }
-
-  function placeCardInListColumn(board: DeckBoard, cardId: string, colId: string) {
-    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
-    persistListLayout(board, {
-      ...layout,
-      placement: { ...layout.placement, [cardId]: colId },
-    });
-  }
-
-  function removeListColumn(board: DeckBoard, colId: string) {
-    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
-    if (layout.columns.length <= 1) return;
-    const remaining = layout.columns.filter((c) => c.id !== colId);
-    const fallback = remaining[0].id;
-    const placement = { ...layout.placement };
-    for (const [cardId, cid] of Object.entries(placement)) {
-      if (cid === colId) placement[cardId] = fallback;
-    }
-    persistListLayout(board, { columns: remaining, placement });
-  }
-
-  function createColumnAndPlace(board: DeckBoard, cardId: string) {
-    const layout = listLayouts[board] ?? getListColumnLayout(detail!.deck.id, board);
-    const id = newListColumnId();
-    persistListLayout(board, {
-      columns: [...layout.columns, { id, name: "New column" }],
-      placement: { ...layout.placement, [cardId]: id },
     });
   }
 
