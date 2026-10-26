@@ -15,6 +15,7 @@ import {
 } from "../services/drawerService";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { loadSearchTargets, type SearchTargetRef } from "../services/searchTargetService";
+import { fetchDeckDetail } from "../services/deckService";
 import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
@@ -141,6 +142,16 @@ export function SearchResultsPage() {
         const next: Record<string, number> = {};
         for (const row of rows) next[row.oracle_id] = row.tier ?? 1;
         setCounts(next);
+      } else if (target.kind === "deck") {
+        setPresenceOnly(false);
+        const { detail } = await fetchDeckDetail(target.id);
+        if (cancel) return;
+        const next: Record<string, number> = {};
+        for (const row of detail?.cards ?? []) {
+          const key = row.oracle_id || row.scryfall_id;
+          if (key) next[key] = (next[key] ?? 0) + (row.quantity ?? 1);
+        }
+        setCounts(next);
       } else {
         setPresenceOnly(false);
         setCounts({});
@@ -248,7 +259,11 @@ export function SearchResultsPage() {
 
   return (
     <div className={`${transitions.page} ${styles.page}`}>
-      <ToolsMenu cardSize={cardSize} onCardSizeChange={setCardSize} />
+      <ToolsMenu
+        targets={targets}
+        targetKey={targetKey}
+        onTargetChange={setTargetKey}
+      />
       <div className={resultStyles.meta}>
         <Link to={editTo} className={resultStyles.back}>
           ← Edit {mode} search
@@ -260,21 +275,6 @@ export function SearchResultsPage() {
               ? "Search failed."
               : `${start}–${end} of ${total || sorted.length}`}
         </p>
-        {targets.length > 0 && (
-          <label className={resultStyles.count}>
-            Target{" "}
-            <select
-              value={targetKey}
-              onChange={(e) => setTargetKey(e.target.value)}
-            >
-              {targets.map((t) => (
-                <option key={`${t.kind}:${t.id}`} value={`${t.kind}:${t.id}`}>
-                  {t.kind} · {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         <div className={resultStyles.toggles}>
           <button
             type="button"
@@ -413,7 +413,14 @@ export function SearchResultsPage() {
         catalogTile={viewMode === "image" ? (card, _index, open) => {
           const key = card.oracle_id || card.id;
           const n = counts[key] ?? counts[card.id] ?? 0;
-          const ear = target?.kind === "drawer" ? (n || "") : presenceOnly ? (n ? "✓" : "") : n || "";
+          const present = n > 0;
+          const ear = !present
+            ? undefined
+            : target?.kind === "drawer"
+              ? n
+              : presenceOnly
+                ? "✓"
+                : n;
           return (
             <CardTile
               face={{ name: card.name, imageUrl: card.image_uris?.normal, scryfallId: card.id, oracleId: card.oracle_id }}

@@ -1,22 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./ToolsMenu.module.css";
+import type { SearchTargetRef } from "../services/searchTargetService";
 
 export type ToolsMenuProps = {
-  cardSize: number;
-  onCardSizeChange: (size: number) => void;
-  sizeMin?: number;
-  sizeMax?: number;
+  targets?: SearchTargetRef[];
+  targetKey?: string;
+  onTargetChange?: (key: string) => void;
 };
 
 /**
- * Discreet ⋯ menu for view tools (card size, future options).
+ * Discreet ⋯ menu for search settings (target group, future options).
  * Positioned on the right, level with the search bar.
  */
 export function ToolsMenu({
-  cardSize,
-  onCardSizeChange,
-  sizeMin = 160,
-  sizeMax = 340,
+  targets = [],
+  targetKey = "",
+  onTargetChange,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -47,7 +46,7 @@ export function ToolsMenu({
       <button
         type="button"
         className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
-        aria-label="View tools"
+        aria-label="Search settings"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -62,22 +61,25 @@ export function ToolsMenu({
       {open && (
         <div className={styles.menu} role="menu">
           <div className={styles.menuSection}>
-            <div className={styles.menuHeading}>Card size</div>
-            <label className={styles.sizeRow} htmlFor="tools-card-size">
-              <input
-                id="tools-card-size"
-                className={styles.sizeRange}
-                type="range"
-                min={sizeMin}
-                max={sizeMax}
-                step={10}
-                value={cardSize}
-                onChange={(e) => onCardSizeChange(Number(e.target.value))}
-              />
-              <span className={styles.sizeValue}>{cardSize}px</span>
-            </label>
+            <div className={styles.menuHeading}>Target group</div>
+            {targets.length === 0 ? (
+              <p className={styles.hint}>No targetable groups. Enable one from Drawers, Collections, or a deck.</p>
+            ) : (
+              <select
+                className={styles.select}
+                value={targetKey}
+                onChange={(e) => onTargetChange?.(e.target.value)}
+                aria-label="Search target group"
+              >
+                <option value="">None</option>
+                {targets.map((t) => (
+                  <option key={`${t.kind}:${t.id}`} value={`${t.kind}:${t.id}`}>
+                    {t.kind} · {t.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-          {/* Future tools can be added as more .menuSection blocks */}
         </div>
       )}
     </div>
