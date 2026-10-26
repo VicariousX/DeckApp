@@ -17,6 +17,7 @@ import {
 } from "../../lib/randomCardHistory";
 import { CardInspectorModal } from "../../components/CardInspectorModal";
 import { CardSkinsPanel } from "../../components/CardSkinsPanel";
+import { isProxyAdmin } from "../../lib/proxyAdmin";
 
 type AccountSection = "profile" | "skins" | "themes" | "data" | "random" | "password";
 
@@ -193,6 +194,11 @@ export function AccountPanel() {
           >
             Password
           </button>
+          {isProxyAdmin(user) && (
+            <Link to="/proxy-set" className={styles.accountNavBtn}>
+              Proxy set
+            </Link>
+          )}
         </nav>
 
         <button

@@ -14,6 +14,7 @@ import {
   fetchUserCardArtMap,
   getCardArtPublicBase,
 } from "../services/cardArtService";
+import { fetchPublicProxyArt } from "../services/proxySetService";
 import { fetchUserCardsMap } from "../services/userCardService";
 import { fetchCardById } from "../lib/scryfallApi";
 import {
@@ -85,6 +86,7 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
   preferredRef.current = preferredPrintings;
   const artRef = useRef(artByOracleId);
   artRef.current = artByOracleId;
+  const proxyRef = useRef<Map<string, { image_url: string; back_image_url: string | null }>>(new Map());
 
   const reload = useCallback(async () => {
     if (!user) {
@@ -144,6 +146,14 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    void fetchPublicProxyArt().then(({ map }) => {
+      proxyRef.current = new Map(
+        [...map.entries()].map(([k, v]) => [k, { image_url: v.image_url, back_image_url: v.back_image_url }])
+      );
+    });
+  }, []);
 
   const ensurePreferred = useCallback(
     async (scryfallId: string): Promise<ScryfallCard | null> => {
@@ -254,6 +264,15 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
             imageUrlCache.current.set(cacheKey, url);
           }
           return url;
+        }
+      }
+
+      const proxy = proxyRef.current.get(oid);
+      if (proxy) {
+        const proxyUrl = face === 1 ? proxy.back_image_url || "" : proxy.image_url;
+        if (proxyUrl) {
+          imageUrlCache.current.set(cacheKey, proxyUrl);
+          return proxyUrl;
         }
       }
 

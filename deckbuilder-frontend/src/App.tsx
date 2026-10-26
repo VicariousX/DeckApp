@@ -13,6 +13,7 @@ import { CombosPage } from "./pages/CombosPage";
 import { FormatsPage } from "./pages/FormatsPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { BranchToolPage } from "./pages/BranchToolPage";
+import { ProxySetPage } from "./pages/ProxySetPage";
 import { PlaytestPage } from "./pages/PlaytestPage";
 import { SocialPage } from "./pages/SocialPage";
 import "./index.css";
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/deck/:id" element={<DeckBuilderPage />} />
           <Route path="/deck/:id/branches" element={<BranchToolPage />} />
           <Route path="/play/:id" element={<PlaytestPage />} />
+          <Route path="/proxy-set" element={<ProxySetPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
