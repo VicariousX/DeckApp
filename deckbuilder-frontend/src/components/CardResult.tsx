@@ -383,11 +383,10 @@ export function CardResult({
       {browseMode === "scroll" && preview && previewIndex != null && createPortal(
         <div
           className={styles.scrollStage}
-          onPointerDown={(e) => {
-            if (e.target === e.currentTarget) onExitScroll?.();
-          }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) onExitScroll?.();
+            if (window.innerWidth <= 768) return;
+            if (e.target !== e.currentTarget) return;
+            onExitScroll?.();
           }}
         >
           <button

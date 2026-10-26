@@ -275,12 +275,7 @@ export function CardEnlargeOverlay({
     <div
       className={embedded ? styles.scrollView : styles.enlargeOverlay}
       style={embedded ? undefined : { zIndex }}
-      onClick={embedded ? (e) => {
-        if (window.innerWidth <= 768) return;
-        const target = e.target as HTMLElement | null;
-        if (target?.closest("img, button, a")) return;
-        onClose?.();
-      } : onClose}
+      onClick={embedded ? undefined : onClose}
       role={embedded ? undefined : "dialog"}
       aria-modal={embedded ? undefined : true}
       aria-label={alt}
@@ -323,8 +318,14 @@ export function CardEnlargeOverlay({
           if (!start) return;
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
+          const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+          const onCard = Boolean(under?.closest("img"));
           if (Math.hypot(dx, dy) < 28) {
-            onActivate?.();
+            if (onCard) {
+              onActivate?.();
+            } else if (embedded && window.innerWidth > 768 && !under?.closest("button, a")) {
+              onClose?.();
+            }
             setAxis(null);
             setOffset(0);
             setVOffset(0);
@@ -397,14 +398,7 @@ export function CardEnlargeOverlay({
       <div
         className={styles.enlargeStage}
         onClick={(e) => {
-          if (!embedded) {
-            e.stopPropagation();
-            return;
-          }
-          if (window.innerWidth <= 768) return;
-          const target = e.target as HTMLElement | null;
-          if (target?.closest("img, button, a")) return;
-          onClose?.();
+          if (!embedded) e.stopPropagation();
         }}
       >
         {swipe ? (
