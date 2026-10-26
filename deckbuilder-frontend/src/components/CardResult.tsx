@@ -24,6 +24,7 @@ import { getFaceImage } from "../utils/scryfall";
 type CardResultProps = {
   cards: ScryfallCard[];
   cardSize?: number;
+  columns?: number;
   viewMode?: "image" | "text";
   browseMode?: "catalog" | "scroll";
   previewFirst?: boolean;
@@ -113,6 +114,7 @@ function ResultCard({
 export function CardResult({
   cards,
   cardSize = 240,
+  columns,
   viewMode = "image",
   browseMode = "catalog",
   previewFirst = false,
@@ -290,6 +292,7 @@ export function CardResult({
 
   const gridStyle = {
     "--card-min": `${cardSize}px`,
+    ...(columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : {}),
   } as CSSProperties;
 
   const selected =

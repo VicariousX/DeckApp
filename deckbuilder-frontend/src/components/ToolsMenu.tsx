@@ -8,10 +8,10 @@ export type ToolsMenuProps = {
   onTargetChange?: (key: string) => void;
   showTargetChip?: boolean;
   onShowTargetChipChange?: (on: boolean) => void;
-  cardSize?: number;
-  onCardSizeChange?: (size: number) => void;
-  sizeMin?: number;
-  sizeMax?: number;
+  columns?: number;
+  onColumnsChange?: (columns: number) => void;
+  columnsMin?: number;
+  columnsMax?: number;
 };
 
 /**
@@ -24,10 +24,10 @@ export function ToolsMenu({
   onTargetChange,
   showTargetChip = true,
   onShowTargetChipChange,
-  cardSize,
-  onCardSizeChange,
-  sizeMin = 96,
-  sizeMax = 360,
+  columns,
+  onColumnsChange,
+  columnsMin = 1,
+  columnsMax = 8,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -104,21 +104,24 @@ export function ToolsMenu({
               </label>
             </div>
           )}
-          {onCardSizeChange && cardSize != null && (
+          {onColumnsChange && columns != null && (
             <div className={styles.menuSection}>
-              <div className={styles.menuHeading}>Catalog tile size</div>
+              <div className={styles.menuHeading}>Catalog size</div>
               <label className={styles.sizeRow} htmlFor="tools-card-size">
                 <input
                   id="tools-card-size"
                   className={styles.sizeRange}
                   type="range"
-                  min={sizeMin}
-                  max={sizeMax}
-                  step={8}
-                  value={cardSize}
-                  onChange={(e) => onCardSizeChange(Number(e.target.value))}
+                  min={columnsMin}
+                  max={columnsMax}
+                  step={1}
+                  value={columnsMax + columnsMin - columns}
+                  onChange={(e) => {
+                    const size = Number(e.target.value);
+                    onColumnsChange(columnsMax + columnsMin - size);
+                  }}
                 />
-                <span className={styles.sizeValue}>{cardSize}px</span>
+                <span className={styles.sizeValue}>{columns} col</span>
               </label>
             </div>
           )}

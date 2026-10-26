@@ -25,7 +25,6 @@ import transitions from "../styles/pageTransitions.module.css";
 import styles from "./SearchPage.module.css";
 import resultStyles from "./SearchResultsPage.module.css";
 
-const SIZE_DEFAULT = 240;
 const PAGE_SIZES = [15, 30, 50];
 
 const SCRYFALL_ORDER = new Set([
@@ -170,13 +169,9 @@ export function SearchResultsPage() {
   const sortKey = params.get("sort") || "name";
   const sortDir = params.get("dir") === "desc" ? "desc" : "asc";
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
-  const [cardSize, setCardSize] = useState(() => {
-    if (typeof window === "undefined") return SIZE_DEFAULT;
-    const cols = window.innerWidth <= 768 ? 2 : 5;
-    const gutter = 16;
-    const pad = 48;
-    return Math.max(96, Math.floor((window.innerWidth - pad - gutter * (cols - 1)) / cols));
-  });
+  const [columns, setColumns] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5
+  );
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     scryfallQ,
@@ -272,8 +267,8 @@ export function SearchResultsPage() {
         onTargetChange={setTargetKey}
         showTargetChip={showTargetChip}
         onShowTargetChipChange={setShowTargetChip}
-        cardSize={cardSize}
-        onCardSizeChange={setCardSize}
+        columns={columns}
+        onColumnsChange={setColumns}
       />
       <div className={resultStyles.meta}>
         <Link to={editTo} className={resultStyles.back}>
@@ -370,7 +365,8 @@ export function SearchResultsPage() {
       )}
       <CardResult
         cards={resultCards}
-        cardSize={cardSize}
+        cardSize={240}
+        columns={browseMode === "catalog" ? columns : undefined}
         viewMode={browseMode === "text" ? "text" : "image"}
         browseMode={browseMode === "scroll" ? "scroll" : "catalog"}
         scrollStartIndex={scrollStartIndex}
