@@ -37,7 +37,12 @@ type CardResultProps = {
   presenceOnly?: boolean;
   scrollStartIndex?: number;
   /** When set, catalog mode renders this instead of the default result card. */
-  catalogTile?: (card: ScryfallCard, index: number, open: () => void) => ReactNode;
+  catalogTile?: (
+    card: ScryfallCard,
+    index: number,
+    open: () => void,
+    onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void
+  ) => ReactNode;
 };
 
 function ResultCard({
@@ -273,7 +278,12 @@ export function CardResult({
           <div className={styles.resultsGrid} style={gridStyle}>
             {list.map((item, i) => (
               <div key={item.originalId}>
-                {catalogTile(item.display, i, () => setSelectedIndex(i))}
+                {catalogTile(
+                  item.display,
+                  i,
+                  () => setSelectedIndex(i),
+                  (e) => setCtx({ x: e.clientX, y: e.clientY, index: i })
+                )}
               </div>
             ))}
           </div>

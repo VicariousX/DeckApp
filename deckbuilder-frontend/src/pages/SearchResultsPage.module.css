@@ -67,6 +67,30 @@
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
+.targetChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.targetChip button {
+  all: unset;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.targetChip button:hover {
+  color: var(--color-text);
+}
+
 .moreRow {
   display: flex;
   justify-content: center;

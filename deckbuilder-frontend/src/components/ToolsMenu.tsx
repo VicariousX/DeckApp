@@ -6,6 +6,8 @@ export type ToolsMenuProps = {
   targets?: SearchTargetRef[];
   targetKey?: string;
   onTargetChange?: (key: string) => void;
+  showTargetChip?: boolean;
+  onShowTargetChipChange?: (on: boolean) => void;
 };
 
 /**
@@ -16,6 +18,8 @@ export function ToolsMenu({
   targets = [],
   targetKey = "",
   onTargetChange,
+  showTargetChip = true,
+  onShowTargetChipChange,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -80,6 +84,18 @@ export function ToolsMenu({
               </select>
             )}
           </div>
+          {onShowTargetChipChange && (
+            <div className={styles.menuSection}>
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={showTargetChip}
+                  onChange={(e) => onShowTargetChipChange(e.target.checked)}
+                />
+                Show target indicator
+              </label>
+            </div>
+          )}
         </div>
       )}
     </div>

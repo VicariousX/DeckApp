@@ -104,11 +104,12 @@ function attr(card: ScryfallCard, key: string): string | number {
 export function SearchResultsPage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
+  const [browseMode, setBrowseMode] = useState<"text" | "catalog" | "scroll">("catalog");
   const [targets, setTargets] = useState<SearchTargetRef[]>([]);
   const [targetKey, setTargetKey] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [presenceOnly, setPresenceOnly] = useState(false);
+  const [showTargetChip, setShowTargetChip] = useState(true);
   const target = targets.find((t) => `${t.kind}:${t.id}` === targetKey) ?? null;
 
   useEffect(() => {
@@ -169,7 +170,6 @@ export function SearchResultsPage() {
   const sortDir = params.get("dir") === "desc" ? "desc" : "asc";
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
   const [cardSize, setCardSize] = useState(SIZE_DEFAULT);
-  const [viewMode, setViewMode] = useState<"image" | "text">("image");
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     scryfallQ,
@@ -263,6 +263,8 @@ export function SearchResultsPage() {
         targets={targets}
         targetKey={targetKey}
         onTargetChange={setTargetKey}
+        showTargetChip={showTargetChip}
+        onShowTargetChipChange={setShowTargetChip}
       />
       <div className={resultStyles.meta}>
         <Link to={editTo} className={resultStyles.back}>
@@ -275,20 +277,21 @@ export function SearchResultsPage() {
               ? "Search failed."
               : `${start}–${end} of ${total || sorted.length}`}
         </p>
+        {showTargetChip && (
+          <span className={resultStyles.targetChip}>
+            {target ? `${target.kind} · ${target.name}` : "No target"}
+            <button type="button" aria-label="Hide target indicator" onClick={() => setShowTargetChip(false)}>
+              ×
+            </button>
+          </span>
+        )}
         <div className={resultStyles.toggles}>
           <button
             type="button"
-            className={`${resultStyles.viewBtn}${viewMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => setViewMode("text")}
+            className={`${resultStyles.viewBtn}${browseMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
+            onClick={() => setBrowseMode("text")}
           >
             Text
-          </button>
-          <button
-            type="button"
-            className={`${resultStyles.viewBtn}${viewMode === "image" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => setViewMode("image")}
-          >
-            Images
           </button>
           <button
             type="button"
@@ -353,8 +356,8 @@ export function SearchResultsPage() {
       <CardResult
         cards={resultCards}
         cardSize={browseMode === "catalog" ? Math.min(cardSize, 140) : cardSize}
-        viewMode={viewMode}
-        browseMode={browseMode}
+        viewMode={browseMode === "text" ? "text" : "image"}
+        browseMode={browseMode === "scroll" ? "scroll" : "catalog"}
         scrollStartIndex={scrollStartIndex}
         onEnterScroll={() => setBrowseMode("scroll")}
         onExitScroll={() => setBrowseMode("catalog")}
@@ -410,7 +413,7 @@ export function SearchResultsPage() {
             void removeOracleFromDrawer(target.id, key);
           }
         } : undefined}
-        catalogTile={viewMode === "image" ? (card, _index, open) => {
+        catalogTile={browseMode === "catalog" ? (card, _index, open, onContext) => {
           const key = card.oracle_id || card.id;
           const n = counts[key] ?? counts[card.id] ?? 0;
           const present = n > 0;
@@ -421,18 +424,16 @@ export function SearchResultsPage() {
               : presenceOnly
                 ? "✓"
                 : n;
+          const addMark = presenceOnly ? "✓" : "+";
           return (
             <CardTile
               face={{ name: card.name, imageUrl: card.image_uris?.normal, scryfallId: card.id, oracleId: card.oracle_id }}
               ear={ear}
               onOpen={open}
+              onContextMenu={onContext}
               right={target ? [
-                <span key="measure">
-                  {target.kind === "drawer" ? `Tier ${n || "—"}` : presenceOnly ? (n ? "✓" : "Add") : n ? `×${n}` : "Add"}
-                </span>,
-              ] : undefined}
-              bottom={target ? (
                 <button
+                  key="add"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -464,9 +465,40 @@ export function SearchResultsPage() {
                           };
                     add();
                   }}
-                  style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center" }}
+                  style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center", fontWeight: 700 }}
+                  aria-label="Add to target"
                 >
-                  Add
+                  {addMark}
+                </button>,
+              ] : undefined}
+              bottom={target && present ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCounts((m) => ({ ...m, [key]: Math.max(0, (m[key] ?? 1) - 1) }));
+                    if (target.kind === "collection") {
+                      void listMyCollections(user!.id).then(({ collections }) => {
+                        const collection = collections.find((c) => c.id === target.id);
+                        if (collection) void removeCardFromCollection(collection, card);
+                      });
+                    } else if (target.kind === "drawer") {
+                      void removeOracleFromDrawer(target.id, key);
+                    } else {
+                      void addCardToDeck(target.id, {
+                        oracle_id: key,
+                        scryfall_id: card.id,
+                        name: card.name,
+                        type_line: card.type_line ?? "",
+                        quantity: Math.max(0, n - 1),
+                        board: "maybe",
+                      });
+                    }
+                  }}
+                  style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center" }}
+                  aria-label="Remove from target"
+                >
+                  Remove
                 </button>
               ) : undefined}
             />

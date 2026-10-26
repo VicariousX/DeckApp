@@ -90,6 +90,15 @@
   line-height: 1.35;
 }
 
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
 @keyframes menuIn {
   from {
     opacity: 0;
