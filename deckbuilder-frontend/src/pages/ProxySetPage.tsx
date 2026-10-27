@@ -113,18 +113,6 @@ export function ProxySetPage() {
       setError(err instanceof Error ? err.message : "Upload failed.");
     }
   }
-    setBusy(false);
-    if (saveErr) {
-      setError(saveErr);
-      return;
-    }
-    setQuery("");
-    setImageUrl("");
-    setBackUrl("");
-    setSuggestions([]);
-    setInfo(`${card.name} added to the proxy set.`);
-    await refresh(set.id);
-  }
 
   async function remove(card: ProxySetCard) {
     if (!set) return;
