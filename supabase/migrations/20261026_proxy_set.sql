@@ -27,8 +27,11 @@ alter table public.proxy_sets enable row level security;
 alter table public.proxy_set_cards enable row level security;
 
 -- Anyone can read public sets and their cards.
+drop policy if exists proxy_sets_read on public.proxy_sets;
 create policy proxy_sets_read on public.proxy_sets
   for select using (is_public = true);
+
+drop policy if exists proxy_set_cards_read on public.proxy_set_cards;
 create policy proxy_set_cards_read on public.proxy_set_cards
   for select using (
     exists (
@@ -38,8 +41,11 @@ create policy proxy_set_cards_read on public.proxy_set_cards
   );
 
 -- Signed-in users can manage sets they created.
+drop policy if exists proxy_sets_write on public.proxy_sets;
 create policy proxy_sets_write on public.proxy_sets
   for all using (auth.uid() = created_by) with check (auth.uid() = created_by);
+
+drop policy if exists proxy_set_cards_write on public.proxy_set_cards;
 create policy proxy_set_cards_write on public.proxy_set_cards
   for all using (
     exists (
@@ -53,6 +59,13 @@ create policy proxy_set_cards_write on public.proxy_set_cards
     )
   );
 
-insert into public.proxy_sets (name, code, description, is_public)
-values ('Proxy Set', 'PROXY', 'Shared proxy art. Images are hosted on Cloudflare.', true)
-on conflict (code) do nothing;
+-- Grants so client roles can use the tables under RLS.
+grant select, insert, update, delete on public.proxy_sets to authenticated;
+grant select on public.proxy_sets to anon;
+grant select, insert, update, delete on public.proxy_sets to service_role;
+
+grant select, insert, update, delete on public.proxy_set_cards to authenticated;
+grant select on public.proxy_set_cards to anon;
+grant select, insert, update, delete on public.proxy_set_cards to service_role;
+
+-- Default PROXY set is created by the first admin visit so they own it (created_by set).
