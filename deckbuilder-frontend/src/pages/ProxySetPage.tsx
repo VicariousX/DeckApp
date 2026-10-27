@@ -11,6 +11,7 @@ import {
   type ProxySet,
   type ProxySetCard,
 } from "../services/proxySetService";
+import { isDrivePickerConfigured, pickDriveImage } from "../lib/googleDrivePicker";
 import styles from "./LoginPage.module.css";
 
 export function ProxySetPage() {
@@ -26,6 +27,8 @@ export function ProxySetPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const driveReady = isDrivePickerConfigured();
 
   useEffect(() => {
     if (!user || !isProxyAdmin(user)) return;
@@ -75,6 +78,20 @@ export function ProxySetPage() {
     return data.url;
   }
 
+  async function pickFromDrive(side: "front" | "back") {
+    setError(null);
+    setInfo(null);
+    try {
+      const file = await pickDriveImage();
+      if (!file) return;
+      if (side === "front") setFrontFile(file);
+      else setBackFile(file);
+      setInfo(`Selected ${file.name} from Google Drive.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Drive picker failed.");
+    }
+  }
+
   async function addCard(name: string) {
     if (!set || !user) return;
     setBusy(true);
@@ -96,7 +113,7 @@ export function ProxySetPage() {
       }
       if (!image) {
         setBusy(false);
-        setError("Choose an image file or paste a public URL (Google Drive, Dropbox, direct link…).");
+        setError("Choose an image file, pick from Google Drive, or paste a public URL.");
         return;
       }
       let back = "";
@@ -147,10 +164,14 @@ export function ProxySetPage() {
     <div className={styles.accountContent} style={{ maxWidth: 760, margin: "0 auto", padding: "1.5rem" }}>
       <h1 className={styles.title}>Proxy set</h1>
       <p className={styles.subtitle}>
-        Upload proxy art to Cloudflare R2, or import from a public URL.
-        Google Drive and Dropbox share links are supported (file must be shared with “Anyone with the link”).
+        Upload proxy art to Cloudflare R2, pick from Google Drive, or import from a public URL.
         The set is readable by every user. Images are served from the R2 bucket.
       </p>
+      {!driveReady && (
+        <p className={styles.subtitle}>
+          Google Drive picker is not configured. Set VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_API_KEY to enable it.
+        </p>
+      )}
       {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
       {info && <p className={styles.subtitle}>{info}</p>}
 
@@ -186,6 +207,15 @@ export function ProxySetPage() {
           accept="image/png,image/jpeg,image/webp,image/gif"
           onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
         />
+        {frontFile && <p className={styles.subtitle}>Selected: {frontFile.name}</p>}
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          disabled={!driveReady || busy}
+          onClick={() => void pickFromDrive("front")}
+        >
+          Pick front from Google Drive
+        </button>
       </div>
       <div className={styles.field}>
         <label className={styles.label}>Or import front from URL</label>
@@ -194,7 +224,7 @@ export function ProxySetPage() {
           type="url"
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://drive.google.com/… or direct image link"
+          placeholder="https://… or public share link"
         />
       </div>
       <div className={styles.field}>
@@ -205,6 +235,15 @@ export function ProxySetPage() {
           accept="image/png,image/jpeg,image/webp,image/gif"
           onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
         />
+        {backFile && <p className={styles.subtitle}>Selected: {backFile.name}</p>}
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          disabled={!driveReady || busy}
+          onClick={() => void pickFromDrive("back")}
+        >
+          Pick back from Google Drive
+        </button>
       </div>
       <div className={styles.field}>
         <label className={styles.label}>Or import back from URL</label>
