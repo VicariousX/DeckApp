@@ -58,11 +58,17 @@ export function ProxySetPage() {
     setCards(rows);
   }
 
-  async function uploadToR2(file: File, oracleId: string, side: "front" | "back"): Promise<string> {
+  async function uploadToR2(
+    opts: { file?: File | null; sourceUrl?: string },
+    oracleId: string,
+    side: "front" | "back"
+  ): Promise<string> {
     const body = new FormData();
-    body.set("file", file);
     body.set("oracle_id", oracleId);
     body.set("side", side);
+    if (opts.file) body.set("file", opts.file);
+    else if (opts.sourceUrl) body.set("source_url", opts.sourceUrl);
+    else throw new Error("No image source.");
     const res = await fetch("/api/proxy-art", { method: "POST", body });
     const data = (await res.json()) as { url?: string; error?: string };
     if (!res.ok || !data.url) throw new Error(data.error || "Upload failed.");
@@ -82,18 +88,28 @@ export function ProxySetPage() {
     }
     const oracleId = card.oracle_id || card.id;
     try {
-      const image = frontFile ? await uploadToR2(frontFile, oracleId, "front") : imageUrl.trim();
+      let image = "";
+      if (frontFile) {
+        image = await uploadToR2({ file: frontFile }, oracleId, "front");
+      } else if (imageUrl.trim()) {
+        image = await uploadToR2({ sourceUrl: imageUrl.trim() }, oracleId, "front");
+      }
       if (!image) {
         setBusy(false);
-        setError("Choose an image file or paste a Cloudflare URL.");
+        setError("Choose an image file or paste a public URL (Google Drive, Dropbox, direct link…).");
         return;
       }
-      const back = backFile ? await uploadToR2(backFile, oracleId, "back") : backUrl.trim();
+      let back = "";
+      if (backFile) {
+        back = await uploadToR2({ file: backFile }, oracleId, "back");
+      } else if (backUrl.trim()) {
+        back = await uploadToR2({ sourceUrl: backUrl.trim() }, oracleId, "back");
+      }
       const { error: saveErr } = await upsertProxyCard(set.id, {
         oracle_id: oracleId,
         name: card.name,
         image_url: image,
-        back_image_url: back,
+        back_image_url: back || null,
       });
       setBusy(false);
       if (saveErr) {
@@ -131,10 +147,11 @@ export function ProxySetPage() {
     <div className={styles.accountContent} style={{ maxWidth: 760, margin: "0 auto", padding: "1.5rem" }}>
       <h1 className={styles.title}>Proxy set</h1>
       <p className={styles.subtitle}>
-        Upload proxy art to Cloudflare R2, or paste an existing public URL.
+        Upload proxy art to Cloudflare R2, or import from a public URL.
+        Google Drive and Dropbox share links are supported (file must be shared with “Anyone with the link”).
         The set is readable by every user. Images are served from the R2 bucket.
       </p>
-      {error && <p className={styles.subtitle}>{error}</p>}
+      {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
       {info && <p className={styles.subtitle}>{info}</p>}
 
       <div className={styles.field}>
@@ -162,7 +179,7 @@ export function ProxySetPage() {
         )}
       </div>
       <div className={styles.field}>
-        <label className={styles.label}>Front image</label>
+        <label className={styles.label}>Front image (file)</label>
         <input
           className={styles.input}
           type="file"
@@ -171,17 +188,17 @@ export function ProxySetPage() {
         />
       </div>
       <div className={styles.field}>
-        <label className={styles.label}>Or Cloudflare image URL</label>
+        <label className={styles.label}>Or import front from URL</label>
         <input
           className={styles.input}
           type="url"
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://…"
+          placeholder="https://drive.google.com/… or direct image link"
         />
       </div>
       <div className={styles.field}>
-        <label className={styles.label}>Back image (optional)</label>
+        <label className={styles.label}>Back image (optional file)</label>
         <input
           className={styles.input}
           type="file"
@@ -190,7 +207,7 @@ export function ProxySetPage() {
         />
       </div>
       <div className={styles.field}>
-        <label className={styles.label}>Or back image URL</label>
+        <label className={styles.label}>Or import back from URL</label>
         <input
           className={styles.input}
           type="url"
