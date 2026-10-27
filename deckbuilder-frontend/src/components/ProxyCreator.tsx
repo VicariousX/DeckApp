@@ -132,10 +132,11 @@ export function ProxyCreator({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const c = ctx;
 
-    function draw(img: HTMLImageElement | null) {
-      ctx.fillStyle = "#1a1a1a";
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
+    function draw(img: HTMLImageElement | null, c: CanvasRenderingContext2D) {
+      c.fillStyle = "#1a1a1a";
+      c.fillRect(0, 0, CARD_W, CARD_H);
 
       // Art window
       const artX = 40;
@@ -149,51 +150,51 @@ export function ProxyCreator({
         const dh = img.height * scale;
         const dx = artX + (artW - dw) / 2;
         const dy = artY + (artH - dh) / 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(artX, artY, artW, artH);
-        ctx.clip();
-        ctx.drawImage(img, dx, dy, dw, dh);
-        ctx.restore();
+        c.save();
+        c.beginPath();
+        c.rect(artX, artY, artW, artH);
+        c.clip();
+        c.drawImage(img, dx, dy, dw, dh);
+        c.restore();
       } else {
-        ctx.fillStyle = "#2a2a2a";
-        ctx.fillRect(artX, artY, artW, artH);
+        c.fillStyle = "#2a2a2a";
+        c.fillRect(artX, artY, artW, artH);
       }
 
       // Outer frame
-      ctx.strokeStyle = "#c8c8c8";
-      ctx.lineWidth = 8;
-      ctx.strokeRect(16, 16, CARD_W - 32, CARD_H - 32);
+      c.strokeStyle = "#c8c8c8";
+      c.lineWidth = 8;
+      c.strokeRect(16, 16, CARD_W - 32, CARD_H - 32);
 
       // Name plate
-      ctx.fillStyle = "rgba(20,20,20,0.85)";
-      ctx.fillRect(36, 28, CARD_W - 72, 38);
-      ctx.fillStyle = "#f0f0f0";
-      ctx.font = "bold 22px serif";
-      ctx.fillText(fields.name || "Card name", 48, 54);
-      ctx.font = "18px sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText(fields.mana || "", CARD_W - 48, 54);
-      ctx.textAlign = "left";
+      c.fillStyle = "rgba(20,20,20,0.85)";
+      c.fillRect(36, 28, CARD_W - 72, 38);
+      c.fillStyle = "#f0f0f0";
+      c.font = "bold 22px serif";
+      c.fillText(fields.name || "Card name", 48, 54);
+      c.font = "18px sans-serif";
+      c.textAlign = "right";
+      c.fillText(fields.mana || "", CARD_W - 48, 54);
+      c.textAlign = "left";
 
       // Type line
-      ctx.fillStyle = "rgba(20,20,20,0.85)";
-      ctx.fillRect(36, artY + artH + 8, CARD_W - 72, 32);
-      ctx.fillStyle = "#f0f0f0";
-      ctx.font = "italic 16px serif";
-      ctx.fillText(fields.typeLine || "Type line", 48, artY + artH + 30);
+      c.fillStyle = "rgba(20,20,20,0.85)";
+      c.fillRect(36, artY + artH + 8, CARD_W - 72, 32);
+      c.fillStyle = "#f0f0f0";
+      c.font = "italic 16px serif";
+      c.fillText(fields.typeLine || "Type line", 48, artY + artH + 30);
 
       // Rules box with average-color border
       const rulesY = artY + artH + 48;
       const rulesH = 280;
-      ctx.fillStyle = "rgba(245,245,245,0.92)";
-      ctx.fillRect(36, rulesY, CARD_W - 72, rulesH);
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 6;
-      ctx.strokeRect(36, rulesY, CARD_W - 72, rulesH);
+      c.fillStyle = "rgba(245,245,245,0.92)";
+      c.fillRect(36, rulesY, CARD_W - 72, rulesH);
+      c.strokeStyle = borderColor;
+      c.lineWidth = 6;
+      c.strokeRect(36, rulesY, CARD_W - 72, rulesH);
 
-      ctx.fillStyle = "#111";
-      ctx.font = "16px serif";
+      c.fillStyle = "#111";
+      c.font = "16px serif";
       const lines = (fields.rules || "").split("\n");
       let ty = rulesY + 28;
       for (const line of lines) {
@@ -202,8 +203,8 @@ export function ProxyCreator({
         let current = "";
         for (const w of words) {
           const test = current ? current + " " + w : w;
-          if (ctx.measureText(test).width > CARD_W - 100) {
-            ctx.fillText(current, 52, ty);
+          if (c.measureText(test).width > CARD_W - 100) {
+            c.fillText(current, 52, ty);
             ty += 22;
             current = w;
           } else {
@@ -211,7 +212,7 @@ export function ProxyCreator({
           }
         }
         if (current) {
-          ctx.fillText(current, 52, ty);
+          c.fillText(current, 52, ty);
           ty += 22;
         }
         if (ty > rulesY + rulesH - 20) break;
@@ -219,16 +220,16 @@ export function ProxyCreator({
 
       // P/T
       if (fields.pt) {
-        ctx.fillStyle = "rgba(20,20,20,0.9)";
-        ctx.fillRect(CARD_W - 140, CARD_H - 90, 100, 40);
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(CARD_W - 140, CARD_H - 90, 100, 40);
-        ctx.fillStyle = "#fff";
-        ctx.font = "bold 20px serif";
-        ctx.textAlign = "center";
-        ctx.fillText(fields.pt, CARD_W - 90, CARD_H - 64);
-        ctx.textAlign = "left";
+        c.fillStyle = "rgba(20,20,20,0.9)";
+        c.fillRect(CARD_W - 140, CARD_H - 90, 100, 40);
+        c.strokeStyle = borderColor;
+        c.lineWidth = 3;
+        c.strokeRect(CARD_W - 140, CARD_H - 90, 100, 40);
+        c.fillStyle = "#fff";
+        c.font = "bold 20px serif";
+        c.textAlign = "center";
+        c.fillText(fields.pt, CARD_W - 90, CARD_H - 64);
+        c.textAlign = "left";
       }
     }
 
@@ -237,12 +238,12 @@ export function ProxyCreator({
       img.crossOrigin = "anonymous";
       img.onload = () => {
         setBorderColor(averageColor(img));
-        draw(img);
+        draw(img, c);
       };
-      img.onerror = () => draw(null);
+      img.onerror = () => draw(null, c);
       img.src = artUrl;
     } else {
-      draw(null);
+      draw(null, c);
     }
   }, [artUrl, fields, borderColor]);
 
