@@ -938,7 +938,7 @@ export function DrawersPage() {
           key={inspectCard.id}
           initialTab={initialTabFromJump(modalJump)}
           initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
-          initialArtSub={modalJump === "artwork:upload" ? "upload" : "prints"}
+          initialArtSub={modalJump === "artwork:upload" ? "upload" : modalJump === "artwork:proxy" ? "proxy" : "prints"}
           onTabChange={(tab, infoSub, artSub) =>
             setModalJump(modalJumpFromState(tab, infoSub, artSub))
           }
