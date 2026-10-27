@@ -13,7 +13,55 @@ function extFor(type: string): string {
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
   if (type === "image/gif") return "gif";
+  if (type === "image/svg+xml") return "svg";
   return "jpg";
+}
+
+/** Turn common share links into direct download URLs. */
+function resolveSourceUrl(raw: string): string {
+  let url = raw.trim();
+  // Google Drive file share links
+  const driveFile = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveFile) {
+    return `https://drive.google.com/uc?export=download&id=${driveFile[1]}`;
+  }
+  const driveId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (url.includes("drive.google.com") && driveId) {
+    return `https://drive.google.com/uc?export=download&id=${driveId[1]}`;
+  }
+  // Dropbox: force direct download
+  if (url.includes("dropbox.com")) {
+    url = url.replace("www.dropbox.com", "dl.dropboxusercontent.com");
+    url = url.replace(/[?&]dl=0/, "");
+    if (!url.includes("dl=1") && !url.includes("raw=1")) {
+      url += (url.includes("?") ? "&" : "?") + "dl=1";
+    }
+    return url;
+  }
+  return url;
+}
+
+async function fetchImage(sourceUrl: string): Promise<{ buffer: ArrayBuffer; contentType: string }> {
+  const url = resolveSourceUrl(sourceUrl);
+  const res = await fetch(url, {
+    redirect: "follow",
+    headers: { "User-Agent": "DeckApp-ProxyImporter/1.0" },
+  });
+  if (!res.ok) {
+    throw new Error(`Could not fetch image (${res.status}). For Google Drive, make sure the file is shared as “Anyone with the link”.`);
+  }
+  const contentType = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`URL did not return an image (got ${contentType || "unknown"}).`);
+  }
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength > 8 * 1024 * 1024) {
+    throw new Error("Image must be under 8MB.");
+  }
+  if (buffer.byteLength < 32) {
+    throw new Error("Downloaded file is too small to be a valid image.");
+  }
+  return { buffer, contentType };
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -21,22 +69,40 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!bucket) return json({ error: "R2 binding PROXY_ART is not configured." }, 500);
 
   const form = await context.request.formData();
-  const file = form.get("file");
   const oracle = String(form.get("oracle_id") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
   const side = form.get("side") === "back" ? "back" : "front";
-  if (!(file instanceof File) || !oracle) {
-    return json({ error: "file and oracle_id are required." }, 400);
-  }
-  if (!file.type.startsWith("image/")) {
-    return json({ error: "File must be an image." }, 400);
-  }
-  if (file.size > 8 * 1024 * 1024) {
-    return json({ error: "Image must be under 8MB." }, 400);
+  if (!oracle) return json({ error: "oracle_id is required." }, 400);
+
+  let buffer: ArrayBuffer;
+  let contentType: string;
+
+  const file = form.get("file");
+  const sourceUrl = String(form.get("source_url") || "").trim();
+
+  if (file instanceof File && file.size > 0) {
+    if (!file.type.startsWith("image/")) {
+      return json({ error: "File must be an image." }, 400);
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return json({ error: "Image must be under 8MB." }, 400);
+    }
+    buffer = await file.arrayBuffer();
+    contentType = file.type || "image/jpeg";
+  } else if (sourceUrl) {
+    try {
+      const fetched = await fetchImage(sourceUrl);
+      buffer = fetched.buffer;
+      contentType = fetched.contentType;
+    } catch (err) {
+      return json({ error: err instanceof Error ? err.message : "Failed to import URL." }, 400);
+    }
+  } else {
+    return json({ error: "Provide a file or a source_url." }, 400);
   }
 
-  const key = `proxy/${oracle}/${side}.${extFor(file.type)}`;
-  await bucket.put(key, await file.arrayBuffer(), {
-    httpMetadata: { contentType: file.type || "image/jpeg" },
+  const key = `proxy/${oracle}/${side}.${extFor(contentType)}`;
+  await bucket.put(key, buffer, {
+    httpMetadata: { contentType },
   });
 
   const url = new URL(context.request.url);
