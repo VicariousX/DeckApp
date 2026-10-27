@@ -21,6 +21,7 @@ export type ModalJump =
   | "mechanics"
   | "artwork"
   | "artwork:prints"
+  | "artwork:proxy"
   | "artwork:upload";
 
 export type InspectorTabName =
@@ -35,10 +36,14 @@ export type InspectorTabName =
 export function modalJumpFromState(
   tab: InspectorTabName,
   infoSub: "details" | "rulings" = "details",
-  artSub: "upload" | "prints" = "prints"
+  artSub: "upload" | "prints" | "proxy" = "prints"
 ): ModalJump {
   if (tab === "info") return infoSub === "rulings" ? "info:rulings" : "info";
-  if (tab === "artwork") return artSub === "upload" ? "artwork:upload" : "artwork";
+  if (tab === "artwork") {
+    if (artSub === "upload") return "artwork:upload";
+    if (artSub === "proxy") return "artwork:proxy";
+    return "artwork";
+  }
   if (tab === "drawer") return "drawers";
   return tab;
 }
@@ -96,6 +101,7 @@ const MODAL_ITEMS: { id: ModalJump; label: string }[] = [
   { id: "collections", label: "Collections" },
   { id: "mechanics", label: "Mechanics" },
   { id: "artwork:prints", label: "Printings" },
+  { id: "artwork:proxy", label: "Proxy" },
   { id: "artwork:upload", label: "Upload art" },
 ];
 
