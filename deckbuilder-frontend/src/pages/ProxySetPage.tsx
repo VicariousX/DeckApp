@@ -13,13 +13,14 @@ import {
 } from "../services/proxySetService";
 import { isDrivePickerConfigured, pickDriveImage } from "../lib/googleDrivePicker";
 import { ProxyCreator } from "../components/ProxyCreator";
+import { OverlayTemplateEditor } from "../components/OverlayTemplateEditor";
 import styles from "./LoginPage.module.css";
 
 export function ProxySetPage() {
   const { user, loading } = useAuth();
   const [set, setSet] = useState<ProxySet | null>(null);
   const [cards, setCards] = useState<ProxySetCard[]>([]);
-  const [tab, setTab] = useState<"upload" | "create">("upload");
+  const [tab, setTab] = useState<"upload" | "create" | "templates">("upload");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [imageUrl, setImageUrl] = useState("");
@@ -198,12 +199,21 @@ export function ProxySetPage() {
         >
           Create
         </button>
+        <button
+          type="button"
+          className={tab === "templates" ? styles.primaryBtn : styles.secondaryBtn}
+          onClick={() => setTab("templates")}
+        >
+          Templates
+        </button>
       </div>
 
       {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
       {info && <p className={styles.subtitle}>{info}</p>}
 
-      {tab === "upload" ? (
+      {tab === "templates" ? (
+        <OverlayTemplateEditor />
+      ) : tab === "upload" ? (
         <>
           {!driveReady && (
             <p className={styles.subtitle}>
