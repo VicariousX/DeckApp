@@ -57,11 +57,11 @@ type Props = {
   collection?: CardInspectorCollectionControls;
   initialTab?: TabId;
   initialInfoSub?: "details" | "rulings";
-  initialArtSub?: "upload" | "prints";
+  initialArtSub?: "upload" | "prints" | "proxy";
   onTabChange?: (
     tab: TabId,
     infoSub: "details" | "rulings",
-    artSub: "upload" | "prints"
+    artSub: "upload" | "prints" | "proxy"
   ) => void;
 };
 
@@ -95,7 +95,7 @@ export function CardInspectorModal({
     artwork: initialArtSub,
   });
   const infoSub = (subByTab.info ?? "details") as "details" | "rulings";
-  const artSub = (subByTab.artwork ?? "prints") as "upload" | "prints";
+  const artSub = (subByTab.artwork ?? "prints") as "upload" | "prints" | "proxy";
   const [imageOpen, setImageOpen] = useState(readImageShown);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
