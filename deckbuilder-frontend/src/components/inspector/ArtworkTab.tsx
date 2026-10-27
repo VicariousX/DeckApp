@@ -7,6 +7,7 @@ import styles from "../CardInspectorModal.module.css";
 
 export const ART_SUBS: SubTab[] = [
   { id: "prints", label: "Printings" },
+  { id: "proxy", label: "Proxy" },
   { id: "upload", label: "Upload" },
 ];
 
@@ -28,7 +29,7 @@ export function ArtworkTab({
         <CardArtPanel
           card={card}
           embedded
-          forceSub={subId === "upload" ? "upload" : "prints"}
+          forceSub={subId === "upload" ? "upload" : subId === "proxy" ? "proxy" : "prints"}
           onResolvedChange={onResolvedChange}
         />
       ) : (
