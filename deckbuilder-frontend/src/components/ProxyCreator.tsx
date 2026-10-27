@@ -1,72 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 import { isDrivePickerConfigured, pickDriveImage } from "../lib/googleDrivePicker";
-import { parseManaCost, symbolToSvgUri } from "../utils/symbols";
+import {
+  averageColor,
+  CARD_H,
+  CARD_W,
+  loadTemplates,
+  renderTemplate,
+  type OverlayTemplate,
+  type ProxyFields,
+} from "../lib/overlayTemplates";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "../pages/LoginPage.module.css";
-
-type Fields = {
-  name: string;
-  mana: string;
-  typeLine: string;
-  rules: string;
-  pt: string;
-};
-
-const CARD_W = 750;
-const CARD_H = 1050;
-const FONT_KEY = "deckapp.proxy.fontSize";
-
-function averageColor(img: HTMLImageElement): string {
-  const c = document.createElement("canvas");
-  c.width = 32;
-  c.height = 32;
-  const ctx = c.getContext("2d");
-  if (!ctx) return "#3a3a3a";
-  ctx.drawImage(img, 0, 0, 32, 32);
-  const data = ctx.getImageData(0, 0, 32, 32).data;
-  let r = 0, g = 0, b = 0, n = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
-    n++;
-  }
-  r = Math.round(r / n);
-  g = Math.round(g / n);
-  b = Math.round(b / n);
-  const lift = (v: number) => Math.min(255, Math.round(v * 0.65 + 90));
-  return `rgb(${lift(r)},${lift(g)},${lift(b)})`;
-}
-
-const symbolCache = new Map<string, HTMLImageElement>();
-function loadSymbol(code: string): Promise<HTMLImageElement> {
-  const existing = symbolCache.get(code);
-  if (existing && existing.complete) return Promise.resolve(existing);
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      symbolCache.set(code, img);
-      resolve(img);
-    };
-    img.onerror = () => resolve(img); // draw nothing on miss
-    img.src = symbolToSvgUri(code);
-  });
-}
-
-type Token = { kind: "text"; text: string } | { kind: "sym"; code: string };
-
-function tokenize(text: string): Token[] {
-  const parts = text.split(/(\{[^}]+\})/g);
-  return parts
-    .filter((p) => p.length > 0)
-    .map((p) =>
-      p.startsWith("{") && p.endsWith("}")
-        ? { kind: "sym", code: p }
-        : { kind: "text", text: p }
-    );
-}
 
 export function ProxyCreator({
   onSave,
@@ -77,7 +22,7 @@ export function ProxyCreator({
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [card, setCard] = useState<ScryfallCard | null>(null);
-  const [fields, setFields] = useState<Fields>({
+  const [fields, setFields] = useState<ProxyFields>({
     name: "",
     mana: "",
     typeLine: "",
@@ -89,18 +34,20 @@ export function ProxyCreator({
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fontSize, setFontSize] = useState(() => {
-    const n = Number(localStorage.getItem(FONT_KEY));
-    return Number.isFinite(n) && n >= 18 && n <= 48 ? n : 28;
-  });
+  const [templates, setTemplates] = useState<OverlayTemplate[]>([]);
+  const [templateId, setTemplateId] = useState("");
   const [artScale, setArtScale] = useState(1);
   const [artOffset, setArtOffset] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const driveReady = isDrivePickerConfigured();
 
   useEffect(() => {
-    localStorage.setItem(FONT_KEY, String(fontSize));
-  }, [fontSize]);
+    const all = loadTemplates();
+    setTemplates(all);
+    if (all[0]) setTemplateId(all[0].id);
+  }, []);
+
+  const template = templates.find((t) => t.id === templateId) ?? templates[0] ?? null;
 
   useEffect(() => {
     const name = query.trim();
@@ -171,160 +118,35 @@ export function ProxyCreator({
     }
   }
 
-  // Draw
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !template) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     let cancelled = false;
 
-    async function draw(img: HTMLImageElement | null) {
-      if (!ctx || cancelled) return;
-      ctx.fillStyle = "#111";
-      ctx.fillRect(0, 0, CARD_W, CARD_H);
-
-      // Full-bleed art
-      if (img) {
-        const scale = Math.max(CARD_W / img.width, CARD_H / img.height) * artScale;
-        const dw = img.width * scale;
-        const dh = img.height * scale;
-        const dx = (CARD_W - dw) / 2 + artOffset.x;
-        const dy = (CARD_H - dh) / 2 + artOffset.y;
-        ctx.drawImage(img, dx, dy, dw, dh);
-      }
-
-      // Thin outer edge only (full art)
-      ctx.strokeStyle = "rgba(255,255,255,0.35)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(8, 8, CARD_W - 16, CARD_H - 16);
-
-      const nameSize = fontSize + 4;
-      const bodySize = fontSize;
-      const symSize = Math.round(fontSize * 0.9);
-
-      // Name bar
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(24, 20, CARD_W - 48, nameSize + 18);
-      ctx.fillStyle = "#fff";
-      ctx.font = `bold ${nameSize}px serif`;
-      ctx.textBaseline = "middle";
-      ctx.fillText(fields.name || "Card name", 40, 20 + (nameSize + 18) / 2);
-
-      // Mana symbols on the right of the name bar
-      const manaSyms = parseManaCost(fields.mana);
-      if (manaSyms.length) {
-        const imgs = await Promise.all(manaSyms.map((s) => loadSymbol(s)));
-        if (cancelled) return;
-        let mx = CARD_W - 40;
-        for (let i = imgs.length - 1; i >= 0; i--) {
-          const im = imgs[i];
-          if (im.complete && im.naturalWidth) {
-            mx -= symSize + 4;
-            ctx.drawImage(im, mx, 20 + (nameSize + 18 - symSize) / 2, symSize, symSize);
-          }
-        }
-      }
-
-      // Type line
-      const typeY = 20 + nameSize + 28;
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.fillRect(24, typeY, CARD_W - 48, bodySize + 12);
-      ctx.fillStyle = "#fff";
-      ctx.font = `italic ${bodySize}px serif`;
-      ctx.fillText(fields.typeLine || "Type line", 40, typeY + (bodySize + 12) / 2);
-
-      // Rules box near bottom
-      const rulesH = 260;
-      const rulesY = CARD_H - rulesH - 40;
-      ctx.fillStyle = "rgba(245,245,245,0.82)";
-      ctx.fillRect(28, rulesY, CARD_W - 56, rulesH);
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 5;
-      ctx.strokeRect(28, rulesY, CARD_W - 56, rulesH);
-
-      // Rules text with symbols
-      ctx.fillStyle = "#111";
-      ctx.font = `${bodySize}px serif`;
-      ctx.textBaseline = "top";
-      let ty = rulesY + 16;
-      const maxW = CARD_W - 80;
-      const lines = (fields.rules || "").split("\n");
-      for (const line of lines) {
-        const tokens = tokenize(line);
-        // Preload symbols for this line
-        const symImgs = new Map<string, HTMLImageElement>();
-        for (const t of tokens) {
-          if (t.kind === "sym") symImgs.set(t.code, await loadSymbol(t.code));
-        }
-        if (cancelled) return;
-        // Wrap
-        let x = 44;
-        for (const t of tokens) {
-          if (t.kind === "sym") {
-            if (x + symSize > 44 + maxW) {
-              x = 44;
-              ty += bodySize + 6;
-            }
-            const im = symImgs.get(t.code);
-            if (im && im.complete && im.naturalWidth) {
-              ctx.drawImage(im, x, ty, symSize, symSize);
-            }
-            x += symSize + 4;
-          } else {
-            const words = t.text.split(/(\s+)/);
-            for (const w of words) {
-              const wW = ctx.measureText(w).width;
-              if (x + wW > 44 + maxW && w.trim()) {
-                x = 44;
-                ty += bodySize + 6;
-              }
-              ctx.fillText(w, x, ty);
-              x += wW;
-            }
-          }
-          if (ty > rulesY + rulesH - bodySize) break;
-        }
-        ty += bodySize + 8;
-        if (ty > rulesY + rulesH - 8) break;
-      }
-
-      // P/T
-      if (fields.pt) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(CARD_W - 150, CARD_H - 80, 110, 46);
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(CARD_W - 150, CARD_H - 80, 110, 46);
-        ctx.fillStyle = "#fff";
-        ctx.font = `bold ${bodySize + 2}px serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(fields.pt, CARD_W - 95, CARD_H - 57);
-        ctx.textAlign = "left";
-      }
+    async function run(img: HTMLImageElement | null) {
+      if (!ctx || cancelled || !template) return;
+      await renderTemplate(ctx, template, fields, img, artOffset, artScale, borderColor);
     }
 
     if (artUrl) {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        if (!cancelled) {
-          setBorderColor(averageColor(img));
-          void draw(img);
-        }
+        if (cancelled) return;
+        setBorderColor(averageColor(img));
+        void run(img);
       };
-      img.onerror = () => void draw(null);
+      img.onerror = () => void run(null);
       img.src = artUrl;
     } else {
-      void draw(null);
+      void run(null);
     }
-
     return () => {
       cancelled = true;
     };
-  }, [artUrl, fields, borderColor, fontSize, artScale, artOffset]);
+  }, [artUrl, fields, borderColor, artScale, artOffset, template]);
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -373,6 +195,21 @@ export function ProxyCreator({
 
   return (
     <div>
+      <div className={styles.field}>
+        <label className={styles.label}>Overlay template</label>
+        <select
+          className={styles.input}
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+        >
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className={styles.field}>
         <label className={styles.label}>Load card</label>
         <input
@@ -437,17 +274,10 @@ export function ProxyCreator({
             >
               {busy ? "Generating…" : "Generate art"}
             </button>
-            <p className={styles.subtitle} style={{ fontSize: "0.85rem" }}>
-              Real generation via Pollinations free tier. Not a placeholder.
-            </p>
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label}>Art position</label>
-            <p className={styles.subtitle} style={{ fontSize: "0.85rem" }}>
-              Drag the preview to pan. Zoom to crop.
-            </p>
-            <label className={styles.label}>Zoom: {artScale.toFixed(2)}</label>
+            <label className={styles.label}>Art position — drag preview to pan. Zoom: {artScale.toFixed(2)}</label>
             <input
               type="range"
               min={0.6}
@@ -466,18 +296,6 @@ export function ProxyCreator({
             >
               Reset crop
             </button>
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Font size (saved for all proxies): {fontSize}px</label>
-            <input
-              type="range"
-              min={18}
-              max={48}
-              step={1}
-              value={fontSize}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-            />
           </div>
 
           {(["name", "mana", "typeLine", "pt"] as const).map((key) => (
@@ -529,7 +347,7 @@ export function ProxyCreator({
             }}
           />
           <p className={styles.subtitle} style={{ fontSize: "0.85rem" }}>
-            Full-art layout. Drag to reposition. Rules border uses the average color of the art.
+            Overlay comes from the selected template. Drag to reposition art.
           </p>
         </div>
       </div>
