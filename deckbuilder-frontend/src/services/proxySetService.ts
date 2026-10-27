@@ -66,6 +66,18 @@ export async function fetchPublicProxyArt(): Promise<{ map: Map<string, ProxySet
   return { map, error: null };
 }
 
+/** Public proxy art for one oracle (if any). */
+export async function fetchProxyForOracle(oracleId: string): Promise<{ card: ProxySetCard | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from("proxy_set_cards")
+    .select("*, proxy_sets!inner(is_public)")
+    .eq("oracle_id", oracleId.toLowerCase())
+    .eq("proxy_sets.is_public", true)
+    .maybeSingle();
+  if (error) return { card: null, error: error.message };
+  return { card: (data as ProxySetCard) ?? null, error: null };
+}
+
 export async function upsertProxyCard(
   setId: string,
   input: { oracle_id: string; name: string; image_url: string; back_image_url?: string | null }
