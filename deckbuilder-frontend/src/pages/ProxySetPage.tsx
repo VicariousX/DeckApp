@@ -12,12 +12,14 @@ import {
   type ProxySetCard,
 } from "../services/proxySetService";
 import { isDrivePickerConfigured, pickDriveImage } from "../lib/googleDrivePicker";
+import { ProxyCreator } from "../components/ProxyCreator";
 import styles from "./LoginPage.module.css";
 
 export function ProxySetPage() {
   const { user, loading } = useAuth();
   const [set, setSet] = useState<ProxySet | null>(null);
   const [cards, setCards] = useState<ProxySetCard[]>([]);
+  const [tab, setTab] = useState<"upload" | "create">("upload");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [imageUrl, setImageUrl] = useState("");
@@ -147,6 +149,21 @@ export function ProxySetPage() {
     }
   }
 
+  async function saveCreated(oracleId: string, name: string, blob: Blob) {
+    if (!set) throw new Error("No proxy set.");
+    const file = new File([blob], "proxy.png", { type: "image/png" });
+    const image = await uploadToR2({ file }, oracleId, "front");
+    const { error: saveErr } = await upsertProxyCard(set.id, {
+      oracle_id: oracleId,
+      name,
+      image_url: image,
+      back_image_url: null,
+    });
+    if (saveErr) throw new Error(saveErr);
+    setInfo(`${name} added from the creator.`);
+    await refresh(set.id);
+  }
+
   async function remove(card: ProxySetCard) {
     if (!set) return;
     const { error: err } = await deleteProxyCard(card.id);
@@ -161,108 +178,130 @@ export function ProxySetPage() {
   if (!user || !isProxyAdmin(user)) return <Navigate to="/login" replace />;
 
   return (
-    <div className={styles.accountContent} style={{ maxWidth: 760, margin: "0 auto", padding: "1.5rem" }}>
+    <div className={styles.accountContent} style={{ maxWidth: 960, margin: "0 auto", padding: "1.5rem" }}>
       <h1 className={styles.title}>Proxy set</h1>
       <p className={styles.subtitle}>
-        Upload proxy art to Cloudflare R2, pick from Google Drive, or import from a public URL.
-        The set is readable by every user. Images are served from the R2 bucket.
+        Upload existing art or create a live proxy with an overlay. Images are stored on Cloudflare R2.
       </p>
-      {!driveReady && (
-        <p className={styles.subtitle}>
-          Google Drive picker is not configured. Set VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_API_KEY to enable it.
-        </p>
-      )}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        <button
+          type="button"
+          className={tab === "upload" ? styles.primaryBtn : styles.secondaryBtn}
+          onClick={() => setTab("upload")}
+        >
+          Upload
+        </button>
+        <button
+          type="button"
+          className={tab === "create" ? styles.primaryBtn : styles.secondaryBtn}
+          onClick={() => setTab("create")}
+        >
+          Create
+        </button>
+      </div>
+
       {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
       {info && <p className={styles.subtitle}>{info}</p>}
 
-      <div className={styles.field}>
-        <label className={styles.label}>Card name</label>
-        <input
-          className={styles.input}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search Scryfall…"
-          autoComplete="off"
-        />
-        {suggestions.length > 0 && (
-          <div>
-            {suggestions.map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={() => setQuery(name)}
-              >
-                {name}
-              </button>
-            ))}
+      {tab === "upload" ? (
+        <>
+          {!driveReady && (
+            <p className={styles.subtitle}>
+              Google Drive picker is not configured. Set VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_API_KEY to enable it.
+            </p>
+          )}
+          <div className={styles.field}>
+            <label className={styles.label}>Card name</label>
+            <input
+              className={styles.input}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search Scryfall…"
+              autoComplete="off"
+            />
+            {suggestions.length > 0 && (
+              <div>
+                {suggestions.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={styles.secondaryBtn}
+                    onClick={() => setQuery(name)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <div className={styles.field}>
-        <label className={styles.label}>Front image (file)</label>
-        <input
-          className={styles.input}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
-        />
-        {frontFile && <p className={styles.subtitle}>Selected: {frontFile.name}</p>}
-        <button
-          type="button"
-          className={styles.secondaryBtn}
-          disabled={!driveReady || busy}
-          onClick={() => void pickFromDrive("front")}
-        >
-          Pick front from Google Drive
-        </button>
-      </div>
-      <div className={styles.field}>
-        <label className={styles.label}>Or import front from URL</label>
-        <input
-          className={styles.input}
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://… or public share link"
-        />
-      </div>
-      <div className={styles.field}>
-        <label className={styles.label}>Back image (optional file)</label>
-        <input
-          className={styles.input}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
-        />
-        {backFile && <p className={styles.subtitle}>Selected: {backFile.name}</p>}
-        <button
-          type="button"
-          className={styles.secondaryBtn}
-          disabled={!driveReady || busy}
-          onClick={() => void pickFromDrive("back")}
-        >
-          Pick back from Google Drive
-        </button>
-      </div>
-      <div className={styles.field}>
-        <label className={styles.label}>Or import back from URL</label>
-        <input
-          className={styles.input}
-          type="url"
-          value={backUrl}
-          onChange={(e) => setBackUrl(e.target.value)}
-          placeholder="https://…"
-        />
-      </div>
-      <button
-        type="button"
-        className={styles.primaryBtn}
-        disabled={busy || !query.trim() || (!frontFile && !imageUrl.trim())}
-        onClick={() => void addCard(query.trim())}
-      >
-        {busy ? "Saving…" : "Add to proxy set"}
-      </button>
+          <div className={styles.field}>
+            <label className={styles.label}>Front image (file)</label>
+            <input
+              className={styles.input}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
+            />
+            {frontFile && <p className={styles.subtitle}>Selected: {frontFile.name}</p>}
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              disabled={!driveReady || busy}
+              onClick={() => void pickFromDrive("front")}
+            >
+              Pick front from Google Drive
+            </button>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Or import front from URL</label>
+            <input
+              className={styles.input}
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://… or public share link"
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Back image (optional file)</label>
+            <input
+              className={styles.input}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
+            />
+            {backFile && <p className={styles.subtitle}>Selected: {backFile.name}</p>}
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              disabled={!driveReady || busy}
+              onClick={() => void pickFromDrive("back")}
+            >
+              Pick back from Google Drive
+            </button>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Or import back from URL</label>
+            <input
+              className={styles.input}
+              type="url"
+              value={backUrl}
+              onChange={(e) => setBackUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </div>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            disabled={busy || !query.trim() || (!frontFile && !imageUrl.trim())}
+            onClick={() => void addCard(query.trim())}
+          >
+            {busy ? "Saving…" : "Add to proxy set"}
+          </button>
+        </>
+      ) : (
+        <ProxyCreator onSave={saveCreated} />
+      )}
 
       <h2 className={styles.title} style={{ marginTop: "1.5rem" }}>
         {cards.length} card{cards.length === 1 ? "" : "s"}
