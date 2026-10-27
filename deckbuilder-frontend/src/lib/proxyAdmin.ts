@@ -9,7 +9,7 @@ const PROXY_ADMIN_EMAILS = new Set<string>([
   // "you@example.com",
 ]);
 
-const PROXY_ADMIN_NAMES = new Set<string>(["jordan klein", "jordanx438"]);
+const PROXY_ADMIN_NAMES = new Set<string>(["vicariousx"]);
 
 export function isProxyAdmin(user: User | null | undefined): boolean {
   if (!user) return false;
