@@ -128,10 +128,19 @@ export function ProxyCreator({
     setBusy(true);
     setError(null);
     try {
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(p)}?width=1024&height=1400&nologo=true&seed=${Date.now()}`;
+      // Free tier max is ~768x768 area. Portrait 512x768 stays inside that and crops well onto a card.
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(p)}?width=512&height=768&nologo=true&seed=${Date.now()}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Generation failed (${res.status}). Free tier is rate-limited (~1 per 15s).`);
+      if (!res.ok) {
+        let detail = "";
+        try { detail = (await res.text()).slice(0, 180); } catch { /* ignore */ }
+        if (res.status === 402) throw new Error("Rate limited. Free tier allows about one image every 45 seconds.");
+        throw new Error(`Generation failed (${res.status}).${detail ? " " + detail : ""}`);
+      }
       const blob = await res.blob();
+      if (!blob.type.startsWith("image/") && blob.size < 1000) {
+        throw new Error("Generation returned no image. Try a shorter prompt or wait a minute.");
+      }
       setArtFromFile(new File([blob], "generated.jpg", { type: blob.type || "image/jpeg" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
