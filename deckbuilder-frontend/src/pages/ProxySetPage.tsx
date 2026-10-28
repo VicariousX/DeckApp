@@ -172,6 +172,12 @@ export function ProxySetPage() {
       setError(err);
       return;
     }
+    // Best-effort R2 cleanup for this oracle's proxy images
+    try {
+      await fetch(`/api/proxy-art?oracle_id=${encodeURIComponent(card.oracle_id)}`, { method: "DELETE" });
+    } catch {
+      /* ignore; card is already removed from the set */
+    }
     await refresh(set.id);
   }
 
