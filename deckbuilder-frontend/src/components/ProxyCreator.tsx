@@ -153,25 +153,31 @@ export function ProxyCreator({
         window.removeEventListener("message", onMsg);
         frame.remove();
       }
-      function finish(fn: (v: string) => void, value: string) {
+      function finishOk(value: string) {
         if (settled) return;
         settled = true;
         cleanup();
-        fn(value);
+        resolve(value);
+      }
+      function finishErr(err: Error) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(err);
       }
 
       function onMsg(e: MessageEvent) {
         const d = e.data as { api?: string; result?: { id?: string; ok?: boolean; url?: string; error?: string } } | null;
         if (!d || d.api !== "perchance-image-api" || !d.result || d.result.id !== id) return;
-        if (d.result.ok && d.result.url) finish(resolve, d.result.url);
-        else finish(reject, new Error(d.result.error || "Perchance generation failed."));
+        if (d.result.ok && d.result.url) finishOk(d.result.url);
+        else finishErr(new Error(d.result.error || "Perchance generation failed."));
       }
 
       window.addEventListener("message", onMsg);
       document.body.appendChild(frame);
 
       // Hard timeout — Perchance can be slow or challenge the iframe.
-      setTimeout(() => finish(reject, new Error("Perchance timed out. Try again in a moment.")), 90000);
+      setTimeout(() => finishErr(new Error("Perchance timed out. Try again in a moment.")), 90000);
     });
   }
 
