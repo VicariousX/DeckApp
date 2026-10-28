@@ -11,7 +11,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (!object) return new Response("Not found", { status: 404 });
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  headers.set("Cache-Control", "public, max-age=300");
   headers.set("Access-Control-Allow-Origin", "*");
   return new Response(object.body, { headers });
 };
