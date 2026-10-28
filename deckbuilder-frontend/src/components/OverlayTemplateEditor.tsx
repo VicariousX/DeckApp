@@ -41,6 +41,9 @@ export function OverlayTemplateEditor() {
     ow: number;
     oh: number;
   } | null>(null);
+  const history = useRef<{ past: OverlayElement[][]; future: OverlayElement[][] }>({ past: [], future: [] });
+  const elementsRef = useRef<OverlayElement[]>([]);
+  elementsRef.current = elements;
 
   useEffect(() => {
     const all = loadTemplates();
@@ -66,6 +69,7 @@ export function OverlayTemplateEditor() {
       const step = e.shiftKey ? 10 : 1;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
+        pushHistory();
         setElements((prev) => prev.filter((el) => el.id !== selected));
         setSelected(null);
         return;
@@ -74,8 +78,19 @@ export function OverlayTemplateEditor() {
         setSelected(null);
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
+        pushHistory();
         const el = elements.find((x) => x.id === selected);
         if (!el) return;
         const copy = { ...el, id: Math.random().toString(36).slice(2, 10), x: el.x + 16, y: el.y + 16, zIndex: el.zIndex + 1 };
@@ -83,10 +98,10 @@ export function OverlayTemplateEditor() {
         setSelected(copy.id);
         return;
       }
-      if (e.key === "ArrowLeft") { e.preventDefault(); updateSelected({ x: Math.max(0, (elements.find(x => x.id === selected)?.x ?? 0) - step) }); }
-      if (e.key === "ArrowRight") { e.preventDefault(); updateSelected({ x: (elements.find(x => x.id === selected)?.x ?? 0) + step }); }
-      if (e.key === "ArrowUp") { e.preventDefault(); updateSelected({ y: Math.max(0, (elements.find(x => x.id === selected)?.y ?? 0) - step) }); }
-      if (e.key === "ArrowDown") { e.preventDefault(); updateSelected({ y: (elements.find(x => x.id === selected)?.y ?? 0) + step }); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); pushHistory(); updateSelected({ x: Math.max(0, (elements.find(x => x.id === selected)?.x ?? 0) - step) }); }
+      if (e.key === "ArrowRight") { e.preventDefault(); pushHistory(); updateSelected({ x: (elements.find(x => x.id === selected)?.x ?? 0) + step }); }
+      if (e.key === "ArrowUp") { e.preventDefault(); pushHistory(); updateSelected({ y: Math.max(0, (elements.find(x => x.id === selected)?.y ?? 0) - step) }); }
+      if (e.key === "ArrowDown") { e.preventDefault(); pushHistory(); updateSelected({ y: (elements.find(x => x.id === selected)?.y ?? 0) + step }); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -101,6 +116,7 @@ export function OverlayTemplateEditor() {
   function load(id: string) {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
+    history.current = { past: [], future: [] };
     setCurrentId(t.id);
     setName(t.name);
     setElements(t.elements);
@@ -150,10 +166,33 @@ export function OverlayTemplateEditor() {
   }
 
   function add(type: OverlayElementType) {
+    pushHistory();
     const z = elements.reduce((m, e) => Math.max(m, e.zIndex), 0) + 1;
     const el = newElement(type, z);
     setElements((prev) => [...prev, el]);
     setSelected(el.id);
+  }
+
+  function pushHistory() {
+    history.current.past.push(elementsRef.current.map((el) => ({ ...el })));
+    if (history.current.past.length > 50) history.current.past.shift();
+    history.current.future = [];
+  }
+
+  function undo() {
+    const prev = history.current.past.pop();
+    if (!prev) return;
+    history.current.future.push(elementsRef.current.map((el) => ({ ...el })));
+    setElements(prev);
+    setInfo("Undo");
+  }
+
+  function redo() {
+    const next = history.current.future.pop();
+    if (!next) return;
+    history.current.past.push(elementsRef.current.map((el) => ({ ...el })));
+    setElements(next);
+    setInfo("Redo");
   }
 
   function updateSelected(patch: Partial<OverlayElement>) {
@@ -166,6 +205,7 @@ export function OverlayTemplateEditor() {
   }
 
   function bring(id: string, dir: "front" | "back" | "forward" | "backward") {
+    pushHistory();
     const max = elements.reduce((m, e) => Math.max(m, e.zIndex), 0);
     const min = elements.reduce((m, e) => Math.min(m, e.zIndex), 0);
     const el = elements.find((e) => e.id === id);
@@ -178,6 +218,7 @@ export function OverlayTemplateEditor() {
 
   function align(axis: "left" | "center" | "right" | "top" | "middle" | "bottom") {
     if (!sel) return;
+    pushHistory();
     const patch: Partial<OverlayElement> = {};
     if (axis === "left") patch.x = 0;
     if (axis === "center") patch.x = (CARD_W - sel.width) / 2;
@@ -209,6 +250,7 @@ export function OverlayTemplateEditor() {
     e.stopPropagation();
     const el = elements.find((x) => x.id === id);
     if (!el) return;
+    pushHistory();
     setSelected(id);
     drag.current = {
       id,
@@ -278,6 +320,8 @@ export function OverlayTemplateEditor() {
           ))}
         </select>
         <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={{ maxWidth: 160 }} />
+        <button type="button" className={styles.secondaryBtn} onClick={undo}>Undo</button>
+        <button type="button" className={styles.secondaryBtn} onClick={redo}>Redo</button>
         <button type="button" className={styles.primaryBtn} onClick={save}>Save</button>
         <button type="button" className={styles.secondaryBtn} onClick={saveAs}>Save as</button>
         <button type="button" className={styles.secondaryBtn} onClick={remove}>Delete</button>
@@ -305,7 +349,7 @@ export function OverlayTemplateEditor() {
       </div>
       {info && <p className={styles.subtitle}>{info}</p>}
       <p className={styles.subtitle} style={{ fontSize: "0.8rem" }}>
-        Keys: Ctrl/Cmd+S save · Delete remove · Arrows nudge (Shift×10) · Ctrl/Cmd+D duplicate · Esc deselect
+        Keys: Ctrl/Cmd+Z undo · Ctrl/Cmd+Shift+Z redo · Ctrl/Cmd+S save · Delete remove · Arrows nudge (Shift×10) · Ctrl/Cmd+D duplicate · Esc deselect
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: "1rem", alignItems: "start" }}>
@@ -480,6 +524,7 @@ export function OverlayTemplateEditor() {
                 className={styles.secondaryBtn}
                 style={{ gridColumn: "1 / -1" }}
                 onClick={() => {
+                  pushHistory();
                   setElements((prev) => prev.filter((e) => e.id !== sel.id));
                   setSelected(null);
                 }}
