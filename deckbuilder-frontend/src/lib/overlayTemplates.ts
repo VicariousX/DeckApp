@@ -33,6 +33,10 @@ export type OverlayElement = {
   borderOpacity: number;
   padding: number;
   cornerRadius: number;
+  /** Shrink font so text fits inside the element. */
+  fitText: boolean;
+  /** Shrink element width to the measured text. */
+  fitWidth: boolean;
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -76,6 +80,8 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     borderOpacity: el.borderOpacity ?? 1,
     padding: el.padding ?? 8,
     cornerRadius: el.cornerRadius ?? 0,
+    fitText: el.fitText ?? false,
+    fitWidth: el.fitWidth ?? false,
   };
 }
 
@@ -209,6 +215,17 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
+
+function measureLine(ctx: CanvasRenderingContext2D, line: string, symSize: number): number {
+  const tokens = tokenize(line);
+  let w = 0;
+  for (const t of tokens) {
+    if (t.kind === "sym") w += symSize + 4;
+    else w += ctx.measureText(t.text).width;
+  }
+  return w;
+}
+
 // --- Canvas rendering ---
 
 const symbolCache = new Map<string, HTMLImageElement>();
@@ -290,23 +307,26 @@ export async function renderTemplate(
     const border = resolveColor(el.borderSource, el.borderColor, el.borderOpacity, artColor);
     const fill = resolveColor(el.colorSource, el.color, el.colorOpacity, artColor);
 
-    if (el.backgroundSource === "art" || (el.background && el.background !== "transparent")) {
-      ctx.fillStyle = bg;
-      if (el.cornerRadius > 0) {
-        roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
-        ctx.fill();
-      } else {
-        ctx.fillRect(el.x, el.y, el.width, el.height);
+    // fitWidth elements draw their box after measuring text
+    if (!el.fitWidth) {
+      if (el.backgroundSource === "art" || (el.background && el.background !== "transparent")) {
+        ctx.fillStyle = bg;
+        if (el.cornerRadius > 0) {
+          roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+          ctx.fill();
+        } else {
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+        }
       }
-    }
-    if (el.borderWidth > 0) {
-      ctx.strokeStyle = border;
-      ctx.lineWidth = el.borderWidth;
-      if (el.cornerRadius > 0) {
-        roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
-        ctx.stroke();
-      } else {
-        ctx.strokeRect(el.x, el.y, el.width, el.height);
+      if (el.borderWidth > 0) {
+        ctx.strokeStyle = border;
+        ctx.lineWidth = el.borderWidth;
+        if (el.cornerRadius > 0) {
+          roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(el.x, el.y, el.width, el.height);
+        }
       }
     }
 
@@ -332,14 +352,72 @@ export async function renderTemplate(
     const text = textFor(el, fields);
     if (!text) continue;
 
+    const pad = el.padding;
+    let fontSize = el.fontSize;
+    let drawWidth = el.width;
+    let drawX = el.x;
+
+    // Fit width: measure at current size and shrink the box
+    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
+    if (el.fitWidth) {
+      const lines = text.split("\n");
+      let maxLine = 0;
+      for (const line of lines) {
+        maxLine = Math.max(maxLine, measureLine(ctx, line, Math.round(fontSize * 0.9)));
+      }
+      drawWidth = Math.max(40, maxLine + pad * 2);
+      if (el.textAlign === "center") drawX = el.x + (el.width - drawWidth) / 2;
+      else if (el.textAlign === "right") drawX = el.x + el.width - drawWidth;
+    }
+
+    // Fit text: shrink font until the wrapped block fits the height
+    if (el.fitText) {
+      const maxW = (el.fitWidth ? drawWidth : el.width) - pad * 2;
+      const maxH = el.height - pad * 2;
+      while (fontSize > 10) {
+        ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
+        const symSize = Math.round(fontSize * 0.9);
+        const lines = text.split("\n");
+        let totalH = 0;
+        for (const line of lines) {
+          const w = measureLine(ctx, line, symSize);
+          const wraps = Math.max(1, Math.ceil(w / Math.max(1, maxW)));
+          totalH += wraps * (fontSize + 6);
+        }
+        if (totalH <= maxH) break;
+        fontSize -= 1;
+      }
+    }
+
+    if (el.fitWidth) {
+      if (el.backgroundSource === "art" || (el.background && el.background !== "transparent")) {
+        ctx.fillStyle = bg;
+        if (el.cornerRadius > 0) {
+          roundRect(ctx, drawX, el.y, drawWidth, el.height, el.cornerRadius);
+          ctx.fill();
+        } else {
+          ctx.fillRect(drawX, el.y, drawWidth, el.height);
+        }
+      }
+      if (el.borderWidth > 0) {
+        ctx.strokeStyle = border;
+        ctx.lineWidth = el.borderWidth;
+        if (el.cornerRadius > 0) {
+          roundRect(ctx, drawX, el.y, drawWidth, el.height, el.cornerRadius);
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(drawX, el.y, drawWidth, el.height);
+        }
+      }
+    }
+
     ctx.fillStyle = fill;
-    ctx.font = `${el.fontStyle} ${el.fontWeight} ${el.fontSize}px serif`;
+    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
     ctx.textBaseline = "top";
 
-    const pad = el.padding;
-    const symSize = Math.round(el.fontSize * 0.9);
+    const symSize = Math.round(fontSize * 0.9);
     const lines = text.split("\n");
-    const lineH = el.fontSize + 6;
+    const lineH = fontSize + 6;
     const blockH = lines.length * lineH;
 
     let ty = el.y + pad;
@@ -358,9 +436,9 @@ export async function renderTemplate(
         if (t.kind === "sym") lineW += symSize + 4;
         else lineW += ctx.measureText(t.text).width;
       }
-      let x = el.x + pad;
-      if (el.textAlign === "center") x = el.x + (el.width - lineW) / 2;
-      else if (el.textAlign === "right") x = el.x + el.width - pad - lineW;
+      let x = drawX + pad;
+      if (el.textAlign === "center") x = drawX + (drawWidth - lineW) / 2;
+      else if (el.textAlign === "right") x = drawX + drawWidth - pad - lineW;
 
       for (const t of tokens) {
         if (t.kind === "sym") {
@@ -371,9 +449,9 @@ export async function renderTemplate(
           const words = t.text.split(/(\s+)/);
           for (const w of words) {
             const wW = ctx.measureText(w).width;
-            if (x + wW > el.x + el.width - pad && w.trim()) {
+            if (x + wW > drawX + drawWidth - pad && w.trim()) {
               ty += lineH;
-              x = el.x + pad;
+              x = drawX + pad;
               if (ty > el.y + el.height - 4) break;
             }
             ctx.fillText(w, x, ty);
