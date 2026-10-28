@@ -31,6 +31,8 @@ export type OverlayElement = {
   colorOpacity: number;
   backgroundOpacity: number;
   borderOpacity: number;
+  padding: number;
+  cornerRadius: number;
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -72,6 +74,8 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     colorOpacity: el.colorOpacity ?? 1,
     backgroundOpacity: el.backgroundOpacity ?? 1,
     borderOpacity: el.borderOpacity ?? 1,
+    padding: el.padding ?? 8,
+    cornerRadius: el.cornerRadius ?? 0,
   };
 }
 
@@ -193,6 +197,18 @@ export function averageColor(img: HTMLImageElement): string {
   return `rgb(${lift(r)},${lift(g)},${lift(b)})`;
 }
 
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rad = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+}
+
 // --- Canvas rendering ---
 
 const symbolCache = new Map<string, HTMLImageElement>();
@@ -269,12 +285,22 @@ export async function renderTemplate(
 
     if (el.backgroundSource === "art" || (el.background && el.background !== "transparent")) {
       ctx.fillStyle = bg;
-      ctx.fillRect(el.x, el.y, el.width, el.height);
+      if (el.cornerRadius > 0) {
+        roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+        ctx.fill();
+      } else {
+        ctx.fillRect(el.x, el.y, el.width, el.height);
+      }
     }
     if (el.borderWidth > 0) {
       ctx.strokeStyle = border;
       ctx.lineWidth = el.borderWidth;
-      ctx.strokeRect(el.x, el.y, el.width, el.height);
+      if (el.cornerRadius > 0) {
+        roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(el.x, el.y, el.width, el.height);
+      }
     }
 
     if (el.type === "mana") {
@@ -303,7 +329,7 @@ export async function renderTemplate(
     ctx.font = `${el.fontStyle} ${el.fontWeight} ${el.fontSize}px serif`;
     ctx.textBaseline = "top";
 
-    const pad = 8;
+    const pad = el.padding;
     const symSize = Math.round(el.fontSize * 0.9);
     const lines = text.split("\n");
     const lineH = el.fontSize + 6;
