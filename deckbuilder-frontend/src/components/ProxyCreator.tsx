@@ -15,6 +15,19 @@ import { loadTemplatesRemote } from "../lib/overlayTemplateService";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "../pages/LoginPage.module.css";
 
+type StylePreset = { id: string; name: string; prefix: string; suffix: string };
+
+const PRESETS_KEY = "deckapp.proxy.stylePresets";
+function loadPresets(): StylePreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    return raw ? (JSON.parse(raw) as StylePreset[]) : [];
+  } catch { return []; }
+}
+function savePresets(list: StylePreset[]) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(list));
+}
+
 export function ProxyCreator({
   onSave,
 }: {
@@ -34,6 +47,12 @@ export function ProxyCreator({
   const [artUrl, setArtUrl] = useState<string | null>(null);
   const [borderColor, setBorderColor] = useState("#5a5a5a");
   const [prompt, setPrompt] = useState("");
+  const [presets, setPresets] = useState<StylePreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState("");
+  const [presetName, setPresetName] = useState("");
+  const [presetPrefix, setPresetPrefix] = useState("");
+  const [presetSuffix, setPresetSuffix] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<OverlayTemplate[]>([]);
@@ -51,6 +70,7 @@ export function ProxyCreator({
       if (!error && remote.length > 0) saveTemplates(remote);
       setTemplates(all);
       if (all[0]) setTemplateId(all[0].id);
+      setPresets(loadPresets());
     })();
   }, []);
 
@@ -181,8 +201,15 @@ export function ProxyCreator({
     });
   }
 
+  function buildPrompt(userPrompt: string): string {
+    const preset = presets.find((x) => x.id === activePresetId);
+    const prefix = preset?.prefix.trim() || "";
+    const suffix = preset?.suffix.trim() || "";
+    return [prefix, userPrompt.trim(), suffix].filter(Boolean).join(", ");
+  }
+
   async function generate() {
-    const p = prompt.trim();
+    const p = buildPrompt(prompt);
     if (!p) return;
     setBusy(true);
     setError(null);
@@ -274,6 +301,35 @@ export function ProxyCreator({
     }
   }
 
+  function saveCurrentPreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    const id = activePresetId || crypto.randomUUID();
+    const next: StylePreset = { id, name, prefix: presetPrefix, suffix: presetSuffix };
+    const list = presets.some((x) => x.id === id)
+      ? presets.map((x) => (x.id === id ? next : x))
+      : [...presets, next];
+    setPresets(list);
+    savePresets(list);
+    setActivePresetId(id);
+  }
+
+  function deletePreset(id: string) {
+    const list = presets.filter((x) => x.id !== id);
+    setPresets(list);
+    savePresets(list);
+    if (activePresetId === id) setActivePresetId("");
+  }
+
+  function loadPreset(id: string) {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setActivePresetId(id);
+    setPresetName(p.name);
+    setPresetPrefix(p.prefix);
+    setPresetSuffix(p.suffix);
+  }
+
   return (
     <div>
       <div className={styles.field}>
@@ -337,6 +393,51 @@ export function ProxyCreator({
             >
               Pick from Google Drive
             </button>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Style preset</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select
+                className={styles.input}
+                value={activePresetId}
+                onChange={(e) => loadPreset(e.target.value)}
+                style={{ flex: 1, minWidth: 160 }}
+              >
+                <option value="">None</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button type="button" className={styles.secondaryBtn} onClick={() => setShowSettings((v) => !v)}>
+                {showSettings ? "Hide settings" : "Edit presets"}
+              </button>
+            </div>
+            {showSettings && (
+              <div style={{ marginTop: 10, padding: 10, border: "1px solid #333", borderRadius: 6 }}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Preset name</label>
+                  <input className={styles.input} value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Concept art" />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Prefix (added before your prompt)</label>
+                  <textarea className={styles.input} rows={2} value={presetPrefix} onChange={(e) => setPresetPrefix(e.target.value)} placeholder="magic the gathering card art, " />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Suffix (added after your prompt)</label>
+                  <textarea className={styles.input} rows={2} value={presetSuffix} onChange={(e) => setPresetSuffix(e.target.value)} placeholder=", detailed fantasy illustration, no text" />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className={styles.secondaryBtn} onClick={saveCurrentPreset} disabled={!presetName.trim()}>
+                    Save preset
+                  </button>
+                  {activePresetId && (
+                    <button type="button" className={styles.secondaryBtn} onClick={() => deletePreset(activePresetId)}>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className={styles.field}>
             <label className={styles.label}>Or generate (Perchance, in-page)</label>
