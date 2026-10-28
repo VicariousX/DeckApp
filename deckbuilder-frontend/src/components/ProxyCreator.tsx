@@ -122,26 +122,70 @@ export function ProxyCreator({
     }
   }
 
+  async function generateWithPerchance(promptText: string): Promise<string> {
+    // Official Image API v1: hidden iframe + postMessage. Returns a permanent URL.
+    // Warm-up once so Cloudflare is happy for this origin.
+    await new Promise<void>((resolve) => {
+      const warm = document.createElement("iframe");
+      warm.src = "https://perchance.org";
+      warm.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;";
+      warm.onload = () => { warm.remove(); resolve(); };
+      warm.onerror = () => { warm.remove(); resolve(); };
+      document.body.appendChild(warm);
+      setTimeout(() => { warm.remove(); resolve(); }, 8000);
+    });
+
+    const id = Math.random().toString(36).slice(2);
+    const params = new URLSearchParams({
+      prompt: promptText,
+      format: "json",
+      id,
+      resolution: "512x768",
+    });
+
+    return new Promise<string>((resolve, reject) => {
+      const frame = document.createElement("iframe");
+      frame.src = `https://perchance.org/perchance-ai-api?${params.toString()}`;
+      frame.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;";
+      let settled = false;
+
+      function cleanup() {
+        window.removeEventListener("message", onMsg);
+        frame.remove();
+      }
+      function finish(fn: (v: string) => void, value: string) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn(value);
+      }
+
+      function onMsg(e: MessageEvent) {
+        const d = e.data as { api?: string; result?: { id?: string; ok?: boolean; url?: string; error?: string } } | null;
+        if (!d || d.api !== "perchance-image-api" || !d.result || d.result.id !== id) return;
+        if (d.result.ok && d.result.url) finish(resolve, d.result.url);
+        else finish(reject, new Error(d.result.error || "Perchance generation failed."));
+      }
+
+      window.addEventListener("message", onMsg);
+      document.body.appendChild(frame);
+
+      // Hard timeout — Perchance can be slow or challenge the iframe.
+      setTimeout(() => finish(reject, new Error("Perchance timed out. Try again in a moment.")), 90000);
+    });
+  }
+
   async function generate() {
     const p = prompt.trim();
     if (!p) return;
     setBusy(true);
     setError(null);
     try {
-      // Free tier max is ~768x768 area. Portrait 512x768 stays inside that and crops well onto a card.
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(p)}?width=512&height=768&nologo=true&seed=${Date.now()}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        let detail = "";
-        try { detail = (await res.text()).slice(0, 180); } catch { /* ignore */ }
-        if (res.status === 402) throw new Error("Rate limited. Free tier allows about one image every 45 seconds.");
-        throw new Error(`Generation failed (${res.status}).${detail ? " " + detail : ""}`);
-      }
+      const imageUrl = await generateWithPerchance(p);
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error(`Could not download result (${res.status}).`);
       const blob = await res.blob();
-      if (!blob.type.startsWith("image/") && blob.size < 1000) {
-        throw new Error("Generation returned no image. Try a shorter prompt or wait a minute.");
-      }
-      setArtFromFile(new File([blob], "generated.jpg", { type: blob.type || "image/jpeg" }));
+      setArtFromFile(new File([blob], "generated.png", { type: blob.type || "image/png" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
@@ -289,7 +333,7 @@ export function ProxyCreator({
             </button>
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Or generate (free, in-page)</label>
+            <label className={styles.label}>Or generate (Perchance, in-page)</label>
             <textarea
               className={styles.input}
               rows={3}
@@ -303,7 +347,7 @@ export function ProxyCreator({
               disabled={busy || !prompt.trim()}
               onClick={() => void generate()}
             >
-              {busy ? "Generating…" : "Generate art"}
+              {busy ? "Generating…" : "Generate with Perchance"}
             </button>
           </div>
 
