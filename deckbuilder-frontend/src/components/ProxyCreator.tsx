@@ -7,9 +7,11 @@ import {
   CARD_W,
   loadTemplates,
   renderTemplate,
+  saveTemplates,
   type OverlayTemplate,
   type ProxyFields,
 } from "../lib/overlayTemplates";
+import { loadTemplatesRemote } from "../lib/overlayTemplateService";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "../pages/LoginPage.module.css";
 
@@ -42,9 +44,29 @@ export function ProxyCreator({
   const driveReady = isDrivePickerConfigured();
 
   useEffect(() => {
-    const all = loadTemplates();
-    setTemplates(all);
-    if (all[0]) setTemplateId(all[0].id);
+    void (async () => {
+      const local = loadTemplates();
+      const { templates: remote, error } = await loadTemplatesRemote();
+      const all = !error && remote.length > 0 ? remote : local;
+      if (!error && remote.length > 0) saveTemplates(remote);
+      setTemplates(all);
+      if (all[0]) setTemplateId(all[0].id);
+    })();
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+      if (typing) return;
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === "ArrowLeft") { e.preventDefault(); setArtOffset((o) => ({ ...o, x: o.x - step })); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setArtOffset((o) => ({ ...o, x: o.x + step })); }
+      if (e.key === "ArrowUp") { e.preventDefault(); setArtOffset((o) => ({ ...o, y: o.y - step })); }
+      if (e.key === "ArrowDown") { e.preventDefault(); setArtOffset((o) => ({ ...o, y: o.y + step })); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const template = templates.find((t) => t.id === templateId) ?? templates[0] ?? null;
@@ -347,7 +369,7 @@ export function ProxyCreator({
             }}
           />
           <p className={styles.subtitle} style={{ fontSize: "0.85rem" }}>
-            Overlay comes from the selected template. Drag to reposition art.
+            Overlay comes from the selected template. Drag or use arrow keys to reposition art (Shift = 10px).
           </p>
         </div>
       </div>
