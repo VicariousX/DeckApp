@@ -7,12 +7,14 @@ import {
   loadTemplates,
   newElement,
   resolveColor,
+  saveTemplates,
   upsertTemplate,
   type ColorSource,
   type OverlayElement,
   type OverlayElementType,
   type OverlayTemplate,
 } from "../lib/overlayTemplates";
+import { deleteTemplateRemote, loadTemplatesRemote, upsertTemplateRemote } from "../lib/overlayTemplateService";
 
 const PREVIEW_W = 340;
 const SCALE = PREVIEW_W / CARD_W;
@@ -46,13 +48,18 @@ export function OverlayTemplateEditor() {
   elementsRef.current = elements;
 
   useEffect(() => {
-    const all = loadTemplates();
-    setTemplates(all);
-    if (all[0]) {
-      setCurrentId(all[0].id);
-      setName(all[0].name);
-      setElements(all[0].elements);
-    }
+    void (async () => {
+      const local = loadTemplates();
+      const { templates: remote, error } = await loadTemplatesRemote();
+      const all = !error && remote.length > 0 ? remote : local;
+      if (!error && remote.length > 0) saveTemplates(remote);
+      setTemplates(all);
+      if (all[0]) {
+        setCurrentId(all[0].id);
+        setName(all[0].name);
+        setElements(all[0].elements);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -124,7 +131,7 @@ export function OverlayTemplateEditor() {
     setInfo(null);
   }
 
-  function save() {
+  async function save() {
     const id = currentId || Math.random().toString(36).slice(2, 10);
     const template: OverlayTemplate = {
       id,
@@ -135,10 +142,11 @@ export function OverlayTemplateEditor() {
     const all = upsertTemplate(template);
     setTemplates(all);
     setCurrentId(id);
-    setInfo(`Saved “${template.name}”.`);
+    const { error } = await upsertTemplateRemote(template);
+    setInfo(error ? `Saved locally. Cloud: ${error}` : `Saved “${template.name}”.`);
   }
 
-  function saveAs() {
+  async function saveAs() {
     const id = Math.random().toString(36).slice(2, 10);
     const template: OverlayTemplate = {
       id,
@@ -150,19 +158,22 @@ export function OverlayTemplateEditor() {
     setTemplates(all);
     setCurrentId(id);
     setName(template.name);
-    setInfo(`Saved as “${template.name}”.`);
+    const { error } = await upsertTemplateRemote(template);
+    setInfo(error ? `Saved locally. Cloud: ${error}` : `Saved as “${template.name}”.`);
   }
 
-  function remove() {
+  async function remove() {
     if (!currentId) return;
-    const all = deleteTemplate(currentId);
+    const id = currentId;
+    const all = deleteTemplate(id);
     setTemplates(all);
     if (all[0]) {
       setCurrentId(all[0].id);
       setName(all[0].name);
       setElements(all[0].elements);
     }
-    setInfo("Template deleted.");
+    const { error } = await deleteTemplateRemote(id);
+    setInfo(error ? `Deleted locally. Cloud: ${error}` : "Template deleted.");
   }
 
   function add(type: OverlayElementType) {
@@ -322,9 +333,9 @@ export function OverlayTemplateEditor() {
         <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={{ maxWidth: 160 }} />
         <button type="button" className={styles.secondaryBtn} onClick={undo}>Undo</button>
         <button type="button" className={styles.secondaryBtn} onClick={redo}>Redo</button>
-        <button type="button" className={styles.primaryBtn} onClick={save}>Save</button>
-        <button type="button" className={styles.secondaryBtn} onClick={saveAs}>Save as</button>
-        <button type="button" className={styles.secondaryBtn} onClick={remove}>Delete</button>
+        <button type="button" className={styles.primaryBtn} onClick={() => void save()}>Save</button>
+        <button type="button" className={styles.secondaryBtn} onClick={() => void saveAs()}>Save as</button>
+        <button type="button" className={styles.secondaryBtn} onClick={() => void remove()}>Delete</button>
         <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.85rem" }}>
           <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid
         </label>
@@ -479,6 +490,14 @@ export function OverlayTemplateEditor() {
               <Num label="Border" value={sel.borderWidth} onChange={(v) => updateSelected({ borderWidth: v })} />
               <Num label="Padding" value={sel.padding} onChange={(v) => updateSelected({ padding: v })} />
               <Num label="Radius" value={sel.cornerRadius} onChange={(v) => updateSelected({ cornerRadius: v })} />
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                <input type="checkbox" checked={!!sel.fitText} onChange={(e) => updateSelected({ fitText: e.target.checked })} />
+                Fit text
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                <input type="checkbox" checked={!!sel.fitWidth} onChange={(e) => updateSelected({ fitWidth: e.target.checked })} />
+                Fit width
+              </label>
 
               <Select label="H align" value={sel.textAlign} options={["left", "center", "right"]} onChange={(v) => updateSelected({ textAlign: v as OverlayElement["textAlign"] })} />
               <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
