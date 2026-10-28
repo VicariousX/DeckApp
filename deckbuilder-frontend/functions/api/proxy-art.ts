@@ -102,6 +102,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   return json({ key, url: `${url.origin}/api/proxy-art/file?key=${encodeURIComponent(key)}` });
 };
 
+
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  const bucket = context.env.PROXY_ART;
+  if (!bucket) return json({ error: "R2 binding PROXY_ART is not configured." }, 500);
+  const url = new URL(context.request.url);
+  const oracle = (url.searchParams.get("oracle_id") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  const keyParam = url.searchParams.get("key") || "";
+  if (keyParam) {
+    // Single key delete (must be under proxy/)
+    if (!keyParam.startsWith("proxy/")) return json({ error: "Invalid key." }, 400);
+    await bucket.delete(keyParam);
+    return json({ deleted: 1, keys: [keyParam] });
+  }
+  if (!oracle) return json({ error: "oracle_id or key is required." }, 400);
+  const prefix = `proxy/${oracle}/`;
+  const listed = await bucket.list({ prefix });
+  const keys = listed.objects.map((o) => o.key);
+  if (keys.length) await bucket.delete(keys);
+  return json({ deleted: keys.length, keys });
+};
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const bucket = context.env.PROXY_ART;
   if (!bucket) return json({ error: "R2 binding PROXY_ART is not configured." }, 500);
