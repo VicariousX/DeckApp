@@ -247,12 +247,18 @@ export type ProxyFields = {
 };
 
 function textFor(el: OverlayElement, fields: ProxyFields): string {
-  if (el.type === "name") return fields.name || "Card name";
-  if (el.type === "typeLine") return fields.typeLine || "Type line";
+  if (el.type === "name") return fields.name || "";
+  if (el.type === "typeLine") return fields.typeLine || "";
   if (el.type === "rules") return fields.rules || "";
   if (el.type === "pt") return fields.pt || "";
   if (el.type === "customText") return el.customText || "";
   return "";
+}
+
+/** True when an element has nothing to show for this card. Empty elements are not drawn. */
+export function elementHasContent(el: OverlayElement, fields: ProxyFields): boolean {
+  if (el.type === "mana") return parseManaCost(fields.mana).length > 0;
+  return textFor(el, fields).trim().length > 0;
 }
 
 export async function renderTemplate(
@@ -279,6 +285,7 @@ export async function renderTemplate(
   const ordered = [...template.elements].sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of ordered) {
+    if (!elementHasContent(el, fields)) continue;
     const bg = resolveColor(el.backgroundSource, el.background, el.backgroundOpacity, artColor);
     const border = resolveColor(el.borderSource, el.borderColor, el.borderOpacity, artColor);
     const fill = resolveColor(el.colorSource, el.color, el.colorOpacity, artColor);
