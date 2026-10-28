@@ -99,7 +99,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const key = `proxy/${oracle}/${side}.${extFor(contentType)}`;
   await bucket.put(key, buffer, { httpMetadata: { contentType } });
   const url = new URL(context.request.url);
-  return json({ key, url: `${url.origin}/api/proxy-art/file?key=${encodeURIComponent(key)}` });
+  const bust = Date.now();
+  return json({ key, url: `${url.origin}/api/proxy-art/file?key=${encodeURIComponent(key)}&v=${bust}` });
 };
 
 
