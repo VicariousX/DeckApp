@@ -214,11 +214,18 @@ export function ProxyCreator({
     setBusy(true);
     setError(null);
     try {
-      const imageUrl = await generateWithPerchance(p);
-      const res = await fetch(imageUrl);
-      if (!res.ok) throw new Error(`Could not download result (${res.status}).`);
+      // Call the local reverse proxy (must be running on the same machine).
+      const proxyUrl = `http://127.0.0.1:8787/generate?prompt=${encodeURIComponent(p)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`Proxy failed (${res.status}).${detail ? " " + detail.slice(0, 180) : ""}`);
+      }
       const blob = await res.blob();
-      setArtFromFile(new File([blob], "generated.png", { type: blob.type || "image/png" }));
+      if (!blob.type.startsWith("image/") && blob.size < 1000) {
+        throw new Error("Proxy returned no image. Is the local server running?");
+      }
+      setArtFromFile(new File([blob], "generated.jpg", { type: blob.type || "image/jpeg" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
@@ -440,7 +447,7 @@ export function ProxyCreator({
             )}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Or generate (Perchance, in-page)</label>
+            <label className={styles.label}>Or generate (local proxy)</label>
             <textarea
               className={styles.input}
               rows={3}
@@ -454,7 +461,7 @@ export function ProxyCreator({
               disabled={busy || !prompt.trim()}
               onClick={() => void generate()}
             >
-              {busy ? "Generating…" : "Generate with Perchance"}
+              {busy ? "Generating…" : "Generate (local proxy)"}
             </button>
           </div>
 
