@@ -52,6 +52,46 @@ export function OverlayTemplateEditor() {
     }
   }, []);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        save();
+        return;
+      }
+      if (typing) return;
+      if (!selected) return;
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        setElements((prev) => prev.filter((el) => el.id !== selected));
+        setSelected(null);
+        return;
+      }
+      if (e.key === "Escape") {
+        setSelected(null);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        const el = elements.find((x) => x.id === selected);
+        if (!el) return;
+        const copy = { ...el, id: Math.random().toString(36).slice(2, 10), x: el.x + 16, y: el.y + 16, zIndex: el.zIndex + 1 };
+        setElements((prev) => [...prev, copy]);
+        setSelected(copy.id);
+        return;
+      }
+      if (e.key === "ArrowLeft") { e.preventDefault(); updateSelected({ x: Math.max(0, (elements.find(x => x.id === selected)?.x ?? 0) - step) }); }
+      if (e.key === "ArrowRight") { e.preventDefault(); updateSelected({ x: (elements.find(x => x.id === selected)?.x ?? 0) + step }); }
+      if (e.key === "ArrowUp") { e.preventDefault(); updateSelected({ y: Math.max(0, (elements.find(x => x.id === selected)?.y ?? 0) - step) }); }
+      if (e.key === "ArrowDown") { e.preventDefault(); updateSelected({ y: (elements.find(x => x.id === selected)?.y ?? 0) + step }); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const ordered = useMemo(
     () => [...elements].sort((a, b) => b.zIndex - a.zIndex),
     [elements]
@@ -264,6 +304,9 @@ export function OverlayTemplateEditor() {
         />
       </div>
       {info && <p className={styles.subtitle}>{info}</p>}
+      <p className={styles.subtitle} style={{ fontSize: "0.8rem" }}>
+        Keys: Ctrl/Cmd+S save · Delete remove · Arrows nudge (Shift×10) · Ctrl/Cmd+D duplicate · Esc deselect
+      </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: "1rem", alignItems: "start" }}>
         {/* Canvas */}
@@ -316,6 +359,7 @@ export function OverlayTemplateEditor() {
                 userSelect: "none",
                 overflow: "hidden",
                 zIndex: el.zIndex,
+                borderRadius: el.cornerRadius * SCALE,
               }}
             >
               {el.type}
@@ -389,6 +433,8 @@ export function OverlayTemplateEditor() {
               <Num label="H" value={sel.height} onChange={(v) => updateSelected({ height: v })} />
               <Num label="Font" value={sel.fontSize} onChange={(v) => updateSelected({ fontSize: v })} />
               <Num label="Border" value={sel.borderWidth} onChange={(v) => updateSelected({ borderWidth: v })} />
+              <Num label="Padding" value={sel.padding} onChange={(v) => updateSelected({ padding: v })} />
+              <Num label="Radius" value={sel.cornerRadius} onChange={(v) => updateSelected({ cornerRadius: v })} />
 
               <Select label="H align" value={sel.textAlign} options={["left", "center", "right"]} onChange={(v) => updateSelected({ textAlign: v as OverlayElement["textAlign"] })} />
               <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
