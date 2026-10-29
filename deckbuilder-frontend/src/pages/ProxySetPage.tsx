@@ -95,6 +95,27 @@ export function ProxySetPage() {
     }
   }
 
+  async function pasteFromClipboard(side: "front" | "back") {
+    setError(null);
+    setInfo(null);
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        const file = new File([blob], `pasted-${side}.png`, { type });
+        if (side === "front") setFrontFile(file);
+        else setBackFile(file);
+        setInfo(`Pasted ${file.name} from clipboard.`);
+        return;
+      }
+      setError("Clipboard has no image.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read clipboard.");
+    }
+  }
+
   async function addCard(name: string) {
     if (!set || !user) return;
     setBusy(true);
@@ -267,6 +288,14 @@ export function ProxySetPage() {
             >
               Pick front from Google Drive
             </button>
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              disabled={busy}
+              onClick={() => void pasteFromClipboard("front")}
+            >
+              Paste front from clipboard
+            </button>
           </div>
           <div className={styles.field}>
             <label className={styles.label}>Or import front from URL</label>
@@ -294,6 +323,14 @@ export function ProxySetPage() {
               onClick={() => void pickFromDrive("back")}
             >
               Pick back from Google Drive
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              disabled={busy}
+              onClick={() => void pasteFromClipboard("back")}
+            >
+              Paste back from clipboard
             </button>
           </div>
           <div className={styles.field}>
