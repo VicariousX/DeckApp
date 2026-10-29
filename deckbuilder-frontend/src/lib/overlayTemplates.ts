@@ -15,7 +15,7 @@ export type OverlayElement = {
   width: number;
   height: number;
   fontSize: number;
-  fontWeight: "normal" | "bold";
+  fontWeight: "normal" | "bold" | "300" | "400" | "500" | "700";
   fontStyle: "normal" | "italic";
   color: string;
   background: string;
@@ -49,6 +49,12 @@ export type OverlayElement = {
   maxLines: number;
   /** How to handle overflow. */
   wrapMode: "wrap" | "nowrap" | "ellipsis";
+  /** Text outline color (empty = none). */
+  textOutline: string;
+  /** Text outline width in px. */
+  textOutlineWidth: number;
+  /** Grow element height to fit content. */
+  autoGrow: boolean;
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -100,6 +106,9 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     textShadow: el.textShadow ?? "",
     maxLines: el.maxLines ?? 0,
     wrapMode: el.wrapMode ?? "wrap",
+    textOutline: el.textOutline ?? "",
+    textOutlineWidth: el.textOutlineWidth ?? 0,
+    autoGrow: el.autoGrow ?? false,
   };
 }
 
@@ -325,25 +334,45 @@ export async function renderTemplate(
     const border = resolveColor(el.borderSource, el.borderColor, el.borderOpacity, artColor);
     const fill = resolveColor(el.colorSource, el.color, el.colorOpacity, artColor);
 
+    // autoGrow: measure content and expand height
+    let drawHeight = el.height;
+    if (el.autoGrow && el.type !== "mana") {
+      const text = textFor(el, fields);
+      if (text) {
+        const pad = el.padding || 0;
+        const fontSize = el.fontSize;
+        ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
+        const lineH = Math.round(fontSize * (el.lineHeight || 1.25));
+        const lines = text.split("\n");
+        let totalH = pad * 2;
+        for (const line of lines) {
+          const w = ctx.measureText(line).width;
+          const wraps = Math.max(1, Math.ceil(w / Math.max(1, el.width - pad * 2)));
+          totalH += wraps * lineH;
+        }
+        drawHeight = Math.max(el.height, totalH);
+      }
+    }
+
     // fitWidth elements draw their box after measuring text
     if (!el.fitWidth) {
       if (el.backgroundSource === "art" || (el.background && el.background !== "transparent")) {
         ctx.fillStyle = bg;
         if (el.cornerRadius > 0) {
-          roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+          roundRect(ctx, el.x, el.y, el.width, drawHeight, el.cornerRadius);
           ctx.fill();
         } else {
-          ctx.fillRect(el.x, el.y, el.width, el.height);
+          ctx.fillRect(el.x, el.y, el.width, drawHeight);
         }
       }
       if (el.borderWidth > 0) {
         ctx.strokeStyle = border;
         ctx.lineWidth = el.borderWidth;
         if (el.cornerRadius > 0) {
-          roundRect(ctx, el.x, el.y, el.width, el.height, el.cornerRadius);
+          roundRect(ctx, el.x, el.y, el.width, drawHeight, el.cornerRadius);
           ctx.stroke();
         } else {
-          ctx.strokeRect(el.x, el.y, el.width, el.height);
+          ctx.strokeRect(el.x, el.y, el.width, drawHeight);
         }
       }
     }
@@ -432,6 +461,11 @@ export async function renderTemplate(
     ctx.fillStyle = fill;
     ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
     ctx.textBaseline = "top";
+    if (el.textOutline && el.textOutlineWidth > 0) {
+      ctx.strokeStyle = el.textOutline;
+      ctx.lineWidth = el.textOutlineWidth;
+      ctx.lineJoin = "round";
+    }
     if (el.textShadow) {
       ctx.shadowColor = el.textShadow;
       ctx.shadowBlur = 4;
@@ -480,6 +514,9 @@ export async function renderTemplate(
               ty += lineH;
               x = drawX + pad;
               if (ty > el.y + el.height - 4) break;
+            }
+            if (el.textOutline && el.textOutlineWidth > 0) {
+              ctx.strokeText(w, x, ty);
             }
             ctx.fillText(w, x, ty);
             x += wW;
