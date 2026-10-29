@@ -28,6 +28,49 @@ function savePresets(list: StylePreset[]) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(list));
 }
 
+const COLOR_PALETTE: Record<string, string> = {
+  W: "warm gold, ivory and soft cream",
+  U: "deep cobalt and ocean teal",
+  B: "charcoal, deep violet-black and muted plum",
+  R: "ember red, burnt orange and warm gold",
+  G: "forest green, moss and earth brown",
+  C: "platinum, graphite and void tones, never reading as white",
+};
+
+function paletteFromCard(card: { color_identity?: string[]; colors?: string[] } | null): string {
+  const colors = card?.color_identity?.length ? card.color_identity : card?.colors ?? [];
+  if (!colors.length) return COLOR_PALETTE.C;
+  return colors.map((c) => COLOR_PALETTE[c] || c).join(", ");
+}
+
+const COSMIC_INK_SUFFIX = `Rendered in the Cosmic Ink style: a vertical 3:4 full-bleed fantasy illustration with no text, letters, card frame or border. Broad cosmic watercolor washes and soft alcohol-ink blooms with deep nebula depth, accented by a few sparse, smooth silver ink veins; no lightning, zigzag crackle, heavy spatter or dense line webs. Palette led by {PALETTE}, with violet only as a small accent. Serious, solemn, mythic tone. The subject is fully in frame with breathing room at the edges, staged in the middle of the image between roughly 13% and 65% of the height and kept within the central width. The top eighth is a calm sky or void wash, and the lower third continues the scene but stays decluttered, low-contrast and low-detail so overlaid text stays legible, never a blank flat fill.`;
+
+const DEFAULT_PRESETS: StylePreset[] = [
+  {
+    id: "default-cosmic-ink",
+    name: "Cosmic Ink",
+    prefix: "",
+    suffix: COSMIC_INK_SUFFIX,
+  },
+  {
+    id: "default-cosmic-ink-character",
+    name: "Cosmic Ink · Character",
+    prefix: "",
+    suffix: COSMIC_INK_SUFFIX + " The character is fully in frame, head to feet. Clearly adult, coverage pieces only, no nudity or sexual posing.",
+  },
+  {
+    id: "default-cosmic-ink-scene",
+    name: "Cosmic Ink · Scene",
+    prefix: "",
+    suffix: COSMIC_INK_SUFFIX + " Wide establishing view of the place or event, no single dominant figure required.",
+  },
+];
+
+function withDefaults(list: StylePreset[]): StylePreset[] {
+  const ids = new Set(list.map((p) => p.id));
+  return [...DEFAULT_PRESETS.filter((d) => !ids.has(d.id)), ...list];
+}
+
 export function ProxyCreator({
   onSave,
 }: {
@@ -70,7 +113,7 @@ export function ProxyCreator({
       if (!error && remote.length > 0) saveTemplates(remote);
       setTemplates(all);
       if (all[0]) setTemplateId(all[0].id);
-      setPresets(loadPresets());
+      setPresets(withDefaults(loadPresets()));
     })();
   }, []);
 
@@ -118,7 +161,7 @@ export function ProxyCreator({
       rules: c.oracle_text || "",
       pt: c.power && c.toughness ? `${c.power}/${c.toughness}` : c.loyalty || "",
     });
-    setPrompt(`${c.name}, magic the gathering card art, detailed fantasy illustration`);
+    setPrompt(c.name);
     setArtOffset({ x: 0, y: 0 });
     setArtScale(1);
     setQuery("");
@@ -130,6 +173,23 @@ export function ProxyCreator({
     setArtUrl(url);
     setArtOffset({ x: 0, y: 0 });
     setArtScale(1);
+  }
+
+  async function pasteArtFromClipboard() {
+    setError(null);
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        setArtFromFile(new File([blob], "pasted.png", { type }));
+        return;
+      }
+      setError("Clipboard has no image.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read clipboard.");
+    }
   }
 
   async function pickDrive() {
@@ -203,9 +263,10 @@ export function ProxyCreator({
 
   function buildPrompt(userPrompt: string): string {
     const preset = presets.find((x) => x.id === activePresetId);
-    const prefix = preset?.prefix.trim() || "";
-    const suffix = preset?.suffix.trim() || "";
-    return [prefix, userPrompt.trim(), suffix].filter(Boolean).join(", ");
+    const palette = paletteFromCard(card);
+    const prefix = (preset?.prefix || "").replaceAll("{PALETTE}", palette).trim();
+    const suffix = (preset?.suffix || "").replaceAll("{PALETTE}", palette).trim();
+    return [prefix, userPrompt.trim(), suffix].filter(Boolean).join(". ");
   }
 
   async function generate() {
@@ -400,6 +461,13 @@ export function ProxyCreator({
             >
               Pick from Google Drive
             </button>
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              onClick={() => void pasteArtFromClipboard()}
+            >
+              Paste from clipboard
+            </button>
           </div>
           <div className={styles.field}>
             <label className={styles.label}>Style preset</label>
@@ -463,6 +531,11 @@ export function ProxyCreator({
             >
               {busy ? "Generating…" : "Generate (local proxy)"}
             </button>
+            {prompt.trim() && (
+              <p className={styles.subtitle} style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
+                Full prompt: {buildPrompt(prompt)}
+              </p>
+            )}
           </div>
 
           <div className={styles.field}>
