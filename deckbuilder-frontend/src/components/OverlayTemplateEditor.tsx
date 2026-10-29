@@ -503,6 +503,16 @@ export function OverlayTemplateEditor() {
               <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
               <Select label="Weight" value={sel.fontWeight} options={["normal", "bold"]} onChange={(v) => updateSelected({ fontWeight: v as OverlayElement["fontWeight"] })} />
               <Select label="Style" value={sel.fontStyle} options={["normal", "italic"]} onChange={(v) => updateSelected({ fontStyle: v as OverlayElement["fontStyle"] })} />
+              <Select label="Font" value={sel.fontFamily || "serif"} options={["serif", "sans-serif", "monospace"]} onChange={(v) => updateSelected({ fontFamily: v })} />
+              <Num label="Line H" value={sel.lineHeight || 1.25} step={0.05} onChange={(v) => updateSelected({ lineHeight: v })} />
+              <Num label="Spacing" value={sel.letterSpacing || 0} onChange={(v) => updateSelected({ letterSpacing: v })} />
+              <Num label="Max lines" value={sel.maxLines || 0} onChange={(v) => updateSelected({ maxLines: v })} />
+              <Select label="Wrap" value={sel.wrapMode || "wrap"} options={["wrap", "nowrap", "ellipsis"]} onChange={(v) => updateSelected({ wrapMode: v as OverlayElement["wrapMode"] })} />
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                <span>Shadow</span>
+                <input type="color" value={sel.textShadow || "#000000"} onChange={(e) => updateSelected({ textShadow: e.target.value })} />
+                <button type="button" className={styles.secondaryBtn} onClick={() => updateSelected({ textShadow: "" })}>Clear</button>
+              </label>
 
               <ColorField
                 label="Text"
@@ -560,14 +570,15 @@ export function OverlayTemplateEditor() {
   );
 }
 
-function Num({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function Num({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
     <label style={{ fontSize: "0.8rem" }}>
       {label}
       <input
         className={styles.input}
         type="number"
-        value={Math.round(value)}
+        step={step}
+        value={step < 1 ? value : Math.round(value)}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
