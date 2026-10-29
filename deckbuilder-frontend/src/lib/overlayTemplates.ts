@@ -37,6 +37,18 @@ export type OverlayElement = {
   fitText: boolean;
   /** Shrink element width to the measured text. */
   fitWidth: boolean;
+  /** Line height multiplier (1.0 = tight, 1.4 = loose). */
+  lineHeight: number;
+  /** Extra space between characters in px. */
+  letterSpacing: number;
+  /** Font family stack. */
+  fontFamily: string;
+  /** Optional text shadow for legibility over art. */
+  textShadow: string;
+  /** Max lines before clipping (0 = unlimited). */
+  maxLines: number;
+  /** How to handle overflow. */
+  wrapMode: "wrap" | "nowrap" | "ellipsis";
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -82,6 +94,12 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     cornerRadius: el.cornerRadius ?? 0,
     fitText: el.fitText ?? false,
     fitWidth: el.fitWidth ?? false,
+    lineHeight: el.lineHeight ?? 1.25,
+    letterSpacing: el.letterSpacing ?? 0,
+    fontFamily: el.fontFamily ?? "serif",
+    textShadow: el.textShadow ?? "",
+    maxLines: el.maxLines ?? 0,
+    wrapMode: el.wrapMode ?? "wrap",
   };
 }
 
@@ -358,7 +376,7 @@ export async function renderTemplate(
     let drawX = el.x;
 
     // Fit width: measure at current size and shrink the box
-    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
+    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
     if (el.fitWidth) {
       const lines = text.split("\n");
       let maxLine = 0;
@@ -375,7 +393,7 @@ export async function renderTemplate(
       const maxW = (el.fitWidth ? drawWidth : el.width) - pad * 2;
       const maxH = el.height - pad * 2;
       while (fontSize > 10) {
-        ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
+        ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
         const symSize = Math.round(fontSize * 0.9);
         const lines = text.split("\n");
         let totalH = 0;
@@ -412,12 +430,21 @@ export async function renderTemplate(
     }
 
     ctx.fillStyle = fill;
-    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px serif`;
+    ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
     ctx.textBaseline = "top";
+    if (el.textShadow) {
+      ctx.shadowColor = el.textShadow;
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+    } else {
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+    }
 
     const symSize = Math.round(fontSize * 0.9);
     const lines = text.split("\n");
-    const lineH = fontSize + 6;
+    const lineH = Math.round(fontSize * (el.lineHeight || 1.25));
     const blockH = lines.length * lineH;
 
     let ty = el.y + pad;
