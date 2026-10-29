@@ -501,7 +501,7 @@ export function OverlayTemplateEditor() {
 
               <Select label="H align" value={sel.textAlign} options={["left", "center", "right"]} onChange={(v) => updateSelected({ textAlign: v as OverlayElement["textAlign"] })} />
               <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
-              <Select label="Weight" value={sel.fontWeight} options={["normal", "bold"]} onChange={(v) => updateSelected({ fontWeight: v as OverlayElement["fontWeight"] })} />
+              <Select label="Weight" value={sel.fontWeight} options={["300", "400", "500", "700", "normal", "bold"]} onChange={(v) => updateSelected({ fontWeight: v as OverlayElement["fontWeight"] })} />
               <Select label="Style" value={sel.fontStyle} options={["normal", "italic"]} onChange={(v) => updateSelected({ fontStyle: v as OverlayElement["fontStyle"] })} />
               <Select label="Font" value={sel.fontFamily || "serif"} options={["serif", "sans-serif", "monospace"]} onChange={(v) => updateSelected({ fontFamily: v })} />
               <Num label="Line H" value={sel.lineHeight || 1.25} step={0.05} onChange={(v) => updateSelected({ lineHeight: v })} />
@@ -512,6 +512,16 @@ export function OverlayTemplateEditor() {
                 <span>Shadow</span>
                 <input type="color" value={sel.textShadow || "#000000"} onChange={(e) => updateSelected({ textShadow: e.target.value })} />
                 <button type="button" className={styles.secondaryBtn} onClick={() => updateSelected({ textShadow: "" })}>Clear</button>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                <span>Outline</span>
+                <input type="color" value={sel.textOutline || "#000000"} onChange={(e) => updateSelected({ textOutline: e.target.value })} />
+                <Num label="" value={sel.textOutlineWidth || 0} onChange={(v) => updateSelected({ textOutlineWidth: v })} />
+                <button type="button" className={styles.secondaryBtn} onClick={() => updateSelected({ textOutline: "", textOutlineWidth: 0 })}>Clear</button>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                <input type="checkbox" checked={!!sel.autoGrow} onChange={(e) => updateSelected({ autoGrow: e.target.checked })} />
+                Auto-grow height
               </label>
 
               <ColorField
