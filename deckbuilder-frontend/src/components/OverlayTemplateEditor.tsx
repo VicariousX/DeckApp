@@ -578,6 +578,50 @@ export function OverlayTemplateEditor() {
                     <Num label="" value={sel.textOutlineWidth || 0} onChange={(v) => updateSelected({ textOutlineWidth: v })} />
                     <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ textOutline: "", textOutlineWidth: 0 })}>Clear</button>
                   </label>
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 6, marginTop: 4 }}>
+                    <div style={{ fontSize: "0.75rem", opacity: 0.7, marginBottom: 4 }}>Highlighter</div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", flexWrap: "wrap" }}>
+                      <span style={{ minWidth: 56 }}>Color</span>
+                      <input type="color" value={sel.highlightColor || "#f5e27a"} onChange={(e) => updateSelected({ highlightColor: e.target.value })} />
+                      <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ highlightColor: "" })}>Off</button>
+                      <select
+                        className={styles.input}
+                        value={sel.highlightStyle || "brush"}
+                        onChange={(e) => updateSelected({ highlightStyle: e.target.value as OverlayElement["highlightStyle"] })}
+                        style={{ maxWidth: 110, margin: 0 }}
+                      >
+                        <option value="brush">Brush</option>
+                        <option value="marker">Marker</option>
+                        <option value="underline">Underline</option>
+                      </select>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Opacity</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={sel.highlightOpacity ?? 0.55}
+                        onChange={(e) => updateSelected({ highlightOpacity: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{Math.round((sel.highlightOpacity ?? 0.55) * 100)}%</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Spread</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={24}
+                        step={1}
+                        value={sel.highlightSpread ?? 6}
+                        onChange={(e) => updateSelected({ highlightSpread: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{sel.highlightSpread ?? 6}px</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
