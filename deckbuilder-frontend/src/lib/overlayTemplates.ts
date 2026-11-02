@@ -60,9 +60,11 @@ export type OverlayElement = {
   /** Highlighter opacity 0–1. */
   highlightOpacity: number;
   /** Paint style for the highlighter. */
-  highlightStyle: "marker" | "brush" | "underline";
+  highlightStyle: "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk";
   /** Extra spread around the text in px. */
   highlightSpread: number;
+  /** One stroke per visual line, or one stroke for the whole block. */
+  highlightMode: "line" | "block";
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -121,6 +123,7 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     highlightOpacity: el.highlightOpacity ?? 0.55,
     highlightStyle: el.highlightStyle ?? "brush",
     highlightSpread: el.highlightSpread ?? 6,
+    highlightMode: el.highlightMode ?? "line",
   };
 }
 
@@ -339,7 +342,9 @@ function hash01(n: number): number {
   return x - Math.floor(x);
 }
 
-/** Artistic paint-stroke highlighter behind a single visual line. */
+export type HighlightStyle = "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk";
+
+/** Artistic paint-stroke highlighter behind text. */
 function drawHighlighter(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -348,7 +353,7 @@ function drawHighlighter(
   h: number,
   color: string,
   opacity: number,
-  style: "marker" | "brush" | "underline",
+  style: HighlightStyle,
   spread: number,
   seed: number
 ) {
@@ -366,11 +371,8 @@ function drawHighlighter(
     ctx.lineWidth = Math.max(3, h * 0.22);
     ctx.beginPath();
     ctx.moveTo(sx, base);
-    const steps = 6;
-    for (let i = 1; i <= steps; i++) {
-      const px = sx + (sw * i) / steps;
-      const py = base + (hash01(seed + i) - 0.5) * h * 0.18;
-      ctx.lineTo(px, py);
+    for (let i = 1; i <= 6; i++) {
+      ctx.lineTo(sx + (sw * i) / 6, base + (hash01(seed + i) - 0.5) * h * 0.18);
     }
     ctx.stroke();
   } else if (style === "marker") {
@@ -381,22 +383,75 @@ function drawHighlighter(
     ctx.shadowBlur = Math.max(4, h * 0.35);
     roundRect(ctx, sx, my, sw, mh, Math.min(mh / 2, 10));
     ctx.fill();
+  } else if (style === "wash") {
+    const g = ctx.createLinearGradient(sx, y, sx, y + h);
+    g.addColorStop(0, "transparent");
+    g.addColorStop(0.25, color);
+    g.addColorStop(0.75, color);
+    g.addColorStop(1, "transparent");
+    ctx.fillStyle = g;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(8, h * 0.5);
+    ctx.fillRect(sx, y, sw, h);
+  } else if (style === "ribbon") {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    const mid = y + h * 0.5;
+    ctx.moveTo(sx, mid);
+    ctx.quadraticCurveTo(sx + sw * 0.15, y + h * 0.15, sx + sw * 0.5, y + h * 0.22);
+    ctx.quadraticCurveTo(sx + sw * 0.85, y + h * 0.3, sx + sw, mid);
+    ctx.quadraticCurveTo(sx + sw * 0.85, y + h * 0.78, sx + sw * 0.5, y + h * 0.82);
+    ctx.quadraticCurveTo(sx + sw * 0.15, y + h * 0.86, sx, mid);
+    ctx.closePath();
+    ctx.fill();
+  } else if (style === "double") {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, h * 0.16);
+    for (const off of [0.32, 0.68]) {
+      ctx.beginPath();
+      const base = y + h * off;
+      ctx.moveTo(sx, base);
+      for (let i = 1; i <= 5; i++) {
+        ctx.lineTo(sx + (sw * i) / 5, base + (hash01(seed + off * 10 + i) - 0.5) * h * 0.08);
+      }
+      ctx.stroke();
+    }
+  } else if (style === "fade") {
+    const g = ctx.createLinearGradient(sx, y, sx + sw, y);
+    g.addColorStop(0, "transparent");
+    g.addColorStop(0.12, color);
+    g.addColorStop(0.88, color);
+    g.addColorStop(1, "transparent");
+    ctx.fillStyle = g;
+    roundRect(ctx, sx, y + h * 0.18, sw, h * 0.64, h * 0.3);
+    ctx.fill();
+  } else if (style === "chalk") {
+    ctx.strokeStyle = color;
+    const steps = 14;
+    for (let pass = 0; pass < 3; pass++) {
+      ctx.globalAlpha = opacity * (0.25 + hash01(seed + pass) * 0.3);
+      ctx.lineWidth = Math.max(1.5, h * (0.12 + hash01(seed + pass * 3) * 0.1));
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        if (hash01(seed + pass * 20 + i) < 0.18) continue;
+        const px = sx + (sw * i) / steps;
+        const py = y + h * 0.45 + (hash01(seed + i * 3 + pass) - 0.5) * h * 0.4;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
   } else {
-    // brush: several soft, slightly offset strokes with tapered ends
-    const strokes = 5;
-    for (let i = 0; i < strokes; i++) {
+    // brush
+    for (let i = 0; i < 5; i++) {
       const jy = (hash01(seed + i * 3) - 0.5) * h * 0.35;
       const jx = (hash01(seed + i * 7) - 0.5) * spread;
-      const thick = h * (0.42 + hash01(seed + i * 11) * 0.28);
       ctx.strokeStyle = color;
-      ctx.lineWidth = thick;
+      ctx.lineWidth = h * (0.42 + hash01(seed + i * 11) * 0.28);
       ctx.globalAlpha = opacity * (0.35 + hash01(seed + i) * 0.35);
       ctx.beginPath();
-      const y0 = y + h * 0.45 + jy;
-      const y1 = y + h * 0.5 + (hash01(seed + i * 5) - 0.5) * h * 0.25;
-      const y2 = y + h * 0.42 + (hash01(seed + i * 9) - 0.5) * h * 0.2;
-      ctx.moveTo(sx + jx, y0);
-      ctx.quadraticCurveTo(sx + sw * 0.45, y1, sx + sw - jx, y2);
+      ctx.moveTo(sx + jx, y + h * 0.45 + jy);
+      ctx.quadraticCurveTo(sx + sw * 0.45, y + h * 0.5 + (hash01(seed + i * 5) - 0.5) * h * 0.25, sx + sw - jx, y + h * 0.42 + (hash01(seed + i * 9) - 0.5) * h * 0.2);
       ctx.stroke();
     }
   }
@@ -790,26 +845,42 @@ export async function renderTemplate(
       const prevShadow = ctx.shadowColor;
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
-      let hy = ty;
-      visual.forEach((line, i) => {
-        if (hy > el.y + boxH - 4) return;
-        let hx = drawX + pad;
-        if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
-        else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
+      const style = el.highlightStyle || "brush";
+      const spread = el.highlightSpread || 6;
+      const mode = el.highlightMode || "line";
+      if (mode === "block") {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        visual.forEach((line) => {
+          let hx = drawX + pad;
+          if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
+          else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
+          minX = Math.min(minX, hx);
+          maxX = Math.max(maxX, hx + line.width);
+        });
         drawHighlighter(
           ctx,
-          hx,
-          hy,
-          Math.max(line.width, 12),
-          lineH,
+          minX,
+          ty,
+          Math.max(maxX - minX, 12),
+          blockH,
           el.highlightColor,
           el.highlightOpacity,
-          el.highlightStyle || "brush",
-          el.highlightSpread || 6,
-          i + 1
+          style,
+          spread,
+          1
         );
-        hy += lineH;
-      });
+      } else {
+        let hy = ty;
+        visual.forEach((line, i) => {
+          if (hy > el.y + boxH - 4) return;
+          let hx = drawX + pad;
+          if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
+          else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
+          drawHighlighter(ctx, hx, hy, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spread, i + 1);
+          hy += lineH;
+        });
+      }
       ctx.shadowColor = prevShadow;
       if (el.textShadow) ctx.shadowBlur = 4;
     }
