@@ -5,7 +5,7 @@ export const CARD_H = 1050;
 const STORAGE_KEY = "deckapp.proxy.templates";
 
 export type OverlayElementType = "name" | "mana" | "typeLine" | "rules" | "pt" | "customText";
-export type ColorSource = "custom" | "art";
+export type ColorSource = "custom" | "art" | "invert";
 
 export type OverlayElement = {
   id: string;
@@ -71,6 +71,10 @@ export type OverlayElement = {
   highlightOffsetX: number;
   /** Nudge the highlighter vertically relative to the text. */
   highlightOffsetY: number;
+  /** Scale of the highlighter relative to the text (1 = fit text). */
+  highlightScale: number;
+  /** Where the highlighter color comes from. */
+  highlightColorSource: ColorSource;
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -133,6 +137,8 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     highlightMode: el.highlightMode ?? "line",
     highlightOffsetX: el.highlightOffsetX ?? 0,
     highlightOffsetY: el.highlightOffsetY ?? 0,
+    highlightScale: el.highlightScale ?? 1,
+    highlightColorSource: el.highlightColorSource ?? "custom",
   };
 }
 
@@ -322,8 +328,24 @@ export function withOpacity(color: string, opacity: number): string {
 }
 
 export function resolveColor(source: ColorSource, custom: string, opacity: number, artColor: string): string {
-  const base = source === "art" ? artColor : custom;
+  const base = source === "art" ? artColor : source === "invert" ? invertColor(artColor) : custom;
   return withOpacity(base, opacity);
+}
+
+function invertColor(color: string): string {
+  const m = color.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!m) {
+    // hex
+    const hex = color.replace("#", "");
+    if (hex.length >= 6) {
+      const r = 255 - parseInt(hex.slice(0, 2), 16);
+      const g = 255 - parseInt(hex.slice(2, 4), 16);
+      const b = 255 - parseInt(hex.slice(4, 6), 16);
+      return `rgb(${r},${g},${b})`;
+    }
+    return "#ffffff";
+  }
+  return `rgb(${255 - Number(m[1])},${255 - Number(m[2])},${255 - Number(m[3])})`;
 }
 
 export function averageColor(img: HTMLImageElement): string {
@@ -901,7 +923,7 @@ export async function renderTemplate(
     await Promise.all([...codes].map(async (c) => symImgs.set(c, await loadSymbol(c))));
 
     // Highlighter strokes sit under the text.
-    if (el.highlightColor) {
+    if (el.highlightColor || el.highlightColorSource === "art" || el.highlightColorSource === "invert") {
       const prevShadow = ctx.shadowColor;
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
@@ -910,7 +932,14 @@ export async function renderTemplate(
       const spreadY = el.highlightSpreadY || 0;
       const offX = el.highlightOffsetX || 0;
       const offY = el.highlightOffsetY || 0;
+      const scale = el.highlightScale || 1;
       const mode = el.highlightMode || "line";
+      const hlColor = resolveColor(el.highlightColorSource || "custom", el.highlightColor || "#000000", 1, artColor);
+      function sized(x: number, y: number, w: number, h: number) {
+        const sw = w * scale;
+        const sh = h * scale;
+        return { x: x - (sw - w) / 2, y: y - (sh - h) / 2, w: sw, h: sh };
+      }
       if (mode === "block") {
         let minX = Infinity;
         let maxX = -Infinity;
@@ -921,10 +950,11 @@ export async function renderTemplate(
           minX = Math.min(minX, hx);
           maxX = Math.max(maxX, hx + line.width);
         });
+        const box = sized(minX, ty, Math.max(maxX - minX, 12), blockH);
         if (style === "paint") {
-          await drawPaintTexture(ctx, minX - spreadX + offX, ty - spreadY + offY, Math.max(maxX - minX, 12) + spreadX * 2, blockH + spreadY * 2, el.highlightColor, el.highlightOpacity, 1);
+          await drawPaintTexture(ctx, box.x - spreadX + offX, box.y - spreadY + offY, box.w + spreadX * 2, box.h + spreadY * 2, hlColor, el.highlightOpacity, 1);
         } else {
-          drawHighlighter(ctx, minX + offX, ty + offY, Math.max(maxX - minX, 12), blockH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, 1);
+          drawHighlighter(ctx, box.x + offX, box.y + offY, box.w, box.h, hlColor, el.highlightOpacity, style, spreadX, spreadY, 1);
         }
       } else {
         let hy = ty;
@@ -934,10 +964,11 @@ export async function renderTemplate(
           let hx = drawX + pad;
           if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
           else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
+          const box = sized(hx, hy, Math.max(line.width, 12), lineH);
           if (style === "paint") {
-            await drawPaintTexture(ctx, hx - spreadX + offX, hy - spreadY + offY, Math.max(line.width, 12) + spreadX * 2, lineH + spreadY * 2, el.highlightColor, el.highlightOpacity, i + 1);
+            await drawPaintTexture(ctx, box.x - spreadX + offX, box.y - spreadY + offY, box.w + spreadX * 2, box.h + spreadY * 2, hlColor, el.highlightOpacity, i + 1);
           } else {
-            drawHighlighter(ctx, hx + offX, hy + offY, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, i + 1);
+            drawHighlighter(ctx, box.x + offX, box.y + offY, box.w, box.h, hlColor, el.highlightOpacity, style, spreadX, spreadY, i + 1);
           }
           hy += lineH;
         }
