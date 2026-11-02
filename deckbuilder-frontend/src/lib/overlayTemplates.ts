@@ -55,6 +55,14 @@ export type OverlayElement = {
   textOutlineWidth: number;
   /** Grow element height to fit content. */
   autoGrow: boolean;
+  /** Highlighter color behind text (empty = off). */
+  highlightColor: string;
+  /** Highlighter opacity 0–1. */
+  highlightOpacity: number;
+  /** Paint style for the highlighter. */
+  highlightStyle: "marker" | "brush" | "underline";
+  /** Extra spread around the text in px. */
+  highlightSpread: number;
   /** @deprecated use borderSource */
   useArtBorder?: boolean;
 };
@@ -109,6 +117,10 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     textOutline: el.textOutline ?? "",
     textOutlineWidth: el.textOutlineWidth ?? 0,
     autoGrow: el.autoGrow ?? false,
+    highlightColor: el.highlightColor ?? "",
+    highlightOpacity: el.highlightOpacity ?? 0.55,
+    highlightStyle: el.highlightStyle ?? "brush",
+    highlightSpread: el.highlightSpread ?? 6,
   };
 }
 
@@ -135,6 +147,10 @@ export function defaultFullArtTemplate(): OverlayTemplate {
         textShadow: "#000000",
         textOutline: "#000000",
         textOutlineWidth: 1,
+        highlightColor: "#1a1a1a",
+        highlightOpacity: 0.45,
+        highlightStyle: "brush",
+        highlightSpread: 8,
         zIndex: 1,
       }),
       normalize({
@@ -166,6 +182,10 @@ export function defaultFullArtTemplate(): OverlayTemplate {
         textAlign: "left",
         verticalAlign: "middle",
         textShadow: "#000000",
+        highlightColor: "#1a1a1a",
+        highlightOpacity: 0.35,
+        highlightStyle: "brush",
+        highlightSpread: 6,
         zIndex: 1,
       }),
       normalize({
@@ -313,6 +333,75 @@ export function averageColor(img: HTMLImageElement): string {
   return `rgb(${lift(r)},${lift(g)},${lift(b)})`;
 }
 
+
+function hash01(n: number): number {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Artistic paint-stroke highlighter behind a single visual line. */
+function drawHighlighter(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+  opacity: number,
+  style: "marker" | "brush" | "underline",
+  spread: number,
+  seed: number
+) {
+  if (w < 4 || h < 4) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const sx = x - spread;
+  const sw = w + spread * 2;
+
+  if (style === "underline") {
+    const base = y + h * 0.82;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(3, h * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(sx, base);
+    const steps = 6;
+    for (let i = 1; i <= steps; i++) {
+      const px = sx + (sw * i) / steps;
+      const py = base + (hash01(seed + i) - 0.5) * h * 0.18;
+      ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  } else if (style === "marker") {
+    const my = y + h * 0.12;
+    const mh = h * 0.78;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(4, h * 0.35);
+    roundRect(ctx, sx, my, sw, mh, Math.min(mh / 2, 10));
+    ctx.fill();
+  } else {
+    // brush: several soft, slightly offset strokes with tapered ends
+    const strokes = 5;
+    for (let i = 0; i < strokes; i++) {
+      const jy = (hash01(seed + i * 3) - 0.5) * h * 0.35;
+      const jx = (hash01(seed + i * 7) - 0.5) * spread;
+      const thick = h * (0.42 + hash01(seed + i * 11) * 0.28);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = thick;
+      ctx.globalAlpha = opacity * (0.35 + hash01(seed + i) * 0.35);
+      ctx.beginPath();
+      const y0 = y + h * 0.45 + jy;
+      const y1 = y + h * 0.5 + (hash01(seed + i * 5) - 0.5) * h * 0.25;
+      const y2 = y + h * 0.42 + (hash01(seed + i * 9) - 0.5) * h * 0.2;
+      ctx.moveTo(sx + jx, y0);
+      ctx.quadraticCurveTo(sx + sw * 0.45, y1, sx + sw - jx, y2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const rad = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -695,6 +784,35 @@ export async function renderTemplate(
     for (const line of visual) for (const p of line.pieces) if (p.kind === "sym") codes.add(p.code);
     const symImgs = new Map<string, HTMLImageElement>();
     await Promise.all([...codes].map(async (c) => symImgs.set(c, await loadSymbol(c))));
+
+    // Highlighter strokes sit under the text.
+    if (el.highlightColor) {
+      const prevShadow = ctx.shadowColor;
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      let hy = ty;
+      visual.forEach((line, i) => {
+        if (hy > el.y + boxH - 4) return;
+        let hx = drawX + pad;
+        if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
+        else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
+        drawHighlighter(
+          ctx,
+          hx,
+          hy,
+          Math.max(line.width, 12),
+          lineH,
+          el.highlightColor,
+          el.highlightOpacity,
+          el.highlightStyle || "brush",
+          el.highlightSpread || 6,
+          i + 1
+        );
+        hy += lineH;
+      });
+      ctx.shadowColor = prevShadow;
+      if (el.textShadow) ctx.shadowBlur = 4;
+    }
 
     for (const line of visual) {
       if (ty > el.y + boxH - 4) break;
