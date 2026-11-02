@@ -60,7 +60,7 @@ export type OverlayElement = {
   /** Highlighter opacity 0–1. */
   highlightOpacity: number;
   /** Paint style for the highlighter. */
-  highlightStyle: "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk";
+  highlightStyle: "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk" | "paint";
   /** Extra horizontal spread around the text in px. */
   highlightSpread: number;
   /** Extra vertical spread around the text in px. */
@@ -345,7 +345,7 @@ function hash01(n: number): number {
   return x - Math.floor(x);
 }
 
-export type HighlightStyle = "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk";
+export type HighlightStyle = "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk" | "paint";
 
 /** Artistic paint-stroke highlighter behind text. */
 function drawHighlighter(
@@ -445,6 +445,63 @@ function drawHighlighter(
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
+      ctx.stroke();
+    }
+  } else if (style === "paint") {
+    // Solid core with frayed bristle edges, randomized per seed (like a dry paint stroke).
+    const coreTop = 0.18 + hash01(seed) * 0.08;
+    const coreBot = 0.78 + hash01(seed + 2) * 0.08;
+    const steps = 28;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const px = sx + sw * t;
+      const wobble = (hash01(seed + i * 1.7) - 0.5) * sh * 0.06;
+      const endTaper = Math.min(t, 1 - t) < 0.06 ? Math.min(t, 1 - t) / 0.06 : 1;
+      const py = sy + sh * coreTop + wobble * endTaper;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const t = i / steps;
+      const px = sx + sw * t;
+      const wobble = (hash01(seed + 40 + i * 1.3) - 0.5) * sh * 0.06;
+      const endTaper = Math.min(t, 1 - t) < 0.06 ? Math.min(t, 1 - t) / 0.06 : 1;
+      const py = sy + sh * coreBot + wobble * endTaper;
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    const bristles = 18 + Math.floor(hash01(seed + 9) * 14);
+    ctx.strokeStyle = color;
+    for (let b = 0; b < bristles; b++) {
+      const edge = hash01(seed + b * 3) < 0.5 ? "top" : "bottom";
+      const t = 0.04 + hash01(seed + b * 5) * 0.92;
+      const px = sx + sw * t;
+      const baseY = edge === "top" ? sy + sh * coreTop : sy + sh * coreBot;
+      const dir = edge === "top" ? -1 : 1;
+      const len = sh * (0.08 + hash01(seed + b * 7) * 0.22);
+      const slant = (hash01(seed + b * 11) - 0.5) * sw * 0.04;
+      ctx.globalAlpha = opacity * (0.35 + hash01(seed + b) * 0.5);
+      ctx.lineWidth = 0.6 + hash01(seed + b * 13) * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(px, baseY);
+      ctx.lineTo(px + slant, baseY + dir * len);
+      ctx.stroke();
+    }
+    for (let b = 0; b < 6; b++) {
+      const edge = b % 2 === 0 ? "top" : "bottom";
+      const t = 0.1 + hash01(seed + 80 + b * 4) * 0.8;
+      const px = sx + sw * t;
+      const baseY = edge === "top" ? sy + sh * coreTop : sy + sh * coreBot;
+      const dir = edge === "top" ? -1 : 1;
+      ctx.globalAlpha = opacity * 0.4;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(px, baseY);
+      ctx.lineTo(px + (hash01(seed + b) - 0.5) * 8, baseY + dir * sh * (0.25 + hash01(seed + b * 2) * 0.2));
       ctx.stroke();
     }
   } else {
