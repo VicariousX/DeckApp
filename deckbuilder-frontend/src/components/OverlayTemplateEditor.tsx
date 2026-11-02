@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import styles from "../pages/LoginPage.module.css";
 import {
   CARD_H,
@@ -16,7 +16,7 @@ import {
 } from "../lib/overlayTemplates";
 import { deleteTemplateRemote, loadTemplatesRemote, upsertTemplateRemote } from "../lib/overlayTemplateService";
 
-const PREVIEW_W = 340;
+const PREVIEW_W = 420;
 const SCALE = PREVIEW_W / CARD_W;
 const GRID = 25;
 const SNAP = 8;
@@ -320,50 +320,80 @@ export function OverlayTemplateEditor() {
   }
 
   const artPreview = "#6a8a7a";
+  const btn: CSSProperties = {
+    width: "auto",
+    display: "inline-block",
+    padding: "0.4rem 0.75rem",
+    fontSize: "0.82rem",
+    margin: 0,
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {/* Top bar */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
-        <select className={styles.input} value={currentId} onChange={(e) => load(e.target.value)} style={{ maxWidth: 180 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}>
+      {/* Toolbar */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.4rem",
+          alignItems: "center",
+          padding: "0.5rem 0.6rem",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 8,
+          background: "rgba(255,255,255,0.02)",
+        }}
+      >
+        <select className={styles.input} value={currentId} onChange={(e) => load(e.target.value)} style={{ maxWidth: 200, margin: 0 }}>
           {templates.map((t) => (
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
-        <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={{ maxWidth: 160 }} />
-        <button type="button" className={styles.secondaryBtn} onClick={undo}>Undo</button>
-        <button type="button" className={styles.secondaryBtn} onClick={redo}>Redo</button>
-        <button type="button" className={styles.primaryBtn} onClick={() => void save()}>Save</button>
-        <button type="button" className={styles.secondaryBtn} onClick={() => void saveAs()}>Save as</button>
-        <button type="button" className={styles.secondaryBtn} onClick={() => void remove()}>Delete</button>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.85rem" }}>
-          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.85rem" }}>
-          <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} /> Snap
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.85rem" }}>
-          <input type="checkbox" checked={showSample} onChange={(e) => setShowSample(e.target.checked)} /> Sample
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) {
-              setSampleUrl(URL.createObjectURL(f));
-              setShowSample(true);
-            }
-          }}
-          style={{ maxWidth: 140 }}
-        />
+        <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name" style={{ maxWidth: 180, margin: 0 }} />
+        <div style={{ display: "flex", gap: 4 }}>
+          <button type="button" className={styles.secondaryBtn} style={btn} onClick={undo}>Undo</button>
+          <button type="button" className={styles.secondaryBtn} style={btn} onClick={redo}>Redo</button>
+          <button type="button" className={styles.primaryBtn} style={btn} onClick={() => void save()}>Save</button>
+          <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => void saveAs()}>Save as</button>
+          <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => void remove()}>Delete</button>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginLeft: "auto" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+            <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+            <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} /> Snap
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+            <input type="checkbox" checked={showSample} onChange={(e) => setShowSample(e.target.checked)} /> Sample
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) {
+                setSampleUrl(URL.createObjectURL(f));
+                setShowSample(true);
+              }
+            }}
+            style={{ maxWidth: 140, fontSize: "0.75rem" }}
+          />
+        </div>
       </div>
-      {info && <p className={styles.subtitle}>{info}</p>}
-      <p className={styles.subtitle} style={{ fontSize: "0.8rem" }}>
-        Keys: Ctrl/Cmd+Z undo · Ctrl/Cmd+Shift+Z redo · Ctrl/Cmd+S save · Delete remove · Arrows nudge (Shift×10) · Ctrl/Cmd+D duplicate · Esc deselect
+      {info && <p className={styles.subtitle} style={{ margin: 0 }}>{info}</p>}
+      <p className={styles.subtitle} style={{ fontSize: "0.75rem", margin: 0, opacity: 0.7 }}>
+        Ctrl/Cmd+Z undo · Ctrl/Cmd+Shift+Z redo · Ctrl/Cmd+S save · Delete remove · Arrows nudge (Shift×10) · Ctrl/Cmd+D duplicate · Esc deselect
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: "1rem", alignItems: "start" }}>
+      {/* Main workspace */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `${PREVIEW_W}px minmax(280px, 1fr) minmax(320px, 1.2fr)`,
+          gap: "1rem",
+          alignItems: "start",
+        }}
+      >
         {/* Canvas */}
         <div
           onPointerMove={onPointerMove}
@@ -377,6 +407,7 @@ export function OverlayTemplateEditor() {
             borderRadius: 8,
             overflow: "hidden",
             touchAction: "none",
+            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           {showGrid && (
@@ -435,13 +466,13 @@ export function OverlayTemplateEditor() {
           ))}
         </div>
 
-        {/* Side tools */}
+        {/* Layers / add / align */}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", minWidth: 0 }}>
           <div>
-            <div className={styles.label}>Add</div>
+            <div className={styles.label}>Add element</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {TYPES.map((t) => (
-                <button key={t} type="button" className={styles.secondaryBtn} onClick={() => add(t)}>+ {t}</button>
+                <button key={t} type="button" className={styles.secondaryBtn} style={btn} onClick={() => add(t)}>+ {t}</button>
               ))}
             </div>
           </div>
@@ -450,14 +481,14 @@ export function OverlayTemplateEditor() {
             <div className={styles.label}>Align to canvas</div>
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               {(["left", "center", "right", "top", "middle", "bottom"] as const).map((a) => (
-                <button key={a} type="button" className={styles.secondaryBtn} disabled={!sel} onClick={() => align(a)}>{a}</button>
+                <button key={a} type="button" className={styles.secondaryBtn} style={btn} disabled={!sel} onClick={() => align(a)}>{a}</button>
               ))}
             </div>
           </div>
 
           <div>
             <div className={styles.label}>Layers</div>
-            <div style={{ maxHeight: 160, overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6 }}>
+            <div style={{ maxHeight: 280, overflow: "auto", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6 }}>
               {ordered.map((el) => (
                 <div
                   key={el.id}
@@ -466,102 +497,134 @@ export function OverlayTemplateEditor() {
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    padding: "4px 8px",
+                    padding: "6px 8px",
                     background: selected === el.id ? "rgba(68,170,255,0.15)" : "transparent",
                     cursor: "pointer",
                     fontSize: "0.85rem",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
                   }}
                 >
                   <span style={{ flex: 1 }}>{el.type}</span>
-                  <button type="button" className={styles.secondaryBtn} onClick={(e) => { e.stopPropagation(); bring(el.id, "forward"); }}>↑</button>
-                  <button type="button" className={styles.secondaryBtn} onClick={(e) => { e.stopPropagation(); bring(el.id, "backward"); }}>↓</button>
+                  <button type="button" className={styles.secondaryBtn} style={{ ...btn, padding: "0.2rem 0.5rem" }} onClick={(e) => { e.stopPropagation(); bring(el.id, "forward"); }}>↑</button>
+                  <button type="button" className={styles.secondaryBtn} style={{ ...btn, padding: "0.2rem 0.5rem" }} onClick={(e) => { e.stopPropagation(); bring(el.id, "backward"); }}>↓</button>
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
+        {/* Inspector */}
+        <div style={{ minWidth: 0 }}>
           {sel ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
-              <Num label="X" value={sel.x} onChange={(v) => updateSelected({ x: v })} />
-              <Num label="Y" value={sel.y} onChange={(v) => updateSelected({ y: v })} />
-              <Num label="W" value={sel.width} onChange={(v) => updateSelected({ width: v })} />
-              <Num label="H" value={sel.height} onChange={(v) => updateSelected({ height: v })} />
-              <Num label="Font" value={sel.fontSize} onChange={(v) => updateSelected({ fontSize: v })} />
-              <Num label="Border" value={sel.borderWidth} onChange={(v) => updateSelected({ borderWidth: v })} />
-              <Num label="Padding" value={sel.padding} onChange={(v) => updateSelected({ padding: v })} />
-              <Num label="Radius" value={sel.cornerRadius} onChange={(v) => updateSelected({ cornerRadius: v })} />
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
-                <input type="checkbox" checked={!!sel.fitText} onChange={(e) => updateSelected({ fitText: e.target.checked })} />
-                Fit text
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
-                <input type="checkbox" checked={!!sel.fitWidth} onChange={(e) => updateSelected({ fitWidth: e.target.checked })} />
-                Fit width
-              </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div>
+                <div className={styles.label}>Geometry</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.4rem" }}>
+                  <Num label="X" value={sel.x} onChange={(v) => updateSelected({ x: v })} />
+                  <Num label="Y" value={sel.y} onChange={(v) => updateSelected({ y: v })} />
+                  <Num label="W" value={sel.width} onChange={(v) => updateSelected({ width: v })} />
+                  <Num label="H" value={sel.height} onChange={(v) => updateSelected({ height: v })} />
+                </div>
+              </div>
 
-              <Select label="H align" value={sel.textAlign} options={["left", "center", "right"]} onChange={(v) => updateSelected({ textAlign: v as OverlayElement["textAlign"] })} />
-              <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
-              <Select label="Weight" value={sel.fontWeight} options={["300", "400", "500", "700", "normal", "bold"]} onChange={(v) => updateSelected({ fontWeight: v as OverlayElement["fontWeight"] })} />
-              <Select label="Style" value={sel.fontStyle} options={["normal", "italic"]} onChange={(v) => updateSelected({ fontStyle: v as OverlayElement["fontStyle"] })} />
-              <Select label="Font" value={sel.fontFamily || "serif"} options={["serif", "sans-serif", "monospace"]} onChange={(v) => updateSelected({ fontFamily: v })} />
-              <Num label="Line H" value={sel.lineHeight || 1.25} step={0.05} onChange={(v) => updateSelected({ lineHeight: v })} />
-              <Num label="Spacing" value={sel.letterSpacing || 0} onChange={(v) => updateSelected({ letterSpacing: v })} />
-              <Num label="Max lines" value={sel.maxLines || 0} onChange={(v) => updateSelected({ maxLines: v })} />
-              <Select label="Wrap" value={sel.wrapMode || "wrap"} options={["wrap", "nowrap", "ellipsis"]} onChange={(v) => updateSelected({ wrapMode: v as OverlayElement["wrapMode"] })} />
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
-                <span>Shadow</span>
-                <input type="color" value={sel.textShadow || "#000000"} onChange={(e) => updateSelected({ textShadow: e.target.value })} />
-                <button type="button" className={styles.secondaryBtn} onClick={() => updateSelected({ textShadow: "" })}>Clear</button>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
-                <span>Outline</span>
-                <input type="color" value={sel.textOutline || "#000000"} onChange={(e) => updateSelected({ textOutline: e.target.value })} />
-                <Num label="" value={sel.textOutlineWidth || 0} onChange={(v) => updateSelected({ textOutlineWidth: v })} />
-                <button type="button" className={styles.secondaryBtn} onClick={() => updateSelected({ textOutline: "", textOutlineWidth: 0 })}>Clear</button>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
-                <input type="checkbox" checked={!!sel.autoGrow} onChange={(e) => updateSelected({ autoGrow: e.target.checked })} />
-                Auto-grow height
-              </label>
+              <div>
+                <div className={styles.label}>Typography</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.4rem" }}>
+                  <Num label="Font size" value={sel.fontSize} onChange={(v) => updateSelected({ fontSize: v })} />
+                  <Select label="Weight" value={sel.fontWeight} options={["300", "400", "500", "700", "normal", "bold"]} onChange={(v) => updateSelected({ fontWeight: v as OverlayElement["fontWeight"] })} />
+                  <Select label="Style" value={sel.fontStyle} options={["normal", "italic"]} onChange={(v) => updateSelected({ fontStyle: v as OverlayElement["fontStyle"] })} />
+                  <Select label="Font" value={sel.fontFamily || "serif"} options={["serif", "sans-serif", "monospace"]} onChange={(v) => updateSelected({ fontFamily: v })} />
+                  <Select label="H align" value={sel.textAlign} options={["left", "center", "right"]} onChange={(v) => updateSelected({ textAlign: v as OverlayElement["textAlign"] })} />
+                  <Select label="V align" value={sel.verticalAlign} options={["top", "middle", "bottom"]} onChange={(v) => updateSelected({ verticalAlign: v as OverlayElement["verticalAlign"] })} />
+                  <Num label="Line height" value={sel.lineHeight || 1.25} step={0.05} onChange={(v) => updateSelected({ lineHeight: v })} />
+                  <Num label="Letter spacing" value={sel.letterSpacing || 0} onChange={(v) => updateSelected({ letterSpacing: v })} />
+                  <Num label="Max lines" value={sel.maxLines || 0} onChange={(v) => updateSelected({ maxLines: v })} />
+                  <Select label="Wrap" value={sel.wrapMode || "wrap"} options={["wrap", "nowrap", "ellipsis"]} onChange={(v) => updateSelected({ wrapMode: v as OverlayElement["wrapMode"] })} />
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                    <input type="checkbox" checked={!!sel.fitText} onChange={(e) => updateSelected({ fitText: e.target.checked })} />
+                    Fit text
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                    <input type="checkbox" checked={!!sel.fitWidth} onChange={(e) => updateSelected({ fitWidth: e.target.checked })} />
+                    Fit width
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
+                    <input type="checkbox" checked={!!sel.autoGrow} onChange={(e) => updateSelected({ autoGrow: e.target.checked })} />
+                    Auto-grow
+                  </label>
+                </div>
+              </div>
 
-              <ColorField
-                label="Text"
-                source={sel.colorSource}
-                color={sel.color}
-                opacity={sel.colorOpacity}
-                onSource={(s) => updateSelected({ colorSource: s })}
-                onColor={(c) => updateSelected({ color: c })}
-                onOpacity={(o) => updateSelected({ colorOpacity: o })}
-              />
-              <ColorField
-                label="Background"
-                source={sel.backgroundSource}
-                color={sel.background}
-                opacity={sel.backgroundOpacity}
-                onSource={(s) => updateSelected({ backgroundSource: s })}
-                onColor={(c) => updateSelected({ background: c })}
-                onOpacity={(o) => updateSelected({ backgroundOpacity: o })}
-              />
-              <ColorField
-                label="Border"
-                source={sel.borderSource}
-                color={sel.borderColor}
-                opacity={sel.borderOpacity}
-                onSource={(s) => updateSelected({ borderSource: s })}
-                onColor={(c) => updateSelected({ borderColor: c })}
-                onOpacity={(o) => updateSelected({ borderOpacity: o })}
-              />
+              <div>
+                <div className={styles.label}>Box</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.4rem" }}>
+                  <Num label="Padding" value={sel.padding} onChange={(v) => updateSelected({ padding: v })} />
+                  <Num label="Radius" value={sel.cornerRadius} onChange={(v) => updateSelected({ cornerRadius: v })} />
+                  <Num label="Border width" value={sel.borderWidth} onChange={(v) => updateSelected({ borderWidth: v })} />
+                </div>
+              </div>
+
+              <div>
+                <div className={styles.label}>Effects</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}>
+                    <span style={{ minWidth: 56 }}>Shadow</span>
+                    <input type="color" value={sel.textShadow || "#000000"} onChange={(e) => updateSelected({ textShadow: e.target.value })} />
+                    <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ textShadow: "" })}>Clear</button>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}>
+                    <span style={{ minWidth: 56 }}>Outline</span>
+                    <input type="color" value={sel.textOutline || "#000000"} onChange={(e) => updateSelected({ textOutline: e.target.value })} />
+                    <Num label="" value={sel.textOutlineWidth || 0} onChange={(v) => updateSelected({ textOutlineWidth: v })} />
+                    <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ textOutline: "", textOutlineWidth: 0 })}>Clear</button>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div className={styles.label}>Colors</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <ColorField
+                    label="Text"
+                    source={sel.colorSource}
+                    color={sel.color}
+                    opacity={sel.colorOpacity}
+                    onSource={(s) => updateSelected({ colorSource: s })}
+                    onColor={(c) => updateSelected({ color: c })}
+                    onOpacity={(o) => updateSelected({ colorOpacity: o })}
+                  />
+                  <ColorField
+                    label="Background"
+                    source={sel.backgroundSource}
+                    color={sel.background}
+                    opacity={sel.backgroundOpacity}
+                    onSource={(s) => updateSelected({ backgroundSource: s })}
+                    onColor={(c) => updateSelected({ background: c })}
+                    onOpacity={(o) => updateSelected({ backgroundOpacity: o })}
+                  />
+                  <ColorField
+                    label="Border"
+                    source={sel.borderSource}
+                    color={sel.borderColor}
+                    opacity={sel.borderOpacity}
+                    onSource={(s) => updateSelected({ borderSource: s })}
+                    onColor={(c) => updateSelected({ borderColor: c })}
+                    onOpacity={(o) => updateSelected({ borderOpacity: o })}
+                  />
+                </div>
+              </div>
 
               {sel.type === "customText" && (
-                <div style={{ gridColumn: "1 / -1" }}>
+                <div>
                   <label className={styles.label}>Custom text</label>
                   <input className={styles.input} value={sel.customText || ""} onChange={(e) => updateSelected({ customText: e.target.value })} />
                 </div>
               )}
+
               <button
                 type="button"
                 className={styles.secondaryBtn}
-                style={{ gridColumn: "1 / -1" }}
+                style={{ ...btn, width: "100%" }}
                 onClick={() => {
                   pushHistory();
                   setElements((prev) => prev.filter((e) => e.id !== sel.id));
@@ -572,14 +635,13 @@ export function OverlayTemplateEditor() {
               </button>
             </div>
           ) : (
-            <p className={styles.subtitle}>Select an element to edit it.</p>
+            <p className={styles.subtitle}>Select an element on the canvas or in Layers to edit it.</p>
           )}
         </div>
       </div>
     </div>
   );
 }
-
 function Num({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
     <label style={{ fontSize: "0.8rem" }}>
@@ -674,3 +736,4 @@ function toHex(color: string): string {
   }
   return "#888888";
 }
+
