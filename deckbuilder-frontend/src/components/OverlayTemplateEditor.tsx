@@ -725,6 +725,7 @@ export function OverlayTemplateEditor() {
                         style={{ maxWidth: 120, margin: 0 }}
                       >
                         <option value="brush">Brush</option>
+                        <option value="paint">Paint stroke</option>
                         <option value="marker">Marker</option>
                         <option value="wash">Wash</option>
                         <option value="ribbon">Ribbon</option>
