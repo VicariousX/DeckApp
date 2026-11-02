@@ -35,8 +35,8 @@ export function OverlayTemplateEditor() {
   const [info, setInfo] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [snap, setSnap] = useState(true);
-  const [showSample, setShowSample] = useState(false);
-  const [sampleUrl, setSampleUrl] = useState<string | null>(null);
+  const [showSample, setShowSample] = useState(true);
+  const [sampleUrl, setSampleUrl] = useState<string | null>("/highlights/sample-clouds.png");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [previewFields, setPreviewFields] = useState<ProxyFields>({ name: "", mana: "", typeLine: "", rules: "", pt: "" });
@@ -69,6 +69,7 @@ export function OverlayTemplateEditor() {
         setName(all[0].name);
         setElements(all[0].elements);
       }
+      void loadCard("Serra Ascendant");
     })();
   }, []);
 
@@ -794,17 +795,30 @@ export function OverlayTemplateEditor() {
                       <span>{sel.highlightSpreadY ?? 4}px</span>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
-                      <span style={{ minWidth: 56 }}>Scale</span>
+                      <span style={{ minWidth: 56 }}>Scale X</span>
                       <input
                         type="range"
                         min={0.5}
-                        max={4}
+                        max={6}
                         step={0.1}
-                        value={sel.highlightScale ?? 1}
-                        onChange={(e) => updateSelected({ highlightScale: Number(e.target.value) })}
+                        value={sel.highlightScaleX ?? 1}
+                        onChange={(e) => updateSelected({ highlightScaleX: Number(e.target.value) })}
                         style={{ flex: 1 }}
                       />
-                      <span>{(sel.highlightScale ?? 1).toFixed(1)}×</span>
+                      <span>{(sel.highlightScaleX ?? 1).toFixed(1)}×</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Scale Y</span>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={6}
+                        step={0.1}
+                        value={sel.highlightScaleY ?? 1}
+                        onChange={(e) => updateSelected({ highlightScaleY: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{(sel.highlightScaleY ?? 1).toFixed(1)}×</span>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
                       <span style={{ minWidth: 56 }}>Offset X</span>
