@@ -722,11 +722,25 @@ export function OverlayTemplateEditor() {
                         className={styles.input}
                         value={sel.highlightStyle || "brush"}
                         onChange={(e) => updateSelected({ highlightStyle: e.target.value as OverlayElement["highlightStyle"] })}
-                        style={{ maxWidth: 110, margin: 0 }}
+                        style={{ maxWidth: 120, margin: 0 }}
                       >
                         <option value="brush">Brush</option>
                         <option value="marker">Marker</option>
+                        <option value="wash">Wash</option>
+                        <option value="ribbon">Ribbon</option>
+                        <option value="double">Double</option>
+                        <option value="fade">Fade</option>
+                        <option value="chalk">Chalk</option>
                         <option value="underline">Underline</option>
+                      </select>
+                      <select
+                        className={styles.input}
+                        value={sel.highlightMode || "line"}
+                        onChange={(e) => updateSelected({ highlightMode: e.target.value as OverlayElement["highlightMode"] })}
+                        style={{ maxWidth: 100, margin: 0 }}
+                      >
+                        <option value="line">Per line</option>
+                        <option value="block">One block</option>
                       </select>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
