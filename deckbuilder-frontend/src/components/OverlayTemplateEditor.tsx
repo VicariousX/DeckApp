@@ -757,17 +757,30 @@ export function OverlayTemplateEditor() {
                       <span>{Math.round((sel.highlightOpacity ?? 0.55) * 100)}%</span>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
-                      <span style={{ minWidth: 56 }}>Spread</span>
+                      <span style={{ minWidth: 56 }}>Spread H</span>
                       <input
                         type="range"
                         min={0}
-                        max={24}
+                        max={40}
                         step={1}
                         value={sel.highlightSpread ?? 6}
                         onChange={(e) => updateSelected({ highlightSpread: Number(e.target.value) })}
                         style={{ flex: 1 }}
                       />
                       <span>{sel.highlightSpread ?? 6}px</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Spread V</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={40}
+                        step={1}
+                        value={sel.highlightSpreadY ?? 4}
+                        onChange={(e) => updateSelected({ highlightSpreadY: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{sel.highlightSpreadY ?? 4}px</span>
                     </label>
                   </div>
                 </div>
