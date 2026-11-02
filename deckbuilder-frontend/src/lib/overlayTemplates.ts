@@ -139,8 +139,8 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     highlightMode: el.highlightMode ?? "line",
     highlightOffsetX: el.highlightOffsetX ?? 0,
     highlightOffsetY: el.highlightOffsetY ?? 0,
-    highlightScaleX: el.highlightScaleX ?? el.highlightScale ?? 1,
-    highlightScaleY: el.highlightScaleY ?? el.highlightScale ?? 1,
+    highlightScaleX: el.highlightScaleX ?? 1,
+    highlightScaleY: el.highlightScaleY ?? 1,
     highlightColorSource: el.highlightColorSource ?? "custom",
   };
 }
