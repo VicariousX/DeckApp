@@ -326,6 +326,137 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 
+type Token = { kind: "text"; text: string } | { kind: "sym"; code: string };
+type Piece = { kind: "text"; text: string; width: number } | { kind: "sym"; code: string; width: number };
+type VisualLine = { pieces: Piece[]; width: number };
+
+function tokenize(text: string): Token[] {
+  const parts = text.split(/(\{[^}]+\})/g);
+  return parts
+    .filter((p) => p.length > 0)
+    .map((p) =>
+      p.startsWith("{") && p.endsWith("}") ? { kind: "sym", code: p } : { kind: "text", text: p }
+    );
+}
+
+function setLetterSpacing(ctx: CanvasRenderingContext2D, px: number) {
+  // letterSpacing is widely supported; guard for older engines.
+  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${px}px`;
+}
+
+function measureTokenWidth(ctx: CanvasRenderingContext2D, token: Token, symSize: number): number {
+  if (token.kind === "sym") return symSize;
+  return ctx.measureText(token.text).width;
+}
+
+/** Split text into visual lines that fit maxW, honoring hard breaks, symbols, wrap mode, and max lines. */
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  symSize: number,
+  wrapMode: "wrap" | "nowrap" | "ellipsis",
+  letterSpacing: number,
+  maxLines: number
+): VisualLine[] {
+  setLetterSpacing(ctx, letterSpacing);
+  const limit = maxLines > 0 ? maxLines : Infinity;
+  const hard = text.split("\n");
+  const out: VisualLine[] = [];
+  let truncated = false;
+
+  function pushEllipsis(line: VisualLine) {
+    const ell = "…";
+    const ew = ctx.measureText(ell).width;
+    function lineWidth(pieces: Piece[]): number {
+      let w = 0;
+      for (let i = 0; i < pieces.length; i++) {
+        w += pieces[i].width;
+        if (i < pieces.length - 1 && pieces[i].kind === "sym") w += 4;
+      }
+      return w;
+    }
+    while (line.pieces.length && lineWidth(line.pieces) + ew > maxW) {
+      const last = line.pieces[line.pieces.length - 1];
+      if (last.kind === "text" && last.text.length > 1) {
+        last.text = last.text.slice(0, -1);
+        last.width = ctx.measureText(last.text).width;
+      } else {
+        line.pieces.pop();
+      }
+    }
+    line.pieces.push({ kind: "text", text: ell, width: ew });
+    line.width = lineWidth(line.pieces);
+  }
+
+  for (const hardLine of hard) {
+    if (out.length >= limit) { truncated = true; break; }
+    const tokens = tokenize(hardLine);
+    // Flatten text tokens into words (keeping spaces attached to the following word for wrapping).
+    const atoms: Token[] = [];
+    for (const t of tokens) {
+      if (t.kind === "sym") {
+        atoms.push(t);
+      } else {
+        const parts = t.text.split(/(\s+)/);
+        for (const p of parts) {
+          if (p) atoms.push({ kind: "text", text: p });
+        }
+      }
+    }
+
+    if (wrapMode === "nowrap" || wrapMode === "ellipsis") {
+      const pieces: Piece[] = atoms.map((a) => ({ ...a, width: measureTokenWidth(ctx, a, symSize) } as Piece));
+      let width = 0;
+      for (let i = 0; i < pieces.length; i++) {
+        width += pieces[i].width;
+        if (i < pieces.length - 1 && pieces[i].kind === "sym") width += 4;
+      }
+      const line: VisualLine = { pieces, width };
+      if (width > maxW && wrapMode === "ellipsis") pushEllipsis(line);
+      out.push(line);
+      if (out.length >= limit) break;
+      continue;
+    }
+
+    // wrap
+    let cur: Piece[] = [];
+    let curW = 0;
+    const symGap = 4;
+
+    function flush() {
+      if (!cur.length) return;
+      let width = 0;
+      for (let i = 0; i < cur.length; i++) {
+        width += cur[i].width;
+        if (i < cur.length - 1 && cur[i].kind === "sym") width += symGap;
+      }
+      out.push({ pieces: cur, width });
+      cur = [];
+      curW = 0;
+    }
+
+    for (const atom of atoms) {
+      if (out.length >= limit) { truncated = true; break; }
+      const w = measureTokenWidth(ctx, atom, symSize);
+      const isSpace = atom.kind === "text" && /^\s+$/.test(atom.text);
+      const extra = cur.length && cur[cur.length - 1].kind === "sym" ? symGap : 0;
+      const nextW = curW + extra + w;
+      if (!isSpace && cur.length && nextW > maxW) {
+        flush();
+        if (out.length >= limit) { truncated = true; break; }
+      }
+      if (isSpace && !cur.length) continue;
+      cur.push({ ...atom, width: w } as Piece);
+      curW = curW + (cur.length > 1 && cur[cur.length - 2].kind === "sym" ? symGap : 0) + w;
+    }
+    if (out.length < limit) flush();
+  }
+
+  if (truncated && out.length) pushEllipsis(out[out.length - 1]);
+  return out;
+}
+
 function measureLine(ctx: CanvasRenderingContext2D, line: string, symSize: number): number {
   const tokens = tokenize(line);
   let w = 0;
@@ -352,17 +483,6 @@ function loadSymbol(code: string): Promise<HTMLImageElement> {
     img.onerror = () => resolve(img);
     img.src = symbolToSvgUri(code);
   });
-}
-
-type Token = { kind: "text"; text: string } | { kind: "sym"; code: string };
-
-function tokenize(text: string): Token[] {
-  const parts = text.split(/(\{[^}]+\})/g);
-  return parts
-    .filter((p) => p.length > 0)
-    .map((p) =>
-      p.startsWith("{") && p.endsWith("}") ? { kind: "sym", code: p } : { kind: "text", text: p }
-    );
 }
 
 export type ProxyFields = {
@@ -417,7 +537,7 @@ export async function renderTemplate(
     const border = resolveColor(el.borderSource, el.borderColor, el.borderOpacity, artColor);
     const fill = resolveColor(el.colorSource, el.color, el.colorOpacity, artColor);
 
-    // autoGrow: measure content and expand height
+    // autoGrow: measure content and expand height using real wrapped lines
     let drawHeight = el.height;
     if (el.autoGrow && el.type !== "mana") {
       const text = textFor(el, fields);
@@ -426,14 +546,9 @@ export async function renderTemplate(
         const fontSize = el.fontSize;
         ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
         const lineH = Math.round(fontSize * (el.lineHeight || 1.25));
-        const lines = text.split("\n");
-        let totalH = pad * 2;
-        for (const line of lines) {
-          const w = ctx.measureText(line).width;
-          const wraps = Math.max(1, Math.ceil(w / Math.max(1, el.width - pad * 2)));
-          totalH += wraps * lineH;
-        }
-        drawHeight = Math.max(el.height, totalH);
+        const symSize = Math.round(fontSize * 0.9);
+        const visual = wrapText(ctx, text, Math.max(20, el.width - pad * 2), symSize, el.wrapMode || "wrap", el.letterSpacing || 0, el.maxLines || 0);
+        drawHeight = Math.max(el.height, visual.length * lineH + pad * 2);
       }
     }
 
@@ -507,13 +622,8 @@ export async function renderTemplate(
       while (fontSize > 10) {
         ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
         const symSize = Math.round(fontSize * 0.9);
-        const lines = text.split("\n");
-        let totalH = 0;
-        for (const line of lines) {
-          const w = measureLine(ctx, line, symSize);
-          const wraps = Math.max(1, Math.ceil(w / Math.max(1, maxW)));
-          totalH += wraps * (fontSize + 6);
-        }
+        const visual = wrapText(ctx, text, Math.max(20, maxW), symSize, el.wrapMode || "wrap", el.letterSpacing || 0, el.maxLines || 0);
+        const totalH = visual.length * Math.round(fontSize * (el.lineHeight || 1.25));
         if (totalH <= maxH) break;
         fontSize -= 1;
       }
@@ -544,6 +654,7 @@ export async function renderTemplate(
     ctx.fillStyle = fill;
     ctx.font = `${el.fontStyle} ${el.fontWeight} ${fontSize}px ${el.fontFamily || "serif"}`;
     ctx.textBaseline = "top";
+    setLetterSpacing(ctx, el.letterSpacing || 0);
     if (el.textOutline && el.textOutlineWidth > 0) {
       ctx.strokeStyle = el.textOutline;
       ctx.lineWidth = el.textOutlineWidth;
@@ -560,53 +671,53 @@ export async function renderTemplate(
     }
 
     const symSize = Math.round(fontSize * 0.9);
-    const lines = text.split("\n");
     const lineH = Math.round(fontSize * (el.lineHeight || 1.25));
-    const blockH = lines.length * lineH;
+    const innerW = Math.max(20, drawWidth - pad * 2);
+    const visual = wrapText(
+      ctx,
+      text,
+      innerW,
+      symSize,
+      el.wrapMode || "wrap",
+      el.letterSpacing || 0,
+      el.maxLines || 0
+    );
+    if (!visual.length) continue;
 
+    const blockH = visual.length * lineH;
+    const boxH = el.autoGrow ? Math.max(el.height, blockH + pad * 2) : el.height;
     let ty = el.y + pad;
-    if (el.verticalAlign === "middle") ty = el.y + Math.max(pad, (el.height - blockH) / 2);
-    else if (el.verticalAlign === "bottom") ty = el.y + el.height - pad - blockH;
+    if (el.verticalAlign === "middle") ty = el.y + Math.max(pad, (boxH - blockH) / 2);
+    else if (el.verticalAlign === "bottom") ty = el.y + boxH - pad - blockH;
 
-    for (const line of lines) {
-      if (ty > el.y + el.height - 4) break;
-      const tokens = tokenize(line);
-      const symImgs = new Map<string, HTMLImageElement>();
-      for (const t of tokens) {
-        if (t.kind === "sym") symImgs.set(t.code, await loadSymbol(t.code));
-      }
-      let lineW = 0;
-      for (const t of tokens) {
-        if (t.kind === "sym") lineW += symSize + 4;
-        else lineW += ctx.measureText(t.text).width;
-      }
+    // Preload every symbol used.
+    const codes = new Set<string>();
+    for (const line of visual) for (const p of line.pieces) if (p.kind === "sym") codes.add(p.code);
+    const symImgs = new Map<string, HTMLImageElement>();
+    await Promise.all([...codes].map(async (c) => symImgs.set(c, await loadSymbol(c))));
+
+    for (const line of visual) {
+      if (ty > el.y + boxH - 4) break;
       let x = drawX + pad;
-      if (el.textAlign === "center") x = drawX + (drawWidth - lineW) / 2;
-      else if (el.textAlign === "right") x = drawX + drawWidth - pad - lineW;
+      if (el.textAlign === "center") x = drawX + (drawWidth - line.width) / 2;
+      else if (el.textAlign === "right") x = drawX + drawWidth - pad - line.width;
 
-      for (const t of tokens) {
-        if (t.kind === "sym") {
-          const im = symImgs.get(t.code);
-          if (im && im.complete && im.naturalWidth) ctx.drawImage(im, x, ty, symSize, symSize);
-          x += symSize + 4;
+      for (let i = 0; i < line.pieces.length; i++) {
+        const p = line.pieces[i];
+        if (p.kind === "sym") {
+          const im = symImgs.get(p.code);
+          const sy = ty + Math.max(0, (lineH - symSize) / 2 - 1);
+          if (im && im.complete && im.naturalWidth) ctx.drawImage(im, x, sy, symSize, symSize);
+          x += p.width;
+          if (i < line.pieces.length - 1) x += 4;
         } else {
-          const words = t.text.split(/(\s+)/);
-          for (const w of words) {
-            const wW = ctx.measureText(w).width;
-            if (x + wW > drawX + drawWidth - pad && w.trim()) {
-              ty += lineH;
-              x = drawX + pad;
-              if (ty > el.y + el.height - 4) break;
-            }
-            if (el.textOutline && el.textOutlineWidth > 0) {
-              ctx.strokeText(w, x, ty);
-            }
-            ctx.fillText(w, x, ty);
-            x += wW;
-          }
+          if (el.textOutline && el.textOutlineWidth > 0) ctx.strokeText(p.text, x, ty);
+          ctx.fillText(p.text, x, ty);
+          x += p.width;
         }
       }
       ty += lineH;
     }
+    setLetterSpacing(ctx, 0);
   }
 }
