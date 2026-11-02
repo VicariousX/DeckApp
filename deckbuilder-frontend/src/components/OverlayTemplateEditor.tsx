@@ -717,7 +717,17 @@ export function OverlayTemplateEditor() {
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", flexWrap: "wrap" }}>
                       <span style={{ minWidth: 56 }}>Color</span>
                       <input type="color" value={sel.highlightColor || "#f5e27a"} onChange={(e) => updateSelected({ highlightColor: e.target.value })} />
-                      <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ highlightColor: "" })}>Off</button>
+                      <select
+                        className={styles.input}
+                        value={sel.highlightColorSource || "custom"}
+                        onChange={(e) => updateSelected({ highlightColorSource: e.target.value as OverlayElement["highlightColorSource"] })}
+                        style={{ maxWidth: 110, margin: 0 }}
+                      >
+                        <option value="custom">Custom</option>
+                        <option value="art">Art color</option>
+                        <option value="invert">Invert art</option>
+                      </select>
+                      <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => updateSelected({ highlightColor: "", highlightColorSource: "custom" })}>Off</button>
                       <select
                         className={styles.input}
                         value={sel.highlightStyle || "brush"}
@@ -782,6 +792,19 @@ export function OverlayTemplateEditor() {
                         style={{ flex: 1 }}
                       />
                       <span>{sel.highlightSpreadY ?? 4}px</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Scale</span>
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={4}
+                        step={0.1}
+                        value={sel.highlightScale ?? 1}
+                        onChange={(e) => updateSelected({ highlightScale: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{(sel.highlightScale ?? 1).toFixed(1)}×</span>
                     </label>
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
                       <span style={{ minWidth: 56 }}>Offset X</span>
