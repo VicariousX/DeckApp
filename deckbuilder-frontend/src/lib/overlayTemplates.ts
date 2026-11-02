@@ -71,8 +71,10 @@ export type OverlayElement = {
   highlightOffsetX: number;
   /** Nudge the highlighter vertically relative to the text. */
   highlightOffsetY: number;
-  /** Scale of the highlighter relative to the text (1 = fit text). */
-  highlightScale: number;
+  /** Scale of the highlighter relative to the text width (1 = fit text). */
+  highlightScaleX: number;
+  /** Scale of the highlighter relative to the text height (1 = fit text). */
+  highlightScaleY: number;
   /** Where the highlighter color comes from. */
   highlightColorSource: ColorSource;
   /** @deprecated use borderSource */
@@ -137,7 +139,8 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     highlightMode: el.highlightMode ?? "line",
     highlightOffsetX: el.highlightOffsetX ?? 0,
     highlightOffsetY: el.highlightOffsetY ?? 0,
-    highlightScale: el.highlightScale ?? 1,
+    highlightScaleX: el.highlightScaleX ?? el.highlightScale ?? 1,
+    highlightScaleY: el.highlightScaleY ?? el.highlightScale ?? 1,
     highlightColorSource: el.highlightColorSource ?? "custom",
   };
 }
@@ -932,12 +935,13 @@ export async function renderTemplate(
       const spreadY = el.highlightSpreadY || 0;
       const offX = el.highlightOffsetX || 0;
       const offY = el.highlightOffsetY || 0;
-      const scale = el.highlightScale || 1;
+      const scaleX = el.highlightScaleX || 1;
+      const scaleY = el.highlightScaleY || 1;
       const mode = el.highlightMode || "line";
       const hlColor = resolveColor(el.highlightColorSource || "custom", el.highlightColor || "#000000", 1, artColor);
       function sized(x: number, y: number, w: number, h: number) {
-        const sw = w * scale;
-        const sh = h * scale;
+        const sw = w * scaleX;
+        const sh = h * scaleY;
         return { x: x - (sw - w) / 2, y: y - (sh - h) / 2, w: sw, h: sh };
       }
       if (mode === "block") {
