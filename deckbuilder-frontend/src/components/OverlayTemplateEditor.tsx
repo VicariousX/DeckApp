@@ -773,7 +773,7 @@ export function OverlayTemplateEditor() {
                       <input
                         type="range"
                         min={0}
-                        max={40}
+                        max={200}
                         step={1}
                         value={sel.highlightSpread ?? 6}
                         onChange={(e) => updateSelected({ highlightSpread: Number(e.target.value) })}
@@ -786,7 +786,7 @@ export function OverlayTemplateEditor() {
                       <input
                         type="range"
                         min={0}
-                        max={40}
+                        max={200}
                         step={1}
                         value={sel.highlightSpreadY ?? 4}
                         onChange={(e) => updateSelected({ highlightSpreadY: Number(e.target.value) })}
@@ -798,8 +798,8 @@ export function OverlayTemplateEditor() {
                       <span style={{ minWidth: 56 }}>Scale X</span>
                       <input
                         type="range"
-                        min={0.5}
-                        max={6}
+                        min={0.25}
+                        max={8}
                         step={0.1}
                         value={sel.highlightScaleX ?? 1}
                         onChange={(e) => updateSelected({ highlightScaleX: Number(e.target.value) })}
@@ -811,8 +811,8 @@ export function OverlayTemplateEditor() {
                       <span style={{ minWidth: 56 }}>Scale Y</span>
                       <input
                         type="range"
-                        min={0.5}
-                        max={6}
+                        min={0.25}
+                        max={8}
                         step={0.1}
                         value={sel.highlightScaleY ?? 1}
                         onChange={(e) => updateSelected({ highlightScaleY: Number(e.target.value) })}
@@ -824,8 +824,8 @@ export function OverlayTemplateEditor() {
                       <span style={{ minWidth: 56 }}>Offset X</span>
                       <input
                         type="range"
-                        min={-40}
-                        max={40}
+                        min={-300}
+                        max={300}
                         step={1}
                         value={sel.highlightOffsetX ?? 0}
                         onChange={(e) => updateSelected({ highlightOffsetX: Number(e.target.value) })}
@@ -837,8 +837,8 @@ export function OverlayTemplateEditor() {
                       <span style={{ minWidth: 56 }}>Offset Y</span>
                       <input
                         type="range"
-                        min={-40}
-                        max={40}
+                        min={-300}
+                        max={300}
                         step={1}
                         value={sel.highlightOffsetY ?? 0}
                         onChange={(e) => updateSelected({ highlightOffsetY: Number(e.target.value) })}
