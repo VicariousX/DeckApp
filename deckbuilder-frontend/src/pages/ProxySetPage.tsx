@@ -206,7 +206,7 @@ export function ProxySetPage() {
   if (!user || !isProxyAdmin(user)) return <Navigate to="/login" replace />;
 
   return (
-    <div className={styles.accountContent} style={{ maxWidth: 960, margin: "0 auto", padding: "1.5rem" }}>
+    <div className={styles.accountContent} style={{ maxWidth: 1400, margin: "0 auto", padding: "1.5rem" }}>
       <h1 className={styles.title}>Proxy set</h1>
       <p className={styles.subtitle}>
         Upload existing art or create a live proxy with an overlay. Images are stored on Cloudflare R2.
