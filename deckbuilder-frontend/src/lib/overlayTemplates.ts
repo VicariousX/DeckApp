@@ -346,6 +346,52 @@ export function averageColor(img: HTMLImageElement): string {
 }
 
 
+const PAINT_TEXTURES = ["/highlights/paint-1.png", "/highlights/paint-2.png", "/highlights/paint-3.png"];
+const paintCache = new Map<string, HTMLImageElement>();
+function loadPaint(src: string): Promise<HTMLImageElement> {
+  const existing = paintCache.get(src);
+  if (existing && existing.complete && existing.naturalWidth) return Promise.resolve(existing);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      paintCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = () => resolve(img);
+    img.src = src;
+  });
+}
+
+/** Draw a source brush texture stretched to the box, tinted to color. */
+async function drawPaintTexture(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+  opacity: number,
+  seed: number
+) {
+  const src = PAINT_TEXTURES[Math.abs(Math.floor(seed)) % PAINT_TEXTURES.length];
+  const img = await loadPaint(src);
+  if (!img.complete || !img.naturalWidth) return;
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, Math.round(w));
+  off.height = Math.max(1, Math.round(h));
+  const octx = off.getContext("2d");
+  if (!octx) return;
+  octx.drawImage(img, 0, 0, off.width, off.height);
+  octx.globalCompositeOperation = "source-in";
+  octx.fillStyle = color;
+  octx.fillRect(0, 0, off.width, off.height);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+  ctx.drawImage(off, x, y);
+  ctx.restore();
+}
+
 function hash01(n: number): number {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
@@ -454,49 +500,7 @@ function drawHighlighter(
       ctx.stroke();
     }
   } else if (style === "paint") {
-    // Soft brush: solid rounded core, then many short overlapping strokes along the edges
-    // that fade into the core. No jagged polygon, no thin stray lines.
-    const coreY = sy + sh * 0.18;
-    const coreH = sh * 0.64;
-    ctx.fillStyle = color;
-    roundRect(ctx, sx + sw * 0.02, coreY, sw * 0.96, coreH, Math.min(coreH / 2, 8));
-    ctx.fill();
-
-    ctx.strokeStyle = color;
-    ctx.lineCap = "round";
-    // Edge strokes: short, thick, mostly horizontal, overlapping the core edge.
-    const passes = 22;
-    for (let i = 0; i < passes; i++) {
-      const top = i % 2 === 0;
-      const t = 0.04 + hash01(seed + i * 3.1) * 0.92;
-      const len = sw * (0.08 + hash01(seed + i * 5.7) * 0.18);
-      const px = sx + sw * t - len / 2;
-      const edge = top ? coreY : coreY + coreH;
-      const dir = top ? -1 : 1;
-      const reach = sh * (0.04 + hash01(seed + i * 2.3) * 0.12);
-      const y0 = edge - dir * sh * 0.04;
-      const y1 = edge + dir * reach;
-      ctx.globalAlpha = opacity * (0.55 + hash01(seed + i) * 0.4);
-      ctx.lineWidth = 2 + hash01(seed + i * 4) * 3;
-      ctx.beginPath();
-      ctx.moveTo(px, y0);
-      ctx.quadraticCurveTo(px + len * 0.5, (y0 + y1) / 2 + (hash01(seed + i * 8) - 0.5) * 3, px + len, y1);
-      ctx.stroke();
-    }
-    // End caps: a couple of short strokes at each end so the tips aren't hard.
-    for (const end of [0, 1]) {
-      const ex = end === 0 ? sx : sx + sw;
-      const dir = end === 0 ? -1 : 1;
-      for (let k = 0; k < 3; k++) {
-        const ey = coreY + coreH * (0.25 + hash01(seed + end * 10 + k) * 0.5);
-        ctx.globalAlpha = opacity * 0.6;
-        ctx.lineWidth = 2 + hash01(seed + k) * 2;
-        ctx.beginPath();
-        ctx.moveTo(ex - dir * sw * 0.04, ey);
-        ctx.lineTo(ex + dir * sw * (0.02 + hash01(seed + k * 3) * 0.04), ey + (hash01(seed + k) - 0.5) * 4);
-        ctx.stroke();
-      }
-    }
+    // Texture path is drawn by the caller (async image load).
   } else {
     // brush
     for (let i = 0; i < 5; i++) {
@@ -917,29 +921,26 @@ export async function renderTemplate(
           minX = Math.min(minX, hx);
           maxX = Math.max(maxX, hx + line.width);
         });
-        drawHighlighter(
-          ctx,
-          minX + offX,
-          ty + offY,
-          Math.max(maxX - minX, 12),
-          blockH,
-          el.highlightColor,
-          el.highlightOpacity,
-          style,
-          spreadX,
-          spreadY,
-          1
-        );
+        if (style === "paint") {
+          await drawPaintTexture(ctx, minX - spreadX + offX, ty - spreadY + offY, Math.max(maxX - minX, 12) + spreadX * 2, blockH + spreadY * 2, el.highlightColor, el.highlightOpacity, 1);
+        } else {
+          drawHighlighter(ctx, minX + offX, ty + offY, Math.max(maxX - minX, 12), blockH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, 1);
+        }
       } else {
         let hy = ty;
-        visual.forEach((line, i) => {
-          if (hy > el.y + boxH - 4) return;
+        for (let i = 0; i < visual.length; i++) {
+          const line = visual[i];
+          if (hy > el.y + boxH - 4) break;
           let hx = drawX + pad;
           if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
           else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
-          drawHighlighter(ctx, hx + offX, hy + offY, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, i + 1);
+          if (style === "paint") {
+            await drawPaintTexture(ctx, hx - spreadX + offX, hy - spreadY + offY, Math.max(line.width, 12) + spreadX * 2, lineH + spreadY * 2, el.highlightColor, el.highlightOpacity, i + 1);
+          } else {
+            drawHighlighter(ctx, hx + offX, hy + offY, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, i + 1);
+          }
           hy += lineH;
-        });
+        }
       }
       ctx.shadowColor = prevShadow;
       if (el.textShadow) ctx.shadowBlur = 4;
