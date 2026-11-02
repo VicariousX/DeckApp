@@ -783,6 +783,32 @@ export function OverlayTemplateEditor() {
                       />
                       <span>{sel.highlightSpreadY ?? 4}px</span>
                     </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Offset X</span>
+                      <input
+                        type="range"
+                        min={-40}
+                        max={40}
+                        step={1}
+                        value={sel.highlightOffsetX ?? 0}
+                        onChange={(e) => updateSelected({ highlightOffsetX: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{sel.highlightOffsetX ?? 0}px</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", marginTop: 4 }}>
+                      <span style={{ minWidth: 56 }}>Offset Y</span>
+                      <input
+                        type="range"
+                        min={-40}
+                        max={40}
+                        step={1}
+                        value={sel.highlightOffsetY ?? 0}
+                        onChange={(e) => updateSelected({ highlightOffsetY: Number(e.target.value) })}
+                        style={{ flex: 1 }}
+                      />
+                      <span>{sel.highlightOffsetY ?? 0}px</span>
+                    </label>
                   </div>
                 </div>
               </div>
