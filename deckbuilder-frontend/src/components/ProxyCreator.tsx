@@ -425,12 +425,13 @@ export function ProxyCreator({
           autoComplete="off"
         />
         {suggestions.length > 0 && (
-          <div>
+          <div style={{ marginTop: 4, border: "1px solid #333", borderRadius: 6, overflow: "hidden" }}>
             {suggestions.map((name) => (
               <button
                 key={name}
                 type="button"
                 className={styles.secondaryBtn}
+                style={{ display: "block", width: "100%", textAlign: "left", borderRadius: 0, border: "none", borderBottom: "1px solid #333" }}
                 onClick={() => void loadCard(name)}
               >
                 {name}
@@ -440,145 +441,193 @@ export function ProxyCreator({
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
-        <div>
-          <div className={styles.field}>
-            <label className={styles.label}>Art — upload</label>
-            <input
-              className={styles.input}
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) setArtFromFile(f);
-              }}
-            />
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              disabled={!driveReady}
-              onClick={() => void pickDrive()}
-            >
-              Pick from Google Drive
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              onClick={() => void pasteArtFromClipboard()}
-            >
-              Paste from clipboard
-            </button>
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Style preset</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <select
-                className={styles.input}
-                value={activePresetId}
-                onChange={(e) => loadPreset(e.target.value)}
-                style={{ flex: 1, minWidth: 160 }}
-              >
-                <option value="">None</option>
-                {presets.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <button type="button" className={styles.secondaryBtn} onClick={() => setShowSettings((v) => !v)}>
-                {showSettings ? "Hide settings" : "Edit presets"}
-              </button>
-            </div>
-            {showSettings && (
-              <div style={{ marginTop: 10, padding: 10, border: "1px solid #333", borderRadius: 6 }}>
-                <div className={styles.field}>
-                  <label className={styles.label}>Preset name</label>
-                  <input className={styles.input} value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Concept art" />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>Prefix (added before your prompt)</label>
-                  <textarea className={styles.input} rows={2} value={presetPrefix} onChange={(e) => setPresetPrefix(e.target.value)} placeholder="magic the gathering card art, " />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>Suffix (added after your prompt)</label>
-                  <textarea className={styles.input} rows={2} value={presetSuffix} onChange={(e) => setPresetSuffix(e.target.value)} placeholder=", detailed fantasy illustration, no text" />
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" className={styles.secondaryBtn} onClick={saveCurrentPreset} disabled={!presetName.trim()}>
-                    Save preset
-                  </button>
-                  {activePresetId && (
-                    <button type="button" className={styles.secondaryBtn} onClick={() => deletePreset(activePresetId)}>
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Or generate (local proxy)</label>
-            <textarea
-              className={styles.input}
-              rows={3}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the art…"
-            />
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              disabled={busy || !prompt.trim()}
-              onClick={() => void generate()}
-            >
-              {busy ? "Generating…" : "Generate (local proxy)"}
-            </button>
-            {prompt.trim() && (
-              <p className={styles.subtitle} style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-                Full prompt: {buildPrompt(prompt)}
-              </p>
-            )}
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.label}>Art position — drag preview to pan. Zoom: {artScale.toFixed(2)}</label>
-            <input
-              type="range"
-              min={0.6}
-              max={2.5}
-              step={0.05}
-              value={artScale}
-              onChange={(e) => setArtScale(Number(e.target.value))}
-            />
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              onClick={() => {
-                setArtOffset({ x: 0, y: 0 });
-                setArtScale(1);
-              }}
-            >
-              Reset crop
-            </button>
-          </div>
-
-          {(["name", "mana", "typeLine", "pt"] as const).map((key) => (
-            <div key={key} className={styles.field}>
-              <label className={styles.label}>{key}</label>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1fr) minmax(280px, 360px)", gap: "1.5rem", marginTop: "1rem", alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <section>
+            <h3 className={styles.label} style={{ marginBottom: 8 }}>Art source</h3>
+            <div className={styles.field}>
+              <label className={styles.label}>Upload image</label>
               <input
                 className={styles.input}
-                value={fields[key]}
-                onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setArtFromFile(f);
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={!driveReady}
+                  onClick={() => void pickDrive()}
+                >
+                  Google Drive
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => void pasteArtFromClipboard()}
+                >
+                  Paste clipboard
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className={styles.label} style={{ marginBottom: 8 }}>Generate art</h3>
+            <div className={styles.field}>
+              <label className={styles.label}>Style preset</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <select
+                  className={styles.input}
+                  value={activePresetId}
+                  onChange={(e) => loadPreset(e.target.value)}
+                  style={{ flex: 1, minWidth: 160 }}
+                >
+                  <option value="">None</option>
+                  {presets.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button type="button" className={styles.secondaryBtn} onClick={() => setShowSettings((v) => !v)}>
+                  {showSettings ? "Hide" : "Edit"}
+                </button>
+              </div>
+              {showSettings && (
+                <div style={{ marginTop: 10, padding: 10, border: "1px solid #333", borderRadius: 6 }}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>Preset name</label>
+                    <input className={styles.input} value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Concept art" />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>Prefix</label>
+                    <textarea className={styles.input} rows={2} value={presetPrefix} onChange={(e) => setPresetPrefix(e.target.value)} placeholder="magic the gathering card art, " />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>Suffix</label>
+                    <textarea className={styles.input} rows={2} value={presetSuffix} onChange={(e) => setPresetSuffix(e.target.value)} placeholder=", detailed fantasy illustration, no text" />
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className={styles.secondaryBtn} onClick={saveCurrentPreset} disabled={!presetName.trim()}>
+                      Save preset
+                    </button>
+                    {activePresetId && (
+                      <button type="button" className={styles.secondaryBtn} onClick={() => deletePreset(activePresetId)}>
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Prompt (local proxy)</label>
+              <textarea
+                className={styles.input}
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe the art…"
+              />
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                disabled={busy || !prompt.trim()}
+                onClick={() => void generate()}
+                style={{ marginTop: 8 }}
+              >
+                {busy ? "Generating…" : "Generate"}
+              </button>
+              {prompt.trim() && (
+                <p className={styles.subtitle} style={{ marginTop: 8, whiteSpace: "pre-wrap", fontSize: "0.8rem" }}>
+                  Full prompt: {buildPrompt(prompt)}
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h3 className={styles.label} style={{ marginBottom: 8 }}>Art position</h3>
+            <div className={styles.field}>
+              <label className={styles.label}>Zoom: {artScale.toFixed(2)}</label>
+              <input
+                type="range"
+                min={0.6}
+                max={2.5}
+                step={0.05}
+                value={artScale}
+                onChange={(e) => setArtScale(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => {
+                  setArtOffset({ x: 0, y: 0 });
+                  setArtScale(1);
+                }}
+                style={{ marginTop: 8 }}
+              >
+                Reset crop
+              </button>
+              <p className={styles.subtitle} style={{ fontSize: "0.8rem", marginTop: 4 }}>
+                Drag the preview or use arrow keys (Shift = 10px).
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h3 className={styles.label} style={{ marginBottom: 8 }}>Card text</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div className={styles.field}>
+                <label className={styles.label}>Name</label>
+                <input
+                  className={styles.input}
+                  value={fields.name}
+                  onChange={(e) => setFields((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Mana</label>
+                <input
+                  className={styles.input}
+                  value={fields.mana}
+                  onChange={(e) => setFields((f) => ({ ...f, mana: e.target.value }))}
+                  placeholder="{4}"
+                />
+              </div>
+              <div className={styles.field} style={{ gridColumn: "1 / -1" }}>
+                <label className={styles.label}>Type line</label>
+                <input
+                  className={styles.input}
+                  value={fields.typeLine}
+                  onChange={(e) => setFields((f) => ({ ...f, typeLine: e.target.value }))}
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>P/T</label>
+                <input
+                  className={styles.input}
+                  value={fields.pt}
+                  onChange={(e) => setFields((f) => ({ ...f, pt: e.target.value }))}
+                  placeholder="2/2"
+                />
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Rules</label>
+              <textarea
+                className={styles.input}
+                rows={5}
+                value={fields.rules}
+                onChange={(e) => setFields((f) => ({ ...f, rules: e.target.value }))}
               />
             </div>
-          ))}
-          <div className={styles.field}>
-            <label className={styles.label}>rules</label>
-            <textarea
-              className={styles.input}
-              rows={5}
-              value={fields.rules}
-              onChange={(e) => setFields((f) => ({ ...f, rules: e.target.value }))}
-            />
-          </div>
+          </section>
+
           <button
             type="button"
             className={styles.primaryBtn}
@@ -589,7 +638,8 @@ export function ProxyCreator({
           </button>
           {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
         </div>
-        <div>
+
+        <div style={{ position: "sticky", top: 16 }}>
           <canvas
             ref={canvasRef}
             width={CARD_W}
@@ -606,13 +656,15 @@ export function ProxyCreator({
               background: "#111",
               touchAction: "none",
               cursor: "grab",
+              display: "block",
             }}
           />
-          <p className={styles.subtitle} style={{ fontSize: "0.85rem" }}>
-            Overlay comes from the selected template. Drag or use arrow keys to reposition art (Shift = 10px).
+          <p className={styles.subtitle} style={{ fontSize: "0.8rem", marginTop: 8 }}>
+            Overlay from the selected template. Drag to reposition art.
           </p>
         </div>
       </div>
     </div>
   );
 }
+
