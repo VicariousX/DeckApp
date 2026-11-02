@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import styles from "../pages/LoginPage.module.css";
 import {
+  averageColor,
   CARD_H,
   CARD_W,
   deleteTemplate,
   loadTemplates,
   newElement,
+  renderTemplate,
   resolveColor,
   saveTemplates,
   upsertTemplate,
@@ -13,8 +15,10 @@ import {
   type OverlayElement,
   type OverlayElementType,
   type OverlayTemplate,
+  type ProxyFields,
 } from "../lib/overlayTemplates";
 import { deleteTemplateRemote, loadTemplatesRemote, upsertTemplateRemote } from "../lib/overlayTemplateService";
+import { fetchAutocomplete, fetchNamedCard } from "../lib/scryfallApi";
 
 const PREVIEW_W = 420;
 const SCALE = PREVIEW_W / CARD_W;
@@ -33,6 +37,12 @@ export function OverlayTemplateEditor() {
   const [snap, setSnap] = useState(true);
   const [showSample, setShowSample] = useState(false);
   const [sampleUrl, setSampleUrl] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [previewFields, setPreviewFields] = useState<ProxyFields>({ name: "", mana: "", typeLine: "", rules: "", pt: "" });
+  const [previewCardName, setPreviewCardName] = useState("");
+  const [view, setView] = useState<"edit" | "preview">("edit");
+  const previewCanvas = useRef<HTMLCanvasElement | null>(null);
   const drag = useRef<{
     id: string;
     mode: "move" | "resize";
@@ -61,6 +71,86 @@ export function OverlayTemplateEditor() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const nameQ = query.trim();
+    if (nameQ.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      void fetchAutocomplete(nameQ).then(({ names }) => setSuggestions(names.slice(0, 8)));
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  async function loadCard(cardName: string) {
+    const { card, error } = await fetchNamedCard(cardName);
+    if (error || !card) {
+      setInfo(error ?? "Card not found.");
+      return;
+    }
+    setPreviewFields({
+      name: card.name,
+      mana: card.mana_cost || "",
+      typeLine: card.type_line || "",
+      rules: card.oracle_text || "",
+      pt: card.power && card.toughness ? `${card.power}/${card.toughness}` : card.loyalty || "",
+    });
+    setPreviewCardName(card.name);
+    setQuery("");
+    setSuggestions([]);
+    setView("preview");
+    setInfo(`Previewing ${card.name}.`);
+  }
+
+  async function pasteSample() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        setSampleUrl(URL.createObjectURL(blob));
+        setShowSample(true);
+        setView("preview");
+        setInfo("Pasted sample art.");
+        return;
+      }
+      setInfo("Clipboard has no image.");
+    } catch (err) {
+      setInfo(err instanceof Error ? err.message : "Could not read clipboard.");
+    }
+  }
+
+  useEffect(() => {
+    const canvas = previewCanvas.current;
+    if (!canvas || view !== "preview") return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let cancelled = false;
+    const template: OverlayTemplate = {
+      id: currentId || "preview",
+      name: name || "Preview",
+      elements,
+      updatedAt: new Date().toISOString(),
+    };
+    async function run(img: HTMLImageElement | null) {
+      if (!ctx || cancelled) return;
+      const artColor = img ? averageColor(img) : "#5a5a5a";
+      await renderTemplate(ctx, template, previewFields, img, { x: 0, y: 0 }, 1, artColor);
+    }
+    if (sampleUrl && showSample) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => { if (!cancelled) void run(img); };
+      img.onerror = () => void run(null);
+      img.src = sampleUrl;
+    } else {
+      void run(null);
+    }
+    return () => { cancelled = true; };
+  }, [view, elements, previewFields, sampleUrl, showSample, currentId, name]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -356,6 +446,26 @@ export function OverlayTemplateEditor() {
           <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => void saveAs()}>Save as</button>
           <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => void remove()}>Delete</button>
         </div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center", position: "relative" }}>
+          <input
+            className={styles.input}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Load card…"
+            autoComplete="off"
+            style={{ maxWidth: 180, margin: 0 }}
+          />
+          {suggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 5, background: "#1a1a1a", border: "1px solid #333", borderRadius: 6, minWidth: 180 }}>
+              {suggestions.map((s) => (
+                <button key={s} type="button" className={styles.secondaryBtn} style={{ ...btn, display: "block", width: "100%", textAlign: "left", borderRadius: 0 }} onClick={() => void loadCard(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {previewCardName && <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>{previewCardName}</span>}
+        </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginLeft: "auto" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem" }}>
             <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} /> Grid
@@ -374,10 +484,12 @@ export function OverlayTemplateEditor() {
               if (f) {
                 setSampleUrl(URL.createObjectURL(f));
                 setShowSample(true);
+                setView("preview");
               }
             }}
             style={{ maxWidth: 140, fontSize: "0.75rem" }}
           />
+          <button type="button" className={styles.secondaryBtn} style={btn} onClick={() => void pasteSample()}>Paste art</button>
         </div>
       </div>
       {info && <p className={styles.subtitle} style={{ margin: 0 }}>{info}</p>}
@@ -395,6 +507,26 @@ export function OverlayTemplateEditor() {
         }}
       >
         {/* Canvas */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button type="button" className={view === "edit" ? styles.primaryBtn : styles.secondaryBtn} style={btn} onClick={() => setView("edit")}>Edit</button>
+            <button type="button" className={view === "preview" ? styles.primaryBtn : styles.secondaryBtn} style={btn} onClick={() => setView("preview")}>Preview</button>
+          </div>
+          {view === "preview" ? (
+            <canvas
+              ref={previewCanvas}
+              width={CARD_W}
+              height={CARD_H}
+              style={{
+                width: PREVIEW_W,
+                height: CARD_H * SCALE,
+                borderRadius: 8,
+                background: "#111",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "block",
+              }}
+            />
+          ) : (
         <div
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -464,6 +596,8 @@ export function OverlayTemplateEditor() {
               />
             </div>
           ))}
+        </div>
+          )}
         </div>
 
         {/* Layers / add / align */}
