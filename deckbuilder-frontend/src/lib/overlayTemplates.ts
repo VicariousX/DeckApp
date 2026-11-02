@@ -61,8 +61,10 @@ export type OverlayElement = {
   highlightOpacity: number;
   /** Paint style for the highlighter. */
   highlightStyle: "brush" | "marker" | "underline" | "wash" | "ribbon" | "double" | "fade" | "chalk";
-  /** Extra spread around the text in px. */
+  /** Extra horizontal spread around the text in px. */
   highlightSpread: number;
+  /** Extra vertical spread around the text in px. */
+  highlightSpreadY: number;
   /** One stroke per visual line, or one stroke for the whole block. */
   highlightMode: "line" | "block";
   /** @deprecated use borderSource */
@@ -123,6 +125,7 @@ function normalize(el: Partial<OverlayElement> & { id: string; type: OverlayElem
     highlightOpacity: el.highlightOpacity ?? 0.55,
     highlightStyle: el.highlightStyle ?? "brush",
     highlightSpread: el.highlightSpread ?? 6,
+    highlightSpreadY: el.highlightSpreadY ?? 4,
     highlightMode: el.highlightMode ?? "line",
   };
 }
@@ -354,7 +357,8 @@ function drawHighlighter(
   color: string,
   opacity: number,
   style: HighlightStyle,
-  spread: number,
+  spreadX: number,
+  spreadY: number,
   seed: number
 ) {
   if (w < 4 || h < 4) return;
@@ -362,80 +366,82 @@ function drawHighlighter(
   ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  const sx = x - spread;
-  const sw = w + spread * 2;
+  const sx = x - spreadX;
+  const sy = y - spreadY;
+  const sw = w + spreadX * 2;
+  const sh = h + spreadY * 2;
 
   if (style === "underline") {
-    const base = y + h * 0.82;
+    const base = sy + sh * 0.82;
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(3, h * 0.22);
+    ctx.lineWidth = Math.max(3, sh * 0.22);
     ctx.beginPath();
     ctx.moveTo(sx, base);
     for (let i = 1; i <= 6; i++) {
-      ctx.lineTo(sx + (sw * i) / 6, base + (hash01(seed + i) - 0.5) * h * 0.18);
+      ctx.lineTo(sx + (sw * i) / 6, base + (hash01(seed + i) - 0.5) * sh * 0.18);
     }
     ctx.stroke();
   } else if (style === "marker") {
-    const my = y + h * 0.12;
-    const mh = h * 0.78;
+    const my = sy + sh * 0.08;
+    const mh = sh * 0.84;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = Math.max(4, h * 0.35);
-    roundRect(ctx, sx, my, sw, mh, Math.min(mh / 2, 10));
+    ctx.shadowBlur = Math.max(4, sh * 0.3);
+    roundRect(ctx, sx, my, sw, mh, Math.min(mh / 2, 12));
     ctx.fill();
   } else if (style === "wash") {
-    const g = ctx.createLinearGradient(sx, y, sx, y + h);
+    const g = ctx.createLinearGradient(sx, sy, sx, sy + sh);
     g.addColorStop(0, "transparent");
     g.addColorStop(0.25, color);
     g.addColorStop(0.75, color);
     g.addColorStop(1, "transparent");
     ctx.fillStyle = g;
     ctx.shadowColor = color;
-    ctx.shadowBlur = Math.max(8, h * 0.5);
-    ctx.fillRect(sx, y, sw, h);
+    ctx.shadowBlur = Math.max(8, sh * 0.4);
+    ctx.fillRect(sx, sy, sw, sh);
   } else if (style === "ribbon") {
     ctx.fillStyle = color;
     ctx.beginPath();
-    const mid = y + h * 0.5;
+    const mid = sy + sh * 0.5;
     ctx.moveTo(sx, mid);
-    ctx.quadraticCurveTo(sx + sw * 0.15, y + h * 0.15, sx + sw * 0.5, y + h * 0.22);
-    ctx.quadraticCurveTo(sx + sw * 0.85, y + h * 0.3, sx + sw, mid);
-    ctx.quadraticCurveTo(sx + sw * 0.85, y + h * 0.78, sx + sw * 0.5, y + h * 0.82);
-    ctx.quadraticCurveTo(sx + sw * 0.15, y + h * 0.86, sx, mid);
+    ctx.quadraticCurveTo(sx + sw * 0.15, sy + sh * 0.15, sx + sw * 0.5, sy + sh * 0.22);
+    ctx.quadraticCurveTo(sx + sw * 0.85, sy + sh * 0.3, sx + sw, mid);
+    ctx.quadraticCurveTo(sx + sw * 0.85, sy + sh * 0.78, sx + sw * 0.5, sy + sh * 0.82);
+    ctx.quadraticCurveTo(sx + sw * 0.15, sy + sh * 0.86, sx, mid);
     ctx.closePath();
     ctx.fill();
   } else if (style === "double") {
     ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(2, h * 0.16);
+    ctx.lineWidth = Math.max(2, sh * 0.16);
     for (const off of [0.32, 0.68]) {
       ctx.beginPath();
-      const base = y + h * off;
+      const base = sy + sh * off;
       ctx.moveTo(sx, base);
       for (let i = 1; i <= 5; i++) {
-        ctx.lineTo(sx + (sw * i) / 5, base + (hash01(seed + off * 10 + i) - 0.5) * h * 0.08);
+        ctx.lineTo(sx + (sw * i) / 5, base + (hash01(seed + off * 10 + i) - 0.5) * sh * 0.08);
       }
       ctx.stroke();
     }
   } else if (style === "fade") {
-    const g = ctx.createLinearGradient(sx, y, sx + sw, y);
+    const g = ctx.createLinearGradient(sx, sy, sx + sw, sy);
     g.addColorStop(0, "transparent");
     g.addColorStop(0.12, color);
     g.addColorStop(0.88, color);
     g.addColorStop(1, "transparent");
     ctx.fillStyle = g;
-    roundRect(ctx, sx, y + h * 0.18, sw, h * 0.64, h * 0.3);
+    roundRect(ctx, sx, sy + sh * 0.12, sw, sh * 0.76, sh * 0.3);
     ctx.fill();
   } else if (style === "chalk") {
     ctx.strokeStyle = color;
     const steps = 14;
     for (let pass = 0; pass < 3; pass++) {
       ctx.globalAlpha = opacity * (0.25 + hash01(seed + pass) * 0.3);
-      ctx.lineWidth = Math.max(1.5, h * (0.12 + hash01(seed + pass * 3) * 0.1));
+      ctx.lineWidth = Math.max(1.5, sh * (0.12 + hash01(seed + pass * 3) * 0.1));
       ctx.beginPath();
       for (let i = 0; i <= steps; i++) {
         if (hash01(seed + pass * 20 + i) < 0.18) continue;
         const px = sx + (sw * i) / steps;
-        const py = y + h * 0.45 + (hash01(seed + i * 3 + pass) - 0.5) * h * 0.4;
+        const py = sy + sh * 0.45 + (hash01(seed + i * 3 + pass) - 0.5) * sh * 0.4;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
@@ -444,14 +450,14 @@ function drawHighlighter(
   } else {
     // brush
     for (let i = 0; i < 5; i++) {
-      const jy = (hash01(seed + i * 3) - 0.5) * h * 0.35;
-      const jx = (hash01(seed + i * 7) - 0.5) * spread;
+      const jy = (hash01(seed + i * 3) - 0.5) * sh * 0.35;
+      const jx = (hash01(seed + i * 7) - 0.5) * spreadX;
       ctx.strokeStyle = color;
-      ctx.lineWidth = h * (0.42 + hash01(seed + i * 11) * 0.28);
+      ctx.lineWidth = sh * (0.42 + hash01(seed + i * 11) * 0.28);
       ctx.globalAlpha = opacity * (0.35 + hash01(seed + i) * 0.35);
       ctx.beginPath();
-      ctx.moveTo(sx + jx, y + h * 0.45 + jy);
-      ctx.quadraticCurveTo(sx + sw * 0.45, y + h * 0.5 + (hash01(seed + i * 5) - 0.5) * h * 0.25, sx + sw - jx, y + h * 0.42 + (hash01(seed + i * 9) - 0.5) * h * 0.2);
+      ctx.moveTo(sx + jx, sy + sh * 0.45 + jy);
+      ctx.quadraticCurveTo(sx + sw * 0.45, sy + sh * 0.5 + (hash01(seed + i * 5) - 0.5) * sh * 0.25, sx + sw - jx, sy + sh * 0.42 + (hash01(seed + i * 9) - 0.5) * sh * 0.2);
       ctx.stroke();
     }
   }
@@ -846,7 +852,8 @@ export async function renderTemplate(
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
       const style = el.highlightStyle || "brush";
-      const spread = el.highlightSpread || 6;
+      const spreadX = el.highlightSpread || 0;
+      const spreadY = el.highlightSpreadY || 0;
       const mode = el.highlightMode || "line";
       if (mode === "block") {
         let minX = Infinity;
@@ -867,7 +874,8 @@ export async function renderTemplate(
           el.highlightColor,
           el.highlightOpacity,
           style,
-          spread,
+          spreadX,
+          spreadY,
           1
         );
       } else {
@@ -877,7 +885,7 @@ export async function renderTemplate(
           let hx = drawX + pad;
           if (el.textAlign === "center") hx = drawX + (drawWidth - line.width) / 2;
           else if (el.textAlign === "right") hx = drawX + drawWidth - pad - line.width;
-          drawHighlighter(ctx, hx, hy, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spread, i + 1);
+          drawHighlighter(ctx, hx, hy, Math.max(line.width, 12), lineH, el.highlightColor, el.highlightOpacity, style, spreadX, spreadY, i + 1);
           hy += lineH;
         });
       }
