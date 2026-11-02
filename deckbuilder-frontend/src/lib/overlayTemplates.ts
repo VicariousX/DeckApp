@@ -448,60 +448,56 @@ function drawHighlighter(
       ctx.stroke();
     }
   } else if (style === "paint") {
-    // Solid core with frayed bristle edges, randomized per seed (like a dry paint stroke).
-    const coreTop = 0.18 + hash01(seed) * 0.08;
-    const coreBot = 0.78 + hash01(seed + 2) * 0.08;
-    const steps = 28;
+    // Organic dry-brush: the edge IS the fill. Notches and short ridges are part of the path,
+    // not thin lines stuck onto a rectangle.
+    const steps = 40;
+    const inset = 0.08;
     ctx.fillStyle = color;
     ctx.beginPath();
+    // top edge, left to right
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const px = sx + sw * t;
-      const wobble = (hash01(seed + i * 1.7) - 0.5) * sh * 0.06;
-      const endTaper = Math.min(t, 1 - t) < 0.06 ? Math.min(t, 1 - t) / 0.06 : 1;
-      const py = sy + sh * coreTop + wobble * endTaper;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+      const end = Math.min(t, 1 - t);
+      const taper = end < 0.08 ? end / 0.08 : 1;
+      // clustered notches: most of the edge is quiet, a few spots bite in or out
+      const n = hash01(seed + i * 2.1);
+      const notch = n > 0.82 ? (n - 0.82) * sh * 0.55 : n < 0.12 ? -(0.12 - n) * sh * 0.4 : (n - 0.5) * sh * 0.04;
+      const base = sy + sh * (0.22 + (1 - taper) * 0.18);
+      if (i === 0) ctx.moveTo(px, base + notch * taper);
+      else ctx.lineTo(px, base + notch * taper);
     }
+    // bottom edge, right to left
     for (let i = steps; i >= 0; i--) {
       const t = i / steps;
       const px = sx + sw * t;
-      const wobble = (hash01(seed + 40 + i * 1.3) - 0.5) * sh * 0.06;
-      const endTaper = Math.min(t, 1 - t) < 0.06 ? Math.min(t, 1 - t) / 0.06 : 1;
-      const py = sy + sh * coreBot + wobble * endTaper;
-      ctx.lineTo(px, py);
+      const end = Math.min(t, 1 - t);
+      const taper = end < 0.08 ? end / 0.08 : 1;
+      const n = hash01(seed + 60 + i * 1.9);
+      const notch = n > 0.8 ? (n - 0.8) * sh * 0.5 : n < 0.1 ? -(0.1 - n) * sh * 0.35 : (n - 0.5) * sh * 0.04;
+      const base = sy + sh * (0.78 - (1 - taper) * 0.18);
+      ctx.lineTo(px, base + notch * taper);
     }
     ctx.closePath();
     ctx.fill();
 
-    const bristles = 18 + Math.floor(hash01(seed + 9) * 14);
+    // Short thick ridges that start inside the edge and fade out — integrated, not stuck on.
+    const ridges = 10 + Math.floor(hash01(seed + 3) * 8);
     ctx.strokeStyle = color;
-    for (let b = 0; b < bristles; b++) {
-      const edge = hash01(seed + b * 3) < 0.5 ? "top" : "bottom";
-      const t = 0.04 + hash01(seed + b * 5) * 0.92;
+    ctx.lineCap = "round";
+    for (let b = 0; b < ridges; b++) {
+      const top = hash01(seed + b * 4) < 0.5;
+      const t = inset + hash01(seed + b * 6) * (1 - inset * 2);
       const px = sx + sw * t;
-      const baseY = edge === "top" ? sy + sh * coreTop : sy + sh * coreBot;
-      const dir = edge === "top" ? -1 : 1;
-      const len = sh * (0.08 + hash01(seed + b * 7) * 0.22);
-      const slant = (hash01(seed + b * 11) - 0.5) * sw * 0.04;
-      ctx.globalAlpha = opacity * (0.35 + hash01(seed + b) * 0.5);
-      ctx.lineWidth = 0.6 + hash01(seed + b * 13) * 1.4;
+      const edgeY = top ? sy + sh * 0.22 : sy + sh * 0.78;
+      const dir = top ? -1 : 1;
+      const len = sh * (0.04 + hash01(seed + b * 8) * 0.14);
+      ctx.globalAlpha = opacity * (0.7 + hash01(seed + b) * 0.3);
+      ctx.lineWidth = 1.5 + hash01(seed + b * 2) * 2.5;
       ctx.beginPath();
-      ctx.moveTo(px, baseY);
-      ctx.lineTo(px + slant, baseY + dir * len);
-      ctx.stroke();
-    }
-    for (let b = 0; b < 6; b++) {
-      const edge = b % 2 === 0 ? "top" : "bottom";
-      const t = 0.1 + hash01(seed + 80 + b * 4) * 0.8;
-      const px = sx + sw * t;
-      const baseY = edge === "top" ? sy + sh * coreTop : sy + sh * coreBot;
-      const dir = edge === "top" ? -1 : 1;
-      ctx.globalAlpha = opacity * 0.4;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(px, baseY);
-      ctx.lineTo(px + (hash01(seed + b) - 0.5) * 8, baseY + dir * sh * (0.25 + hash01(seed + b * 2) * 0.2));
+      // start a bit inside the core so the ridge merges
+      ctx.moveTo(px, edgeY - dir * sh * 0.06);
+      ctx.lineTo(px + (hash01(seed + b * 5) - 0.5) * 6, edgeY + dir * len);
       ctx.stroke();
     }
   } else {
