@@ -346,7 +346,7 @@ export function averageColor(img: HTMLImageElement): string {
 }
 
 
-const PAINT_TEXTURES = ["/highlights/paint-1.png", "/highlights/paint-2.png", "/highlights/paint-3.png"];
+const PAINT_TEXTURES = ["/highlights/paint-1.png?v=2", "/highlights/paint-2.png?v=2", "/highlights/paint-3.png?v=2"];
 const paintCache = new Map<string, HTMLImageElement>();
 function loadPaint(src: string): Promise<HTMLImageElement> {
   const existing = paintCache.get(src);
