@@ -150,6 +150,7 @@ export function DeckBuilderPage() {
   const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
   const [copyBusy, setCopyBusy] = useState(false);
   const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
+  const [legalityOpen, setLegalityOpen] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelTab>("deck");
@@ -1537,16 +1538,26 @@ export function DeckBuilderPage() {
                 </span>
               </p>
               {legalityIssues.length > 0 && (
-                <ul className={styles.legalList}>
-                  {legalityIssues.slice(0, 8).map((issue) => (
-                    <li key={`${issue.code}-${issue.oracleId || issue.message}`} className={styles.legalItem}>
-                      {issue.message}
-                    </li>
-                  ))}
-                  {legalityIssues.length > 8 && (
-                    <li className={styles.legalItem}>+{legalityIssues.length - 8} more</li>
+                <div className={styles.legalDrop}>
+                  <button
+                    type="button"
+                    className={styles.legalToggle}
+                    aria-expanded={legalityOpen}
+                    onClick={() => setLegalityOpen((v) => !v)}
+                  >
+                    {legalityIssues.length} legality issue{legalityIssues.length === 1 ? "" : "s"}
+                    <span className={styles.legalChevron}>{legalityOpen ? "▴" : "▾"}</span>
+                  </button>
+                  {legalityOpen && (
+                    <ul className={styles.legalList}>
+                      {legalityIssues.map((issue) => (
+                        <li key={`${issue.code}-${issue.oracleId || issue.message}`} className={styles.legalItem}>
+                          {issue.message}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </ul>
+                </div>
               )}
             </div>
             <div className={styles.headerActions}>
