@@ -102,8 +102,26 @@ export function ProxyCreator({
   const [templateId, setTemplateId] = useState("");
   const [artScale, setArtScale] = useState(1);
   const [artOffset, setArtOffset] = useState({ x: 0, y: 0 });
+  const [artHistory, setArtHistory] = useState<{ scale: number; offset: { x: number; y: number } }[]>([]);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [batchList, setBatchList] = useState("");
+  const [batchProgress, setBatchProgress] = useState("");
+  const [faceIndex, setFaceIndex] = useState(0);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const driveReady = isDrivePickerConfigured();
+
+  const RECENT_KEY = "deckapp.proxy.recent";
+  function remember(name: string) {
+    const next = [name, ...recent.filter((n) => n !== name)].slice(0, 12);
+    setRecent(next);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      if (raw) setRecent(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -154,18 +172,34 @@ export function ProxyCreator({
       return;
     }
     setCard(c);
-    setFields({
-      name: c.name,
-      mana: c.mana_cost || "",
-      typeLine: c.type_line || "",
-      rules: c.oracle_text || "",
-      pt: c.power && c.toughness ? `${c.power}/${c.toughness}` : c.loyalty || "",
-    });
+    setFaceIndex(0);
+    applyFace(c, 0);
     setPrompt(c.name);
     setArtOffset({ x: 0, y: 0 });
     setArtScale(1);
+    setArtHistory([]);
     setQuery("");
     setSuggestions([]);
+    remember(c.name);
+  }
+
+  function applyFace(c: ScryfallCard, index: number) {
+    const faces = (c as ScryfallCard & { card_faces?: Array<{ name?: string; mana_cost?: string; type_line?: string; oracle_text?: string; power?: string; toughness?: string; loyalty?: string; flavor_text?: string; artist?: string }> }).card_faces;
+    const face = faces && faces[index] ? faces[index] : null;
+    const flavor = face?.flavor_text || (c as ScryfallCard & { flavor_text?: string }).flavor_text || "";
+    const artist = face?.artist || (c as ScryfallCard & { artist?: string }).artist || "";
+    setFields({
+      name: face?.name || c.name,
+      mana: face?.mana_cost || c.mana_cost || "",
+      typeLine: face?.type_line || c.type_line || "",
+      rules: face?.oracle_text || c.oracle_text || "",
+      pt: face?.power && face?.toughness ? `${face.power}/${face.toughness}` : face?.loyalty || (c.power && c.toughness ? `${c.power}/${c.toughness}` : c.loyalty || ""),
+      flavor,
+      artist,
+      setSymbol: (c as ScryfallCard & { set?: string }).set?.toUpperCase() || "",
+      watermark: (c as ScryfallCard & { watermark?: string }).watermark || "",
+      collector: `${(c as ScryfallCard & { collector_number?: string }).collector_number || ""} ${(c as ScryfallCard & { set?: string }).set || ""}`.trim(),
+    });
   }
 
   function setArtFromFile(file: File) {
@@ -349,7 +383,18 @@ export function ProxyCreator({
     });
   }
   function onPointerUp() {
+    if (drag.current) {
+      setArtHistory((h) => [...h.slice(-20), { scale: artScale, offset: artOffset }]);
+    }
     drag.current = null;
+  }
+
+  function undoArt() {
+    const last = artHistory[artHistory.length - 1];
+    if (!last) return;
+    setArtHistory((h) => h.slice(0, -1));
+    setArtScale(last.scale);
+    setArtOffset(last.offset);
   }
 
   async function save() {
@@ -361,12 +406,60 @@ export function ProxyCreator({
         canvasRef.current!.toBlob((b) => resolve(b), "image/png")
       );
       if (!blob) throw new Error("Could not export canvas.");
-      await onSave(card.oracle_id || card.id, fields.name || card.name, blob);
+      const safe = (fields.name || card.name).replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
+      const tpl = templates.find((t) => t.id === templateId)?.name || "template";
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+      const named = new File([blob], `${safe}_${tpl}_${stamp}.png`, { type: "image/png" });
+      await onSave(card.oracle_id || card.id, fields.name || card.name, named);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function parseDecklist(raw: string): string[] {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*\d+\s*[x×]?\s*/i, "").replace(/\s*\(.*$/, "").trim())
+      .filter((n) => n && !n.startsWith("//") && !n.startsWith("#"));
+  }
+
+  async function runBatch() {
+    const names = parseDecklist(batchList);
+    if (!names.length) {
+      setError("No cards in the list.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    let done = 0;
+    for (const name of names) {
+      setBatchProgress(`${done + 1}/${names.length}: ${name}`);
+      try {
+        await loadCard(name);
+        // Wait a tick for the canvas to render.
+        await new Promise((r) => setTimeout(r, 400));
+        if (canvasRef.current && card) {
+          const blob = await new Promise<Blob | null>((resolve) =>
+            canvasRef.current!.toBlob((b) => resolve(b), "image/png")
+          );
+          if (blob) {
+            const safe = name.replace(/[^a-z0-9]+/gi, "_");
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${safe}.png`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+        }
+      } catch {
+        // continue
+      }
+      done++;
+    }
+    setBatchProgress(`Done: ${done} cards`);
+    setBusy(false);
   }
 
   function saveCurrentPreset() {
@@ -439,6 +532,32 @@ export function ProxyCreator({
             ))}
           </div>
         )}
+        {recent.length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {recent.map((n) => (
+              <button key={n} type="button" className={styles.secondaryBtn} style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void loadCard(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>Batch from list</label>
+        <textarea
+          className={styles.input}
+          rows={4}
+          value={batchList}
+          onChange={(e) => setBatchList(e.target.value)}
+          placeholder={"1 Sol Ring\n4 Lightning Bolt\nSerra Ascendant"}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+          <button type="button" className={styles.secondaryBtn} disabled={busy || !batchList.trim()} onClick={() => void runBatch()}>
+            Process list
+          </button>
+          {batchProgress && <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>{batchProgress}</span>}
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1fr) minmax(280px, 360px)", gap: "1.5rem", marginTop: "1rem", alignItems: "start" }}>
@@ -562,17 +681,26 @@ export function ProxyCreator({
                 onChange={(e) => setArtScale(Number(e.target.value))}
                 style={{ width: "100%" }}
               />
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={() => {
-                  setArtOffset({ x: 0, y: 0 });
-                  setArtScale(1);
-                }}
-                style={{ marginTop: 8 }}
-              >
-                Reset crop
-              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  disabled={!artHistory.length}
+                  onClick={undoArt}
+                >
+                  Undo crop
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => {
+                    setArtOffset({ x: 0, y: 0 });
+                    setArtScale(1);
+                  }}
+                >
+                  Reset crop
+                </button>
+              </div>
               <p className={styles.subtitle} style={{ fontSize: "0.8rem", marginTop: 4 }}>
                 Drag the preview or use arrow keys (Shift = 10px).
               </p>
@@ -626,6 +754,44 @@ export function ProxyCreator({
                 onChange={(e) => setFields((f) => ({ ...f, rules: e.target.value }))}
               />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div className={styles.field}>
+                <label className={styles.label}>Flavor</label>
+                <input className={styles.input} value={fields.flavor || ""} onChange={(e) => setFields((f) => ({ ...f, flavor: e.target.value }))} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>Artist</label>
+                <input className={styles.input} value={fields.artist || ""} onChange={(e) => setFields((f) => ({ ...f, artist: e.target.value }))} />
+              </div>
+            </div>
+            {card && (card as ScryfallCard & { card_faces?: unknown[] }).card_faces && (card as ScryfallCard & { card_faces?: unknown[] }).card_faces!.length > 1 && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <span className={styles.label}>Face</span>
+                {(card as ScryfallCard & { card_faces?: Array<{ name?: string }> }).card_faces!.map((f, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={styles.secondaryBtn}
+                    style={{ opacity: faceIndex === i ? 1 : 0.6 }}
+                    onClick={() => { setFaceIndex(i); applyFace(card, i); }}
+                  >
+                    {f.name || `Face ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+            {card && (card as ScryfallCard & { all_parts?: Array<{ component?: string; name?: string }> }).all_parts && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                <span className={styles.label}>Related</span>
+                {(card as ScryfallCard & { all_parts?: Array<{ component?: string; name?: string }> }).all_parts!
+                  .filter((p) => p.component === "token" || p.component === "meld_result")
+                  .map((p) => (
+                    <button key={p.name} type="button" className={styles.secondaryBtn} style={{ fontSize: "0.75rem" }} onClick={() => void loadCard(p.name || "")}>
+                      {p.name}
+                    </button>
+                  ))}
+              </div>
+            )}
           </section>
 
           <button
