@@ -336,6 +336,18 @@
   color: var(--color-text);
 }
 
+.nestedMenu {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.nestedItem {
+  padding-left: 1.2rem;
+}
+
 /* Keep Decks control stable when route is active (not a NavLink) */
 .decksTrigger.navLinkActive,
 button.decksTrigger.navLinkActive {
