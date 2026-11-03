@@ -322,3 +322,13 @@ html[data-theme="simic"] {
   --shadow-glow: 0 0 18px rgba(77, 182, 160, 0.24);
   --focus-ring: 0 0 0 2px rgba(77, 182, 160, 0.45);
 }
+
+/* Semantic status colors — shared across themes, readable on dark surfaces */
+html[data-theme] {
+  --color-error: #f87171;
+  --color-error-soft: color-mix(in srgb, #f87171 18%, transparent);
+  --color-warning: #fbbf24;
+  --color-warning-soft: color-mix(in srgb, #fbbf24 16%, transparent);
+  --color-success: #6dbf6a;
+  --color-success-soft: color-mix(in srgb, #6dbf6a 16%, transparent);
+}
