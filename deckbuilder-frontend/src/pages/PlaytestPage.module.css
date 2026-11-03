@@ -1097,4 +1097,14 @@
   .board {
     grid-template-columns: 1fr;
   }
+  .top {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .tools {
+    justify-content: flex-start;
+  }
+  .stats {
+    width: 100%;
+  }
 }
