@@ -139,6 +139,7 @@ export function LandingPage() {
       delayMs={80}
       slots={[
         { to: "/search?mode=standard", mark: "Y", title: "Standard" },
+        { to: "/search/simple", mark: "I", title: "Simple" },
         { to: "/search?mode=advanced", mark: "A", title: "Advanced" },
       ]}
       rail={{
@@ -158,8 +159,8 @@ export function LandingPage() {
       slots={[
         { to: "/my-decks", mark: "D", title: "Decks" },
         { to: "/drawers", mark: "W", title: "Drawers" },
-        { to: "/combos", mark: "C", title: "Combos" },
         { to: "/collections", mark: "L", title: "Collections" },
+        { to: "/combos", mark: "C", title: "Combos" },
       ]}
       rail={{ kind: "link", to: "/login", label: "Profile" }}
     />
@@ -187,7 +188,7 @@ export function LandingPage() {
       delayMs={220}
       slots={[
         { to: "/social", mark: "S", title: "Social" },
-        { to: "/decks", mark: "P", title: "Public decks" },
+        { to: "/decks", mark: "P", title: "Public deck library" },
         { to: "/formats", mark: "F", title: "Formats" },
       ]}
       rail={{
