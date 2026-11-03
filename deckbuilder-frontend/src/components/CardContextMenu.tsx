@@ -72,7 +72,7 @@ export type CardContextTarget = {
   imageUrlBack?: string;
 };
 
-type Flyout = "decks" | "drawers" | "collections" | "share" | "move" | null;
+type Flyout = "decks" | "drawers" | "collections" | "share" | "move" | "links" | "tabs" | null;
 
 type Props = {
   x: number;
@@ -180,7 +180,7 @@ export function CardContextMenu({
     left = Math.max(pad, left);
     top = Math.max(pad, top);
     setPos({ left, top });
-  }, [x, y, fly, quantity, tier, status]);
+  }, [x, y, fly, quantity, tier, status, linkChoices]);
 
   async function addToDeck(deckId: string) {
     const { error } = await addCardToDeck(deckId, {
@@ -356,20 +356,30 @@ export function CardContextMenu({
       )}
 
       {linkChoices && linkChoices.length > 0 && (
-        <div className={styles.fly}>
-          <p className={styles.hint}>Works with</p>
-          {linkChoices.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={c.on ? styles.active : undefined}
-              onClick={c.onToggle}
-            >
-              {c.on ? "● " : "○ "}
-              {c.name}
-            </button>
-          ))}
-        </div>
+        <>
+          <button
+            type="button"
+            className={fly === "links" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "links" ? null : "links"))}
+          >
+            Works with ▸
+          </button>
+          {fly === "links" && (
+            <div className={styles.fly}>
+              {linkChoices.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={c.on ? styles.active : undefined}
+                  onClick={c.onToggle}
+                >
+                  {c.on ? "● " : "○ "}
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {moveTargets && moveTargets.length > 0 && (
@@ -400,24 +410,35 @@ export function CardContextMenu({
         </>
       )}
 
-      {fly !== "move" && (
-      <div className={styles.fly}>
-        {(tabs
-          ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
-          : MODAL_ITEMS
-        ).map((item) => (
+      {fly !== "move" && fly !== "links" && (
+        <>
           <button
-            key={item.id}
             type="button"
-            onClick={() => {
-              onOpenModal(item.id);
-              onClose();
-            }}
+            className={fly === "tabs" ? styles.active : undefined}
+            onClick={() => setFly((v) => (v === "tabs" ? null : "tabs"))}
           >
-            {item.label}
+            Open in ▸
           </button>
-        ))}
-      </div>
+          {fly === "tabs" && (
+            <div className={styles.fly}>
+              {(tabs
+                ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
+                : MODAL_ITEMS
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onOpenModal(item.id);
+                    onClose();
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {onQty && (
