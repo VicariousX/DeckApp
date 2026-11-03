@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type RefObject,
-} from "react";
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchAutocomplete, fetchCardsByNames, fetchNamedCard } from "../lib/scryfallApi";
 import { SynergyMap } from "../components/SynergyMap";
@@ -27,8 +20,9 @@ import {
 } from "../lib/combos";
 import { ComboAtlas } from "../components/ComboAtlas";
 import { loadRemoteCombos, saveRemoteCombos } from "../services/comboService";
-import { CardEnlargeOverlay, TiltFace } from "../components/CardImage";
+import { CardEnlargeOverlay } from "../components/CardImage";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardTile, CardTileField } from "../components/CardTile";
 import {
   CardContextMenu,
   modalJumpFromState,
@@ -66,11 +60,9 @@ function cardFromNamed(card: {
 function ColumnAdd({
   busy,
   onAdd,
-  inputRef,
 }: {
   busy: boolean;
   onAdd: (name: string) => void;
-  inputRef?: RefObject<HTMLInputElement | null>;
 }) {
   const [q, setQ] = useState("");
   const [names, setNames] = useState<string[]>([]);
@@ -100,7 +92,6 @@ function ColumnAdd({
   return (
     <div className={styles.addWrap}>
       <input
-        ref={inputRef}
         className={styles.addInput}
         value={q}
         placeholder="Add card…"
@@ -141,7 +132,7 @@ function ColumnAdd({
   );
 }
 
-function Wheel({
+function Column({
   column,
   dimmed,
   onFace,
@@ -150,7 +141,7 @@ function Wheel({
   onRename,
   onRemoveColumn,
   onContext,
-  onEnhance,
+  onOpen,
   busy,
 }: {
   column: ComboColumn;
@@ -161,146 +152,102 @@ function Wheel({
   onRename: (label: string) => void;
   onRemoveColumn: () => void;
   onContext: (e: ReactMouseEvent, card: ComboCard) => void;
-  onEnhance: (card: ComboCard) => void;
+  onOpen: (card: ComboCard) => void;
   busy: boolean;
 }) {
-  const addRef = useRef<HTMLInputElement | null>(null);
-  const tumblerRef = useRef<HTMLDivElement | null>(null);
-  const acc = useRef(0);
   const cards = column.cards;
-  const face =
-    cards.length === 0 ? 0 : ((column.face % cards.length) + cards.length) % cards.length;
+  const face = cards.length === 0 ? 0 : ((column.face % cards.length) + cards.length) % cards.length;
   const current = cards[face];
-  const prev = cards.length > 1 ? cards[(face - 1 + cards.length) % cards.length] : null;
-  const next = cards.length > 1 ? cards[(face + 1) % cards.length] : null;
 
   function cycle(dir: number) {
     if (cards.length < 2) return;
     onFace((face + dir + cards.length) % cards.length);
   }
 
-  useEffect(() => {
-    const el = tumblerRef.current;
-    if (!el) return;
-    function onWheel(e: WheelEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (cards.length < 2) return;
-      acc.current += e.deltaY;
-      if (Math.abs(acc.current) > 36) {
-        cycle(acc.current > 0 ? 1 : -1);
-        acc.current = 0;
-      }
-    }
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  });
-
   return (
-    <div className={styles.wheel}>
-      <div className={styles.wheelCap}>
+    <div className={`${styles.column} ${dimmed ? styles.columnDim : ""}`}>
+      <div className={styles.columnHead}>
         <input
-          className={styles.colLabel}
+          className={styles.columnLabel}
           value={column.label}
-          aria-label="Column name"
+          placeholder="Column"
           onChange={(e) => onRename(e.target.value)}
         />
-        <button
-          type="button"
-          className={styles.iconBtn}
-          aria-label="Remove column"
-          onClick={onRemoveColumn}
-        >
+        <button type="button" className={styles.textBtn} onClick={onRemoveColumn} aria-label="Remove column">
           ×
         </button>
       </div>
-      <div className={styles.tumbler} ref={tumblerRef}>
-        <button
-          type="button"
-          className={`${styles.peek} ${styles.peekTop}`}
-          disabled={!prev}
-          onClick={() => cycle(-1)}
-          aria-label="Previous card"
-        >
-          {prev?.image ? <img src={prev.image} alt="" /> : <span />}
-        </button>
-        <div className={styles.window}>
-          {current ? (
-            <div
-              className={`${styles.faceBtn}${dimmed ? ` ${styles.faceDim}` : ""}`}
-              onContextMenu={(e) => onContext(e, current)}
-            >
-              <TiltFace enabled onFaceClick={() => onEnhance(current)}>
-                {current.image ? (
-                  <img src={current.image} alt={current.name} />
-                ) : (
-                  <span className={styles.faceName}>{current.name}</span>
-                )}
-              </TiltFace>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className={styles.emptyFace}
-              onClick={() => addRef.current?.focus()}
-              aria-label="Focus add card"
-            >
-              +
-            </button>
-          )}
+
+      {current ? (
+        <div className={styles.columnFace}>
+          <CardTile
+            face={{
+              name: current.name,
+              imageUrl: current.image,
+              scryfallId: current.scryfall_id,
+              oracleId: current.oracle_id,
+            }}
+            ear={cards.length > 1 ? `${face + 1}/${cards.length}` : undefined}
+            onOpen={() => onOpen(current)}
+            onContextMenu={(e) => onContext(e as ReactMouseEvent, current)}
+            right={[
+              <button key="prev" type="button" onClick={() => cycle(-1)} disabled={cards.length < 2} aria-label="Previous">
+                ‹
+              </button>,
+              <button key="next" type="button" onClick={() => cycle(1)} disabled={cards.length < 2} aria-label="Next">
+                ›
+              </button>,
+            ]}
+            bottom={
+              <button type="button" onClick={() => onRemoveCard(current.id)} aria-label="Remove card">
+                Remove
+              </button>
+            }
+          />
         </div>
-        <button
-          type="button"
-          className={`${styles.peek} ${styles.peekBot}`}
-          disabled={!next}
-          onClick={() => cycle(1)}
-          aria-label="Next card"
-        >
-          {next?.image ? <img src={next.image} alt="" /> : <span />}
-        </button>
-      </div>
-      <p className={styles.faceCaption}>
-        {current
-          ? `${current.name}${cards.length > 1 ? ` · ${face + 1}/${cards.length}` : ""}`
-          : "Empty slot"}
-      </p>
-      <ColumnAdd busy={busy} onAdd={onAdd} inputRef={addRef} />
-      {current && (
-        <button
-          type="button"
-          className={styles.textBtn}
-          onClick={() => onRemoveCard(current.id)}
-        >
-          Remove face
-        </button>
+      ) : (
+        <div className={styles.columnEmpty}>No cards</div>
       )}
+
+      {cards.length > 1 && (
+        <div className={styles.columnStrip}>
+          {cards.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`${styles.stripBtn} ${i === face ? styles.stripOn : ""}`}
+              onClick={() => onFace(i)}
+              title={c.name}
+            >
+              {c.image ? <img src={c.image} alt="" /> : <span>{c.name.slice(0, 1)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <ColumnAdd busy={busy} onAdd={onAdd} />
     </div>
   );
 }
 
 function ComboSynergyBody({
   combo,
-  oracleByName,
-  kwByName,
   onSelect,
 }: {
   combo: ComboLock;
-  oracleByName: Record<string, string>;
-  kwByName: Record<string, string[]>;
-  onSelect: (key: string) => void;
+  onSelect?: (oracleId: string) => void;
 }) {
   const cards: SynergyCard[] = combo.columns.flatMap((col) =>
     col.cards.map((c) => ({
-      key: c.oracle_id || c.id,
+      oracle_id: c.oracle_id,
       name: c.name,
-      oracle: oracleByName[c.name.toLowerCase()] ?? "",
-      keywords: kwByName[c.name.toLowerCase()],
+      type_line: c.type_line,
+      image: c.image,
     }))
   );
   const extra = resolvedLinks(combo).map((l) => ({
     a: l.a,
     b: l.b,
-    label: "lock",
   }));
   return <SynergyMap cards={cards} extraEdges={extra} onSelect={onSelect} />;
 }
@@ -309,9 +256,7 @@ export function CombosPage() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [combos, setCombos] = useState<ComboLock[]>(() => loadCombos(userId));
-  const [activeId, setActiveId] = useState<string | null>(
-    () => loadCombos(userId)[0]?.id ?? null
-  );
+  const [activeId, setActiveId] = useState<string | null>(() => loadCombos(userId)[0]?.id ?? null);
   const [view, setView] = useState<ViewMode>("lock");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -319,11 +264,7 @@ export function CombosPage() {
   const [modalCard, setModalCard] = useState<ComboCard | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
   const [enhance, setEnhance] = useState<ComboCard | null>(null);
-  const [ctx, setCtx] = useState<{
-    x: number;
-    y: number;
-    card: ComboCard;
-  } | null>(null);
+  const [ctx, setCtx] = useState<{ x: number; y: number; card: ComboCard } | null>(null);
   const [oracleByName, setOracleByName] = useState<Record<string, string>>({});
   const [kwByName, setKwByName] = useState<Record<string, string[]>>({});
 
@@ -341,9 +282,7 @@ export function CombosPage() {
       }
       setCombos(remote);
       saveCombos(userId, remote);
-      setActiveId((id) =>
-        remote.some((c) => c.id === id) ? id : remote[0]?.id ?? null
-      );
+      setActiveId((id) => (remote.some((c) => c.id === id) ? id : remote[0]?.id ?? null));
     });
     return () => {
       cancel = true;
@@ -353,69 +292,60 @@ export function CombosPage() {
   function persist(next: ComboLock[]) {
     setCombos(next);
     saveCombos(userId, next);
-    void saveRemoteCombos(userId, next);
+    if (userId) void saveRemoteCombos(userId, next);
+  }
+
+  function patchActive(fn: (c: ComboLock) => ComboLock) {
+    if (!activeId) return;
+    persist(combos.map((c) => (c.id === activeId ? { ...fn(c), updated_at: new Date().toISOString() } : c)));
   }
 
   const active = combos.find((c) => c.id === activeId) ?? null;
-
-  function patchActive(mut: (c: ComboLock) => ComboLock) {
-    if (!active) return;
-    const next = combos.map((c) =>
-      c.id === active.id
-        ? { ...mut(c), updated_at: new Date().toISOString() }
-        : c
-    );
-    persist(next);
-  }
+  const pairs = active ? pairingCount(active) : 0;
 
   async function addCard(colId: string, name: string) {
+    if (!active) return;
     setBusy(true);
     setError(null);
-    const { card, error: err } = await fetchNamedCard(name, "fuzzy");
+    const { card, error: err } = await fetchNamedCard(name);
     setBusy(false);
-    if (!card) {
-      setError(err ?? "Card not found");
+    if (err || !card) {
+      setError(err ?? "Card not found.");
       return;
     }
-    const piece = cardFromNamed(card);
-    patchActive((combo) => {
-      const columns = combo.columns.map((col) => {
-        if (col.id !== colId) return col;
-        if (col.cards.some((c) => c.oracle_id === piece.oracle_id)) return col;
-        const cards = [...col.cards, piece];
-        return { ...col, cards, face: cards.length - 1 };
-      });
-      const next = { ...combo, columns };
-      return { ...next, links: linksForNewCard(next, piece.oracle_id, colId) };
+    const next = cardFromNamed(card);
+    patchActive((c) => {
+      const col = c.columns.find((x) => x.id === colId);
+      if (!col) return c;
+      if (col.cards.some((x) => x.oracle_id === next.oracle_id)) return c;
+      return {
+        ...c,
+        columns: c.columns.map((x) =>
+          x.id === colId ? { ...x, cards: [...x.cards, next] } : x
+        ),
+        links: linksForNewCard(c, next.oracle_id, colId),
+      };
     });
   }
 
-  const pairs = active ? pairingCount(active) : 0;
-
   const comboNames = useMemo(
-    () =>
-      active
-        ? [...new Set(active.columns.flatMap((c) => c.cards.map((x) => x.name)))]
-        : [],
+    () => (active ? [...new Set(active.columns.flatMap((c) => c.cards.map((x) => x.name)))] : []),
     [active]
   );
 
   useEffect(() => {
     if (view !== "map" || !comboNames.length) return;
     let cancel = false;
-    void fetchCardsByNames(comboNames).then(({ byName }) => {
+    void fetchCardsByNames(comboNames).then(({ cards }) => {
       if (cancel) return;
-      const text: Record<string, string> = {};
-      const kw: Record<string, string[]> = {};
-      for (const [k, card] of byName) {
-        text[k] = [
-          card.oracle_text ?? "",
-          ...(card.card_faces ?? []).map((f) => f.oracle_text ?? ""),
-        ].join(" ");
-        kw[k] = card.keywords ?? [];
+      const o: Record<string, string> = {};
+      const k: Record<string, string[]> = {};
+      for (const c of cards) {
+        o[c.name] = c.oracle_id || c.id;
+        k[c.name] = c.keywords ?? [];
       }
-      setOracleByName(text);
-      setKwByName(kw);
+      setOracleByName(o);
+      setKwByName(k);
     });
     return () => {
       cancel = true;
@@ -428,38 +358,20 @@ export function CombosPage() {
         <div>
           <h1 className={styles.title}>Combos</h1>
           <p className={styles.subtitle}>
-            Lock, mesh, map, or atlas. Cards in different wheels link until you unlink them.
+            Columns of cards. Cards in different columns are linked until you unlink them.
           </p>
         </div>
         <div className={styles.viewToggle} role="group" aria-label="View">
-          <button
-            type="button"
-            className={view === "lock" ? styles.viewBtnActive : styles.viewBtn}
-            onClick={() => setView("lock")}
-          >
-            Lock
-          </button>
-          <button
-            type="button"
-            className={view === "mesh" ? styles.viewBtnActive : styles.viewBtn}
-            onClick={() => setView("mesh")}
-          >
-            Mesh
-          </button>
-          <button
-            type="button"
-            className={view === "map" ? styles.viewBtnActive : styles.viewBtn}
-            onClick={() => setView("map")}
-          >
-            Map
-          </button>
-          <button
-            type="button"
-            className={view === "atlas" ? styles.viewBtnActive : styles.viewBtn}
-            onClick={() => setView("atlas")}
-          >
-            Your Complete Map
-          </button>
+          {(["lock", "mesh", "map", "atlas"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              className={view === v ? styles.viewBtnActive : styles.viewBtn}
+              onClick={() => setView(v)}
+            >
+              {v === "atlas" ? "Atlas" : v[0].toUpperCase() + v.slice(1)}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -481,15 +393,11 @@ export function CombosPage() {
               <li key={c.id}>
                 <button
                   type="button"
-                  className={
-                    c.id === activeId ? styles.comboItemActive : styles.comboItem
-                  }
+                  className={c.id === activeId ? styles.comboItemActive : styles.comboItem}
                   onClick={() => setActiveId(c.id)}
                 >
                   <span>{c.name}</span>
-                  <small>
-                    {c.columns.reduce((n, col) => n + col.cards.length, 0)} cards
-                  </small>
+                  <small>{c.columns.reduce((n, col) => n + col.cards.length, 0)} cards</small>
                 </button>
               </li>
             ))}
@@ -497,116 +405,81 @@ export function CombosPage() {
         </aside>
 
         <section className={styles.stage}>
-          {!active && (
-            <p className={styles.muted}>
-              No combo selected. Create one, then add cards to the lock.
-            </p>
-          )}
+          {!active && <p className={styles.muted}>No combo selected. Create one, then add cards.</p>}
           {active && (
             <>
               <div className={styles.comboHead}>
                 <input
                   className={styles.comboName}
                   value={active.name}
-                  onChange={(e) =>
-                    patchActive((c) => ({ ...c, name: e.target.value }))
-                  }
+                  onChange={(e) => patchActive((c) => ({ ...c, name: e.target.value }))}
                 />
                 <span className={styles.pairings}>
                   {pairs} pairing{pairs === 1 ? "" : "s"}
                 </span>
-                <button
-                  type="button"
-                  className={styles.textBtn}
-                  onClick={() => setDeleteId(active.id)}
-                >
-                  Delete combo
+                <button type="button" className={styles.textBtn} onClick={() => setDeleteId(active.id)}>
+                  Delete
                 </button>
               </div>
 
               {view === "lock" && (
-                <div className={styles.lock}>
-                  <div className={styles.shackle} aria-hidden />
-                  <div className={styles.lockBody}>
+                <CardTileField>
+                  <div className={styles.lock}>
                     {active.columns.map((col) => {
-                      const faceCard =
-                        col.cards[
-                          col.cards.length
-                            ? ((col.face % col.cards.length) + col.cards.length) %
-                              col.cards.length
-                            : 0
-                        ];
+                      const faceCard = col.cards[col.cards.length ? ((col.face % col.cards.length) + col.cards.length) % col.cards.length : 0];
                       const dimmed = Boolean(
                         faceCard &&
                           active.columns.some((other) => {
                             if (other.id === col.id) return false;
-                            const o =
-                              other.cards[
-                                other.cards.length
-                                  ? ((other.face % other.cards.length) +
-                                      other.cards.length) %
-                                    other.cards.length
-                                  : 0
-                              ];
-                            return (
-                              o &&
-                              !isLinked(active, faceCard.oracle_id, o.oracle_id)
-                            );
+                            const o = other.cards[other.cards.length ? ((other.face % other.cards.length) + other.cards.length) % other.cards.length : 0];
+                            return o && !isLinked(active, faceCard.oracle_id, o.oracle_id);
                           })
                       );
                       return (
-                      <Wheel
-                        key={col.id}
-                        column={col}
-                        dimmed={dimmed}
-                        busy={busy}
-                        onFace={(face) =>
-                          patchActive((c) => ({
-                            ...c,
-                            columns: c.columns.map((x) =>
-                              x.id === col.id ? { ...x, face } : x
-                            ),
-                          }))
-                        }
-                        onAdd={(name) => void addCard(col.id, name)}
-                        onRemoveCard={(id) =>
-                          patchActive((c) =>
-                            pruneLinks({
+                        <Column
+                          key={col.id}
+                          column={col}
+                          dimmed={dimmed}
+                          busy={busy}
+                          onFace={(face) =>
+                            patchActive((c) => ({
                               ...c,
-                              columns: c.columns.map((x) =>
-                                x.id === col.id
-                                  ? {
-                                      ...x,
-                                      cards: x.cards.filter((card) => card.id !== id),
-                                      face: 0,
-                                    }
-                                  : x
-                              ),
-                            })
-                          )
-                        }
-                        onRename={(label) =>
-                          patchActive((c) => ({
-                            ...c,
-                            columns: c.columns.map((x) =>
-                              x.id === col.id ? { ...x, label } : x
-                            ),
-                          }))
-                        }
-                        onRemoveColumn={() =>
-                          patchActive((c) =>
-                            pruneLinks({
+                              columns: c.columns.map((x) => (x.id === col.id ? { ...x, face } : x)),
+                            }))
+                          }
+                          onAdd={(name) => void addCard(col.id, name)}
+                          onRemoveCard={(id) =>
+                            patchActive((c) =>
+                              pruneLinks({
+                                ...c,
+                                columns: c.columns.map((x) =>
+                                  x.id === col.id
+                                    ? { ...x, cards: x.cards.filter((card) => card.id !== id), face: 0 }
+                                    : x
+                                ),
+                              })
+                            )
+                          }
+                          onRename={(label) =>
+                            patchActive((c) => ({
                               ...c,
-                              columns: c.columns.filter((x) => x.id !== col.id),
-                            })
-                          )
-                        }
-                        onContext={(e, card) => {
-                          e.preventDefault();
-                          setCtx({ x: e.clientX, y: e.clientY, card });
-                        }}
-                        onEnhance={setModalCard}
-                      />
+                              columns: c.columns.map((x) => (x.id === col.id ? { ...x, label } : x)),
+                            }))
+                          }
+                          onRemoveColumn={() =>
+                            patchActive((c) =>
+                              pruneLinks({
+                                ...c,
+                                columns: c.columns.filter((x) => x.id !== col.id),
+                              })
+                            )
+                          }
+                          onContext={(e, card) => {
+                            e.preventDefault();
+                            setCtx({ x: e.clientX, y: e.clientY, card });
+                          }}
+                          onOpen={setModalCard}
+                        />
                       );
                     })}
                     <button
@@ -615,76 +488,42 @@ export function CombosPage() {
                       onClick={() =>
                         patchActive((c) => ({
                           ...c,
-                          columns: [
-                            ...c.columns,
-                            newColumn(`Piece ${c.columns.length + 1}`),
-                          ],
+                          columns: [...c.columns, newColumn()],
                         }))
                       }
-                      aria-label="Add column"
                     >
-                      <span className={styles.addColumnGhost}>+</span>
+                      + Column
                     </button>
                   </div>
-                </div>
+                </CardTileField>
               )}
+
               {view === "mesh" && (
                 <div className={styles.mesh}>
-                  {active.columns.map((col, i) => (
+                  {active.columns.map((col) => (
                     <div key={col.id} className={styles.meshCol}>
-                      <h3>{col.label || `Column ${i + 1}`}</h3>
-                      <ul>
-                        {col.cards.map((card) => (
-                          <li key={card.id}>
-                            <button
-                              type="button"
-                              className={styles.meshCard}
-                              onClick={() => setModalCard(card)}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                setCtx({ x: e.clientX, y: e.clientY, card });
-                              }}
-                            >
-                              {card.image && <img src={card.image} alt="" />}
-                              <span>{card.name}</span>
-                            </button>
-                          </li>
+                      <h3>{col.label || "Column"}</h3>
+                      <div className={styles.meshCards}>
+                        {col.cards.map((c) => (
+                          <button key={c.id} type="button" className={styles.meshCard} onClick={() => setModalCard(c)}>
+                            {c.image ? <img src={c.image} alt={c.name} /> : <span>{c.name}</span>}
+                          </button>
                         ))}
-                      </ul>
-                      {i < active.columns.length - 1 && (
-                        <div className={styles.meshLink} aria-hidden>
-                          ↔
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-              {view === "map" && (
-                <div className={styles.mapPane}>
-                  <p className={styles.muted}>
-                    Solid lines are shared mechanics. Dashed lines are the
-                    links you keep between wheels.
-                  </p>
-                  <ComboSynergyBody
-                    combo={active}
-                    oracleByName={oracleByName}
-                    kwByName={kwByName}
-                    onSelect={(key) => {
-                      const card = active.columns
-                        .flatMap((c) => c.cards)
-                        .find((c) => c.oracle_id === key || c.id === key);
-                      if (card) setModalCard(card);
-                    }}
-                  />
-                </div>
-              )}
-              {view === "atlas" && (
-                <ComboAtlas combos={combos} onSelect={setModalCard} />
-              )}
-              {error && <p className={styles.error}>{error}</p>}
+
+              {view === "map" && <ComboSynergyBody combo={active} onSelect={(id) => {
+                const card = active.columns.flatMap((c) => c.cards).find((x) => x.oracle_id === id);
+                if (card) setModalCard(card);
+              }} />}
+
+              {view === "atlas" && <ComboAtlas combos={combos} onSelect={setActiveId} />}
             </>
           )}
+          {error && <p className={styles.error}>{error}</p>}
         </section>
       </div>
 
@@ -692,101 +531,44 @@ export function CombosPage() {
         <CardContextMenu
           x={ctx.x}
           y={ctx.y}
-          target={{
-            scryfallId: ctx.card.scryfall_id,
-            oracleId: ctx.card.oracle_id,
-            name: ctx.card.name,
-            typeLine: ctx.card.type_line,
-            imageUrl: ctx.card.image,
-          }}
+          card={{ name: ctx.card.name, scryfallId: ctx.card.scryfall_id, oracleId: ctx.card.oracle_id }}
           onClose={() => setCtx(null)}
-          onEnhance={() => setEnhance(ctx.card)}
-          onOpenModal={(jump) => {
+          onJump={(jump) => {
             setModalJump(jump);
             setModalCard(ctx.card);
-          }}
-          hideAddToDeck={false}
-          tabs={[
-            "info:details",
-            "info:rulings",
-            "mechanics",
-            "artwork:prints",
-            "drawers",
-          ]}
-          onRemove={() => {
-            if (!active) return;
-            patchActive((c) =>
-              pruneLinks({
-                ...c,
-                columns: c.columns.map((col) => ({
-                  ...col,
-                  cards: col.cards.filter((card) => card.id !== ctx.card.id),
-                  face: 0,
-                })),
-              })
-            );
-          }}
-          linkChoices={
-            active
-              ? active.columns
-                  .filter(
-                    (col) =>
-                      !col.cards.some((c) => c.oracle_id === ctx.card.oracle_id)
-                  )
-                  .flatMap((col) =>
-                    col.cards.map((c) => ({
-                      id: c.oracle_id,
-                      name: `${c.name}${col.label ? ` · ${col.label}` : ""}`,
-                      on: isLinked(active, ctx.card.oracle_id, c.oracle_id),
-                      onToggle: () =>
-                        patchActive((combo) =>
-                          toggleLink(combo, ctx.card.oracle_id, c.oracle_id)
-                        ),
-                    }))
-                  )
-              : []
-          }
-        />
-      )}
-      {enhance && (
-        <CardEnlargeOverlay
-          frontSrc={enhance.image || ""}
-          frontName={enhance.name}
-          onClose={() => setEnhance(null)}
-          onActivate={() => {
-            setModalCard(enhance);
-            setEnhance(null);
+            setCtx(null);
           }}
         />
       )}
+
       {modalCard && (
         <CardInspectorModal
-          key={modalCard.id}
-          initialTab={initialTabFromJump(modalJump)}
-          initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
-          initialArtSub={modalJump === "artwork:upload" ? "upload" : modalJump === "artwork:proxy" ? "proxy" : "prints"}
-          onTabChange={(tab, infoSub, artSub) =>
-            setModalJump(modalJumpFromState(tab, infoSub, artSub))
-          }
           scryfallId={modalCard.scryfall_id}
           name={modalCard.name}
           imageUrl={modalCard.image}
+          initialTab={initialTabFromJump(modalJump)}
           onClose={() => setModalCard(null)}
         />
       )}
+
+      {enhance && (
+        <CardEnlargeOverlay
+          imageUrl={enhance.image}
+          name={enhance.name}
+          onClose={() => setEnhance(null)}
+        />
+      )}
+
       {deleteId && (
         <ConfirmDialog
-          title="Delete this combo?"
-          message="The lock and its columns will be removed from this device."
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onCancel={() => setDeleteId(null)}
+          title="Delete combo?"
+          message="This cannot be undone."
           onConfirm={() => {
-            const next = combos.filter((c) => c.id !== deleteId);
-            persist(next);
-            setActiveId(next[0]?.id ?? null);
+            persist(combos.filter((c) => c.id !== deleteId));
+            if (activeId === deleteId) setActiveId(combos.find((c) => c.id !== deleteId)?.id ?? null);
             setDeleteId(null);
           }}
+          onCancel={() => setDeleteId(null)}
         />
       )}
     </div>
