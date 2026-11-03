@@ -158,8 +158,8 @@
 
 .dangerBtn,
 .removeBtn {
-  border-color: color-mix(in srgb, #f87171 50%, transparent);
-  color: #f87171;
+  border-color: color-mix(in srgb, var(--color-error) 50%, transparent);
+  color: var(--color-error);
 }
 
 .drawerList {
@@ -529,7 +529,7 @@
 }
 
 .error {
-  color: #f87171;
+  color: var(--color-error);
   margin: 0 0 0.75rem;
 }
 
