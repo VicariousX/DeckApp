@@ -196,7 +196,7 @@
   border-radius: 0 0 8px 8px;
   font-size: clamp(0.58rem, 7.2cqw, 0.9rem);
   font-weight: 700;
-  color: #f87171;
+  color: var(--color-error);
   cursor: pointer;
 }
 
