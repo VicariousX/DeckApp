@@ -95,7 +95,7 @@
 }
 
 .danger {
-  color: #e57373;
+  color: var(--color-error);
 }
 
 .hint {
