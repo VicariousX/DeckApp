@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchAutocomplete, fetchCardsByNames, fetchNamedCard } from "../lib/scryfallApi";
 import { SynergyMap } from "../components/SynergyMap";
@@ -158,10 +158,48 @@ function Column({
   const cards = column.cards;
   const face = cards.length === 0 ? 0 : ((column.face % cards.length) + cards.length) % cards.length;
   const current = cards[face];
+  const prev = cards.length > 1 ? cards[(face - 1 + cards.length) % cards.length] : null;
+  const next = cards.length > 1 ? cards[(face + 1) % cards.length] : null;
+  const drag = useRef<{ y: number; startFace: number; moved: boolean } | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [animating, setAnimating] = useState(false);
 
   function cycle(dir: number) {
     if (cards.length < 2) return;
-    onFace((face + dir + cards.length) % cards.length);
+    setAnimating(true);
+    setOffset(dir * -40);
+    window.setTimeout(() => {
+      onFace((face + dir + cards.length) % cards.length);
+      setOffset(0);
+      setAnimating(false);
+    }, 140);
+  }
+
+  function onPointerDown(e: ReactPointerEvent) {
+    if (cards.length < 2) return;
+    drag.current = { y: e.clientY, startFace: face, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e: ReactPointerEvent) {
+    if (!drag.current) return;
+    const dy = e.clientY - drag.current.y;
+    if (Math.abs(dy) > 6) drag.current.moved = true;
+    setOffset(dy);
+  }
+  function onPointerUp() {
+    if (!drag.current) return;
+    const dy = offset;
+    drag.current = null;
+    if (Math.abs(dy) > 36) {
+      cycle(dy > 0 ? -1 : 1);
+    } else {
+      setOffset(0);
+    }
+  }
+  function onWheel(e: ReactWheelEvent) {
+    if (cards.length < 2) return;
+    e.preventDefault();
+    cycle(e.deltaY > 0 ? 1 : -1);
   }
 
   return (
@@ -178,36 +216,40 @@ function Column({
         </button>
       </div>
 
-      {current ? (
-        <div className={styles.columnFace}>
-          <CardTile
-            face={{
-              name: current.name,
-              imageUrl: current.image,
-              scryfallId: current.scryfall_id,
-              oracleId: current.oracle_id,
-            }}
-            ear={cards.length > 1 ? `${face + 1}/${cards.length}` : undefined}
-            onOpen={() => onOpen(current)}
-            onContextMenu={(e) => onContext(e as ReactMouseEvent, current)}
-            right={[
-              <button key="prev" type="button" className={styles.flyBtn} onClick={() => cycle(-1)} disabled={cards.length < 2} aria-label="Previous">
-                ‹
-              </button>,
-              <button key="next" type="button" className={styles.flyBtn} onClick={() => cycle(1)} disabled={cards.length < 2} aria-label="Next">
-                ›
-              </button>,
-            ]}
-            bottom={
-              <button type="button" className={`${styles.flyBtn} ${styles.flyBtnDanger}`} onClick={() => onRemoveCard(current.id)} aria-label="Remove card">
-                Remove
-              </button>
-            }
-          />
+      <div
+        className={styles.tumbler}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onWheel={onWheel}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp") { e.preventDefault(); cycle(-1); }
+          if (e.key === "ArrowDown") { e.preventDefault(); cycle(1); }
+        }}
+        style={{ touchAction: "none" }}
+      >
+        {prev && (
+          <button type="button" className={`${styles.peek} ${styles.peekTop}`} onClick={() => cycle(-1)} disabled={cards.length < 2} aria-label="Previous">
+            {prev.image ? <img src={prev.image} alt="" /> : <span>{prev.name.slice(0, 1)}</span>}
+          </button>
+        )}
+        <div className={styles.window} style={{ transform: `translateY(${offset}px)`, transition: animating ? "transform 140ms ease-out" : "none" }}>
+          {current ? (
+            <button type="button" className={styles.faceBtn} onClick={() => onOpen(current)} onContextMenu={(e) => onContext(e, current)}>
+              {current.image ? <img src={current.image} alt={current.name} /> : <span className={styles.faceName}>{current.name}</span>}
+            </button>
+          ) : (
+            <div className={styles.emptyFace}>+</div>
+          )}
         </div>
-      ) : (
-        <div className={styles.columnEmpty}>No cards</div>
-      )}
+        {next && (
+          <button type="button" className={`${styles.peek} ${styles.peekBot}`} onClick={() => cycle(1)} disabled={cards.length < 2} aria-label="Next">
+            {next.image ? <img src={next.image} alt="" /> : <span>{next.name.slice(0, 1)}</span>}
+          </button>
+        )}
+      </div>
 
       {cards.length > 1 && (
         <div className={styles.columnStrip}>
