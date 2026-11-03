@@ -4,7 +4,19 @@ export const CARD_W = 750;
 export const CARD_H = 1050;
 const STORAGE_KEY = "deckapp.proxy.templates";
 
-export type OverlayElementType = "name" | "mana" | "typeLine" | "rules" | "pt" | "customText";
+export type OverlayElementType =
+  | "name"
+  | "mana"
+  | "typeLine"
+  | "rules"
+  | "pt"
+  | "customText"
+  | "flavor"
+  | "artist"
+  | "setSymbol"
+  | "watermark"
+  | "collector"
+  | "frameImage";
 export type ColorSource = "custom" | "art" | "invert";
 
 export type OverlayElement = {
@@ -620,6 +632,11 @@ function wrapText(
 
   for (const hardLine of hard) {
     if (out.length >= limit) { truncated = true; break; }
+    // Blank lines become paragraph gaps.
+    if (!hardLine.trim()) {
+      out.push({ pieces: [], width: 0 });
+      continue;
+    }
     const tokens = tokenize(hardLine);
     // Flatten text tokens into words (keeping spaces attached to the following word for wrapping).
     const atoms: Token[] = [];
@@ -699,6 +716,23 @@ function measureLine(ctx: CanvasRenderingContext2D, line: string, symSize: numbe
 // --- Canvas rendering ---
 
 const symbolCache = new Map<string, HTMLImageElement>();
+const imageCache = new Map<string, HTMLImageElement>();
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  const existing = imageCache.get(src);
+  if (existing && existing.complete && existing.naturalWidth) return Promise.resolve(existing);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = () => resolve(img);
+    img.src = src;
+  });
+}
+
 function loadSymbol(code: string): Promise<HTMLImageElement> {
   const existing = symbolCache.get(code);
   if (existing && existing.complete && existing.naturalWidth) return Promise.resolve(existing);
@@ -720,6 +754,12 @@ export type ProxyFields = {
   typeLine: string;
   rules: string;
   pt: string;
+  flavor?: string;
+  artist?: string;
+  setSymbol?: string;
+  watermark?: string;
+  collector?: string;
+  frameImageUrl?: string;
 };
 
 function textFor(el: OverlayElement, fields: ProxyFields): string {
@@ -727,6 +767,11 @@ function textFor(el: OverlayElement, fields: ProxyFields): string {
   if (el.type === "typeLine") return fields.typeLine || "";
   if (el.type === "rules") return fields.rules || "";
   if (el.type === "pt") return fields.pt || "";
+  if (el.type === "flavor") return fields.flavor || "";
+  if (el.type === "artist") return fields.artist || "";
+  if (el.type === "setSymbol") return fields.setSymbol || "";
+  if (el.type === "watermark") return fields.watermark || "";
+  if (el.type === "collector") return fields.collector || "";
   if (el.type === "customText") return el.customText || "";
   return "";
 }
@@ -734,6 +779,7 @@ function textFor(el: OverlayElement, fields: ProxyFields): string {
 /** True when an element has nothing to show for this card. Empty elements are not drawn. */
 export function elementHasContent(el: OverlayElement, fields: ProxyFields): boolean {
   if (el.type === "mana") return parseManaCost(fields.mana).length > 0;
+  if (el.type === "frameImage") return !!(fields.frameImageUrl || el.customText);
   return textFor(el, fields).trim().length > 0;
 }
 
@@ -802,6 +848,17 @@ export async function renderTemplate(
           ctx.strokeRect(el.x, el.y, el.width, drawHeight);
         }
       }
+    }
+
+    if (el.type === "frameImage") {
+      const url = fields.frameImageUrl || el.customText || "";
+      if (url) {
+        const img = await loadImage(url);
+        if (img.complete && img.naturalWidth) {
+          ctx.drawImage(img, el.x, el.y, el.width, el.height);
+        }
+      }
+      continue;
     }
 
     if (el.type === "mana") {
