@@ -7,6 +7,8 @@ export type ToolsMenuProps = {
   targets?: SearchTargetRef[];
   targetKey?: string;
   onTargetChange?: (key: string) => void;
+  pinned?: string[];
+  onTogglePin?: (key: string) => void;
   showTargetChip?: boolean;
   onShowTargetChipChange?: (on: boolean) => void;
   columns?: number;
@@ -23,6 +25,8 @@ export function ToolsMenu({
   targets = [],
   targetKey = "",
   onTargetChange,
+  pinned = [],
+  onTogglePin,
   showTargetChip = true,
   onShowTargetChipChange,
   columns,
@@ -78,19 +82,43 @@ export function ToolsMenu({
             {targets.length === 0 ? (
               <p className={styles.hint}>No targetable groups. Enable one from Drawers, Collections, or a deck.</p>
             ) : (
-              <select
-                className={styles.select}
-                value={targetKey}
-                onChange={(e) => onTargetChange?.(e.target.value)}
-                aria-label="Search target group"
-              >
-                <option value="">None</option>
-                {targets.map((t) => (
-                  <option key={`${t.kind}:${t.id}`} value={`${t.kind}:${t.id}`}>
-                    {t.kind} · {t.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  className={styles.select}
+                  value={targetKey}
+                  onChange={(e) => onTargetChange?.(e.target.value)}
+                  aria-label="Search target group"
+                >
+                  <option value="">None</option>
+                  {[...targets]
+                    .sort((a, b) => {
+                      const ak = `${a.kind}:${a.id}`;
+                      const bk = `${b.kind}:${b.id}`;
+                      const ap = pinned.includes(ak) ? 0 : 1;
+                      const bp = pinned.includes(bk) ? 0 : 1;
+                      return ap - bp || a.name.localeCompare(b.name);
+                    })
+                    .map((t) => {
+                      const key = `${t.kind}:${t.id}`;
+                      const isPinned = pinned.includes(key);
+                      return (
+                        <option key={key} value={key}>
+                          {isPinned ? "★ " : ""}{t.kind} · {t.name}
+                        </option>
+                      );
+                    })}
+                </select>
+                {targetKey && onTogglePin && (
+                  <button
+                    type="button"
+                    className={styles.hint}
+                    style={{ marginTop: 6, cursor: "pointer", background: "none", border: "none", color: "inherit", textAlign: "left", padding: 0 }}
+                    onClick={() => onTogglePin(targetKey)}
+                  >
+                    {pinned.includes(targetKey) ? "Unpin this target" : "Pin this target"}
+                  </button>
+                )}
+              </>
             )}
           </div>
           {onShowTargetChipChange && (
