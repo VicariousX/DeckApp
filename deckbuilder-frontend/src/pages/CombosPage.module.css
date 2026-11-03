@@ -50,8 +50,8 @@
 }
 
 .viewBtnActive {
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
-  color: var(--color-accent);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
 }
 
 .layout {
@@ -487,9 +487,9 @@
 
 .primaryBtn {
   appearance: none;
-  border: 1px solid var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  color: var(--color-accent);
+  border: none;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
+  color: var(--color-on-accent);
   border-radius: 10px;
   padding: 0.45rem 0.7rem;
   font: inherit;
