@@ -114,7 +114,7 @@
 }
 
 .quickRemove {
-  color: #fca5a5;
+  color: var(--color-error);
 }
 
 .body {
@@ -272,7 +272,7 @@
 
 .error {
   margin: 0 0 0.4rem;
-  color: #f87171;
+  color: var(--color-error);
   font-size: 0.85rem;
 }
 
@@ -507,9 +507,9 @@
 .removeBtn {
   padding: 0.28rem 0.55rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, #f87171 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 50%, transparent);
   background: transparent;
-  color: #f87171;
+  color: var(--color-error);
   font-size: 0.78rem;
   cursor: pointer;
 }
