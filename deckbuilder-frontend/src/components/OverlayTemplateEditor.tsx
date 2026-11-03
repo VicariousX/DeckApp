@@ -24,7 +24,10 @@ const PREVIEW_W = 420;
 const SCALE = PREVIEW_W / CARD_W;
 const GRID = 25;
 const SNAP = 8;
-const TYPES: OverlayElementType[] = ["name", "mana", "typeLine", "rules", "pt", "customText"];
+const TYPES: OverlayElementType[] = [
+  "name", "mana", "typeLine", "rules", "pt", "customText",
+  "flavor", "artist", "setSymbol", "watermark", "collector", "frameImage",
+];
 
 export function OverlayTemplateEditor() {
   const [templates, setTemplates] = useState<OverlayTemplate[]>([]);
@@ -883,11 +886,11 @@ export function OverlayTemplateEditor() {
                 </div>
               </div>
 
-              {sel.type === "customText" && (
-                <div>
-                  <label className={styles.label}>Custom text</label>
+              {(sel.type === "customText" || sel.type === "frameImage") && (
+                <label>
+                  <span className={styles.label}>{sel.type === "frameImage" ? "Frame image URL" : "Custom text"}</span>
                   <input className={styles.input} value={sel.customText || ""} onChange={(e) => updateSelected({ customText: e.target.value })} />
-                </div>
+                </label>
               )}
 
               <button
