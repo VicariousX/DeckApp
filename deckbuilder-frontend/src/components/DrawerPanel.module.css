@@ -606,7 +606,7 @@
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-surface);
   transition: transform 0.15s ease;
 }
 
