@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
+import { ErrorNotice } from "../components/ErrorNotice";
 import { cloneDeck, listPublicDecks } from "../services/deckService";
 import type { Deck } from "../types/deck";
 import styles from "./MyDecksPage.module.css";
@@ -22,12 +23,17 @@ export function PublicDecksPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   useEffect(() => {
-    void listPublicDecks().then(({ decks: list, error: err }) => {
-      setDecks(list);
-      setError(err);
-      setLoading(false);
-    });
+    void reload();
   }, []);
+
+  async function reload() {
+    setLoading(true);
+    setError(null);
+    const { decks: list, error: err } = await listPublicDecks();
+    setDecks(list);
+    setError(err);
+    setLoading(false);
+  }
 
   async function copy(deck: Deck) {
     if (!user) {
@@ -91,7 +97,7 @@ export function PublicDecksPage() {
           ))}
         </div>
       )}
-      {!friendsView && error && <p className={styles.error}>{error}</p>}
+      {!friendsView && <ErrorNotice message={error} onRetry={() => void reload()} onDismiss={() => setError(null)} />}
       {!friendsView && loading && <p className={styles.status}>Loading public decks…</p>}
       {!friendsView && !loading && visible.length === 0 && <p className={styles.empty}>No public decks yet.</p>}
       {!friendsView && (
