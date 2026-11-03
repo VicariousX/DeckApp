@@ -14,6 +14,7 @@ import {
 import { isDrivePickerConfigured, pickDriveImage } from "../lib/googleDrivePicker";
 import { ProxyCreator } from "../components/ProxyCreator";
 import { OverlayTemplateEditor } from "../components/OverlayTemplateEditor";
+import { ErrorNotice } from "../components/ErrorNotice";
 import styles from "./LoginPage.module.css";
 
 export function ProxySetPage() {
@@ -35,17 +36,21 @@ export function ProxySetPage() {
 
   useEffect(() => {
     if (!user || !isProxyAdmin(user)) return;
-    void (async () => {
-      const { set: next, error: err } = await ensureDefaultProxySet(user.id);
-      if (err) setError(err);
-      setSet(next);
-      if (next) {
-        const { cards: rows, error: listErr } = await listProxyCards(next.id);
-        if (listErr) setError(listErr);
-        setCards(rows);
-      }
-    })();
+    void loadSet();
   }, [user]);
+
+  async function loadSet() {
+    if (!user) return;
+    setError(null);
+    const { set: next, error: err } = await ensureDefaultProxySet(user.id);
+    if (err) setError(err);
+    setSet(next);
+    if (next) {
+      const { cards: rows, error: listErr } = await listProxyCards(next.id);
+      if (listErr) setError(listErr);
+      setCards(rows);
+    }
+  }
 
   useEffect(() => {
     const name = query.trim();
@@ -235,7 +240,7 @@ export function ProxySetPage() {
         </button>
       </div>
 
-      {error && <p className={styles.subtitle} style={{ color: "var(--danger, #c44)" }}>{error}</p>}
+      <ErrorNotice message={error} onRetry={() => void loadSet()} onDismiss={() => setError(null)} />
       {info && <p className={styles.subtitle}>{info}</p>}
 
       {tab === "templates" ? (
