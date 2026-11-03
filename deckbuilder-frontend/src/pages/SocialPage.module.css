@@ -78,7 +78,7 @@
 .messages, .workspace, .review { display: grid; grid-template-columns: 240px 1fr; gap: 1.25rem; }
 .messages aside, .review aside, .groupRail { display: flex; flex-direction: column; gap: 0.55rem; }
 .mine { justify-content: flex-end; }
-.error { color: #fca5a5; }
+.error { color: var(--color-error); }
 .groupHead { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.1rem; }
 .groupHead h2 { margin: 0; }
 .groupHead p { margin: 0.35rem 0 0; color: var(--color-text-muted); }
