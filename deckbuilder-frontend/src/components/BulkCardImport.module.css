@@ -110,13 +110,13 @@
 }
 
 .skipped {
-  color: #fbbf24;
+  color: var(--color-warning);
 }
 
 .error {
   margin: 0.45rem 0 0;
   font-size: 0.82rem;
-  color: #f87171;
+  color: var(--color-error);
 }
 
 .progress {
@@ -159,7 +159,7 @@
   margin: 0;
   font-size: 0.78rem;
   font-weight: 700;
-  color: #fbbf24;
+  color: var(--color-warning);
 }
 
 .notFoundNames {
