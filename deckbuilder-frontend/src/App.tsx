@@ -3,6 +3,7 @@ import { AppShell } from "./layout/AppShell";
 import { LandingPage } from "./pages/LandingPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SearchResultsPage } from "./pages/SearchResultsPage";
+import { SimpleSearchPage } from "./pages/SimpleSearchPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PublicDecksPage } from "./pages/PublicDecksPage";
 import { MyDecksPage } from "./pages/MyDecksPage";
@@ -26,6 +27,7 @@ export default function App() {
 
         <Route element={<AppShell />}>
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/search/simple" element={<SimpleSearchPage />} />
           <Route path="/search/results" element={<SearchResultsPage />} />
           <Route path="/card/:id" element={<CardPage />} />
           <Route path="/login" element={<LoginPage />} />
