@@ -270,7 +270,7 @@
 .error {
   margin: 0.4rem 0.65rem;
   font-size: 0.8rem;
-  color: #f87171;
+  color: var(--color-error);
 }
 
 .applyBar {
