@@ -240,7 +240,7 @@
 }
 
 .menuDanger {
-  color: #fca5a5;
+  color: var(--color-error);
 }
 
 .deckItem {
