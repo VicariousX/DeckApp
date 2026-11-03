@@ -25,6 +25,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useAuth } from "../auth/AuthProvider";
+import { ErrorNotice } from "../components/ErrorNotice";
 import { fetchDeckDetail } from "../services/deckService";
 import { fetchCollectionByIds, fetchNamedCard } from "../lib/scryfallApi";
 import { getFaceImage } from "../utils/scryfall";
@@ -909,7 +910,10 @@ export function PlaytestPage() {
   if (error || !table || !seat) {
     return (
       <div className={`${transitions.page} ${styles.page}`}>
-        <p className={styles.muted}>{error ?? "Could not start playtest."}</p>
+        <ErrorNotice
+          message={error ?? "Could not start playtest."}
+          onRetry={() => void start(true)}
+        />
         <Link to={id ? `/deck/${id}` : "/my-decks"} className={styles.back}>
           Back to deck
         </Link>
