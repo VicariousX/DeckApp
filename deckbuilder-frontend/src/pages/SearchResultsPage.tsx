@@ -326,101 +326,101 @@ export function SearchResultsPage() {
         onColumnsChange={setColumns}
       />
       <div className={resultStyles.meta}>
-        <Link to={editTo} className={resultStyles.back}>
-          ← Edit {mode} search
-        </Link>
-        <p className={resultStyles.count}>
-          {isLoading
-            ? "Searching…"
-            : isError
-              ? "Search failed."
-              : `${start}–${end} of ${total || sorted.length}`}
-        </p>
-        {showTargetChip && (
-          <span className={resultStyles.targetChip}>
-            {target ? `${target.kind} · ${target.name}` : "No target"}
-            <button type="button" aria-label="Hide target indicator" onClick={() => setShowTargetChip(false)}>
-              ×
-            </button>
-          </span>
-        )}
-        <div className={resultStyles.toggles}>
-          <button
-            type="button"
-            className={`${resultStyles.viewBtn}${browseMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => {
-              lastMode.current = "text";
-              setBrowseMode("text");
-            }}
-          >
-            Text
-          </button>
-          <button
-            type="button"
-            className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => {
-              lastMode.current = "catalog";
-              setBrowseMode("catalog");
-            }}
-          >
-            Catalog
-          </button>
-          <button
-            type="button"
-            className={`${resultStyles.viewBtn}${browseMode === "scroll" ? ` ${resultStyles.viewOn}` : ""}`}
-            onClick={() => setBrowseMode("scroll")}
-          >
-            Scroll
-          </button>
+        <div className={resultStyles.metaGroup}>
+          <Link to={editTo} className={resultStyles.back}>
+            ← Edit {mode} search
+          </Link>
+          <p className={resultStyles.count}>
+            {isLoading
+              ? "Searching…"
+              : isError
+                ? "Search failed."
+                : `${start}–${end} of ${total || sorted.length}`}
+          </p>
+          {showTargetChip && (
+            <span className={resultStyles.targetChip}>
+              {target ? `${target.kind} · ${target.name}` : "No target"}
+              <button type="button" aria-label="Hide target indicator" onClick={() => setShowTargetChip(false)}>
+                ×
+              </button>
+            </span>
+          )}
         </div>
-        <label className={resultStyles.size}>
-          Sort
-          <select
-            value={sortKey}
-            onChange={(e) => patch({ sort: e.target.value, page: "1" })}
+        <div className={resultStyles.metaGroup}>
+          <div className={resultStyles.toggles}>
+            <button
+              type="button"
+              className={`${resultStyles.viewBtn}${browseMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
+              onClick={() => {
+                lastMode.current = "text";
+                setBrowseMode("text");
+              }}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
+              onClick={() => {
+                lastMode.current = "catalog";
+                setBrowseMode("catalog");
+              }}
+            >
+              Catalog
+            </button>
+            <button
+              type="button"
+              className={`${resultStyles.viewBtn}${browseMode === "scroll" ? ` ${resultStyles.viewOn}` : ""}`}
+              onClick={() => setBrowseMode("scroll")}
+            >
+              Scroll
+            </button>
+          </div>
+          <label className={resultStyles.size}>
+            Sort
+            <select
+              value={sortKey}
+              onChange={(e) => patch({ sort: e.target.value, page: "1" })}
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={resultStyles.dirBtn}
+            onClick={() => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" })}
           >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className={resultStyles.dirBtn}
-          onClick={() => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" })}
-        >
-          {sortDir === "asc" ? "A → Z" : "Z → A"}
-        </button>
-        <label className={resultStyles.size}>
-          Per page
-          <select
-            value={pageSize}
-            onChange={(e) => patch({ n: e.target.value, page: "1" })}
-          >
-            {PAGE_SIZES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+            {sortDir === "asc" ? "A → Z" : "Z → A"}
+          </button>
+          <label className={resultStyles.size}>
+            Per page
+            <select
+              value={pageSize}
+              onChange={(e) => patch({ n: e.target.value, page: "1" })}
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
       <p className={resultStyles.query}>
         <code>{q}</code>
       </p>
       {readCatalogTier() !== "live" && (
-        <p className={resultStyles.query} style={{ fontSize: "0.8rem", opacity: 0.75 }}>
+        <p className={resultStyles.catalogLine}>
           {catalogProgress.phase === "ready" && catalogMeta
             ? `Catalog: ${catalogMeta.card_count.toLocaleString()} cards · updated ${new Date(catalogMeta.downloaded_at).toLocaleDateString()}`
             : catalogProgress.message || "Catalog checking…"}
           {" · "}
-          <button
-            type="button"
-            onClick={refreshCatalog}
-            style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer", padding: 0 }}
-          >
+          <button type="button" onClick={refreshCatalog}>
             Refresh
           </button>
         </p>
