@@ -8,6 +8,50 @@ export type SearchTargetRef = {
   name: string;
 };
 
+const LAST_KEY = "deckapp.search.lastTarget";
+const PINNED_KEY = "deckapp.search.pinnedTargets";
+
+export function loadLastTarget(): string {
+  try {
+    return localStorage.getItem(LAST_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveLastTarget(key: string) {
+  try {
+    if (key) localStorage.setItem(LAST_KEY, key);
+    else localStorage.removeItem(LAST_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadPinnedTargets(): string[] {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePinnedTargets(keys: string[]) {
+  try {
+    localStorage.setItem(PINNED_KEY, JSON.stringify(keys));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function togglePinnedTarget(key: string): string[] {
+  const current = loadPinnedTargets();
+  const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+  savePinnedTargets(next);
+  return next;
+}
+
 export async function loadSearchTargets(userId: string): Promise<SearchTargetRef[]> {
   const { data, error } = await supabase
     .from("user_prefs")
