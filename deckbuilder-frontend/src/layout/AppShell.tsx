@@ -152,13 +152,18 @@ export function AppShell() {
               </button>
               {myOpen && (
                 <div className={styles.decksDropdown} role="menu" onMouseDown={(e) => e.stopPropagation()}>
-                  {lastDeck && (
-                    <NavLink to={`/deck/${lastDeck.id}`} role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)} title={lastDeck.name}>
-                      <span className={styles.decksItemLabel}>Last deck</span>
-                      <span className={styles.decksItemSub}>{lastDeck.name}</span>
+                  <div className={styles.nestedMenu}>
+                    <NavLink to="/my-decks" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>
+                      Decks
+                      <span className={styles.chevron} aria-hidden>▸</span>
                     </NavLink>
-                  )}
-                  <NavLink to="/my-decks" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Decks</NavLink>
+                    {lastDeck && (
+                      <NavLink to={`/deck/${lastDeck.id}`} role="menuitem" className={`${styles.decksItem} ${styles.nestedItem}`} onClick={() => setMyOpen(false)} title={lastDeck.name}>
+                        <span className={styles.decksItemLabel}>Last opened</span>
+                        <span className={styles.decksItemSub}>{lastDeck.name}</span>
+                      </NavLink>
+                    )}
+                  </div>
                   <NavLink to="/drawers" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Drawers</NavLink>
                   <NavLink to="/collections" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Collections</NavLink>
                   <NavLink to="/combos" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Combos</NavLink>
