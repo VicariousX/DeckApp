@@ -191,15 +191,15 @@ function Column({
             onOpen={() => onOpen(current)}
             onContextMenu={(e) => onContext(e as ReactMouseEvent, current)}
             right={[
-              <button key="prev" type="button" onClick={() => cycle(-1)} disabled={cards.length < 2} aria-label="Previous">
+              <button key="prev" type="button" className={styles.flyBtn} onClick={() => cycle(-1)} disabled={cards.length < 2} aria-label="Previous">
                 ‹
               </button>,
-              <button key="next" type="button" onClick={() => cycle(1)} disabled={cards.length < 2} aria-label="Next">
+              <button key="next" type="button" className={styles.flyBtn} onClick={() => cycle(1)} disabled={cards.length < 2} aria-label="Next">
                 ›
               </button>,
             ]}
             bottom={
-              <button type="button" onClick={() => onRemoveCard(current.id)} aria-label="Remove card">
+              <button type="button" className={`${styles.flyBtn} ${styles.flyBtnDanger}`} onClick={() => onRemoveCard(current.id)} aria-label="Remove card">
                 Remove
               </button>
             }
@@ -548,6 +548,21 @@ export function CombosPage() {
             setModalCard(ctx.card);
             setCtx(null);
           }}
+          linkChoices={
+            active
+              ? active.columns
+                  .filter((col) => !col.cards.some((c) => c.oracle_id === ctx.card.oracle_id))
+                  .flatMap((col) =>
+                    col.cards.map((c) => ({
+                      id: c.oracle_id,
+                      name: `${c.name}${col.label ? ` · ${col.label}` : ""}`,
+                      on: isLinked(active, ctx.card.oracle_id, c.oracle_id),
+                      onToggle: () =>
+                        patchActive((combo) => toggleLink(combo, ctx.card.oracle_id, c.oracle_id)),
+                    }))
+                  )
+              : []
+          }
         />
       )}
 
