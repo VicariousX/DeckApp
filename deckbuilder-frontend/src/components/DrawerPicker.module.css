@@ -160,7 +160,7 @@
 .error {
   margin: 0.35rem;
   font-size: 0.8rem;
-  color: #f87171;
+  color: var(--color-error);
 }
 
 .inline {
