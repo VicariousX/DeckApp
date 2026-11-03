@@ -14,7 +14,12 @@ import {
   removeOracleFromDrawer,
 } from "../services/drawerService";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
-import { loadSearchTargets, type SearchTargetRef } from "../services/searchTargetService";
+import { loadSearchTargets, loadLastTarget, saveLastTarget, loadPinnedTargets, togglePinnedTarget, type SearchTargetRef } from "../services/searchTargetService";
+import { listMarksForOracles, type MechanicMark } from "../services/mechanicMarkService";
+import { readMeta } from "../lib/catalog/db";
+import { applyCatalogTier, getCatalogProgress, subscribeCatalog } from "../lib/catalog/manager";
+import { readCatalogTier } from "../lib/catalog/preference";
+import type { CatalogMeta, CatalogProgress } from "../lib/catalog/types";
 import { fetchDeckDetail } from "../services/deckService";
 import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
@@ -107,18 +112,48 @@ export function SearchResultsPage() {
   const lastMode = useRef<"text" | "catalog">("catalog");
   const [targets, setTargets] = useState<SearchTargetRef[]>([]);
   const [targetKey, setTargetKey] = useState("");
+  const [pinned, setPinned] = useState<string[]>(() => loadPinnedTargets());
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [presenceOnly, setPresenceOnly] = useState(false);
   const [showTargetChip, setShowTargetChip] = useState(true);
+  const [mechCounts, setMechCounts] = useState<Record<string, number>>({});
   const target = targets.find((t) => `${t.kind}:${t.id}` === targetKey) ?? null;
 
   useEffect(() => {
     if (!user) return;
     void loadSearchTargets(user.id).then((list) => {
       setTargets(list);
-      setTargetKey((cur) => cur || (list[0] ? `${list[0].kind}:${list[0].id}` : ""));
+      const last = loadLastTarget();
+      const valid = last && list.some((t) => `${t.kind}:${t.id}` === last);
+      setTargetKey((cur) => cur || (valid ? last : list[0] ? `${list[0].kind}:${list[0].id}` : ""));
     });
   }, [user]);
+
+  function onTargetChange(key: string) {
+    setTargetKey(key);
+    saveLastTarget(key);
+  }
+
+  function onTogglePin(key: string) {
+    setPinned(togglePinnedTarget(key));
+  }
+
+  const [catalogMeta, setCatalogMeta] = useState<CatalogMeta | null>(null);
+  const [catalogProgress, setCatalogProgress] = useState<CatalogProgress>(() => getCatalogProgress());
+  useEffect(() => {
+    const unsub = subscribeCatalog(setCatalogProgress);
+    void readMeta().then(setCatalogMeta);
+    return unsub;
+  }, []);
+  useEffect(() => {
+    if (catalogProgress.phase === "ready") void readMeta().then(setCatalogMeta);
+  }, [catalogProgress.phase]);
+
+  function refreshCatalog() {
+    const tier = readCatalogTier();
+    if (tier === "live") return;
+    void applyCatalogTier(tier, { force: true });
+  }
 
   useEffect(() => {
     if (!user || !target) {
@@ -216,6 +251,24 @@ export function SearchResultsPage() {
   const start = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, sorted.length);
 
+  useEffect(() => {
+    const ids = visible.map((c) => c.oracle_id || c.id).filter(Boolean);
+    if (!ids.length) {
+      setMechCounts({});
+      return;
+    }
+    let cancel = false;
+    void listMarksForOracles(ids).then(({ marks }) => {
+      if (cancel) return;
+      const next: Record<string, number> = {};
+      for (const m of marks) next[m.oracle_id] = (next[m.oracle_id] ?? 0) + 1;
+      setMechCounts(next);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [visible.map((c) => c.oracle_id || c.id).join(",")]);
+
   function patch(next: Record<string, string>) {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) p.set(k, v);
@@ -264,7 +317,9 @@ export function SearchResultsPage() {
       <ToolsMenu
         targets={targets}
         targetKey={targetKey}
-        onTargetChange={setTargetKey}
+        onTargetChange={onTargetChange}
+        pinned={pinned}
+        onTogglePin={onTogglePin}
         showTargetChip={showTargetChip}
         onShowTargetChipChange={setShowTargetChip}
         columns={columns}
@@ -355,6 +410,21 @@ export function SearchResultsPage() {
       <p className={resultStyles.query}>
         <code>{q}</code>
       </p>
+      {readCatalogTier() !== "live" && (
+        <p className={resultStyles.query} style={{ fontSize: "0.8rem", opacity: 0.75 }}>
+          {catalogProgress.phase === "ready" && catalogMeta
+            ? `Catalog: ${catalogMeta.card_count.toLocaleString()} cards · updated ${new Date(catalogMeta.downloaded_at).toLocaleDateString()}`
+            : catalogProgress.message || "Catalog checking…"}
+          {" · "}
+          <button
+            type="button"
+            onClick={refreshCatalog}
+            style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+          >
+            Refresh
+          </button>
+        </p>
+      )}
       {isError && (
         <p className={resultStyles.query}>
           Search failed{errorMessage ? `: ${errorMessage}` : "."} Edit the query and try again.
@@ -428,8 +498,11 @@ export function SearchResultsPage() {
           const key = card.oracle_id || card.id;
           const n = counts[key] ?? counts[card.id] ?? 0;
           const present = n > 0;
+          const mech = mechCounts[key] ?? 0;
           const ear = !present
-            ? undefined
+            ? mech > 0
+              ? `⚙${mech}`
+              : undefined
             : target?.kind === "drawer"
               ? n
               : presenceOnly
