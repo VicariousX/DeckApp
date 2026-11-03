@@ -197,6 +197,40 @@
   overflow-x: auto;
 }
 
+.flyBtn {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.flyBtn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.flyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.flyBtnDanger {
+  color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+}
+
+.flyBtnDanger:hover:not(:disabled) {
+  background: var(--color-error-soft);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
 .stripBtn {
   flex: 0 0 28px;
   width: 28px;
