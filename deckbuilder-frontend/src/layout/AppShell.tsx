@@ -10,27 +10,22 @@ export function AppShell() {
   const { user } = useAuth();
   const name = getDisplayName(user);
   const location = useLocation();
-  const [decksOpen, setDecksOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [myOpen, setMyOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(false);
   const isPlay = location.pathname.startsWith("/play");
   const [playNavHidden, setPlayNavHidden] = useState(
     () => localStorage.getItem("deckapp.playHideNav") === "1"
   );
   const [lastDeck, setLastDeck] = useState(() => getLastViewedDeck());
-  const decksRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
-  const libraryRef = useRef<HTMLDivElement>(null);
-
-  const decksActive =
-    location.pathname === "/decks" ||
-    location.pathname === "/my-decks" ||
-    location.pathname.startsWith("/deck/");
+  const myRef = useRef<HTMLDivElement>(null);
+  const communityRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setDecksOpen(false);
     setSearchOpen(false);
-    setLibraryOpen(false);
+    setMyOpen(false);
+    setCommunityOpen(false);
     setLastDeck(getLastViewedDeck());
   }, [location.pathname, location.search]);
 
@@ -44,9 +39,10 @@ export function AppShell() {
     return () => document.body.classList.remove("play-nav-hidden");
   }, [isPlay, playNavHidden]);
 
-  const searchMode =
-    location.pathname.startsWith("/search") &&
-    new URLSearchParams(location.search).get("mode") === "advanced"
+  const searchMode = location.pathname.startsWith("/search/simple")
+    ? "simple"
+    : location.pathname.startsWith("/search") &&
+      new URLSearchParams(location.search).get("mode") === "advanced"
       ? "advanced"
       : location.pathname.startsWith("/search")
         ? "standard"
@@ -54,29 +50,30 @@ export function AppShell() {
   const searchLabel =
     searchMode === "advanced"
       ? "Advanced"
-      : searchMode === "standard"
-        ? "Standard"
-        : "Search";
+      : searchMode === "simple"
+        ? "Simple"
+        : searchMode === "standard"
+          ? "Standard"
+          : "Search";
 
   useEffect(() => {
-    if (!decksOpen && !searchOpen && !libraryOpen) return;
+    if (!searchOpen && !myOpen && !communityOpen) return;
 
     let remove: (() => void) | undefined;
 
-    // Defer so the opening click does not immediately close the menu
     const timer = window.setTimeout(() => {
       function onPointerDown(e: MouseEvent) {
         const t = e.target as Node;
-        if (!decksRef.current?.contains(t)) setDecksOpen(false);
         if (!searchRef.current?.contains(t)) setSearchOpen(false);
-        if (!libraryRef.current?.contains(t)) setLibraryOpen(false);
+        if (!myRef.current?.contains(t)) setMyOpen(false);
+        if (!communityRef.current?.contains(t)) setCommunityOpen(false);
       }
 
       function onKey(e: KeyboardEvent) {
         if (e.key === "Escape") {
-          setDecksOpen(false);
           setSearchOpen(false);
-          setLibraryOpen(false);
+          setMyOpen(false);
+          setCommunityOpen(false);
         }
       }
 
@@ -92,7 +89,7 @@ export function AppShell() {
       window.clearTimeout(timer);
       remove?.();
     };
-  }, [decksOpen, searchOpen, libraryOpen]);
+  }, [searchOpen, myOpen, communityOpen]);
 
   return (
     <div className={styles.shell}>
@@ -103,6 +100,7 @@ export function AppShell() {
           Deck<span className={styles.brandAccent}>App</span>
         </NavLink>
         <nav className={styles.nav} aria-label="Main">
+          {/* SEARCH dropdown */}
           <div className={styles.decksMenu} ref={searchRef}>
             <button
               type="button"
@@ -114,203 +112,90 @@ export function AppShell() {
               onClick={(e) => {
                 e.stopPropagation();
                 setSearchOpen((v) => !v);
-                setDecksOpen(false);
-                setLibraryOpen(false);
+                setMyOpen(false);
+                setCommunityOpen(false);
               }}
             >
               {searchLabel}
-              <span
-                className={`${styles.chevron} ${
-                  searchOpen ? styles.chevronOpen : ""
-                }`}
-                aria-hidden
-              >
-                ▾
-              </span>
+              <span className={`${styles.chevron} ${searchOpen ? styles.chevronOpen : ""}`} aria-hidden>▾</span>
             </button>
             {searchOpen && (
-              <div
-                className={styles.decksDropdown}
-                role="menu"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <NavLink
-                  to="/search?mode=standard"
-                  role="menuitem"
-                  className={() =>
-                    searchMode === "standard"
-                      ? `${styles.decksItem} ${styles.decksItemActive}`
-                      : styles.decksItem
-                  }
-                  onClick={() => setSearchOpen(false)}
-                >
-                  Standard
-                </NavLink>
-                <NavLink
-                  to="/search?mode=advanced"
-                  role="menuitem"
-                  className={() =>
-                    searchMode === "advanced"
-                      ? `${styles.decksItem} ${styles.decksItemActive}`
-                      : styles.decksItem
-                  }
-                  onClick={() => setSearchOpen(false)}
-                >
-                  Advanced
-                </NavLink>
+              <div className={styles.decksDropdown} role="menu" onMouseDown={(e) => e.stopPropagation()}>
+                <NavLink to="/search?mode=standard" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Standard</NavLink>
+                <NavLink to="/search/simple" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Simple</NavLink>
+                <NavLink to="/search?mode=advanced" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Advanced</NavLink>
               </div>
             )}
           </div>
 
+          {/* MY dropdown */}
           {user && (
-            <NavLink
-              to="/drawers"
-              className={({ isActive }) =>
-                isActive
-                  ? `${styles.navLink} ${styles.navLinkActive}`
-                  : styles.navLink
-              }
-            >
-              Drawers
-            </NavLink>
+            <div className={styles.decksMenu} ref={myRef}>
+              <button
+                type="button"
+                className={`${styles.navLink} ${styles.decksTrigger} ${
+                  myOpen || location.pathname.startsWith("/my-decks") || location.pathname.startsWith("/drawers") || location.pathname.startsWith("/collections") || location.pathname.startsWith("/combos")
+                    ? styles.navLinkActive
+                    : ""
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={myOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMyOpen((v) => !v);
+                  setSearchOpen(false);
+                  setCommunityOpen(false);
+                }}
+              >
+                My
+                <span className={`${styles.chevron} ${myOpen ? styles.chevronOpen : ""}`} aria-hidden>▾</span>
+              </button>
+              {myOpen && (
+                <div className={styles.decksDropdown} role="menu" onMouseDown={(e) => e.stopPropagation()}>
+                  {lastDeck && (
+                    <NavLink to={`/deck/${lastDeck.id}`} role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)} title={lastDeck.name}>
+                      <span className={styles.decksItemLabel}>Last deck</span>
+                      <span className={styles.decksItemSub}>{lastDeck.name}</span>
+                    </NavLink>
+                  )}
+                  <NavLink to="/my-decks" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Decks</NavLink>
+                  <NavLink to="/drawers" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Drawers</NavLink>
+                  <NavLink to="/collections" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Collections</NavLink>
+                  <NavLink to="/combos" role="menuitem" className={styles.decksItem} onClick={() => setMyOpen(false)}>Combos</NavLink>
+                </div>
+              )}
+            </div>
           )}
-          <div className={styles.decksMenu} ref={libraryRef}>
+
+          {/* Community dropdown */}
+          <div className={styles.decksMenu} ref={communityRef}>
             <button
               type="button"
               className={`${styles.navLink} ${styles.decksTrigger} ${
-                libraryOpen ||
-                location.pathname.startsWith("/combos") ||
-                location.pathname.startsWith("/formats") ||
-                location.pathname.startsWith("/collections")
+                communityOpen || location.pathname.startsWith("/social") || location.pathname.startsWith("/decks") || location.pathname.startsWith("/formats")
                   ? styles.navLinkActive
                   : ""
               }`}
               aria-haspopup="menu"
-              aria-expanded={libraryOpen}
+              aria-expanded={communityOpen}
               onClick={(e) => {
                 e.stopPropagation();
-                setLibraryOpen((v) => !v);
+                setCommunityOpen((v) => !v);
                 setSearchOpen(false);
-                setDecksOpen(false);
+                setMyOpen(false);
               }}
             >
-              Library
-              <span
-                className={`${styles.chevron} ${libraryOpen ? styles.chevronOpen : ""}`}
-                aria-hidden
-              >
-                ▾
-              </span>
+              Community
+              <span className={`${styles.chevron} ${communityOpen ? styles.chevronOpen : ""}`} aria-hidden>▾</span>
             </button>
-            {libraryOpen && (
-              <div
-                className={styles.decksDropdown}
-                role="menu"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <NavLink to="/combos" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
-                  Combos
-                </NavLink>
-                <NavLink to="/formats" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
-                  Formats
-                </NavLink>
-                <NavLink to="/social" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
-                  Social
-                </NavLink>
-                <NavLink to="/collections" role="menuitem" className={styles.decksItem} onClick={() => setLibraryOpen(false)}>
-                  Collections
-                </NavLink>
+            {communityOpen && (
+              <div className={styles.decksDropdown} role="menu" onMouseDown={(e) => e.stopPropagation()}>
+                <NavLink to="/social" role="menuitem" className={styles.decksItem} onClick={() => setCommunityOpen(false)}>Social</NavLink>
+                <NavLink to="/decks" role="menuitem" className={styles.decksItem} onClick={() => setCommunityOpen(false)}>Public deck library</NavLink>
+                <NavLink to="/formats" role="menuitem" className={styles.decksItem} onClick={() => setCommunityOpen(false)}>Formats</NavLink>
               </div>
             )}
           </div>
-
-          {user ? (
-            <div className={styles.decksMenu} ref={decksRef}>
-              <button
-                type="button"
-                className={`${styles.navLink} ${styles.decksTrigger} ${
-                  decksActive || decksOpen ? styles.navLinkActive : ""
-                }`}
-                aria-haspopup="menu"
-                aria-expanded={decksOpen}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDecksOpen((v) => !v);
-                setSearchOpen(false);
-                setLibraryOpen(false);
-                }}
-              >
-                Decks
-                <span
-                  className={`${styles.chevron} ${
-                    decksOpen ? styles.chevronOpen : ""
-                  }`}
-                  aria-hidden
-                >
-                  ▾
-                </span>
-              </button>
-              {decksOpen && (
-                <div
-                  className={styles.decksDropdown}
-                  role="menu"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {lastDeck && (
-                    <NavLink
-                      to={`/deck/${lastDeck.id}`}
-                      role="menuitem"
-                      className={({ isActive }) =>
-                        isActive
-                          ? `${styles.decksItem} ${styles.decksItemActive}`
-                          : styles.decksItem
-                      }
-                      onClick={() => setDecksOpen(false)}
-                      title={lastDeck.name}
-                    >
-                      <span className={styles.decksItemLabel}>Last viewed</span>
-                      <span className={styles.decksItemSub}>{lastDeck.name}</span>
-                    </NavLink>
-                  )}
-                  <NavLink
-                    to="/my-decks"
-                    role="menuitem"
-                    className={({ isActive }) =>
-                      isActive
-                        ? `${styles.decksItem} ${styles.decksItemActive}`
-                        : styles.decksItem
-                    }
-                    onClick={() => setDecksOpen(false)}
-                  >
-                    My decks
-                  </NavLink>
-                  <NavLink
-                    to="/decks"
-                    role="menuitem"
-                    className={({ isActive }) =>
-                      isActive
-                        ? `${styles.decksItem} ${styles.decksItemActive}`
-                        : styles.decksItem
-                    }
-                    onClick={() => setDecksOpen(false)}
-                  >
-                    Public decks
-                  </NavLink>
-                </div>
-              )}
-            </div>
-          ) : (
-            <NavLink
-              to="/decks"
-              className={({ isActive }) =>
-                isActive
-                  ? `${styles.navLink} ${styles.navLinkActive}`
-                  : styles.navLink
-              }
-            >
-              Public Decks
-            </NavLink>
-          )}
 
           {user ? (
             <NavLink
