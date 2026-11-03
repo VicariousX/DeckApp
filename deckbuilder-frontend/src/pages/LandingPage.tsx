@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
@@ -8,10 +8,6 @@ import { CardInspectorModal } from "../components/CardInspectorModal";
 import type { ScryfallCard } from "../types/scryfallCard";
 import styles from "./LandingPage.module.css";
 import transitions from "../styles/pageTransitions.module.css";
-
-type Rail =
-  | { kind: "link"; to: string; label: string; external?: boolean }
-  | { kind: "action"; label: string; onClick: () => void };
 
 const WELCOME_NOTES = [
   "Enjoy!",
@@ -25,83 +21,6 @@ const WELCOME_NOTES = [
   "Go again.",
   "Keep the spark.",
 ];
-
-type Slot = {
-  to: string;
-  mark: string;
-  title: string;
-};
-
-function LandingDrawer({
-  mark,
-  title,
-  description,
-  slots,
-  rail,
-  delayMs,
-}: {
-  mark: string;
-  title: string;
-  description: string;
-  slots: Slot[];
-  rail: Rail;
-  delayMs: number;
-}) {
-  return (
-    <div
-      className={styles.drawer}
-      style={
-        {
-          animationDelay: `${delayMs}ms`,
-          ["--slots" as string]: String(Math.max(1, slots.length)),
-        } as CSSProperties
-      }
-    >
-      <div className={styles.drawerInner}>
-        {slots.map((s) => (
-          <Link key={s.to} to={s.to} className={styles.drawerSlot}>
-            <span className={styles.drawerSlotMark}>{s.mark}</span>
-            <span className={styles.drawerSlotTitle}>{s.title}</span>
-          </Link>
-        ))}
-      </div>
-
-      <div className={styles.drawerSheet}>
-        <div className={styles.drawerSheetMain}>
-          <span className={styles.cardMark} aria-hidden>
-            {mark}
-          </span>
-          <span className={styles.cardTitle}>{title}</span>
-          <span className={styles.cardDesc}>{description}</span>
-        </div>
-        {rail.kind === "link" ? (
-          rail.external ? (
-            <a
-              href={rail.to}
-              className={styles.drawerRail}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {rail.label}
-            </a>
-          ) : (
-            <Link to={rail.to} className={styles.drawerRail}>
-              {rail.label}
-            </Link>
-          )
-        ) : (
-          <button
-            type="button"
-            className={styles.drawerRail}
-            onClick={rail.onClick}
-          >
-            {rail.label}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function LandingPage() {
   const { user } = useAuth();
@@ -131,75 +50,6 @@ export function LandingPage() {
     }
   }
 
-  const searchDrawer = (
-    <LandingDrawer
-      mark="S"
-      title="Search"
-      description="Look up any Magic card."
-      delayMs={80}
-      slots={[
-        { to: "/search?mode=standard", mark: "Y", title: "Standard" },
-        { to: "/search/simple", mark: "I", title: "Simple" },
-        { to: "/search?mode=advanced", mark: "A", title: "Advanced" },
-      ]}
-      rail={{
-        kind: "action",
-        label: randomBusy ? "Drawing…" : "Random card",
-        onClick: () => void openRandom(),
-      }}
-    />
-  );
-
-  const myDrawer = user ? (
-    <LandingDrawer
-      mark={(displayName || "M").charAt(0).toUpperCase()}
-      title="My"
-      description="Your collection space."
-      delayMs={150}
-      slots={[
-        { to: "/my-decks", mark: "D", title: "Decks" },
-        { to: "/drawers", mark: "W", title: "Drawers" },
-        { to: "/collections", mark: "L", title: "Collections" },
-        { to: "/combos", mark: "C", title: "Combos" },
-      ]}
-      rail={{ kind: "link", to: "/login", label: "Profile" }}
-    />
-  ) : (
-    <Link
-      to="/login"
-      className={styles.card}
-      style={{ animationDelay: "150ms" }}
-    >
-      <span className={styles.cardMark} aria-hidden>
-        L
-      </span>
-      <span className={styles.cardTitle}>Log in</span>
-      <span className={styles.cardDesc}>
-        Sign in to save decks and sync your collection.
-      </span>
-    </Link>
-  );
-
-  const communityDrawer = (
-    <LandingDrawer
-      mark="C"
-      title="Community"
-      description="Lists beyond your own."
-      delayMs={220}
-      slots={[
-        { to: "/social", mark: "S", title: "Social" },
-        { to: "/decks", mark: "P", title: "Public deck library" },
-        { to: "/formats", mark: "F", title: "Formats" },
-      ]}
-      rail={{
-        kind: "link",
-        to: "https://discord.com/invite/placeholder",
-        label: "Discord",
-        external: true,
-      }}
-    />
-  );
-
   return (
     <div className={`${styles.landing} ${transitions.landingEnter}`}>
       <div className={styles.glow} aria-hidden />
@@ -226,10 +76,48 @@ export function LandingPage() {
         </p>
       </div>
 
-      <div className={styles.actions}>
-        {searchDrawer}
-        {myDrawer}
-        {communityDrawer}
+      <div className={styles.grid}>
+        {/* Search */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Search</h2>
+          <button type="button" className={styles.featured} onClick={() => void openRandom()} disabled={randomBusy}>
+            {randomBusy ? "Drawing…" : "Random card"}
+          </button>
+          <div className={styles.links}>
+            <Link to="/search?mode=standard" className={styles.link}>Standard</Link>
+            <Link to="/search/simple" className={styles.link}>Simple</Link>
+            <Link to="/search?mode=advanced" className={styles.link}>Advanced</Link>
+          </div>
+        </section>
+
+        {/* My */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>My</h2>
+          {user ? (
+            <Link to="/login" className={styles.featured}>Profile</Link>
+          ) : (
+            <Link to="/login" className={styles.featured}>Log in</Link>
+          )}
+          <div className={styles.links}>
+            <Link to="/my-decks" className={styles.link}>Decks</Link>
+            <Link to="/drawers" className={styles.link}>Drawers</Link>
+            <Link to="/collections" className={styles.link}>Collections</Link>
+            <Link to="/combos" className={styles.link}>Combos</Link>
+          </div>
+        </section>
+
+        {/* Community */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Community</h2>
+          <a href="https://discord.com/invite/placeholder" className={styles.featured} target="_blank" rel="noreferrer">
+            Discord
+          </a>
+          <div className={styles.links}>
+            <Link to="/social" className={styles.link}>Social</Link>
+            <Link to="/decks" className={styles.link}>Public deck library</Link>
+            <Link to="/formats" className={styles.link}>Formats</Link>
+          </div>
+        </section>
       </div>
 
       {!user && (
