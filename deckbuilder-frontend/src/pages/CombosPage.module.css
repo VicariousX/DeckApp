@@ -138,68 +138,138 @@
 }
 
 .lock {
-  position: relative;
-  padding-top: 1.4rem;
-}
-
-.shackle {
-  position: absolute;
-  top: 0;
-  left: 8%;
-  right: 18%;
-  height: 1.35rem;
-  border: 2px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 30%);
-  border-bottom: none;
-  border-radius: 18px 18px 0 0;
-  pointer-events: none;
-}
-
-.lockBody {
   display: flex;
-  align-items: stretch;
-  gap: 0.9rem;
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 1rem 0.85rem 7.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 22px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-surface-highlight) 55%, transparent),
-      color-mix(in srgb, var(--color-surface) 94%, #000 6%)
-    );
-  box-shadow: var(--shadow-md);
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--color-accent) 50%, transparent) transparent;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
 }
 
-.wheel {
-  flex: 0 0 11.2rem;
+.column {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.45rem;
-  position: relative;
-  z-index: 1;
+  gap: 0.5rem;
+  width: 180px;
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
 }
 
-.wheelCap {
+.columnDim {
+  opacity: 0.55;
+}
+
+.columnHead {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
-.colLabel {
+.columnLabel {
   flex: 1;
   min-width: 0;
-  font-size: 0.78rem;
-  font-weight: 650;
-  text-align: center;
   border: none;
   background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  padding: 0.2rem 0.3rem;
+}
+
+.columnFace {
+  width: 100%;
+}
+
+.columnEmpty {
+  aspect-ratio: 5 / 7;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px dashed var(--color-border);
   color: var(--color-text-muted);
-  padding: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.columnStrip {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.stripBtn {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 40px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.stripBtn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stripOn {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.addColumn {
+  align-self: stretch;
+  min-width: 120px;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.addColumn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.mesh {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.meshCol h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.meshCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.meshCard {
+  width: 100px;
+  height: 140px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.meshCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .iconBtn,
