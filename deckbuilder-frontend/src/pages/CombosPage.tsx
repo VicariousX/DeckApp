@@ -239,10 +239,10 @@ function ComboSynergyBody({
 }) {
   const cards: SynergyCard[] = combo.columns.flatMap((col) =>
     col.cards.map((c) => ({
-      oracle_id: c.oracle_id,
+      key: c.oracle_id,
       name: c.name,
-      type_line: c.type_line,
-      image: c.image,
+      oracle: c.type_line || "",
+      keywords: [],
     }))
   );
   const extra = resolvedLinks(combo).map((l) => ({
@@ -336,13 +336,13 @@ export function CombosPage() {
   useEffect(() => {
     if (view !== "map" || !comboNames.length) return;
     let cancel = false;
-    void fetchCardsByNames(comboNames).then(({ cards }) => {
+    void fetchCardsByNames(comboNames).then(({ byName }) => {
       if (cancel) return;
       const o: Record<string, string> = {};
       const k: Record<string, string[]> = {};
-      for (const c of cards) {
-        o[c.name] = c.oracle_id || c.id;
-        k[c.name] = c.keywords ?? [];
+      for (const [name, c] of byName) {
+        o[name] = c.oracle_id || c.id;
+        k[name] = c.keywords ?? [];
       }
       setOracleByName(o);
       setKwByName(k);
@@ -520,7 +520,7 @@ export function CombosPage() {
                 if (card) setModalCard(card);
               }} />}
 
-              {view === "atlas" && <ComboAtlas combos={combos} onSelect={setActiveId} />}
+              {view === "atlas" && <ComboAtlas combos={combos} onSelect={setModalCard} />}
             </>
           )}
           {error && <p className={styles.error}>{error}</p>}
@@ -531,9 +531,19 @@ export function CombosPage() {
         <CardContextMenu
           x={ctx.x}
           y={ctx.y}
-          card={{ name: ctx.card.name, scryfallId: ctx.card.scryfall_id, oracleId: ctx.card.oracle_id }}
+          target={{
+            name: ctx.card.name,
+            scryfallId: ctx.card.scryfall_id,
+            oracleId: ctx.card.oracle_id,
+            imageUrl: ctx.card.image,
+            typeLine: ctx.card.type_line,
+          }}
           onClose={() => setCtx(null)}
-          onJump={(jump) => {
+          onEnhance={() => {
+            setEnhance(ctx.card);
+            setCtx(null);
+          }}
+          onOpenModal={(jump: ModalJump) => {
             setModalJump(jump);
             setModalCard(ctx.card);
             setCtx(null);
@@ -553,8 +563,8 @@ export function CombosPage() {
 
       {enhance && (
         <CardEnlargeOverlay
-          imageUrl={enhance.image}
-          name={enhance.name}
+          frontSrc={enhance.image || ""}
+          frontName={enhance.name}
           onClose={() => setEnhance(null)}
         />
       )}
