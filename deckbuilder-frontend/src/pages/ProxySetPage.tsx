@@ -216,28 +216,28 @@ export function ProxySetPage() {
       <p className={styles.subtitle}>
         Upload existing art or create a live proxy with an overlay. Images are stored on Cloudflare R2.
       </p>
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-        <button
-          type="button"
-          className={tab === "upload" ? styles.primaryBtn : styles.secondaryBtn}
-          onClick={() => setTab("upload")}
-        >
-          Upload
-        </button>
-        <button
-          type="button"
-          className={tab === "create" ? styles.primaryBtn : styles.secondaryBtn}
-          onClick={() => setTab("create")}
-        >
-          Create
-        </button>
-        <button
-          type="button"
-          className={tab === "templates" ? styles.primaryBtn : styles.secondaryBtn}
-          onClick={() => setTab("templates")}
-        >
-          Templates
-        </button>
+      <div style={{ display: "flex", gap: 4, marginBottom: "1.25rem", borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
+        {(["upload", "create", "templates"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={{
+              appearance: "none",
+              background: tab === t ? "color-mix(in srgb, var(--color-accent) 16%, transparent)" : "transparent",
+              color: tab === t ? "var(--color-accent)" : "var(--color-text-muted)",
+              border: "none",
+              borderBottom: tab === t ? "2px solid var(--color-accent)" : "2px solid transparent",
+              padding: "0.45rem 0.9rem",
+              fontWeight: 650,
+              fontSize: "0.9rem",
+              cursor: "pointer",
+              borderRadius: "6px 6px 0 0",
+            }}
+          >
+            {t[0].toUpperCase() + t.slice(1)}
+          </button>
+        ))}
       </div>
 
       <ErrorNotice message={error} onRetry={() => void loadSet()} onDismiss={() => setError(null)} />
