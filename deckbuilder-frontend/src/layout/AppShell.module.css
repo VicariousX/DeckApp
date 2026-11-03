@@ -372,3 +372,23 @@ button.decksTrigger.navLinkActive {
 .userLinkActive {
   color: var(--color-accent);
 }
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.65rem 1rem;
+    gap: 0.5rem;
+  }
+  .nav {
+    gap: 0.15rem;
+  }
+  .navLink {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
+  .main {
+    padding: 1rem 1rem 2rem;
+  }
+  .accountChipName {
+    display: none;
+  }
+}
