@@ -220,6 +220,11 @@ export function SimpleSearchPage() {
 
   return (
     <div className={styles.accountContent} style={{ maxWidth: 720, margin: "1.5rem auto", padding: "0 1rem" }}>
+      <style>{`
+        .no-spin::-webkit-outer-spin-button,
+        .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-spin { -moz-appearance: textfield; }
+      `}</style>
       <h1 className={styles.title}>Simple search</h1>
       <p className={styles.subtitle}>Build a query. Submit to see results.</p>
 
@@ -292,7 +297,7 @@ export function SimpleSearchPage() {
             <span className={styles.label}>Oracle text</span>
             <LogicToggle value={oracleLogic} onChange={setOracleLogic} options={["or", "and"]} />
           </div>
-          <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "stretch" }}>
             <textarea
               className={styles.input}
               value={oracleInput}
@@ -303,7 +308,14 @@ export function SimpleSearchPage() {
               }}
               placeholder="Add a text phrase…"
               rows={1}
-              style={{ resize: "none", overflow: "hidden", paddingRight: 36, minHeight: 36 }}
+              style={{
+                resize: "none",
+                overflow: "hidden",
+                minHeight: 36,
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+                flex: 1,
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -316,13 +328,10 @@ export function SimpleSearchPage() {
               onClick={addOracle}
               aria-label="Add oracle phrase"
               style={{
-                position: "absolute",
-                top: 4,
-                right: 4,
-                width: 28,
-                height: 28,
-                borderRadius: 6,
+                width: 36,
                 border: "1px solid #444",
+                borderLeft: "none",
+                borderRadius: "0 8px 8px 0",
                 background: "var(--color-surface)",
                 color: "inherit",
                 fontSize: "1.1rem",
@@ -353,17 +362,64 @@ export function SimpleSearchPage() {
               options={["=", "<=", ">=", "<", ">", "!="] as const}
               onChange={setStatOp}
             />
-            <input
-              className={styles.input}
-              type="number"
-              value={statValue}
-              onChange={(e) => setStatValue(e.target.value)}
-              placeholder="0"
-              style={{ width: 80 }}
-            />
-            <button type="button" className={styles.secondaryBtn} onClick={addStat} style={{ padding: "2px 10px" }}>
-              +
-            </button>
+            <div style={{ display: "flex", alignItems: "stretch" }}>
+              <div style={{ display: "flex", alignItems: "center", border: "1px solid #444", borderRadius: "8px 0 0 8px", background: "var(--color-surface)", height: 36 }}>
+                <button
+                  type="button"
+                  onClick={() => setStatValue(String(Math.max(0, Number(statValue || 0) - 1)))}
+                  aria-label="Decrease"
+                  style={{ width: 28, height: "100%", border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem" }}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={statValue}
+                  onChange={(e) => setStatValue(e.target.value)}
+                  placeholder="0"
+                  style={{
+                    width: 56,
+                    border: "none",
+                    background: "transparent",
+                    color: "inherit",
+                    textAlign: "center",
+                    font: "inherit",
+                    outline: "none",
+                    MozAppearance: "textfield",
+                  }}
+                  className="no-spin"
+                />
+                <button
+                  type="button"
+                  onClick={() => setStatValue(String(Number(statValue || 0) + 1))}
+                  aria-label="Increase"
+                  style={{ width: 28, height: "100%", border: "none", background: "transparent", color: "inherit", cursor: "pointer", fontSize: "1rem" }}
+                >
+                  +
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={addStat}
+                aria-label="Add value"
+                style={{
+                  width: 36,
+                  height: 36,
+                  border: "1px solid #444",
+                  borderLeft: "none",
+                  borderRadius: "0 8px 8px 0",
+                  background: "var(--color-surface)",
+                  color: "inherit",
+                  fontSize: "1.1rem",
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                +
+              </button>
+            </div>
           </div>
           <ChipRow
             items={stats.map((s) => `${s.field === "mv" ? "MV" : "EDHREC"} ${s.op} ${s.value}`)}
@@ -493,8 +549,9 @@ function CycleBtn<T extends string>({
       type="button"
       onClick={cycle}
       style={{
-        padding: "2px 10px",
-        borderRadius: 6,
+        height: 36,
+        padding: "0 12px",
+        borderRadius: 8,
         border: "1px solid #444",
         background: "transparent",
         color: "inherit",
@@ -502,6 +559,9 @@ function CycleBtn<T extends string>({
         fontWeight: 650,
         cursor: "pointer",
         minWidth: 52,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
       {labels?.[value] ?? value}
