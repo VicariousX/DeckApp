@@ -198,7 +198,7 @@ export function SearchResultsPage() {
     };
   }, [user, target?.kind, target?.id]);
   const q = params.get("q") ?? "";
-  const mode = params.get("mode") === "advanced" ? "advanced" : "standard";
+  const mode = params.get("mode") === "advanced" ? "advanced" : params.get("mode") === "simple" ? "simple" : "standard";
   const nParam = parseInt(params.get("n") ?? "30", 10);
   const pageSize = PAGE_SIZES.includes(nParam) ? nParam : 30;
   const sortKey = params.get("sort") || "name";
@@ -300,7 +300,9 @@ export function SearchResultsPage() {
   const editTo =
     mode === "advanced"
       ? `/search?mode=advanced&q=${encodeURIComponent(q)}`
-      : `/search?mode=standard`;
+      : mode === "simple"
+        ? `/search/simple?ss=${params.get("ss") || ""}`
+        : `/search?mode=standard`;
 
   const canPrev = safePage > 1 || apiPage > 1;
   const canNext = safePage < pagesHere || hasMoreApi;
