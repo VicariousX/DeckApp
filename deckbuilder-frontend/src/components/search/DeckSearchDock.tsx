@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { CardSearch } from "../CardSearch";
 import { AdvancedSearch } from "./AdvancedSearch";
+import { SimpleSearchForm } from "./SimpleSearchForm";
 import { SearchResultsPanel } from "./SearchResultsPanel";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { BottomSheet } from "../BottomSheet";
 import styles from "./DeckSearchDock.module.css";
 
-export type SearchKind = "standard" | "advanced";
+export type SearchKind = "simple" | "standard" | "advanced";
 
 type Tab = {
   id: string;
@@ -21,7 +22,7 @@ function newTab(mode: SearchKind, query = ""): Tab {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     mode,
     query,
-    title: query || (mode === "advanced" ? "Advanced" : "Standard"),
+    title: query || (mode === "advanced" ? "Advanced" : mode === "standard" ? "Standard" : "Simple"),
   };
 }
 
@@ -62,7 +63,7 @@ export function DeckSearchDock({
 }) {
   const isMobile = useIsMobile();
   const [pinHost, setPinHost] = useState<HTMLDivElement | null>(null);
-  const [tabs, setTabs] = useState<Tab[]>([newTab("advanced")]);
+  const [tabs, setTabs] = useState<Tab[]>([newTab("simple")]);
   const [identityOn, setIdentityOn] = useState(false);
   const [identityNonce, setIdentityNonce] = useState(0);
   const [pinOpen, setPinOpen] = useState(true);
@@ -88,7 +89,7 @@ export function DeckSearchDock({
           ? {
               ...t,
               mode,
-              title: t.query ? t.title : mode === "advanced" ? "Advanced" : "Standard",
+              title: t.query ? t.title : mode === "advanced" ? "Advanced" : mode === "standard" ? "Standard" : "Simple",
             }
           : t
       )
@@ -126,7 +127,7 @@ export function DeckSearchDock({
                   setTabs((list) => {
                     const next = list.filter((x) => x.id !== t.id);
                     if (activeId === t.id) setActiveId(next[0]?.id ?? "");
-                    return next.length ? next : [newTab("advanced")];
+                    return next.length ? next : [newTab("simple")];
                   });
                 }}
               >
@@ -151,19 +152,21 @@ export function DeckSearchDock({
             type="button"
             className={styles.tabMode}
             title="Click to cycle. Right-click to choose."
-            onClick={() =>
-              setActiveMode(active.mode === "advanced" ? "standard" : "advanced")
-            }
+            onClick={() => {
+              const order: SearchKind[] = ["simple", "standard", "advanced"];
+              const next = order[(order.indexOf(active.mode) + 1) % order.length];
+              setActiveMode(next);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setModeMenu((v) => !v);
             }}
           >
-            {active.mode === "advanced" ? "Advanced" : "Standard"}
+            {active.mode === "advanced" ? "Advanced" : active.mode === "standard" ? "Standard" : "Simple"}
           </button>
           {modeMenu && (
             <ul className={styles.menu} role="menu">
-              {(["standard", "advanced"] as const).map((m) => (
+              {(["simple", "standard", "advanced"] as const).map((m) => (
                 <li key={m}>
                   <button
                     type="button"
@@ -171,7 +174,7 @@ export function DeckSearchDock({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setActiveMode(m)}
                   >
-                    {m === "advanced" ? "Advanced" : "Standard"}
+                    {m === "advanced" ? "Advanced" : m === "standard" ? "Standard" : "Simple"}
                   </button>
                 </li>
               ))}
@@ -192,13 +195,15 @@ export function DeckSearchDock({
           identityNonce={identityNonce}
           onSearch={(q) => runQuery(q, "advanced")}
         />
-      ) : (
+      ) : active.mode === "standard" ? (
         <CardSearch
           compact
           mode="standard"
           extraQuery={identityOn ? seedQuery : undefined}
           onSearch={(q) => runQuery(q, "standard")}
         />
+      ) : (
+        <SimpleSearchForm onSearch={(q) => runQuery(q, "simple")} />
       )}
               {seedQuery && (
           <button
