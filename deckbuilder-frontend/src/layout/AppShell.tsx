@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AmbientBackdrop } from "../components/AmbientBackdrop";
+import { SettingsButton, SettingsDrawer } from "../components/SettingsDrawer";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
 import { getLastViewedDeck } from "../lib/deckPreferences";
@@ -12,7 +13,7 @@ export function AppShell() {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [myOpen, setMyOpen] = useState(false);
-  const [communityOpen, setCommunityOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const isPlay = location.pathname.startsWith("/play");
   const [playNavHidden, setPlayNavHidden] = useState(
     () => localStorage.getItem("deckapp.playHideNav") === "1"
@@ -226,6 +227,7 @@ export function AppShell() {
               Log in
             </NavLink>
           )}
+          <SettingsButton onClick={() => setSettingsOpen(true)} />
         </nav>
       </header>
       {isPlay && (
@@ -239,6 +241,7 @@ export function AppShell() {
         </button>
       )}
       </div>
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <main className={styles.main}>
         <Outlet />
       </main>
