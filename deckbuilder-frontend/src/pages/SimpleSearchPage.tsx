@@ -396,7 +396,7 @@ export function SimpleSearchPage() {
   );
 }
 
-function ColorRow({
+function ColorRow<L extends string>({
   label,
   selected,
   logic,
@@ -406,10 +406,10 @@ function ColorRow({
 }: {
   label: string;
   selected: Color[];
-  logic: string;
+  logic: L;
   onToggle: (c: Color) => void;
-  onLogic: (v: string) => void;
-  options: readonly string[];
+  onLogic: (v: L) => void;
+  options: readonly L[];
 }) {
   return (
     <section>
@@ -447,7 +447,7 @@ function ColorRow({
   );
 }
 
-function LogicToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: readonly string[] }) {
+function LogicToggle<L extends string>({ value, onChange, options }: { value: L; onChange: (v: L) => void; options: readonly L[] }) {
   return (
     <span style={{ display: "inline-flex", borderRadius: 6, overflow: "hidden", border: "1px solid #444" }}>
       {options.map((v) => (
