@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { renderManaSymbol } from "../utils/symbols";
 import styles from "./LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
 type Color = (typeof COLORS)[number];
 
-const TYPE_OPTIONS = [
+const SUPERTYPES = ["Basic", "Legendary", "Ongoing", "Snow", "World", "Elite", "Host", "Token"];
+const CARD_TYPES = [
   "Artifact", "Battle", "Conspiracy", "Creature", "Dungeon", "Enchantment",
-  "Instant", "Land", "Phenomenon", "Plane", "Planeswalker", "Scheme",
-  "Sorcery", "Tribal", "Vanguard",
+  "Instant", "Kindred", "Land", "Phenomenon", "Plane", "Planeswalker",
+  "Scheme", "Sorcery", "Tribal", "Vanguard",
+];
+const SUBTYPES = [
   "Advisor", "Aetherborn", "Alien", "Ally", "Angel", "Antelope", "Ape",
   "Archer", "Archon", "Army", "Artificer", "Assassin", "Assembly-Worker",
   "Atog", "Aurochs", "Avatar", "Azra", "Badger", "Barbarian", "Bard",
@@ -53,21 +56,29 @@ const TYPE_OPTIONS = [
   "Clue", "Food", "Gold", "Treasure", "Blood", "Powerstone", "Map",
   "Plains", "Island", "Swamp", "Mountain", "Forest", "Desert", "Gate",
   "Lair", "Locus", "Mine", "Power-Plant", "Tower", "Urza's",
+  "Arcane", "Trap",
 ];
+const TYPE_OPTIONS = [...SUPERTYPES, ...CARD_TYPES, ...SUBTYPES];
 
 type Logic = "and" | "or";
-type Cmp = "=" | "<=";
 
-function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic, cmp: Cmp): string {
+type SimpleState = {
+  name: string;
+  idColors: Color[];
+  idLogic: Logic;
+  cardColors: Color[];
+  cardLogic: Logic;
+  types: string[];
+  typeLogic: Logic;
+  isCommander: boolean;
+  oracle: string[];
+  oracleLogic: Logic;
+};
+
+function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic): string {
   if (!selected.length) return "";
-  if (logic === "and" && cmp === "=") {
-    return `${prefix}=${selected.join("")}`;
-  }
-  if (logic === "and" && cmp === "<=") {
-    return `${prefix}<=${selected.join("")}`;
-  }
-  // OR: each color as its own clause
-  const parts = selected.map((c) => `${prefix}${cmp}${c}`);
+  if (logic === "and") return `${prefix}:${selected.join("")}`;
+  const parts = selected.map((c) => `${prefix}:${c}`);
   return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
 }
 
@@ -77,52 +88,93 @@ function typeClause(types: string[], logic: Logic): string {
   return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
 }
 
+function oracleClause(terms: string[], logic: Logic): string {
+  if (!terms.length) return "";
+  const parts = terms.map((t) => (t.includes(" ") ? `o:"${t}"` : `o:${t}`));
+  return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
+}
+
+function encodeState(s: SimpleState): string {
+  return btoa(encodeURIComponent(JSON.stringify(s)));
+}
+
+function decodeState(raw: string): SimpleState | null {
+  try {
+    return JSON.parse(decodeURIComponent(atob(raw))) as SimpleState;
+  } catch {
+    return null;
+  }
+}
+
 export function SimpleSearchPage() {
   const navigate = useNavigate();
-  const [idColors, setIdColors] = useState<Color[]>([]);
-  const [idLogic, setIdLogic] = useState<Logic>("or");
-  const [idCmp, setIdCmp] = useState<Cmp>("<=");
-  const [cardColors, setCardColors] = useState<Color[]>([]);
-  const [cardLogic, setCardLogic] = useState<Logic>("or");
-  const [cardCmp, setCardCmp] = useState<Cmp>("<=");
+  const [params] = useSearchParams();
+  const restored = useMemo(() => {
+    const raw = params.get("ss");
+    return raw ? decodeState(raw) : null;
+  }, [params]);
+
+  const [name, setName] = useState(restored?.name ?? "");
+  const [idColors, setIdColors] = useState<Color[]>(restored?.idColors ?? []);
+  const [idLogic, setIdLogic] = useState<Logic>(restored?.idLogic ?? "or");
+  const [cardColors, setCardColors] = useState<Color[]>(restored?.cardColors ?? []);
+  const [cardLogic, setCardLogic] = useState<Logic>(restored?.cardLogic ?? "or");
   const [typeQuery, setTypeQuery] = useState("");
-  const [types, setTypes] = useState<string[]>([]);
-  const [typeLogic, setTypeLogic] = useState<Logic>("or");
-  const [isCommander, setIsCommander] = useState(false);
-  const [oracle, setOracle] = useState("");
-  const [mechanic, setMechanic] = useState("");
+  const [types, setTypes] = useState<string[]>(restored?.types ?? []);
+  const [typeLogic, setTypeLogic] = useState<Logic>(restored?.typeLogic ?? "or");
+  const [isCommander, setIsCommander] = useState(restored?.isCommander ?? false);
+  const [oracleInput, setOracleInput] = useState("");
+  const [oracle, setOracle] = useState<string[]>(restored?.oracle ?? []);
+  const [oracleLogic, setOracleLogic] = useState<Logic>(restored?.oracleLogic ?? "or");
+
+  useEffect(() => {
+    if (!restored) return;
+    setName(restored.name);
+    setIdColors(restored.idColors);
+    setIdLogic(restored.idLogic);
+    setCardColors(restored.cardColors);
+    setCardLogic(restored.cardLogic);
+    setTypes(restored.types);
+    setTypeLogic(restored.typeLogic);
+    setIsCommander(restored.isCommander);
+    setOracle(restored.oracle);
+    setOracleLogic(restored.oracleLogic);
+  }, [restored]);
 
   const typeMatches = useMemo(() => {
     const q = typeQuery.trim().toLowerCase();
     if (!q) return [];
-    return TYPE_OPTIONS.filter((t) => t.toLowerCase().includes(q) && !types.includes(t)).slice(0, 8);
+    return TYPE_OPTIONS.filter((t) => t.toLowerCase().includes(q) && !types.includes(t)).slice(0, 10);
   }, [typeQuery, types]);
 
   function toggleColor(list: Color[], set: (next: Color[]) => void, c: Color) {
     set(list.includes(c) ? list.filter((x) => x !== c) : [...list, c]);
   }
 
-  function addType(name: string) {
-    if (!types.includes(name)) setTypes([...types, name]);
+  function addType(n: string) {
+    if (!types.includes(n)) setTypes([...types, n]);
     setTypeQuery("");
   }
 
-  function removeType(name: string) {
-    setTypes(types.filter((t) => t !== name));
+  function addOracle() {
+    const t = oracleInput.trim();
+    if (!t || oracle.includes(t)) return;
+    setOracle([...oracle, t]);
+    setOracleInput("");
   }
 
   function buildQuery(): string {
     const parts: string[] = [];
-    const id = colorClause("id", idColors, idLogic, idCmp);
+    if (name.trim()) parts.push(name.includes(" ") ? `name:"${name.trim()}"` : name.trim());
+    const id = colorClause("id", idColors, idLogic);
     if (id) parts.push(id);
-    const cc = colorClause("c", cardColors, cardLogic, cardCmp);
+    const cc = colorClause("c", cardColors, cardLogic);
     if (cc) parts.push(cc);
     const tc = typeClause(types, typeLogic);
     if (tc) parts.push(tc);
     if (isCommander) parts.push("is:commander");
-    const o = oracle.trim();
-    if (o) parts.push(o.includes(" ") ? `o:"${o}"` : `o:${o}`);
-    if (mechanic.trim()) parts.push(`mech:${mechanic.trim()}`);
+    const oc = oracleClause(oracle, oracleLogic);
+    if (oc) parts.push(oc);
     return parts.join(" ");
   }
 
@@ -130,32 +182,40 @@ export function SimpleSearchPage() {
     e.preventDefault();
     const q = buildQuery();
     if (!q) return;
-    navigate(`/search/results?q=${encodeURIComponent(q)}&mode=standard`);
+    const state: SimpleState = { name, idColors, idLogic, cardColors, cardLogic, types, typeLogic, isCommander, oracle, oracleLogic };
+    navigate(`/search/results?q=${encodeURIComponent(q)}&mode=simple&ss=${encodeState(state)}`);
   }
 
   return (
     <div className={styles.accountContent} style={{ maxWidth: 720, margin: "1.5rem auto", padding: "0 1rem" }}>
       <h1 className={styles.title}>Simple search</h1>
-      <p className={styles.subtitle}>Build a query with colors, types, and text. Submit to see results.</p>
+      <p className={styles.subtitle}>Build a query. Submit to see results.</p>
 
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem", marginTop: 16 }}>
+        <section>
+          <label className={styles.label}>Name</label>
+          <input
+            className={styles.input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Card name…"
+          />
+        </section>
+
         <ColorRow
           label="Color identity"
           selected={idColors}
           logic={idLogic}
-          cmp={idCmp}
           onToggle={(c) => toggleColor(idColors, setIdColors, c)}
           onLogic={setIdLogic}
-          onCmp={setIdCmp}
+          hint="For commander identity, use OR and include the colorless pip."
         />
         <ColorRow
           label="Card color"
           selected={cardColors}
           logic={cardLogic}
-          cmp={cardCmp}
           onToggle={(c) => toggleColor(cardColors, setCardColors, c)}
           onLogic={setCardLogic}
-          onCmp={setCardCmp}
         />
 
         <section>
@@ -168,7 +228,7 @@ export function SimpleSearchPage() {
               className={styles.input}
               value={typeQuery}
               onChange={(e) => setTypeQuery(e.target.value)}
-              placeholder="Add a type…"
+              placeholder="Add a type, supertype, or subtype…"
               autoComplete="off"
             />
             {typeMatches.length > 0 && (
@@ -187,49 +247,39 @@ export function SimpleSearchPage() {
               </div>
             )}
           </div>
-          {types.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-              {types.map((t) => (
-                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, border: "1px solid #444", fontSize: "0.85rem" }}>
-                  {t}
-                  <button type="button" onClick={() => removeType(t)} aria-label={`Remove ${t}`} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}>
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+          <ChipRow items={types} onRemove={(t) => setTypes(types.filter((x) => x !== t))} />
         </section>
 
         <section>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={isCommander} onChange={(e) => setIsCommander(e.target.checked)} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className={styles.label}>Is commander</span>
-          </label>
+            <PillToggle on={isCommander} onChange={setIsCommander} />
+          </div>
         </section>
 
         <section>
-          <label className={styles.label}>Oracle text</label>
-          <input
-            className={styles.input}
-            value={oracle}
-            onChange={(e) => setOracle(e.target.value)}
-            placeholder="Text on the card…"
-          />
-        </section>
-
-        <section>
-          <label className={styles.label}>Mechanic</label>
-          <input
-            className={styles.input}
-            value={mechanic}
-            onChange={(e) => setMechanic(e.target.value)}
-            placeholder="Mechanic selector (coming soon)"
-            disabled
-          />
-          <p className={styles.subtitle} style={{ marginTop: 4, fontSize: "0.75rem" }}>
-            Mechanic tracking is still in development.
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+            <span className={styles.label}>Oracle text</span>
+            <LogicToggle value={oracleLogic} onChange={setOracleLogic} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className={styles.input}
+              value={oracleInput}
+              onChange={(e) => setOracleInput(e.target.value)}
+              placeholder="Add a text phrase…"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addOracle();
+                }
+              }}
+            />
+            <button type="button" className={styles.secondaryBtn} onClick={addOracle}>
+              Add
+            </button>
+          </div>
+          <ChipRow items={oracle} onRemove={(t) => setOracle(oracle.filter((x) => x !== t))} />
         </section>
 
         <button type="submit" className={styles.primaryBtn}>
@@ -244,25 +294,22 @@ function ColorRow({
   label,
   selected,
   logic,
-  cmp,
   onToggle,
   onLogic,
-  onCmp,
+  hint,
 }: {
   label: string;
   selected: Color[];
   logic: Logic;
-  cmp: Cmp;
   onToggle: (c: Color) => void;
   onLogic: (v: Logic) => void;
-  onCmp: (v: Cmp) => void;
+  hint?: string;
 }) {
   return (
     <section>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
         <span className={styles.label}>{label}</span>
         <LogicToggle value={logic} onChange={onLogic} />
-        <CmpToggle value={cmp} onChange={onCmp} />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         {COLORS.map((c) => {
@@ -290,6 +337,7 @@ function ColorRow({
           );
         })}
       </div>
+      {hint && <p className={styles.subtitle} style={{ marginTop: 4, fontSize: "0.75rem" }}>{hint}</p>}
     </section>
   );
 }
@@ -320,27 +368,51 @@ function LogicToggle({ value, onChange }: { value: Logic; onChange: (v: Logic) =
   );
 }
 
-function CmpToggle({ value, onChange }: { value: Cmp; onChange: (v: Cmp) => void }) {
+function PillToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
-    <span style={{ display: "inline-flex", borderRadius: 6, overflow: "hidden", border: "1px solid #444" }}>
-      {(["<=", "="] as const).map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v)}
-          style={{
-            padding: "2px 8px",
-            border: "none",
-            background: value === v ? "var(--color-accent)" : "transparent",
-            color: value === v ? "#000" : "inherit",
-            fontSize: "0.75rem",
-            fontWeight: 650,
-            cursor: "pointer",
-          }}
-        >
-          {v}
-        </button>
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      aria-pressed={on}
+      style={{
+        width: 44,
+        height: 24,
+        borderRadius: 12,
+        border: "none",
+        background: on ? "var(--color-accent)" : "#444",
+        position: "relative",
+        cursor: "pointer",
+        padding: 0,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: on ? 22 : 2,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#fff",
+          transition: "left 120ms ease",
+        }}
+      />
+    </button>
+  );
+}
+
+function ChipRow({ items, onRemove }: { items: string[]; onRemove: (item: string) => void }) {
+  if (!items.length) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+      {items.map((t) => (
+        <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, border: "1px solid #444", fontSize: "0.85rem" }}>
+          {t}
+          <button type="button" onClick={() => onRemove(t)} aria-label={`Remove ${t}`} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}>
+            ×
+          </button>
+        </span>
       ))}
-    </span>
+    </div>
   );
 }
