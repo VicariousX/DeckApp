@@ -61,11 +61,16 @@ const SUBTYPES = [
 const TYPE_OPTIONS = [...SUPERTYPES, ...CARD_TYPES, ...SUBTYPES];
 
 type Logic = "and" | "or";
+type IdLogic = "and" | "or" | "commander";
+type StatField = "mv" | "edhrec";
+type StatOp = "=" | "<=" | ">=" | "<" | ">" | "!=";
+
+type StatChip = { field: StatField; op: StatOp; value: number };
 
 type SimpleState = {
   name: string;
   idColors: Color[];
-  idLogic: Logic;
+  idLogic: IdLogic;
   cardColors: Color[];
   cardLogic: Logic;
   types: string[];
@@ -73,10 +78,18 @@ type SimpleState = {
   isCommander: boolean;
   oracle: string[];
   oracleLogic: Logic;
+  stats: StatChip[];
+  mechanic: string;
 };
 
-function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic): string {
-  if (!selected.length) return "";
+function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
+  if (!selected.length && logic !== "commander") return "";
+  if (logic === "commander") {
+    const withC = selected.includes("C") ? selected : [...selected, "C" as Color];
+    if (!withC.length) return "id:C";
+    const parts = withC.map((c) => `${prefix}:${c}`);
+    return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
+  }
   if (logic === "and") return `${prefix}:${selected.join("")}`;
   const parts = selected.map((c) => `${prefix}:${c}`);
   return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
@@ -116,7 +129,7 @@ export function SimpleSearchPage() {
 
   const [name, setName] = useState(restored?.name ?? "");
   const [idColors, setIdColors] = useState<Color[]>(restored?.idColors ?? []);
-  const [idLogic, setIdLogic] = useState<Logic>(restored?.idLogic ?? "or");
+  const [idLogic, setIdLogic] = useState<IdLogic>(restored?.idLogic ?? "or");
   const [cardColors, setCardColors] = useState<Color[]>(restored?.cardColors ?? []);
   const [cardLogic, setCardLogic] = useState<Logic>(restored?.cardLogic ?? "or");
   const [typeQuery, setTypeQuery] = useState("");
@@ -126,6 +139,11 @@ export function SimpleSearchPage() {
   const [oracleInput, setOracleInput] = useState("");
   const [oracle, setOracle] = useState<string[]>(restored?.oracle ?? []);
   const [oracleLogic, setOracleLogic] = useState<Logic>(restored?.oracleLogic ?? "or");
+  const [statField, setStatField] = useState<StatField>("mv");
+  const [statOp, setStatOp] = useState<StatOp>("=");
+  const [statValue, setStatValue] = useState("");
+  const [stats, setStats] = useState<StatChip[]>(restored?.stats ?? []);
+  const [mechanic, setMechanic] = useState(restored?.mechanic ?? "");
 
   useEffect(() => {
     if (!restored) return;
@@ -139,6 +157,8 @@ export function SimpleSearchPage() {
     setIsCommander(restored.isCommander);
     setOracle(restored.oracle);
     setOracleLogic(restored.oracleLogic);
+    setStats(restored.stats ?? []);
+    setMechanic(restored.mechanic ?? "");
   }, [restored]);
 
   const typeMatches = useMemo(() => {
@@ -175,14 +195,26 @@ export function SimpleSearchPage() {
     if (isCommander) parts.push("is:commander");
     const oc = oracleClause(oracle, oracleLogic);
     if (oc) parts.push(oc);
+    for (const s of stats) {
+      const key = s.field === "mv" ? "mv" : "edhrec";
+      parts.push(`${key}${s.op}${s.value}`);
+    }
+    if (mechanic.trim()) parts.push(`mech:${mechanic.trim()}`);
     return parts.join(" ");
+  }
+
+  function addStat() {
+    const n = Number(statValue);
+    if (!Number.isFinite(n)) return;
+    setStats([...stats, { field: statField, op: statOp, value: n }]);
+    setStatValue("");
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const q = buildQuery();
     if (!q) return;
-    const state: SimpleState = { name, idColors, idLogic, cardColors, cardLogic, types, typeLogic, isCommander, oracle, oracleLogic };
+    const state: SimpleState = { name, idColors, idLogic, cardColors, cardLogic, types, typeLogic, isCommander, oracle, oracleLogic, stats, mechanic };
     navigate(`/search/results?q=${encodeURIComponent(q)}&mode=simple&ss=${encodeState(state)}`);
   }
 
@@ -208,7 +240,7 @@ export function SimpleSearchPage() {
           logic={idLogic}
           onToggle={(c) => toggleColor(idColors, setIdColors, c)}
           onLogic={setIdLogic}
-          hint="For commander identity, use OR and include the colorless pip."
+          options={["or", "and", "commander"]}
         />
         <ColorRow
           label="Card color"
@@ -216,12 +248,17 @@ export function SimpleSearchPage() {
           logic={cardLogic}
           onToggle={(c) => toggleColor(cardColors, setCardColors, c)}
           onLogic={setCardLogic}
+          options={["or", "and"]}
         />
 
         <section>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
             <span className={styles.label}>Type</span>
-            <LogicToggle value={typeLogic} onChange={setTypeLogic} />
+            <LogicToggle value={typeLogic} onChange={setTypeLogic} options={["or", "and"]} />
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              <span className={styles.label}>Is commander</span>
+              <PillToggle on={isCommander} onChange={setIsCommander} />
+            </span>
           </div>
           <div style={{ position: "relative" }}>
             <input
@@ -251,35 +288,104 @@ export function SimpleSearchPage() {
         </section>
 
         <section>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className={styles.label}>Is commander</span>
-            <PillToggle on={isCommander} onChange={setIsCommander} />
-          </div>
-        </section>
-
-        <section>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
             <span className={styles.label}>Oracle text</span>
-            <LogicToggle value={oracleLogic} onChange={setOracleLogic} />
+            <LogicToggle value={oracleLogic} onChange={setOracleLogic} options={["or", "and"]} />
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
+          <div style={{ position: "relative" }}>
+            <textarea
               className={styles.input}
               value={oracleInput}
-              onChange={(e) => setOracleInput(e.target.value)}
+              onChange={(e) => {
+                setOracleInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               placeholder="Add a text phrase…"
+              rows={1}
+              style={{ resize: "none", overflow: "hidden", paddingRight: 36, minHeight: 36 }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   addOracle();
                 }
               }}
             />
-            <button type="button" className={styles.secondaryBtn} onClick={addOracle}>
-              Add
+            <button
+              type="button"
+              onClick={addOracle}
+              aria-label="Add oracle phrase"
+              style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: "1px solid #444",
+                background: "var(--color-surface)",
+                color: "inherit",
+                fontSize: "1.1rem",
+                fontWeight: 650,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                lineHeight: 1,
+              }}
+            >
+              +
             </button>
           </div>
           <ChipRow items={oracle} onRemove={(t) => setOracle(oracle.filter((x) => x !== t))} />
+        </section>
+
+        <section>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+            <span className={styles.label}>Value</span>
+            <CycleBtn
+              value={statField}
+              options={["mv", "edhrec"] as const}
+              labels={{ mv: "MV", edhrec: "EDHREC" }}
+              onChange={setStatField}
+            />
+            <CycleBtn
+              value={statOp}
+              options={["=", "<=", ">=", "<", ">", "!="] as const}
+              onChange={setStatOp}
+            />
+            <input
+              className={styles.input}
+              type="number"
+              value={statValue}
+              onChange={(e) => setStatValue(e.target.value)}
+              placeholder="0"
+              style={{ width: 80 }}
+            />
+            <button type="button" className={styles.secondaryBtn} onClick={addStat} style={{ padding: "2px 10px" }}>
+              +
+            </button>
+          </div>
+          <ChipRow
+            items={stats.map((s) => `${s.field === "mv" ? "MV" : "EDHREC"} ${s.op} ${s.value}`)}
+            onRemove={(label) => {
+              const idx = stats.findIndex((s) => `${s.field === "mv" ? "MV" : "EDHREC"} ${s.op} ${s.value}` === label);
+              if (idx >= 0) setStats(stats.filter((_, i) => i !== idx));
+            }}
+          />
+        </section>
+
+        <section>
+          <label className={styles.label}>Mechanic</label>
+          <input
+            className={styles.input}
+            value={mechanic}
+            onChange={(e) => setMechanic(e.target.value)}
+            placeholder="Mechanic selector (coming soon)"
+            disabled
+          />
+          <p className={styles.subtitle} style={{ marginTop: 4, fontSize: "0.75rem" }}>
+            Mechanic tracking is still in development.
+          </p>
         </section>
 
         <button type="submit" className={styles.primaryBtn}>
@@ -296,20 +402,20 @@ function ColorRow({
   logic,
   onToggle,
   onLogic,
-  hint,
+  options,
 }: {
   label: string;
   selected: Color[];
-  logic: Logic;
+  logic: string;
   onToggle: (c: Color) => void;
-  onLogic: (v: Logic) => void;
-  hint?: string;
+  onLogic: (v: string) => void;
+  options: readonly string[];
 }) {
   return (
     <section>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
         <span className={styles.label}>{label}</span>
-        <LogicToggle value={logic} onChange={onLogic} />
+        <LogicToggle value={logic} onChange={onLogic} options={options} />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         {COLORS.map((c) => {
@@ -337,15 +443,14 @@ function ColorRow({
           );
         })}
       </div>
-      {hint && <p className={styles.subtitle} style={{ marginTop: 4, fontSize: "0.75rem" }}>{hint}</p>}
     </section>
   );
 }
 
-function LogicToggle({ value, onChange }: { value: Logic; onChange: (v: Logic) => void }) {
+function LogicToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: readonly string[] }) {
   return (
     <span style={{ display: "inline-flex", borderRadius: 6, overflow: "hidden", border: "1px solid #444" }}>
-      {(["or", "and"] as const).map((v) => (
+      {options.map((v) => (
         <button
           key={v}
           type="button"
@@ -361,10 +466,46 @@ function LogicToggle({ value, onChange }: { value: Logic; onChange: (v: Logic) =
             textTransform: "uppercase",
           }}
         >
-          {v}
+          {v === "commander" ? "Commander's" : v}
         </button>
       ))}
     </span>
+  );
+}
+
+function CycleBtn<T extends string>({
+  value,
+  options,
+  labels,
+  onChange,
+}: {
+  value: T;
+  options: readonly T[];
+  labels?: Record<string, string>;
+  onChange: (v: T) => void;
+}) {
+  function cycle() {
+    const i = options.indexOf(value);
+    onChange(options[(i + 1) % options.length]);
+  }
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      style={{
+        padding: "2px 10px",
+        borderRadius: 6,
+        border: "1px solid #444",
+        background: "transparent",
+        color: "inherit",
+        fontSize: "0.8rem",
+        fontWeight: 650,
+        cursor: "pointer",
+        minWidth: 52,
+      }}
+    >
+      {labels?.[value] ?? value}
+    </button>
   );
 }
 
