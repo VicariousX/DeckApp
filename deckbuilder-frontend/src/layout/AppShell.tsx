@@ -13,6 +13,7 @@ export function AppShell() {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [myOpen, setMyOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const isPlay = location.pathname.startsWith("/play");
   const [playNavHidden, setPlayNavHidden] = useState(
