@@ -66,7 +66,8 @@ async function fetchBulkMeta(type: CatalogFileKind): Promise<BulkMeta> {
       try {
         const res = await fetch(url);
         if (res.status === 429) {
-          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          const wait = 35000 * (attempt + 1);
+          await new Promise((r) => setTimeout(r, wait));
           continue;
         }
         const data = (await res.json()) as BulkMeta & { error?: string };
