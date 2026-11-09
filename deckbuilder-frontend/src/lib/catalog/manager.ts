@@ -61,17 +61,23 @@ async function fetchBulkMeta(type: CatalogFileKind): Promise<BulkMeta> {
     `https://api.scryfall.com/bulk-data/${type}`,
   ];
   let lastErr = `No download URI for ${type}`;
-  for (const url of paths) {
-    try {
-      const res = await fetch(url);
-      const data = (await res.json()) as BulkMeta & { error?: string };
-      const file = bulkFileUrl(data);
-      if (res.ok && file) {
-        return { ...data, download_uri: file };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const url of paths) {
+      try {
+        const res = await fetch(url);
+        if (res.status === 429) {
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        const data = (await res.json()) as BulkMeta & { error?: string };
+        const file = bulkFileUrl(data);
+        if (res.ok && file) {
+          return { ...data, download_uri: file };
+        }
+        lastErr = data.error || lastErr;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : lastErr;
       }
-      lastErr = data.error || lastErr;
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : lastErr;
     }
   }
   throw new Error(lastErr);
