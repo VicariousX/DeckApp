@@ -53,7 +53,7 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
   return (
     <>
       <div className={`${styles.backdrop}${open ? ` ${styles.backdropOn}` : ""}`} onClick={onClose} />
-      <aside className={`${styles.drawer}${open ? ` ${styles.drawerOn}` : ""}`} {...(!open ? { inert: "" } : {})}>
+      <aside className={`${styles.drawer}${open ? ` ${styles.drawerOn}` : ""}`} {...(!open ? { inert: true } : {})}>
         <header className={styles.header}>
           <h2 className={styles.title}>Settings</h2>
           <button type="button" className={styles.close} onClick={onClose} aria-label="Close">
