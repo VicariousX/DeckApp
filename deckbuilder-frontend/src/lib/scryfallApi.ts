@@ -1,5 +1,6 @@
 import type { ScryfallCard } from "../types/scryfallCard";
 import { apiUrl } from "./apiBase";
+import { enqueue, noteRateLimit } from "./requestQueue";
 import {
   autocompleteLocal,
   catalogReady,
@@ -69,9 +70,10 @@ export async function fetchCardById(
           return { card: local, error: null };
         }
       }
-      const res = await fetch(
-        apiUrl(`/api/scryfall/card/${encodeURIComponent(id)}`)
+      const res = await enqueue(() =>
+        fetch(apiUrl(`/api/scryfall/card/${encodeURIComponent(id)}`))
       );
+      if (res.status === 429) noteRateLimit();
       const data = await res.json();
       if (!res.ok) {
         return {
