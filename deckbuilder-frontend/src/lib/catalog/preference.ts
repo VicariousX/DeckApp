@@ -10,7 +10,7 @@ export function readCatalogTier(): CatalogTier {
   } catch {
     /* ignore */
   }
-  return "live";
+  return "core";
 }
 
 export function writeCatalogTier(tier: CatalogTier): void {
