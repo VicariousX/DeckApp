@@ -15,6 +15,9 @@ import {
   type CatalogTier,
 } from "./types";
 
+/** Temporary kill switch while Scryfall rate-limits the backend IP. */
+const SCRYFALL_PAUSED = true;
+
 type Listener = (p: CatalogProgress) => void;
 
 const listeners = new Set<Listener>();
@@ -232,6 +235,10 @@ function runWorker(
 }
 
 export async function bootCatalog(): Promise<void> {
+  if (SCRYFALL_PAUSED) {
+    emit({ phase: "idle", loaded: 0, total: 0, message: "Scryfall paused." });
+    return;
+  }
   const tier = readCatalogTier();
   if (tier === "live") {
     const ready = await catalogReady();
