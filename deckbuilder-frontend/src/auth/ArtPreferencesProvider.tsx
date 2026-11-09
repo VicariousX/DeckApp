@@ -16,7 +16,7 @@ import {
 } from "../services/cardArtService";
 import { fetchPublicProxyArt } from "../services/proxySetService";
 import { fetchUserCardsMap } from "../services/userCardService";
-import { fetchCardById } from "../lib/scryfallApi";
+import { fetchCardById, fetchCollectionByIds } from "../lib/scryfallApi";
 import {
   applyUserCardArt,
   mapScryfallToDeckApp,
@@ -133,13 +133,13 @@ export function ArtPreferencesProvider({ children }: { children: ReactNode }) {
     if (ids.size === 0) return;
 
     const next = new Map(preferredRef.current);
-    await Promise.all(
-      [...ids].map(async (id) => {
-        if (next.has(id)) return;
-        const { card } = await fetchCardById(id);
-        if (card) next.set(id, card);
-      })
-    );
+    const missing = [...ids].filter((id) => !next.has(id));
+    if (missing.length) {
+      const { cards } = await fetchCollectionByIds(missing);
+      for (const card of cards) {
+        if (card.id) next.set(card.id.toLowerCase(), card);
+      }
+    }
     setPreferredPrintings(next);
   }, [user]);
 
