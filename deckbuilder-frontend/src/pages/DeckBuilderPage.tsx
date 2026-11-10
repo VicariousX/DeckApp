@@ -105,6 +105,7 @@ import { branchTree, loadBranchParent, loadHistory, rememberBranchNode, remember
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
+import { LegalityDropdown } from "../components/LegalityDropdown";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
 import transitions from "../styles/pageTransitions.module.css";
@@ -150,7 +151,6 @@ export function DeckBuilderPage() {
   const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
   const [copyBusy, setCopyBusy] = useState(false);
   const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
-  const [legalityOpen, setLegalityOpen] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelTab>("deck");
@@ -1538,26 +1538,7 @@ export function DeckBuilderPage() {
                 </span>
               </p>
               {legalityIssues.length > 0 && (
-                <div className={styles.legalDrop}>
-                  <button
-                    type="button"
-                    className={styles.legalToggle}
-                    aria-expanded={legalityOpen}
-                    onClick={() => setLegalityOpen((v) => !v)}
-                  >
-                    {legalityIssues.length} legality issue{legalityIssues.length === 1 ? "" : "s"}
-                    <span className={styles.legalChevron}>{legalityOpen ? "▴" : "▾"}</span>
-                  </button>
-                  {legalityOpen && (
-                    <ul className={styles.legalList}>
-                      {legalityIssues.map((issue) => (
-                        <li key={`${issue.code}-${issue.oracleId || issue.message}`} className={styles.legalItem}>
-                          {issue.message}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                <LegalityDropdown issues={legalityIssues} />
               )}
             </div>
             <div className={styles.headerActions}>
