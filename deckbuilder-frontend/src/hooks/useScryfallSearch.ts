@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { apiUrl } from "../lib/apiBase";
 import type { ScryfallCard } from "../types/scryfallCard";
 
+const SCRYFALL_PAUSED = true;
+
 type SearchJson = {
   data?: ScryfallCard[];
   total_cards?: number;
@@ -33,6 +35,12 @@ export function useScryfallSearch() {
         setTotal(0);
         setIsError(false);
         setErrorMessage(null);
+        return;
+      }
+      if (SCRYFALL_PAUSED) {
+        setIsError(true);
+        setErrorMessage("Scryfall paused");
+        setIsLoading(false);
         return;
       }
       setIsLoading(true);
