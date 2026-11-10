@@ -59,10 +59,6 @@ import { StackCards } from "../components/StackCards";
 import { DrawerPanel } from "../components/DrawerPanel";
 import { BulkCardImport, type BulkResolvedEntry } from "../components/BulkCardImport";
 import { TextExportMenu } from "../components/TextExportMenu";
-import {
-  DeckSearchDock,
-  DeckSearchToggle,
-} from "../components/search/DeckSearchDock";
 import type { ScryfallCard } from "../types/scryfallCard";
 import { DeckStatsPanel } from "../components/DeckStatsPanel";
 import {
@@ -112,6 +108,7 @@ import { BoardCycle } from "../components/BoardCycle";
 import { DeckToolbar } from "../components/DeckToolbar";
 import { AddCardRow } from "../components/AddCardRow";
 import { DeckToolRow } from "../components/DeckToolRow";
+import { DeckSearchDockHost } from "../components/DeckSearchDockHost";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1612,37 +1609,19 @@ export function DeckBuilderPage() {
                 onRefreshTokens={() => void refreshTokens()}
               />
               {panel === "deck" && (
-                <DeckSearchDock
+                <DeckSearchDockHost
                   open={searchOpen}
+                  cards={detail?.cards ?? []}
+                  colorIdentity={!!formatRule.colorIdentity}
+                  commanderColorIdentity={commanderColorIdentity}
                   onAddCard={(c) => void addScryfallCard(c)}
-                  countInDeck={(c) =>
-                    (detail?.cards ?? [])
-                      .filter(
-                        (x) =>
-                          x.oracle_id.toLowerCase() ===
-                          (c.oracle_id ?? c.id).toLowerCase()
-                      )
-                      .reduce((n, x) => n + x.quantity, 0)
-                  }
                   onUndoAdd={(c) => {
                     const live = detail?.cards.find(
-                      (x) =>
-                        x.oracle_id.toLowerCase() ===
-                        (c.oracle_id ?? c.id).toLowerCase()
+                      (x) => x.oracle_id.toLowerCase() === (c.oracle_id ?? c.id).toLowerCase()
                     );
                     if (live) void onQty(live, -1);
                   }}
                   onClose={() => setSearchOpen(false)}
-                  seedQuery={(() => {
-                    if (!formatRule.colorIdentity) return undefined;
-                    const hasCommander = (detail?.cards ?? []).some(
-                      (c) => c.board === "commander"
-                    );
-                    if (!hasCommander) return undefined;
-                    return commanderColorIdentity.length
-                      ? `id<=${commanderColorIdentity.join("").toLowerCase()}`
-                      : "id:c";
-                  })()}
                 />
               )}
               {panel === "deck" && (
