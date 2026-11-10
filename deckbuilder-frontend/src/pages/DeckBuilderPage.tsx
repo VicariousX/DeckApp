@@ -109,6 +109,7 @@ import { LegalityDropdown } from "../components/LegalityDropdown";
 import { DeckHeaderActions } from "../components/DeckHeaderActions";
 import { PanelTabs, type PanelTab } from "../components/PanelTabs";
 import { BoardCycle } from "../components/BoardCycle";
+import { DeckToolbar } from "../components/DeckToolbar";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1746,75 +1747,16 @@ export function DeckBuilderPage() {
           )}
 
           {(panel === "deck" || panel === "tokens") && (
-            <div className={styles.toolbar}>
-              <div className={styles.groupToggle} role="group" aria-label="Group by">
-                {(
-                  [
-                    ["type", "Type"],
-                    ["tag", "Tags"],
-                    ["none", "List"],
-                    ["grid", "Grid"],
-                  ] as const
-                ).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={
-                      groupMode === mode
-                        ? `${styles.groupBtn} ${styles.groupBtnActive}`
-                        : styles.groupBtn
-                    }
-                    onClick={() => changeGroupMode(mode)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <input
-                className={styles.input}
-                style={{ maxWidth: "12rem" }}
-                placeholder="Filter…"
-                value={cardFilter}
-                onChange={(e) => patchTab({ filter: e.target.value })}
-              />
-              <select
-                className={styles.addRowBtn}
-                value={cardSort}
-                aria-label="Sort"
-                onChange={(e) => patchTab({ sort: e.target.value as CardSortKey })}
-              >
-                <option value="default">Sort: default</option>
-                <option value="name">Sort: name</option>
-                <option value="cmc">Sort: mana value</option>
-                <option value="type">Sort: type</option>
-                <option value="qty">Sort: quantity</option>
-              </select>
-              <div
-                className={styles.groupToggle}
-                role="group"
-                aria-label="Deck view"
-              >
-                {(
-                  [
-                    ["text", "Text"],
-                    ["image", "Images"],
-                  ] as const
-                ).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={
-                      viewMode === mode
-                        ? `${styles.groupBtn} ${styles.groupBtnActive}`
-                        : styles.groupBtn
-                    }
-                    onClick={() => changeViewMode(mode)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <DeckToolbar
+              groupMode={groupMode}
+              viewMode={viewMode}
+              cardSort={cardSort}
+              cardFilter={cardFilter}
+              onGroupMode={changeGroupMode}
+              onViewMode={changeViewMode}
+              onSort={(sort) => patchTab({ sort })}
+              onFilter={(filter) => patchTab({ filter })}
+            />
           )}
 
           {panel === "tags" && (
