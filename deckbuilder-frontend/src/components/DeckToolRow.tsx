@@ -7,8 +7,6 @@ import type { DrawerCardView } from "../types/drawer";
 import type { ExportSection } from "../lib/cards/exportCardList";
 import styles from "../pages/DeckBuilderPage.module.css";
 
-type ExportSection = { title: string; items: { name: string; quantity: number }[] };
-
 type Props = {
   isOwner: boolean;
   deckName: string;
