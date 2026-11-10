@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { renderManaSymbol } from "../utils/symbols";
+import { buildSimpleQuery, decodeSimpleState, encodeSimpleState, type Color, type IdLogic, type Logic, type SimpleState, type StatChip, type StatField, type StatOp } from "../lib/search/simpleQuery";
 import styles from "./LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
@@ -60,71 +61,12 @@ const SUBTYPES = [
 ];
 const TYPE_OPTIONS = [...SUPERTYPES, ...CARD_TYPES, ...SUBTYPES];
 
-type Logic = "and" | "or";
-type IdLogic = "and" | "or" | "commander";
-type StatField = "mv" | "edhrec";
-type StatOp = "=" | "<=" | ">=" | "<" | ">" | "!=";
-
-type StatChip = { field: StatField; op: StatOp; value: number };
-
-type SimpleState = {
-  name: string;
-  idColors: Color[];
-  idLogic: IdLogic;
-  cardColors: Color[];
-  cardLogic: Logic;
-  types: string[];
-  typeLogic: Logic;
-  isCommander: boolean;
-  oracle: string[];
-  oracleLogic: Logic;
-  stats: StatChip[];
-  mechanic: string;
-};
-
-function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
-  if (!selected.length && logic !== "commander") return "";
-  if (logic === "commander") {
-    const withC = selected.includes("C") ? selected : [...selected, "C" as Color];
-    if (!withC.length) return "id:C";
-    const parts = withC.map((c) => `${prefix}:${c}`);
-    return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
-  }
-  if (logic === "and") return `${prefix}:${selected.join("")}`;
-  const parts = selected.map((c) => `${prefix}:${c}`);
-  return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
-}
-
-function typeClause(types: string[], logic: Logic): string {
-  if (!types.length) return "";
-  const parts = types.map((t) => `t:${t.toLowerCase()}`);
-  return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
-}
-
-function oracleClause(terms: string[], logic: Logic): string {
-  if (!terms.length) return "";
-  const parts = terms.map((t) => (t.includes(" ") ? `o:"${t}"` : `o:${t}`));
-  return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
-}
-
-function encodeState(s: SimpleState): string {
-  return btoa(encodeURIComponent(JSON.stringify(s)));
-}
-
-function decodeState(raw: string): SimpleState | null {
-  try {
-    return JSON.parse(decodeURIComponent(atob(raw))) as SimpleState;
-  } catch {
-    return null;
-  }
-}
-
 export function SimpleSearchPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const restored = useMemo(() => {
     const raw = params.get("ss");
-    return raw ? decodeState(raw) : null;
+    return raw ? decodeSimpleState(raw) : null;
   }, [params]);
 
   const [name, setName] = useState(restored?.name ?? "");
@@ -184,23 +126,10 @@ export function SimpleSearchPage() {
   }
 
   function buildQuery(): string {
-    const parts: string[] = [];
-    if (name.trim()) parts.push(name.includes(" ") ? `name:"${name.trim()}"` : name.trim());
-    const id = colorClause("id", idColors, idLogic);
-    if (id) parts.push(id);
-    const cc = colorClause("c", cardColors, cardLogic);
-    if (cc) parts.push(cc);
-    const tc = typeClause(types, typeLogic);
-    if (tc) parts.push(tc);
-    if (isCommander) parts.push("is:commander");
-    const oc = oracleClause(oracle, oracleLogic);
-    if (oc) parts.push(oc);
-    for (const s of stats) {
-      const key = s.field === "mv" ? "mv" : "edhrec";
-      parts.push(`${key}${s.op}${s.value}`);
-    }
-    if (mechanic.trim()) parts.push(`mech:${mechanic.trim()}`);
-    return parts.join(" ");
+    return buildSimpleQuery({
+      name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
+      isCommander, oracle, oracleLogic, stats, mechanic,
+    });
   }
 
   function addStat() {
@@ -215,7 +144,7 @@ export function SimpleSearchPage() {
     const q = buildQuery();
     if (!q) return;
     const state: SimpleState = { name, idColors, idLogic, cardColors, cardLogic, types, typeLogic, isCommander, oracle, oracleLogic, stats, mechanic };
-    navigate(`/search/results?q=${encodeURIComponent(q)}&mode=simple&ss=${encodeState(state)}`);
+    navigate(`/search/results?q=${encodeURIComponent(q)}&mode=simple&ss=${encodeSimpleState(state)}`);
   }
 
   return (
