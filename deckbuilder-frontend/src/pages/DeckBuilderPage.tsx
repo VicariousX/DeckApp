@@ -108,6 +108,7 @@ import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats
 import { LegalityDropdown } from "../components/LegalityDropdown";
 import { DeckHeaderActions } from "../components/DeckHeaderActions";
 import { PanelTabs, type PanelTab } from "../components/PanelTabs";
+import { BoardCycle } from "../components/BoardCycle";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1613,48 +1614,21 @@ export function DeckBuilderPage() {
                   )}
                 </div>
                 {panel === "deck" && (
-                  <div className={styles.boardCycleWrap}>
-                    <button
-                      type="button"
-                      className={styles.addRowBtn}
-                      aria-label="Add to board. Click to cycle, right-click to choose."
-                      title="Click to cycle boards. Right-click to choose."
-                      onClick={() => {
-                        const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
-                        setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
-                        setBoardMenuOpen(false);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setBoardMenuOpen((v) => !v);
-                      }}
-                    >
-                      {BOARDS.find((b) => b.id === addTargetBoard)?.label ?? "Mainboard"}
-                    </button>
-                    {boardMenuOpen && (
-                      <ul className={styles.boardCycleMenu} role="menu">
-                        {BOARDS.map((b) => (
-                          <li key={b.id}>
-                            <button
-                              type="button"
-                              className={
-                                b.id === addTargetBoard
-                                  ? `${styles.suggestItem} ${styles.groupBtnActive}`
-                                  : styles.suggestItem
-                              }
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setAddTargetBoard(b.id);
-                                setBoardMenuOpen(false);
-                              }}
-                            >
-                              {b.label}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                  <BoardCycle
+                    boards={BOARDS}
+                    current={addTargetBoard}
+                    open={boardMenuOpen}
+                    onCycle={() => {
+                      const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
+                      setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
+                      setBoardMenuOpen(false);
+                    }}
+                    onSelect={(b) => {
+                      setAddTargetBoard(b);
+                      setBoardMenuOpen(false);
+                    }}
+                    onToggleMenu={() => setBoardMenuOpen((v) => !v)}
+                  />
                 )}
                 {panel === "deck" && (
                   <DeckSearchToggle
