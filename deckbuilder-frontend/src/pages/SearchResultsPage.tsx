@@ -24,6 +24,7 @@ import { fetchDeckDetail } from "../services/deckService";
 import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
+import { ErrorNotice } from "../components/ErrorNotice";
 import { registerSettings } from "../components/SettingsDrawer";
 import { useSearchStream } from "../hooks/useSearchStream";
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -459,9 +460,7 @@ export function SearchResultsPage() {
         </p>
       )}
       {isError && (
-        <p className={resultStyles.query}>
-          Search failed{errorMessage ? `: ${errorMessage}` : "."} Edit the query and try again.
-        </p>
+        <ErrorNotice message={errorMessage || "Search failed. Edit the query and try again."} />
       )}
       {!isLoading && !isError && sorted.length === 0 && (
         <p className={resultStyles.query}>No cards matched. <Link to={editTo}>Edit search</Link></p>
