@@ -1,11 +1,14 @@
+import type { MouseEvent } from "react";
 import {
   ImageDndProvider,
   DroppableRegion,
   DraggableStackCard,
-  StackCards,
   boardDropId,
   stopDndPropagation,
+  type MobileDropZone,
+  type DropTarget,
 } from "./ImageDeckDnd";
+import { StackCards } from "./StackCards";
 import type { DeckCard, DeckBoard } from "../types/deck";
 import type { ListColumnLayout } from "../lib/deckPreferences";
 import { getListColumnLayout } from "../lib/deckPreferences";
@@ -28,7 +31,7 @@ type Props = {
   listLayouts: Partial<Record<DeckBoard, ListColumnLayout>>;
   deckId: string;
   issuesByOracle: Map<string, unknown[]>;
-  mobileDropZones: { id: string; label: string }[];
+  mobileDropZones: MobileDropZone[];
   tokenCards: DeckCard[];
   stackImageSrc: (c: DeckCard) => string | undefined;
   looksMultiFace: (c: DeckCard) => boolean;
@@ -36,8 +39,8 @@ type Props = {
   openCardModal: (c: DeckCard) => void;
   onCardContext: (e: { preventDefault: () => void; clientX: number; clientY: number }, c: DeckCard) => void;
   onQty: (c: DeckCard, d: number) => void;
-  toggleStackFace: (c: DeckCard, e: unknown) => void;
-  handleImageDrop: (sourceCardId: string, target: unknown) => void;
+  toggleStackFace: (c: DeckCard, e: MouseEvent) => void;
+  handleImageDrop: (sourceCardId: string, target: DropTarget) => void;
   faceView: Record<string, "front" | "back">;
 };
 
