@@ -106,6 +106,7 @@ import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { LegalityDropdown } from "../components/LegalityDropdown";
+import { DeckHeaderActions } from "../components/DeckHeaderActions";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -145,7 +146,6 @@ export function DeckBuilderPage() {
   const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [branchManagerOpen, setBranchManagerOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [copyAsk, setCopyAsk] = useState<null | "clone" | "branch">(null);
@@ -1541,83 +1541,19 @@ export function DeckBuilderPage() {
               )}
             </div>
             <div className={styles.headerActions}>
-              {isMobile ? (
-                <div className={styles.headerMenuWrap}>
-                  <button
-                    type="button"
-                    className={styles.secondaryBtn}
-                    aria-expanded={headerMenuOpen}
-                    onClick={() => setHeaderMenuOpen((v) => !v)}
-                  >
-                    ⋮
-                  </button>
-                  {headerMenuOpen && (
-                    <div className={styles.headerMenu}>
-                      {user && (
-                        <>
-                          <button type="button" onClick={() => { setCopyAsk("clone"); setHeaderMenuOpen(false); }}>Clone</button>
-                          <button type="button" onClick={() => { setBranchManagerOpen(true); setHeaderMenuOpen(false); }}>Branches</button>
-                        </>
-                      )}
-                      {isOwner && (
-                        <button type="button" onClick={() => { setHistoryOpen((v) => !v); setHeaderMenuOpen(false); }}>History</button>
-                      )}
-                      {parentId && <Link to={`/deck/${parentId}`} onClick={() => setHeaderMenuOpen(false)}>Parent</Link>}
-                      {isOwner && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!id) return;
-                            const next = !detail.deck.is_public;
-                            void updateDeck(id, { is_public: next }).then(({ deck, error: err }) => {
-                              if (err || !deck) {
-                                setError(err ?? "Could not update visibility");
-                                return;
-                              }
-                              setDetail((prev) => (prev ? { ...prev, deck } : prev));
-                            });
-                            setHeaderMenuOpen(false);
-                          }}
-                        >
-                          {detail.deck.is_public ? "Public" : "Make public"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : user && (
-                <>
-                  <button type="button" className={styles.secondaryBtn} onClick={() => setCopyAsk("clone")}>Clone</button>
-                  <button type="button" className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(true)}>Branches</button>
-                </>
-              )}
-              {!isMobile && isOwner && (
-                <button type="button" className={styles.secondaryBtn} onClick={() => setHistoryOpen((v) => !v)}>
-                  History
-                </button>
-              )}
-              {!isMobile && parentId && <Link to={`/deck/${parentId}`} className={styles.backLink}>Parent</Link>}
-              {!isMobile && isOwner ? (
-                <button
-                  type="button"
-                  className={styles.secondaryBtn}
-                  onClick={() => {
-                    if (!id) return;
-                    const next = !detail.deck.is_public;
-                    void updateDeck(id, { is_public: next }).then(({ deck, error: err }) => {
-                      if (err || !deck) {
-                        setError(err ?? "Could not update visibility");
-                        return;
-                      }
-                      setDetail((prev) => (prev ? { ...prev, deck } : prev));
-                    });
-                  }}
-                >
-                  {detail.deck.is_public ? "Public" : "Make public"}
-                </button>
-              ) : !isMobile && detail.deck.is_public ? (
-                <span className={styles.format}>Public</span>
-              ) : null}
+              <DeckHeaderActions
+                isMobile={isMobile}
+                user={user}
+                isOwner={isOwner}
+                parentId={parentId}
+                deck={detail.deck}
+                deckId={id!}
+                onClone={() => setCopyAsk("clone")}
+                onBranches={() => setBranchManagerOpen(true)}
+                onHistory={() => setHistoryOpen((v) => !v)}
+                onError={setError}
+                onDeckUpdate={(deck) => setDetail((prev) => (prev ? { ...prev, deck } : prev))}
+              />
             </div>
           </header>
           {historyOpen && (
