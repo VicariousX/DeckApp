@@ -24,6 +24,7 @@ import { fetchDeckDetail } from "../services/deckService";
 import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
+import { registerSettings } from "../components/SettingsDrawer";
 import { useSearchStream } from "../hooks/useSearchStream";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
@@ -204,9 +205,39 @@ export function SearchResultsPage() {
   const sortKey = params.get("sort") || "name";
   const sortDir = params.get("dir") === "desc" ? "desc" : "asc";
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
-  const [columns, setColumns] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5
-  );
+  const [columns, setColumns] = useState(() => {
+    try {
+      const raw = localStorage.getItem("deckapp.searchColumns");
+      if (raw) return Number(raw) || (typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5);
+    } catch { /* ignore */ }
+    return typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5;
+  });
+
+  useEffect(() => {
+    registerSettings((pathname) => {
+      if (!pathname.startsWith("/search/results")) return null;
+      return {
+        title: "Catalog",
+        content: (
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Columns
+            <input
+              type="number"
+              min={1}
+              max={8}
+              value={columns}
+              onChange={(e) => {
+                const n = Number(e.target.value) || 5;
+                setColumns(n);
+                try { localStorage.setItem("deckapp.searchColumns", String(n)); } catch { /* ignore */ }
+              }}
+              style={{ width: 60 }}
+            />
+          </label>
+        ),
+      };
+    });
+  }, [columns]);
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     scryfallQ,
