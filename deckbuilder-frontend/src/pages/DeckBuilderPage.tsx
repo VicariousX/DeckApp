@@ -106,6 +106,7 @@ import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { LegalityDropdown } from "../components/LegalityDropdown";
+import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
 import transitions from "../styles/pageTransitions.module.css";
@@ -1488,9 +1489,7 @@ export function DeckBuilderPage() {
 
       {initialLoading && <p className={styles.status}>Loading deck…</p>}
       {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
+        <ErrorNotice message={error} onDismiss={() => setError(null)} />
       )}
 
       {!initialLoading && detail && (
