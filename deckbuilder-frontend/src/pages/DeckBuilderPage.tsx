@@ -112,6 +112,7 @@ import { DeckSearchDockHost } from "../components/DeckSearchDockHost";
 import { DeckImageView } from "../components/DeckImageView";
 import { DeckTextView } from "../components/DeckTextView";
 import { DeckCardActions } from "../components/DeckCardActions";
+import { DeckTagsPanel } from "../components/DeckTagsPanel";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1659,47 +1660,14 @@ export function DeckBuilderPage() {
           )}
 
           {panel === "tags" && (
-            <section className={styles.tagsPanel}>
-              <h2 className={styles.sectionLabel}>Deck tags</h2>
-              <p className={styles.hint}>
-                Create tags here, then pin them to individual cards from the deck
-                list with <strong>Add tag</strong>.
-              </p>
-              {isOwner && (
-                <form className={styles.tagForm} onSubmit={onCreateTag}>
-                  <input
-                    className={styles.input}
-                    placeholder="New tag name"
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    maxLength={40}
-                  />
-                  <button type="submit" className={styles.secondaryBtn}>
-                    Create tag
-                  </button>
-                </form>
-              )}
-              <div className={styles.tagChips}>
-                {detail.tags.map((t) => (
-                  <span key={t.id} className={styles.tagChip}>
-                    {t.name}
-                    {isOwner && (
-                      <button
-                        type="button"
-                        className={styles.tagRemove}
-                        onClick={() => void onDeleteTag(t)}
-                        aria-label={`Delete ${t.name}`}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {detail.tags.length === 0 && (
-                  <span className={styles.hint}>No tags yet.</span>
-                )}
-              </div>
-            </section>
+            <DeckTagsPanel
+              tags={detail.tags}
+              isOwner={isOwner}
+              newTagName={newTagName}
+              onNewTagName={setNewTagName}
+              onCreate={onCreateTag}
+              onDelete={(t) => void onDeleteTag(t)}
+            />
           )}
 
           {panel === "stats" && (
