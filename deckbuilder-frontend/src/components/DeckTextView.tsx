@@ -1,4 +1,3 @@
-import { QtyControl } from "./QtyControl";
 import { ManaCost } from "./ManaCost";
 import type { DeckCard, DeckBoard } from "../types/deck";
 import styles from "../pages/DeckBuilderPage.module.css";
@@ -54,13 +53,12 @@ export function DeckTextView({
                         <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
                           <div className={styles.cardMain}>
                             <div className={styles.cardPrimary}>
-                              {!isMobile && (
-                                <QtyControl
-                                  quantity={c.quantity}
-                                  disabled={!isOwner}
-                                  onDelta={(d) => void onQty(c, d)}
-                                  onCommit={(raw) => void onQtyCommit(c, raw)}
-                                />
+                              {!isMobile && isOwner && (
+                                <span style={{ display: "inline-flex", gap: 4 }}>
+                                  <button type="button" onClick={() => void onQty(c, -1)}>−</button>
+                                  <span>{c.quantity}</span>
+                                  <button type="button" onClick={() => void onQty(c, 1)}>+</button>
+                                </span>
                               )}
                               <button
                                 type="button"
