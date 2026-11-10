@@ -111,6 +111,7 @@ import { PanelTabs, type PanelTab } from "../components/PanelTabs";
 import { BoardCycle } from "../components/BoardCycle";
 import { DeckToolbar } from "../components/DeckToolbar";
 import { AddCardRow } from "../components/AddCardRow";
+import { DeckToolRow } from "../components/DeckToolRow";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1645,57 +1646,19 @@ export function DeckBuilderPage() {
                 />
               )}
               {panel === "deck" && (
-              <div className={styles.toolRow}>
-                <BulkCardImport
-                  title="Bulk import"
-                  respectQuantity={true}
-                  onImport={onBulkImport}
+                <DeckToolRow
+                  isOwner={isOwner}
+                  deckName={detail.deck.name}
+                  cards={detail.cards}
+                  deckTokens={deckTokens}
+                  commanderColorIdentity={commanderColorIdentity}
+                  deckQtyByOracle={deckQtyByOracle}
+                  exportSections={exportSections}
+                  onBulkImport={onBulkImport}
+                  onAddFromDrawer={(c) => void onAddFromDrawer(c)}
+                  onAdjustFromDrawer={(c, d) => void onAdjustFromDrawer(c, d)}
+                  onApplyDrawer={onApplyDrawer}
                 />
-                {isOwner && (
-                  <DrawerPanel
-                    onAddCard={(c) => void onAddFromDrawer(c)}
-                    onAdjustCard={(c, d) => void onAdjustFromDrawer(c, d)}
-                    onApplyDrawer={onApplyDrawer}
-                    commanderColorIdentity={commanderColorIdentity}
-                    applyBoardLabel="Mainboard"
-                    deckQtyByOracle={deckQtyByOracle}
-                  />
-                )}
-                <TextExportMenu
-                  sections={exportSections}
-                  fileBaseName={detail.deck.name}
-                  ttsParts={[
-                    {
-                      name: `${detail.deck.name} main`,
-                      cards: detail.cards
-                        .filter((c) => c.board === "main" || c.board === "commander")
-                        .map((c) => ({ name: c.name, scryfallId: c.scryfall_id, quantity: c.quantity })),
-                    },
-                    {
-                      name: `${detail.deck.name} side`,
-                      cards: detail.cards
-                        .filter((c) => c.board === "side")
-                        .map((c) => ({ name: c.name, scryfallId: c.scryfall_id, quantity: c.quantity })),
-                    },
-                  ]}
-                  extraSections={
-                    deckTokens.some((t) => t.included)
-                      ? [
-                          {
-                            title: "Tokens",
-                            items: deckTokens
-                              .filter((t) => t.included)
-                              .map((t) => ({
-                                name: t.name,
-                                quantity: t.quantity || 1,
-                              })),
-                          },
-                        ]
-                      : undefined
-                  }
-                  extraLabel="Include tokens"
-                />
-              </div>
               )}
             </section>
           )}
