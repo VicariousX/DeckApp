@@ -110,6 +110,7 @@ import { DeckHeaderActions } from "../components/DeckHeaderActions";
 import { PanelTabs, type PanelTab } from "../components/PanelTabs";
 import { BoardCycle } from "../components/BoardCycle";
 import { DeckToolbar } from "../components/DeckToolbar";
+import { AddCardRow } from "../components/AddCardRow";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1582,80 +1583,33 @@ export function DeckBuilderPage() {
               <h2 className={styles.sectionLabel}>
                 {panel === "tokens" ? "Add token" : "Add card"}
               </h2>
-              <div className={styles.addRow} ref={wrapRef}>
-                <div className={styles.inputWrap}>
-                  <input
-                    className={styles.input}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void addByName(query.trim());
-                      }
-                    }}
-                    placeholder={panel === "tokens" ? "Token name…" : "Card name…"}
-                    autoComplete="off"
-                  />
-                  {suggestOpen && suggestions.length > 0 && (
-                    <ul className={styles.suggestList}>
-                      {suggestions.map((n) => (
-                        <li key={n}>
-                          <button
-                            type="button"
-                            className={styles.suggestItem}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => void addByName(n)}
-                          >
-                            {n}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                {panel === "deck" && (
-                  <BoardCycle
-                    boards={BOARDS}
-                    current={addTargetBoard}
-                    open={boardMenuOpen}
-                    onCycle={() => {
-                      const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
-                      setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
-                      setBoardMenuOpen(false);
-                    }}
-                    onSelect={(b) => {
-                      setAddTargetBoard(b);
-                      setBoardMenuOpen(false);
-                    }}
-                    onToggleMenu={() => setBoardMenuOpen((v) => !v)}
-                  />
-                )}
-                {panel === "deck" && (
-                  <DeckSearchToggle
-                    open={searchOpen}
-                    onToggle={() => setSearchOpen((v) => !v)}
-                  />
-                )}
-                {panel === "tokens" && (
-                  <button
-                    type="button"
-                    className={styles.addRowBtn}
-                    disabled={tokenBusy}
-                    onClick={() => void refreshTokens()}
-                  >
-                    {tokenBusy ? "Refreshing…" : "Refresh"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  disabled={addBusy || !query.trim()}
-                  onClick={() => void addByName(query.trim())}
-                >
-                  {addBusy ? "Adding…" : "Add"}
-                </button>
-              </div>
+              <AddCardRow
+                panel={panel}
+                query={query}
+                suggestions={suggestions}
+                suggestOpen={suggestOpen}
+                addBusy={addBusy}
+                tokenBusy={tokenBusy}
+                boards={BOARDS}
+                addTargetBoard={addTargetBoard}
+                boardMenuOpen={boardMenuOpen}
+                searchOpen={searchOpen}
+                wrapRef={wrapRef}
+                onQuery={setQuery}
+                onAdd={(name) => void addByName(name)}
+                onCycleBoard={() => {
+                  const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
+                  setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
+                  setBoardMenuOpen(false);
+                }}
+                onSelectBoard={(b) => {
+                  setAddTargetBoard(b);
+                  setBoardMenuOpen(false);
+                }}
+                onToggleBoardMenu={() => setBoardMenuOpen((v) => !v)}
+                onToggleSearch={() => setSearchOpen((v) => !v)}
+                onRefreshTokens={() => void refreshTokens()}
+              />
               {panel === "deck" && (
                 <DeckSearchDock
                   open={searchOpen}
