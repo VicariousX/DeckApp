@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { renderManaSymbol } from "../../utils/symbols";
+import { buildSimpleQuery, type Color, type IdLogic, type Logic, type StatChip, type StatField, type StatOp } from "../../lib/search/simpleQuery";
 import styles from "../../pages/LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
@@ -59,37 +60,6 @@ const SUBTYPES = [
 ];
 const TYPE_OPTIONS = [...SUPERTYPES, ...CARD_TYPES, ...SUBTYPES];
 
-type Logic = "and" | "or";
-type IdLogic = "and" | "or" | "commander";
-type StatField = "mv" | "edhrec";
-type StatOp = "=" | "<=" | ">=" | "<" | ">" | "!=";
-type StatChip = { field: StatField; op: StatOp; value: number };
-
-function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
-  if (!selected.length && logic !== "commander") return "";
-  if (logic === "commander") {
-    const withC = selected.includes("C") ? selected : [...selected, "C" as Color];
-    if (!withC.length) return "id:C";
-    const parts = withC.map((c) => `${prefix}:${c}`);
-    return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
-  }
-  if (logic === "and") return `${prefix}:${selected.join("")}`;
-  const parts = selected.map((c) => `${prefix}:${c}`);
-  return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
-}
-
-function typeClause(types: string[], logic: Logic): string {
-  if (!types.length) return "";
-  const parts = types.map((t) => `t:${t.toLowerCase()}`);
-  return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
-}
-
-function oracleClause(terms: string[], logic: Logic): string {
-  if (!terms.length) return "";
-  const parts = terms.map((t) => (t.includes(" ") ? `o:"${t}"` : `o:${t}`));
-  return parts.length > 1 ? `(${parts.join(logic === "or" ? " OR " : " ")})` : parts[0];
-}
-
 export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => void }) {
   const [name, setName] = useState("");
   const [idColors, setIdColors] = useState<Color[]>([]);
@@ -138,22 +108,10 @@ export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => vo
   }
 
   function buildQuery(): string {
-    const parts: string[] = [];
-    if (name.trim()) parts.push(name.includes(" ") ? `name:"${name.trim()}"` : name.trim());
-    const id = colorClause("id", idColors, idLogic);
-    if (id) parts.push(id);
-    const cc = colorClause("c", cardColors, cardLogic);
-    if (cc) parts.push(cc);
-    const tc = typeClause(types, typeLogic);
-    if (tc) parts.push(tc);
-    if (isCommander) parts.push("is:commander");
-    const oc = oracleClause(oracle, oracleLogic);
-    if (oc) parts.push(oc);
-    for (const s of stats) {
-      const key = s.field === "mv" ? "mv" : "edhrec";
-      parts.push(`${key}${s.op}${s.value}`);
-    }
-    return parts.join(" ");
+    return buildSimpleQuery({
+      name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
+      isCommander, oracle, oracleLogic, stats, mechanic: "",
+    });
   }
 
   function submit(e: React.FormEvent) {
