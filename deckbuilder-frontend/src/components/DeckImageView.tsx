@@ -161,7 +161,7 @@ export function DeckImageView({
                   {layout.columns.map((col) => (
                     <section key={col.id} className={styles.listCol}>
                       <h3 className={styles.listColTitle}>{col.name}</h3>
-                      <StackCards>
+                      <StackCards count={board.cards.filter((c) => (layout.placement[c.id] ?? "col-default") === col.id).length}>
                         {board.cards.filter((c) => (layout.placement[c.id] ?? "col-default") === col.id).map((c) => {
                           const src = stackImageSrc(c);
                           return (
@@ -201,7 +201,7 @@ export function DeckImageView({
                   ))}
                 </div>
               ) : (
-                <StackCards>
+                <StackCards count={board.cards.length}>
                   {board.cards.map((c) => {
                     const src = stackImageSrc(c);
                     return (
