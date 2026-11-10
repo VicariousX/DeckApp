@@ -1,6 +1,7 @@
 import { CardContextMenu } from "./CardContextMenu";
 import { CardEnlargeOverlay } from "./CardImage";
-import type { DeckCard, DeckBoard, DeckToken } from "../types/deck";
+import type { DeckCard, DeckBoard } from "../types/deck";
+import type { DeckToken } from "../lib/deck/deckTokens";
 import type { ListColumnLayout } from "../lib/deckPreferences";
 import { getListColumnLayout } from "../lib/deckPreferences";
 import styles from "../pages/DeckBuilderPage.module.css";
