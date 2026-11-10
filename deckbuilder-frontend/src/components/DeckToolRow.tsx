@@ -1,7 +1,10 @@
-import { BulkCardImport } from "./BulkCardImport";
+import { BulkCardImport, type BulkResolvedEntry } from "./BulkCardImport";
 import { DrawerPanel } from "./DrawerPanel";
 import { TextExportMenu } from "./TextExportMenu";
-import type { DeckCard, DeckToken } from "../types/deck";
+import type { DeckCard } from "../types/deck";
+import type { DeckToken } from "../lib/deck/deckTokens";
+import type { DrawerCardView } from "../types/drawer";
+import type { ExportSection } from "../lib/cards/exportCardList";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type ExportSection = { title: string; items: { name: string; quantity: number }[] };
@@ -14,10 +17,10 @@ type Props = {
   commanderColorIdentity: string[];
   deckQtyByOracle: Record<string, number>;
   exportSections: ExportSection[];
-  onBulkImport: (entries: unknown[]) => void;
-  onAddFromDrawer: (c: unknown) => void;
-  onAdjustFromDrawer: (c: unknown, d: number) => void;
-  onApplyDrawer: (c: unknown) => void;
+  onBulkImport: (entries: BulkResolvedEntry[]) => void;
+  onAddFromDrawer: (c: DrawerCardView) => void;
+  onAdjustFromDrawer: (c: DrawerCardView, d: number) => void;
+  onApplyDrawer: (cards: DrawerCardView[]) => void;
 };
 
 export function DeckToolRow({
