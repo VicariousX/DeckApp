@@ -4,7 +4,6 @@ import { buildSimpleQuery, type Color, type IdLogic, type Logic, type StatChip, 
 import styles from "../../pages/LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
-type Color = (typeof COLORS)[number];
 
 const SUPERTYPES = ["Basic", "Legendary", "Ongoing", "Snow", "World", "Elite", "Host", "Token"];
 const CARD_TYPES = [
