@@ -16,6 +16,7 @@ export function SearchPage() {
           <p>{mode === "advanced" ? "Build a Scryfall query with tokens." : "Look up a card by name."}</p>
         </div>
         <div className={styles.modes} role="tablist" aria-label="Search mode">
+          <Link to="/search/simple" className={styles.mode}>Simple</Link>
           <Link to="/search?mode=standard" className={mode === "standard" ? styles.modeOn : styles.mode}>Standard</Link>
           <Link to="/search?mode=advanced" className={mode === "advanced" ? styles.modeOn : styles.mode}>Advanced</Link>
         </div>
