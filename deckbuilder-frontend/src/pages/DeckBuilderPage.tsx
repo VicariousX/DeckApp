@@ -107,6 +107,7 @@ import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { LegalityDropdown } from "../components/LegalityDropdown";
 import { DeckHeaderActions } from "../components/DeckHeaderActions";
+import { PanelTabs, type PanelTab } from "../components/PanelTabs";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -114,7 +115,6 @@ import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
 type GroupMode = "type" | "tag" | "none" | "grid";
-type PanelTab = "deck" | "stats" | "tokens" | "tags";
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "commander", label: "Commander" },
@@ -1568,27 +1568,12 @@ export function DeckBuilderPage() {
             </ul>
           )}
 
-          <div className={styles.boardTabs} role="tablist" aria-label="Panel">
-            {PANEL_TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={panel === t.id}
-                className={
-                  panel === t.id
-                    ? `${styles.boardTab} ${styles.boardTabActive}`
-                    : styles.boardTab
-                }
-                onClick={() => setPanel(t.id)}
-              >
-                {t.label}
-                {t.id === "tags" && detail.tags.length > 0 && (
-                  <span className={styles.boardTabCount}>{detail.tags.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
+          <PanelTabs
+            tabs={PANEL_TABS}
+            active={panel}
+            tagCount={detail.tags.length}
+            onChange={setPanel}
+          />
 
           {(panel === "deck" || panel === "tokens") && isOwner && (
             <section className={styles.addSection}>
