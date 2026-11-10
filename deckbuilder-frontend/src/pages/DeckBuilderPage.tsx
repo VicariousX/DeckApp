@@ -110,6 +110,7 @@ import { AddCardRow } from "../components/AddCardRow";
 import { DeckToolRow } from "../components/DeckToolRow";
 import { DeckSearchDockHost } from "../components/DeckSearchDockHost";
 import { DeckImageView } from "../components/DeckImageView";
+import { DeckTextView } from "../components/DeckTextView";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1735,192 +1736,19 @@ export function DeckBuilderPage() {
           )}
 
           {(panel === "deck" || panel === "tokens") && viewMode === "text" && (
-            <div className={styles.boardZones}>
-              {displaySections.map((board) => (
-                <section
-                  key={board.id}
-                  className={styles.boardZone}
-                  data-board={board.id}
-                >
-                  <header className={styles.boardZoneHeader}>
-                    <h2 className={styles.boardZoneTitle}>{board.label}</h2>
-                    <span className={styles.boardZoneCount}>{board.count}</span>
-                  </header>
-                  {board.cards.length === 0 ? (
-                    <p className={styles.boardZoneEmpty}>No cards on this board.</p>
-                  ) : (
-                    <div className={styles.groups}>
-                      {board.groups.map((g) => {
-                        const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                        return (
-                          <div key={`${board.id}-${g.key}`} className={styles.group}>
-                            <h3 className={styles.groupTitle}>
-                              {g.label}
-                              <span className={styles.groupCount}>{count}</span>
-                            </h3>
-                            <ul className={styles.cardList}>
-                              {g.cards.map((c) => (
-                                <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
-                                  <div className={styles.cardMain}>
-                                    <div className={styles.cardPrimary}>
-                                      {!isMobile && (
-                                        <QtyControl
-                                          quantity={c.quantity}
-                                          disabled={!isOwner}
-                                          onDelta={(d) => void onQty(c, d)}
-                                          onCommit={(raw) => void onQtyCommit(c, raw)}
-                                        />
-                                      )}
-                                      <button
-                                        type="button"
-                                        className={styles.cardName}
-                                        onClick={() => void toggleOracle(c)}
-                                        onContextMenu={(e) => onCardContext(e, c)}
-                                      >
-                                        {c.name}
-                                      </button>
-                                      <ManaCost cost={c.mana_cost} size={14} />
-                                      {isMobile && (
-                                        <button
-                                          type="button"
-                                          className={styles.moreBtn}
-                                          aria-label={`Options for ${c.name}`}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const r = e.currentTarget.getBoundingClientRect();
-                                            setCtxMenu({ x: r.left, y: r.bottom + 4, card: c });
-                                          }}
-                                        >
-                                          ⋮
-                                        </button>
-                                      )}
-                                    </div>
-                                    <div className={styles.cardSecondary}>
-                                      <span className={styles.cardType}>{c.type_line}</span>
-                                      {(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).length > 0 && (
-                                        <span
-                                          className={styles.legalBadge}
-                                          title={(issuesByOracle.get(c.oracle_id.toLowerCase()) ?? []).map((i) => i.message).join(" ")}
-                                        >
-                                          Illegal
-                                        </span>
-                                      )}
-                                    </div>
-                                    {expandedOracleId === c.id && (
-                                      <div
-                                        className={styles.oracleDrop}
-                                        onTouchStart={(e) => {
-                                          oracleSwipeRef.current = {
-                                            id: c.id,
-                                            x: e.touches[0].clientX,
-                                          };
-                                        }}
-                                        onTouchEnd={(e) => {
-                                          const start = oracleSwipeRef.current;
-                                          oracleSwipeRef.current = null;
-                                          if (!start || start.id !== c.id) return;
-                                          const dx = e.changedTouches[0].clientX - start.x;
-                                          if (Math.abs(dx) < 40) return;
-                                          setOracleFace((prev) => ({
-                                            ...prev,
-                                            [c.id]: (prev[c.id] ?? "text") === "text" ? "image" : "text",
-                                          }));
-                                        }}
-                                      >
-                                        {(oracleFace[c.id] ?? "text") === "image" ? (
-                                          stackImageSrc(c) ? (
-                                            <img
-                                              src={stackImageSrc(c)}
-                                              alt={c.name}
-                                              className={styles.oracleImage}
-                                              draggable={false}
-                                            />
-                                          ) : (
-                                            <span className={styles.oracleHint}>No image available</span>
-                                          )
-                                        ) : (
-                                          oracleCache[c.id] ?? "Loading…"
-                                        )}
-                                        <span className={styles.oracleHint}>
-                                          {(oracleFace[c.id] ?? "text") === "image"
-                                            ? "Swipe to see text"
-                                            : "Swipe to see art"}
-                                        </span>
-                                      </div>
-                                    )}
-                                    </div>
-                                  {!isMobile && isOwner && (
-                                    <div className={styles.cardActions}>
-                                      {(c.tag_ids ?? []).length > 0 && (
-                                        <div className={styles.cardTagRow}>
-                                          {(c.tag_ids ?? []).map((tid) => {
-                                            const t = detail.tags.find((x) => x.id === tid);
-                                            if (!t) return null;
-                                            return (
-                                              <button
-                                                key={tid}
-                                                type="button"
-                                                className={`${styles.miniTag} ${styles.miniTagOn}`}
-                                                title="Remove tag"
-                                                onClick={() => void toggleTag(c, t)}
-                                              >
-                                                {t.name} ×
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                      <CardTagPicker
-                                        card={c}
-                                        tags={detail.tags}
-                                        open={tagMenuCardId === c.id}
-                                        onOpenChange={(open) =>
-                                          setTagMenuCardId(open ? c.id : null)
-                                        }
-                                        onToggle={(tag) => void toggleTag(c, tag)}
-                                      />
-                                      <select
-                                        className={styles.boardSelect}
-                                        value={c.board}
-                                        aria-label={`Board for ${c.name}`}
-                                        onChange={(e) =>
-                                          void moveCardToBoard(
-                                            c,
-                                            e.target.value as DeckBoard
-                                          )
-                                        }
-                                      >
-                                        {BOARDS.map((b) => (
-                                          <option key={b.id} value={b.id}>
-                                            {b.label}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        type="button"
-                                        className={styles.removeBtn}
-                                        onClick={() => void onRemove(c)}
-                                      >
-                                        Remove
-                                      </button>
-                                    </div>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              ))}
-              {detail.cards.length === 0 && (
-                <p className={styles.empty}>
-                  No cards yet. Use the search above to add some.
-                </p>
-              )}
-            </div>
+            <DeckTextView
+              displaySections={displaySections}
+              isMobile={isMobile}
+              isOwner={isOwner}
+              issuesByOracle={issuesByOracle}
+              totalCards={totalCards}
+              onToggleOracle={(c) => void toggleOracle(c)}
+              onCardContext={onCardContext}
+              onQty={(c, d) => void onQty(c, d)}
+              onQtyCommit={(c, raw) => void onQtyCommit(c, raw)}
+              onRemove={(c) => void onRemove(c)}
+              onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}
+            />
           )}
         </>
       )}
