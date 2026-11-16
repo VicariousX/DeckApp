@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
 import { apiUrl } from "../lib/apiBase";
+import { isScryfallPaused, tripScryfallPause } from "../lib/scryfallPause";
 import type { ScryfallCard } from "../types/scryfallCard";
-
-const SCRYFALL_PAUSED = false;
 
 type SearchJson = {
   data?: ScryfallCard[];
@@ -37,7 +36,7 @@ export function useScryfallSearch() {
         setErrorMessage(null);
         return;
       }
-      if (SCRYFALL_PAUSED) {
+      if (isScryfallPaused()) {
         setIsError(true);
         setErrorMessage("Scryfall paused");
         setIsLoading(false);
@@ -57,6 +56,7 @@ export function useScryfallSearch() {
         }
         const url = apiUrl(`/api/scryfall?${qs.toString()}`);
         const response = await fetch(url);
+        if (response.status === 429) tripScryfallPause();
         if (!response.ok) {
           const text = await response.text().catch(() => "");
           throw new Error(`HTTP ${response.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
