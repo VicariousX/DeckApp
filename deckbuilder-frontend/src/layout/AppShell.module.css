@@ -393,33 +393,91 @@ button.decksTrigger.navLinkActive {
   color: var(--color-accent);
 }
 
+.mobileNav {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .header {
-    flex-wrap: wrap;
-    padding: 0.65rem 1rem 0.45rem;
-    gap: 0.35rem 0.75rem;
-  }
-  .brand {
-    flex: 1;
+    flex-wrap: nowrap;
+    padding: 0.55rem 0.85rem;
+    gap: 0.75rem;
   }
   .nav {
-    width: 100%;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 0.2rem;
-    padding-bottom: 0.35rem;
-    scrollbar-width: none;
-  }
-  .navLink,
-  .userLink {
-    flex: 0 0 auto;
-    padding: 0.45rem 0.85rem;
-    font-size: 0.875rem;
+    display: none;
   }
   .main {
     padding: 1rem 1rem 2rem;
   }
+  .shellWithTabs .main {
+    padding-bottom: calc(5.4rem + env(safe-area-inset-bottom));
+  }
   .accountChipName {
     display: none;
   }
+  .mobileNav {
+    display: block;
+  }
+}
+
+.tabBar {
+  position: fixed;
+  z-index: 40;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabItem {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  cursor: pointer;
+}
+
+.tabItemOn {
+  color: var(--color-accent);
+}
+
+.tabSheet {
+  position: fixed;
+  z-index: 39;
+  right: 0;
+  bottom: calc(3.25rem + env(safe-area-inset-bottom));
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 96%, black);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.tabSheet .decksItem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(body.play-nav-hidden) .mobileNav {
+  display: none;
 }
