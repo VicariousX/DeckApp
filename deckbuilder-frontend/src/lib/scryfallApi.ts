@@ -1,6 +1,7 @@
 import type { ScryfallCard } from "../types/scryfallCard";
 import { apiUrl } from "./apiBase";
 import { enqueue, noteRateLimit } from "./requestQueue";
+import { isScryfallPaused, tripScryfallPause } from "./scryfallPause";
 import {
   autocompleteLocal,
   catalogReady,
@@ -12,7 +13,6 @@ import {
 import { readCatalogTier } from "./catalog/preference";
 
 /** Temporary kill switch while Scryfall rate-limits the backend IP. */
-const SCRYFALL_PAUSED = false;
 
 /** Client-side card cache (by scryfall id) — cuts repeat modal/search traffic. */
 const cardCache = new Map<string, ScryfallCard>();
@@ -35,7 +35,7 @@ export async function fetchRandomCard(): Promise<{
   card: ScryfallCard | null;
   error: string | null;
 }> {
-  if (SCRYFALL_PAUSED) return { card: null, error: "Scryfall paused" };
+  if (isScryfallPaused()) return { card: null, error: "Scryfall paused" };
   try {
     const res = await fetch(apiUrl("/api/scryfall/random"));
     const data = await res.json();
@@ -64,7 +64,7 @@ export async function fetchCardById(
 
   const pending = cardInflight.get(key);
   if (pending) return pending;
-  if (SCRYFALL_PAUSED) return { card: null, error: "Scryfall paused" };
+  if (isScryfallPaused()) return { card: null, error: "Scryfall paused" };
 
   const promise = (async () => {
     try {
@@ -78,7 +78,7 @@ export async function fetchCardById(
       const res = await enqueue(() =>
         fetch(apiUrl(`/api/scryfall/card/${encodeURIComponent(id)}`))
       );
-      if (res.status === 429) noteRateLimit();
+      if (res.status === 429) { noteRateLimit(); tripScryfallPause(); }
       const data = await res.json();
       if (!res.ok) {
         return {
@@ -208,7 +208,7 @@ export async function fetchNamedCard(
   name: string,
   mode: "exact" | "fuzzy" = "exact"
 ): Promise<{ card: ScryfallCard | null; error: string | null }> {
-  if (SCRYFALL_PAUSED) return { card: null, error: "Scryfall paused" };
+  if (isScryfallPaused()) return { card: null, error: "Scryfall paused" };
   const param = mode === "exact" ? "exact" : "fuzzy";
   try {
     if (await catalogReady()) {
@@ -288,7 +288,7 @@ export async function fetchPrintings(
 export async function fetchCollectionByIds(
   ids: string[]
 ): Promise<{ cards: ScryfallCard[]; error: string | null }> {
-  if (SCRYFALL_PAUSED) return { cards: [], error: "Scryfall paused" };
+  if (isScryfallPaused()) return { cards: [], error: "Scryfall paused" };
   const unique = [...new Set(ids.filter(Boolean))];
   if (unique.length === 0) return { cards: [], error: null };
   const out: ScryfallCard[] = [];
@@ -337,7 +337,7 @@ export async function fetchCollectionByNames(
   notFound: string[];
   error: string | null;
 }> {
-  if (SCRYFALL_PAUSED) return { cards: [], notFound: names, error: "Scryfall paused" };
+  if (isScryfallPaused()) return { cards: [], notFound: names, error: "Scryfall paused" };
   if (names.length === 0) return { cards: [], notFound: [], error: null };
   try {
     const identifiers = names.map((name) => ({ name }));
