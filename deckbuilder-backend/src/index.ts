@@ -90,7 +90,7 @@ function artFace(
     return `${base.replace(/\/$/, "")}/storage/v1/object/public/card-art/${art.custom_front_path.replace(/^\//, "")}`;
   }
   const printing = (art?.preferred_scryfall_id || card.scryfall_id).toLowerCase();
-  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-1.onrender.com";
   const query = face === "back" ? "?face=back" : "";
   return `${api.replace(/\/$/, "")}/api/tts/image/${printing}.jpg${query}`;
 }
@@ -107,7 +107,7 @@ const DFC_LAYOUTS = new Set([
 function tokenPiles(
   byId: Map<string, { id?: string; all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[] }>
 ) {
-  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-1.onrender.com";
   const base = api.replace(/\/$/, "");
   const tokens = new Map<string, { name: string; face: string; quantity: number }>();
   for (const card of byId.values()) {
@@ -179,7 +179,7 @@ const TTS_SKINS = [
 ];
 
 app.get("/api/tts/skins", async (_req: Request, res: Response) => {
-  const api = process.env.PUBLIC_API_URL || "https://deckapp-bwio.onrender.com";
+  const api = process.env.PUBLIC_API_URL || "https://deckapp-1.onrender.com";
   const base = api.replace(/\/$/, "");
   const skins = TTS_SKINS.map((skin) => ({
     ...skin,
