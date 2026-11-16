@@ -136,9 +136,11 @@
 
 .queue {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+  /* Equal side tracks keep the title centered. minmax(0, …) lets those
+     tracks shrink so long names ellipsis instead of wrapping the line. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.15rem;
+  column-gap: 0.35rem;
   margin: 0 0 0.15rem;
   padding: 0.1rem 0.1rem 0.35rem;
   border-bottom: 1px solid var(--color-border);
@@ -147,6 +149,7 @@
 .menu .queuePrev,
 .menu .queueNext,
 .menu .queueActive {
+  min-width: 0;
   min-height: 2.4rem;
   padding: 0.2rem 0.25rem;
   overflow: hidden;
@@ -156,6 +159,8 @@
 }
 
 .menu .queuePrev {
+  justify-self: start;
+  max-width: 100%;
   text-align: left;
   font-size: 0.68rem;
   font-weight: 650;
@@ -163,6 +168,8 @@
 }
 
 .menu .queueNext {
+  justify-self: end;
+  max-width: 100%;
   text-align: right;
   font-size: 0.68rem;
   font-weight: 650;
@@ -170,6 +177,8 @@
 }
 
 .menu .queueActive {
+  justify-self: center;
+  max-width: 9rem;
   text-align: center;
   font-size: 0.8rem;
   font-weight: 750;
