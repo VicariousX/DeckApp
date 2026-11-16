@@ -290,7 +290,9 @@ export function MyDecksPage() {
         </div>
       )}
 
-      {!loading && visibleDecks.length === 0 && <p className={styles.empty}>No decks in this tab.</p>}
+      {!loading && visibleDecks.length === 0 && (
+        <p className={styles.empty}>No decks in this tab. Name one above, then create it.</p>
+      )}
       <ul className={styles.list}>{visibleDecks.map((deck) => <DeckRow key={deck.id} deck={deck} />)}</ul>
     </div>
   );

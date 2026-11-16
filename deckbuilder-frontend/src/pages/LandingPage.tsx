@@ -83,7 +83,7 @@ export function LandingPage() {
           <button type="button" className={styles.featured} onClick={() => void openRandom()} disabled={randomBusy}>
             {randomBusy ? "Drawing…" : "Random card"}
           </button>
-          <div className={styles.links}>
+          <div className={`${styles.links} ${styles.links3}`}>
             <Link to="/search?mode=standard" className={styles.link}>Standard</Link>
             <Link to="/search/simple" className={styles.link}>Simple</Link>
             <Link to="/search?mode=advanced" className={styles.link}>Advanced</Link>
@@ -114,8 +114,8 @@ export function LandingPage() {
           </a>
           <div className={styles.links}>
             <Link to="/social" className={styles.link}>Social</Link>
-            <Link to="/decks" className={styles.link}>Public deck library</Link>
             <Link to="/formats" className={styles.link}>Formats</Link>
+            <Link to="/decks" className={`${styles.link} ${styles.linkWide}`}>Public deck library</Link>
           </div>
         </section>
       </div>

@@ -66,6 +66,13 @@ button:disabled {
   outline-offset: 2px;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  [role="menuitem"]:active {
+    translate: 0 1px;
+  }
+}
+
 /* Decorative / hover chrome must stay out of the tab order */
 [data-skip-tab],
 [tabindex="-1"] {
