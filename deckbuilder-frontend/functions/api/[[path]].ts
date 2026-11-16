@@ -1,4 +1,4 @@
-const BACKEND = "https://deckapp-bwio.onrender.com";
+const BACKEND = "https://deckapp-1.onrender.com";
 
 function corsHeaders(origin: string): Headers {
   const h = new Headers();
