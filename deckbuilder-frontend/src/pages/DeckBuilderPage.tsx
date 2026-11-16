@@ -114,6 +114,9 @@ import { DeckTextView } from "../components/DeckTextView";
 import { DeckCardActions } from "../components/DeckCardActions";
 import { DeckTagsPanel } from "../components/DeckTagsPanel";
 import { DeckInspectorHost } from "../components/DeckInspectorHost";
+import { BranchManagerDialog } from "../components/BranchManagerDialog";
+import { QtyControl } from "../components/QtyControl";
+import { CardTagPicker } from "../components/CardTagPicker";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1775,36 +1778,13 @@ export function DeckBuilderPage() {
           return tag;
         }}
       />
-      {branchManagerOpen && id && (
-        <div className={styles.branchManager} role="dialog" aria-label="Branches">
-          <div className={styles.branchManagerHead}>
-            <h2>Branches</h2>
-            <button type="button" className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(false)}>Close</button>
-          </div>
-          <p className={styles.hint}>View existing branches or start a new one from this deck.</p>
-          <ul className={styles.branchList}>
-            {branchTree(id).length === 0 && <li className={styles.hint}>No branches yet.</li>}
-            {branchTree(id).map((node) => (
-              <li key={node.id}>
-                <Link to={`/deck/${node.id}`} onClick={() => setBranchManagerOpen(false)}>
-                  {node.name}
-                </Link>
-                <Link to={`/deck/${id}/branches`} className={styles.backLink} onClick={() => setBranchManagerOpen(false)}>
-                  Compare
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className={styles.branchManagerActions}>
-            <button type="button" className={styles.secondaryBtn} onClick={() => { setBranchManagerOpen(false); setCopyAsk("branch"); }}>
-              New branch
-            </button>
-            <Link to={`/deck/${id}/branches`} className={styles.secondaryBtn} onClick={() => setBranchManagerOpen(false)}>
-              Open branch tool
-            </Link>
-          </div>
-        </div>
-      )}
+      <BranchManagerDialog
+        open={branchManagerOpen}
+        deckId={id}
+        tree={branchTree(id)}
+        onClose={() => setBranchManagerOpen(false)}
+        onNewBranch={() => { setBranchManagerOpen(false); setCopyAsk("branch"); }}
+      />
       {copyAsk && (
         <CopyReadyDialog
           title={copyAsk === "branch" ? "Branch this deck?" : "Clone this deck?"}
@@ -1835,149 +1815,6 @@ export function DeckBuilderPage() {
         x={hoverPos.x}
         y={hoverPos.y}
       />
-    </div>
-  );
-}
-
-function QtyControl({
-  quantity,
-  disabled,
-  onDelta,
-  onCommit,
-}: {
-  quantity: number;
-  disabled?: boolean;
-  onDelta: (delta: number) => void;
-  onCommit: (raw: string) => void;
-}) {
-  const [draft, setDraft] = useState(String(quantity));
-
-  useEffect(() => {
-    setDraft(String(quantity));
-  }, [quantity]);
-
-  function onKey(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.currentTarget.blur();
-      onCommit(draft);
-    } else if (e.key === "Escape") {
-      setDraft(String(quantity));
-      e.currentTarget.blur();
-    }
-  }
-
-  return (
-    <div className={styles.qtyControl}>
-      <button
-        type="button"
-        className={styles.qtyBtn}
-        disabled={disabled}
-        onClick={() => onDelta(-1)}
-        aria-label="Decrease quantity"
-      >
-        −
-      </button>
-      <input
-        className={styles.qtyInput}
-        type="number"
-        min={0}
-        inputMode="numeric"
-        disabled={disabled}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => onCommit(draft)}
-        onKeyDown={onKey}
-        aria-label="Quantity"
-      />
-      <button
-        type="button"
-        className={styles.qtyBtn}
-        disabled={disabled}
-        onClick={() => onDelta(1)}
-        aria-label="Increase quantity"
-      >
-        +
-      </button>
-    </div>
-  );
-}
-
-function CardTagPicker({
-  card,
-  tags,
-  open,
-  onOpenChange,
-  onToggle,
-}: {
-  card: DeckCard;
-  tags: DeckTag[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onToggle: (tag: DeckTag) => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const assigned = new Set(card.tag_ids ?? []);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: globalThis.MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) onOpenChange(false);
-    }
-    function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === "Escape") onOpenChange(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, onOpenChange]);
-
-  if (tags.length === 0) {
-    return (
-      <span className={styles.hint} title="Create tags in the Tags panel">
-        No tags
-      </span>
-    );
-  }
-
-  return (
-    <div className={styles.tagPicker} ref={wrapRef}>
-      <button
-        type="button"
-        className={styles.tagPickerBtn}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => onOpenChange(!open)}
-      >
-        Add tag
-      </button>
-      {open && (
-        <ul className={styles.tagPickerMenu} role="listbox">
-          {tags.map((t) => {
-            const on = assigned.has(t.id);
-            return (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={on}
-                  className={
-                    on
-                      ? `${styles.tagPickerItem} ${styles.tagPickerItemOn}`
-                      : styles.tagPickerItem
-                  }
-                  onClick={() => onToggle(t)}
-                >
-                  <span>{t.name}</span>
-                  {on && <span aria-hidden>✓</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </div>
   );
 }
