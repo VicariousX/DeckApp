@@ -16,7 +16,7 @@ import {
 } from "./types";
 
 /** Temporary kill switch while Scryfall rate-limits the backend IP. */
-const SCRYFALL_PAUSED = true;
+const SCRYFALL_PAUSED = false;
 
 type Listener = (p: CatalogProgress) => void;
 
