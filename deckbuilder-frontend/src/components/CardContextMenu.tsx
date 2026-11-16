@@ -458,48 +458,6 @@ export function CardContextMenu({
       style={{ left: pos.left, top: pos.top }}
       role="menu"
     >
-      {active ? (
-        <>
-          <div className={styles.queue}>
-            {prevSection ? (
-              <button
-                type="button"
-                className={styles.queuePrev}
-                onClick={() => setFly(prevSection.id)}
-              >
-                {prevSection.label}
-              </button>
-            ) : (
-              <span />
-            )}
-            <button
-              type="button"
-              className={styles.queueActive}
-              aria-current="page"
-              onClick={() => setFly(null)}
-            >
-              {active.label}
-            </button>
-            {nextSection ? (
-              <button
-                type="button"
-                className={styles.queueNext}
-                onClick={() => setFly(nextSection.id)}
-              >
-                {nextSection.label}
-              </button>
-            ) : (
-              <span />
-            )}
-          </div>
-          <div className={styles.fly}>
-            <p className={styles.sectionHint}>{active.hint}</p>
-            {active.content}
-          </div>
-          {status && <p className={styles.hint}>{status}</p>}
-        </>
-      ) : (
-        <>
       <div className={styles.pair}>
         <button
           type="button"
@@ -558,17 +516,58 @@ export function CardContextMenu({
         </button>
       )}
 
-      {sections.map((section) => (
-        <button
-          key={section.id}
-          type="button"
-          className={styles.sectionBtn}
-          onClick={() => setFly(section.id)}
-        >
-          <span>{section.label}</span>
-          <span className={styles.chev} aria-hidden>▸</span>
-        </button>
-      ))}
+      {active ? (
+        <div className={styles.viewer}>
+          <div className={styles.queue}>
+            {prevSection ? (
+              <button
+                type="button"
+                className={styles.queuePrev}
+                onClick={() => setFly(prevSection.id)}
+              >
+                {prevSection.label}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className={styles.queueActive}
+              aria-current="page"
+              onClick={() => setFly(null)}
+            >
+              {active.label}
+            </button>
+            {nextSection ? (
+              <button
+                type="button"
+                className={styles.queueNext}
+                onClick={() => setFly(nextSection.id)}
+              >
+                {nextSection.label}
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+          <div className={styles.fly}>
+            <p className={styles.sectionHint}>{active.hint}</p>
+            {active.content}
+          </div>
+        </div>
+      ) : (
+        sections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            className={styles.sectionBtn}
+            onClick={() => setFly(section.id)}
+          >
+            <span>{section.label}</span>
+            <span className={styles.chev} aria-hidden>▸</span>
+          </button>
+        ))
+      )}
 
       {onRemove && (
         <button
@@ -583,8 +582,6 @@ export function CardContextMenu({
         </button>
       )}
       {status && <p className={styles.hint}>{status}</p>}
-        </>
-      )}
     </div>,
     document.body
   );
