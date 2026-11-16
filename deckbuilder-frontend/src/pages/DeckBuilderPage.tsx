@@ -113,6 +113,7 @@ import { DeckImageView } from "../components/DeckImageView";
 import { DeckTextView } from "../components/DeckTextView";
 import { DeckCardActions } from "../components/DeckCardActions";
 import { DeckTagsPanel } from "../components/DeckTagsPanel";
+import { DeckInspectorHost } from "../components/DeckInspectorHost";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { BUILTIN_FORMATS, resolveFormat, type HouseFormat } from "../lib/formats/rules";
 import { loadHouseFormats, loadRemoteHouseFormats, saveHouseFormats } from "../services/houseFormatService";
@@ -1749,81 +1750,31 @@ export function DeckBuilderPage() {
         moveCardToBoard={(c, b) => void moveCardToBoard(c, b)}
         placeCardInListColumn={placeCardInListColumn}
       />
-      {modalCard && (
-        <CardInspectorModal
-          key={modalCard.id}
-          initialTab={initialTabFromJump(modalJump)}
-          initialInfoSub={modalJump === "info:rulings" ? "rulings" : "details"}
-          initialArtSub={modalJump === "artwork:upload" ? "upload" : modalJump === "artwork:proxy" ? "proxy" : "prints"}
-          onTabChange={(tab, infoSub, artSub) =>
-            setModalJump(modalJumpFromState(tab, infoSub, artSub))
-          }
-          scryfallId={
-            (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard)
-              .scryfall_id
-          }
-          name={
-            (detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard).name
-          }
-          imageUrl={imageUrls[modalCard.id]}
-          onClose={() => setModalCard(null)}
-          hasPrev={modalIndex > 0}
-          hasNext={modalIndex >= 0 && modalIndex < modalNavList.length - 1}
-          onPrev={() => {
-            if (modalIndex > 0) setModalCard(modalNavList[modalIndex - 1]);
-          }}
-          onNext={() => {
-            if (modalIndex >= 0 && modalIndex < modalNavList.length - 1) {
-              setModalCard(modalNavList[modalIndex + 1]);
-            }
-          }}
-          deck={{
-            card:
-              detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard,
-            isOwner,
-            tags: detail?.tags ?? [],
-            onQty: (d) => {
-              const live =
-                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-              void onQty(live, d);
-            },
-            onBoard: (b) => {
-              const live =
-                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-              void moveCardToBoard(live, b);
-            },
-            onRemove: () => {
-              const live =
-                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-              void onRemove(live);
-            },
-            onToggleTag: (tag) => {
-              const live =
-                detail?.cards.find((c) => c.id === modalCard.id) ?? modalCard;
-              void toggleTag(live, tag);
-            },
-            onCreateTag: async (name) => {
-              if (!id || !isOwner) return;
-              const { tag, error: err } = await createDeckTag(id, name);
-              if (err || !tag) {
-                setError(err ?? "Could not create tag.");
-                return;
-              }
-              setDetail((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      tags: [...prev.tags, tag].sort((a, b) =>
-                        a.name.localeCompare(b.name)
-                      ),
-                    }
-                  : prev
-              );
-            },
-          }}
-        />
-      )}
-
+      <DeckInspectorHost
+        modalCard={modalCard}
+        modalJump={modalJump}
+        imageUrl={imageUrls[modalCard?.id ?? ""]}
+        modalIndex={modalIndex}
+        modalNavList={modalNavList}
+        detail={detail}
+        isOwner={isOwner}
+        deckId={id}
+        onClose={() => setModalCard(null)}
+        onJumpChange={setModalJump}
+        onPrev={() => { if (modalIndex > 0) setModalCard(modalNavList[modalIndex - 1]); }}
+        onNext={() => { if (modalIndex >= 0 && modalIndex < modalNavList.length - 1) setModalCard(modalNavList[modalIndex + 1]); }}
+        onQty={(c, d) => void onQty(c, d)}
+        onBoard={(c, b) => void moveCardToBoard(c, b)}
+        onRemove={(c) => void onRemove(c)}
+        onToggleTag={(c, tag) => void toggleTag(c, tag)}
+        onCreateTag={async (name) => {
+          if (!id || !isOwner) return null;
+          const { tag, error: err } = await createDeckTag(id, name);
+          if (err || !tag) { setError(err ?? "Could not create tag."); return null; }
+          setDetail((prev) => prev ? { ...prev, tags: [...prev.tags, tag].sort((a, b) => a.name.localeCompare(b.name)) } : prev);
+          return tag;
+        }}
+      />
       {branchManagerOpen && id && (
         <div className={styles.branchManager} role="dialog" aria-label="Branches">
           <div className={styles.branchManagerHead}>
