@@ -1,4 +1,5 @@
 import { apiUrl } from "../apiBase";
+import { isScryfallPaused, tripScryfallPause } from "../scryfallPause";
 import {
   catalogReady,
   clearCatalog,
@@ -16,7 +17,6 @@ import {
 } from "./types";
 
 /** Temporary kill switch while Scryfall rate-limits the backend IP. */
-const SCRYFALL_PAUSED = false;
 
 type Listener = (p: CatalogProgress) => void;
 
@@ -68,7 +68,7 @@ async function fetchBulkMeta(type: CatalogFileKind): Promise<BulkMeta> {
     for (const url of paths) {
       try {
         const res = await fetch(url);
-        if (res.status === 429) {
+        if (res.status === 429) { tripScryfallPause();
           const wait = 35000 * (attempt + 1);
           await new Promise((r) => setTimeout(r, wait));
           continue;
@@ -235,7 +235,7 @@ function runWorker(
 }
 
 export async function bootCatalog(): Promise<void> {
-  if (SCRYFALL_PAUSED) {
+  if (isScryfallPaused()) {
     emit({ phase: "idle", loaded: 0, total: 0, message: "Scryfall paused." });
     return;
   }
