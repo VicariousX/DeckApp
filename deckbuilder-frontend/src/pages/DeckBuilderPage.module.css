@@ -651,6 +651,141 @@
   gap: 0.2rem;
 }
 
+.qtyCompact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex: 0 0 auto;
+}
+
+.qtyCompact .qtyBtn {
+  width: 1.7rem;
+  height: 1.7rem;
+  min-width: 0;
+  min-height: 0;
+  font-size: 0.95rem;
+}
+
+.qtyCompact .qty {
+  min-width: 1rem;
+  font-size: 0.8rem;
+}
+
+.qtyMark {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.cardThumb {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 39px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+  cursor: pointer;
+}
+
+.cardThumb img,
+.cardThumbEmpty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.cardRowOpen {
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+
+.cardExpand {
+  padding: 0.35rem 0 0.45rem 2.15rem;
+  touch-action: pan-y;
+}
+
+.cardExpandImg {
+  display: block;
+  width: min(240px, 78vw);
+  height: auto;
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+
+.oracleFace {
+  width: min(240px, 78vw);
+  min-height: 220px;
+  padding: 0.8rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 90%, black);
+  box-shadow: var(--shadow-md);
+}
+
+.oracleName {
+  margin: 0;
+  font-weight: 750;
+  font-size: 0.95rem;
+}
+
+.oracleType {
+  margin: 0.15rem 0 0.55rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.oracleBody {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.oracleBody :global(.inline-symbol) {
+  vertical-align: -0.15em;
+}
+
+.expandTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: min(240px, 78vw);
+  margin-top: 0.3rem;
+}
+
+.swipeHint {
+  display: none;
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.expandToggle {
+  appearance: none;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-height: 2rem;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .swipeHint {
+    display: block;
+  }
+}
+
 .qtyInput {
   width: 2.6rem;
   text-align: center;
@@ -1868,6 +2003,13 @@
   .removeBtn {
     min-width: 40px;
     min-height: 40px;
+  }
+  .qtyCompact .qtyBtn {
+    width: 1.7rem;
+    height: 1.7rem;
+    min-width: 0;
+    min-height: 0;
+    font-size: 0.95rem;
   }
   .qtyInput {
     min-height: 36px;

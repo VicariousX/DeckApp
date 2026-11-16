@@ -324,7 +324,7 @@ export function DeckBuilderPage() {
             scryfall_id: t.id,
           }))
         : detail?.cards ?? [];
-    if (!source.length || viewMode !== "image") return;
+    if (!source.length || (viewMode !== "image" && viewMode !== "text")) return;
     let cancelled = false;
     async function load() {
       const next: Record<string, string> = {};
@@ -1737,6 +1737,9 @@ export function DeckBuilderPage() {
               addTargetBoard={addTargetBoard}
               isOwner={isOwner}
               issuesByOracle={issuesByOracle}
+              expandedId={expandedOracleId}
+              oracleById={oracleCache}
+              imageFor={(c) => imageUrls[c.id]}
               onToggleOracle={(c) => void toggleOracle(c)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}

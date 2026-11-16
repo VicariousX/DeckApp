@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -343,6 +343,31 @@ export function CardContextMenu({
         </button>
       </div>
 
+      {onQty && (
+        <div className={styles.stepper}>
+          <span>Quantity</span>
+          <button type="button" onClick={() => onQty(-1)} aria-label="Decrease quantity">
+            −
+          </button>
+          <strong>{quantity ?? "–"}</strong>
+          <button type="button" onClick={() => onQty(1)} aria-label="Increase quantity">
+            +
+          </button>
+        </div>
+      )}
+      {onTier && (
+        <div className={styles.stepper}>
+          <span>Tier</span>
+          <button type="button" onClick={() => onTier(-1)} aria-label="Decrease tier">
+            −
+          </button>
+          <strong>{tier ?? "–"}</strong>
+          <button type="button" onClick={() => onTier(1)} aria-label="Increase tier">
+            +
+          </button>
+        </div>
+      )}
+
       {onStartScroll && (
         <button
           type="button"
@@ -356,197 +381,101 @@ export function CardContextMenu({
       )}
 
       {linkChoices && linkChoices.length > 0 && (
-        <>
-          <button
-            type="button"
-            className={fly === "links" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "links" ? null : "links"))}
-          >
-            Works with ▸
-          </button>
-          {fly === "links" && (
-            <div className={styles.fly}>
-              {linkChoices.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={c.on ? styles.active : undefined}
-                  onClick={c.onToggle}
-                >
-                  {c.on ? "● " : "○ "}
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+        <FlySection id="links" fly={fly} setFly={setFly} label="Works with" hint="Link this card to others in the combo.">
+          {linkChoices.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={c.on ? styles.active : undefined}
+              onClick={c.onToggle}
+            >
+              {c.on ? "● " : "○ "}
+              {c.name}
+            </button>
+          ))}
+        </FlySection>
       )}
 
       {moveTargets && moveTargets.length > 0 && (
-        <>
-          <button
-            type="button"
-            className={fly === "move" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "move" ? null : "move"))}
-          >
-            Move to ▸
-          </button>
-          {fly === "move" && (
-            <div className={styles.fly}>
-              {moveTargets.map((t) => (
-                <button
-                  key={t.label}
-                  type="button"
-                  onClick={() => {
-                    t.onSelect();
-                    onClose();
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+        <FlySection id="move" fly={fly} setFly={setFly} label="Move to" hint="Moves this copy onto another board.">
+          {moveTargets.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              onClick={() => {
+                t.onSelect();
+                onClose();
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </FlySection>
       )}
 
-      {fly !== "move" && fly !== "links" && (
-        <>
+      <FlySection id="tabs" fly={fly} setFly={setFly} label="Card inspector" hint="Opens the inspector on this part of the card.">
+        {(tabs
+          ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
+          : MODAL_ITEMS
+        ).map((item) => (
           <button
+            key={item.id}
             type="button"
-            className={fly === "tabs" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "tabs" ? null : "tabs"))}
+            onClick={() => {
+              onOpenModal(item.id);
+              onClose();
+            }}
           >
-            Open in ▸
+            {item.label}
           </button>
-          {fly === "tabs" && (
-            <div className={styles.fly}>
-              {(tabs
-                ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
-                : MODAL_ITEMS
-              ).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onOpenModal(item.id);
-                    onClose();
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {onQty && (
-        <div className={styles.stepper}>
-          <span>Qty</span>
-          <button type="button" onClick={() => onQty(-1)}>
-            −
-          </button>
-          <strong>{quantity ?? "–"}</strong>
-          <button type="button" onClick={() => onQty(1)}>
-            +
-          </button>
-        </div>
-      )}
-      {onTier && (
-        <div className={styles.stepper}>
-          <span>Tier</span>
-          <button type="button" onClick={() => onTier(-1)}>
-            −
-          </button>
-          <strong>{tier ?? "–"}</strong>
-          <button type="button" onClick={() => onTier(1)}>
-            +
-          </button>
-        </div>
-      )}
+        ))}
+      </FlySection>
 
       {user && !hideAddToDeck && (
         <>
-          <button
-            type="button"
-            className={fly === "decks" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "decks" ? null : "decks"))}
-          >
-            Add to deck ▸
-          </button>
-          {fly === "decks" && (
-            <div className={styles.fly}>
-              {!decks && <p className={styles.hint}>Loading…</p>}
-              {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
-              {decks?.map((d) => (
-                <button key={d.id} type="button" onClick={() => void addToDeck(d.id)}>
-                  {d.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <FlySection id="decks" fly={fly} setFly={setFly} label="Add to deck" hint="Adds one copy to that deck’s maybeboard.">
+            {!decks && <p className={styles.hint}>Loading…</p>}
+            {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
+            {decks?.map((d) => (
+              <button key={d.id} type="button" onClick={() => void addToDeck(d.id)}>
+                {d.name}
+              </button>
+            ))}
+          </FlySection>
 
-          <button
-            type="button"
-            className={fly === "drawers" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "drawers" ? null : "drawers"))}
-          >
-            Add to drawer ▸
-          </button>
-          {fly === "drawers" && (
-            <div className={styles.fly}>
-              {!drawers && <p className={styles.hint}>Loading…</p>}
-              {drawers?.length === 0 && <p className={styles.hint}>No drawers</p>}
-              {drawers?.map((d) => (
-                <button key={d.id} type="button" onClick={() => void addToDrawer(d.id)}>
-                  {d.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <FlySection id="drawers" fly={fly} setFly={setFly} label="Add to drawer" hint="Saves this card into a drawer.">
+            {!drawers && <p className={styles.hint}>Loading…</p>}
+            {drawers?.length === 0 && <p className={styles.hint}>No drawers</p>}
+            {drawers?.map((d) => (
+              <button key={d.id} type="button" onClick={() => void addToDrawer(d.id)}>
+                {d.name}
+              </button>
+            ))}
+          </FlySection>
 
-          <button
-            type="button"
-            className={fly === "collections" ? styles.active : undefined}
-            onClick={() => setFly((v) => (v === "collections" ? null : "collections"))}
-          >
-            Add to collection ▸
-          </button>
-          {fly === "collections" && (
-            <div className={styles.fly}>
-              {!collections && <p className={styles.hint}>Loading…</p>}
-              {collections?.length === 0 && <p className={styles.hint}>No collections</p>}
-              {collections?.map((c) => (
-                <button key={c.id} type="button" onClick={() => void addToCollection(c)}>
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <FlySection id="collections" fly={fly} setFly={setFly} label="Add to collection" hint="Marks this card in a collection.">
+            {!collections && <p className={styles.hint}>Loading…</p>}
+            {collections?.length === 0 && <p className={styles.hint}>No collections</p>}
+            {collections?.map((c) => (
+              <button key={c.id} type="button" onClick={() => void addToCollection(c)}>
+                {c.name}
+              </button>
+            ))}
+          </FlySection>
         </>
       )}
 
-      <button
-        type="button"
-        className={fly === "share" ? styles.active : undefined}
-        onClick={() => setFly((v) => (v === "share" ? null : "share"))}
-      >
-        Share ▸
-      </button>
-      {fly === "share" && (
-        <div className={styles.fly}>
-          <button type="button" onClick={() => void copyImage()}>
-            Copy image
-          </button>
-          <button type="button" onClick={() => void saveImage()}>
-            Save image
-          </button>
-          <button type="button" onClick={() => void copyUrl()}>
-            Copy card page URL
-          </button>
-        </div>
-      )}
+      <FlySection id="share" fly={fly} setFly={setFly} label="Share" hint="Copy or save this printing.">
+        <button type="button" onClick={() => void copyImage()}>
+          Copy image
+        </button>
+        <button type="button" onClick={() => void saveImage()}>
+          Save image
+        </button>
+        <button type="button" onClick={() => void copyUrl()}>
+          Copy card page URL
+        </button>
+      </FlySection>
 
       {onRemove && (
         <button
@@ -563,5 +492,37 @@ export function CardContextMenu({
       {status && <p className={styles.hint}>{status}</p>}
     </div>,
     document.body
+  );
+}
+
+function FlySection({
+  id, fly, setFly, label, hint, children,
+}: {
+  id: Exclude<Flyout, null>;
+  fly: Flyout;
+  setFly: Dispatch<SetStateAction<Flyout>>;
+  label: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  const open = fly === id;
+  return (
+    <>
+      <button
+        type="button"
+        className={`${styles.sectionBtn} ${open ? styles.active : ""}`}
+        aria-expanded={open}
+        onClick={() => setFly(open ? null : id)}
+      >
+        <span>{label}</span>
+        <span className={styles.chev} aria-hidden>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className={styles.fly}>
+          <p className={styles.sectionHint}>{hint}</p>
+          {children}
+        </div>
+      )}
+    </>
   );
 }
