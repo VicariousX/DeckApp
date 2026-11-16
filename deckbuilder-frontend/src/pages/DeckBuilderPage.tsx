@@ -1496,7 +1496,13 @@ export function DeckBuilderPage() {
         )}
       </div>
 
-      {initialLoading && <p className={styles.status}>Loading deck…</p>}
+      {initialLoading && (
+        <div className={styles.skeleton} aria-label="Loading deck">
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+          <div className={styles.skeletonRow} />
+        </div>
+      )}
       {error && (
         <ErrorNotice message={error} onDismiss={() => setError(null)} />
       )}
