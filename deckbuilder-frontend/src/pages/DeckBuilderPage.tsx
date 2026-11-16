@@ -595,6 +595,30 @@ export function DeckBuilderPage() {
     }
   }, [detail?.deck.id, user]);
 
+  const scrollRestored = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id || initialLoading || !detail) return;
+    const key = `deckapp.scroll.${id}`;
+    if (scrollRestored.current !== id) {
+      scrollRestored.current = id;
+      const y = Number(sessionStorage.getItem(key) || 0);
+      if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+    let timer = 0;
+    function onScroll() {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        sessionStorage.setItem(key, String(window.scrollY));
+      }, 120);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(timer);
+      if (window.scrollY > 0) sessionStorage.setItem(key, String(window.scrollY));
+    };
+  }, [id, initialLoading, detail?.deck.id]);
+
   useEffect(() => {
     if (!detail) return;
     let cancelled = false;
@@ -1516,7 +1540,7 @@ export function DeckBuilderPage() {
                 <span className={styles.format}>{formatRule.name}</span>
                 {isOwner && (
                   <select
-                    className={styles.addRowBtn}
+                    className={styles.quietSelect}
                     value={detail.deck.format}
                     aria-label="Format"
                     onChange={(e) => {
@@ -1542,13 +1566,6 @@ export function DeckBuilderPage() {
                 <span>
                   {totalCards} card{totalCards === 1 ? "" : "s"} ·{" "}
                   {deckCards.length} unique
-                </span>
-                <span className={styles.boardMeta}>
-                  {BOARDS.map((b) => (
-                    <span key={b.id}>
-                      {b.label.replace("board", "")} {boardCounts[b.id]}
-                    </span>
-                  ))}
                 </span>
               </p>
               {legalityIssues.length > 0 && (
@@ -1717,15 +1734,12 @@ export function DeckBuilderPage() {
           {(panel === "deck" || panel === "tokens") && viewMode === "text" && (
             <DeckTextView
               displaySections={displaySections}
-              isMobile={isMobile}
+              addTargetBoard={addTargetBoard}
               isOwner={isOwner}
               issuesByOracle={issuesByOracle}
-              totalCards={totalCards}
               onToggleOracle={(c) => void toggleOracle(c)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
-              onQtyCommit={(c, raw) => void onQtyCommit(c, raw)}
-              onRemove={(c) => void onRemove(c)}
               onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}
             />
           )}

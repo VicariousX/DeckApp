@@ -12,32 +12,41 @@ type DisplaySection = {
 
 type Props = {
   displaySections: DisplaySection[];
-  isMobile: boolean;
+  addTargetBoard: DeckBoard;
   isOwner: boolean;
   issuesByOracle: Map<string, unknown[]>;
-  totalCards: number;
   onToggleOracle: (c: DeckCard) => void;
   onCardContext: (e: { preventDefault: () => void; clientX: number; clientY: number }, c: DeckCard) => void;
   onQty: (c: DeckCard, d: number) => void;
-  onQtyCommit: (c: DeckCard, raw: string) => void;
-  onRemove: (c: DeckCard) => void;
   onMore: (c: DeckCard, x: number, y: number) => void;
 };
 
 export function DeckTextView({
-  displaySections, isMobile, isOwner, issuesByOracle, totalCards,
-  onToggleOracle, onCardContext, onQty, onQtyCommit, onRemove, onMore,
+  displaySections, addTargetBoard, isOwner, issuesByOracle,
+  onToggleOracle, onCardContext, onQty, onMore,
 }: Props) {
+  const visible = displaySections.filter((board) => {
+    if (board.cards.length > 0) return true;
+    if (board.id === "commander" || board.id === "main") return true;
+    return board.id === addTargetBoard;
+  });
+
   return (
     <div className={styles.boardZones}>
-      {displaySections.map((board) => (
+      {visible.map((board) => (
         <section key={board.id} className={styles.boardZone} data-board={board.id}>
           <header className={styles.boardZoneHeader}>
             <h2 className={styles.boardZoneTitle}>{board.label}</h2>
             <span className={styles.boardZoneCount}>{board.count}</span>
           </header>
           {board.cards.length === 0 ? (
-            <p className={styles.boardZoneEmpty}>Add cards to this board.</p>
+            <p className={styles.boardZoneEmpty}>
+              {board.id === "commander"
+                ? "Choose a commander with the field above."
+                : board.id === "main"
+                  ? "Add cards using the field above."
+                  : "Add cards to this board."}
+            </p>
           ) : (
             <div className={styles.groups}>
               {board.groups.map((g) => {
@@ -53,11 +62,11 @@ export function DeckTextView({
                         <li key={c.id} className={`${styles.cardRow}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.cardRowIllegal}` : ""}`}>
                           <div className={styles.cardMain}>
                             <div className={styles.cardPrimary}>
-                              {!isMobile && isOwner && (
-                                <span style={{ display: "inline-flex", gap: 4 }}>
-                                  <button type="button" onClick={() => void onQty(c, -1)}>−</button>
-                                  <span>{c.quantity}</span>
-                                  <button type="button" onClick={() => void onQty(c, 1)}>+</button>
+                              {isOwner && (
+                                <span className={styles.qtyControl}>
+                                  <button type="button" className={styles.qtyBtn} aria-label={`Decrease ${c.name}`} onClick={() => void onQty(c, -1)}>−</button>
+                                  <span className={styles.qty}>{c.quantity}</span>
+                                  <button type="button" className={styles.qtyBtn} aria-label={`Increase ${c.name}`} onClick={() => void onQty(c, 1)}>+</button>
                                 </span>
                               )}
                               <button
@@ -69,30 +78,19 @@ export function DeckTextView({
                                 {c.name}
                               </button>
                               <ManaCost cost={c.mana_cost} size={14} />
-                              {isMobile && (
-                                <button
-                                  type="button"
-                                  className={styles.moreBtn}
-                                  aria-label={`Options for ${c.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const r = e.currentTarget.getBoundingClientRect();
-                                    onMore(c, r.left, r.bottom);
-                                  }}
-                                >
-                                  ⋮
-                                </button>
-                              )}
-                            </div>
-                            {isOwner && !isMobile && (
                               <button
                                 type="button"
-                                className={styles.removeBtn}
-                                onClick={() => void onRemove(c)}
+                                className={styles.moreBtn}
+                                aria-label={`Options for ${c.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  onMore(c, r.left, r.bottom);
+                                }}
                               >
-                                Remove
+                                ⋮
                               </button>
-                            )}
+                            </div>
                           </div>
                         </li>
                       ))}
@@ -104,9 +102,6 @@ export function DeckTextView({
           )}
         </section>
       ))}
-      {totalCards === 0 && (
-        <p className={styles.empty}>Add cards using the search above.</p>
-      )}
     </div>
   );
 }

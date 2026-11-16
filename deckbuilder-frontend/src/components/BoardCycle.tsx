@@ -35,7 +35,7 @@ export function BoardCycle({ boards, current, open, onCycle, onSelect, onToggleM
             <li key={b.id}>
               <button
                 type="button"
-                className={b.id === current ? `${styles.suggestItem} ${styles.groupBtnActive}` : styles.suggestItem}
+                className={b.id === current ? `${styles.suggestItem} ${styles.menuOn}` : styles.suggestItem}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onSelect(b.id)}
               >
