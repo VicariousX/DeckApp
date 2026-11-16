@@ -12,7 +12,7 @@ import {
 import { readCatalogTier } from "./catalog/preference";
 
 /** Temporary kill switch while Scryfall rate-limits the backend IP. */
-const SCRYFALL_PAUSED = false;
+const SCRYFALL_PAUSED = true;
 
 /** Client-side card cache (by scryfall id) — cuts repeat modal/search traffic. */
 const cardCache = new Map<string, ScryfallCard>();
