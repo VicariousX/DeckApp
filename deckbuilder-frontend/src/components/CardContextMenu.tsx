@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -73,6 +73,13 @@ export type CardContextTarget = {
 };
 
 type Flyout = "decks" | "drawers" | "collections" | "share" | "move" | "links" | "tabs" | null;
+
+type MenuSection = {
+  id: Exclude<Flyout, null>;
+  label: string;
+  hint: string;
+  content: ReactNode;
+};
 
 type Props = {
   x: number;
@@ -314,6 +321,135 @@ export function CardContextMenu({
     if (target.imageUrl) window.open(target.imageUrl, "_blank", "noopener");
   }
 
+  const sections: MenuSection[] = [];
+  if (linkChoices && linkChoices.length > 0) {
+    sections.push({
+      id: "links",
+      label: "Works with",
+      hint: "Link this card to others in the combo.",
+      content: linkChoices.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className={c.on ? styles.active : undefined}
+          onClick={c.onToggle}
+        >
+          {c.on ? "● " : "○ "}
+          {c.name}
+        </button>
+      )),
+    });
+  }
+  if (moveTargets && moveTargets.length > 0) {
+    sections.push({
+      id: "move",
+      label: "Move to",
+      hint: "Moves this copy onto another board.",
+      content: moveTargets.map((t) => (
+        <button
+          key={t.label}
+          type="button"
+          onClick={() => {
+            t.onSelect();
+            onClose();
+          }}
+        >
+          {t.label}
+        </button>
+      )),
+    });
+  }
+  sections.push({
+    id: "tabs",
+    label: "Card inspector",
+    hint: "Opens the inspector on this part of the card.",
+    content: (tabs ? MODAL_ITEMS.filter((item) => tabs.includes(item.id)) : MODAL_ITEMS).map((item) => (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => {
+          onOpenModal(item.id);
+          onClose();
+        }}
+      >
+        {item.label}
+      </button>
+    )),
+  });
+  if (user && !hideAddToDeck) {
+    sections.push({
+      id: "decks",
+      label: "Add to deck",
+      hint: "Adds one copy to that deck’s maybeboard.",
+      content: (
+        <>
+          {!decks && <p className={styles.hint}>Loading…</p>}
+          {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
+          {decks?.map((d) => (
+            <button key={d.id} type="button" onClick={() => void addToDeck(d.id)}>
+              {d.name}
+            </button>
+          ))}
+        </>
+      ),
+    });
+    sections.push({
+      id: "drawers",
+      label: "Add to drawer",
+      hint: "Saves this card into a drawer.",
+      content: (
+        <>
+          {!drawers && <p className={styles.hint}>Loading…</p>}
+          {drawers?.length === 0 && <p className={styles.hint}>No drawers</p>}
+          {drawers?.map((d) => (
+            <button key={d.id} type="button" onClick={() => void addToDrawer(d.id)}>
+              {d.name}
+            </button>
+          ))}
+        </>
+      ),
+    });
+    sections.push({
+      id: "collections",
+      label: "Add to collection",
+      hint: "Marks this card in a collection.",
+      content: (
+        <>
+          {!collections && <p className={styles.hint}>Loading…</p>}
+          {collections?.length === 0 && <p className={styles.hint}>No collections</p>}
+          {collections?.map((c) => (
+            <button key={c.id} type="button" onClick={() => void addToCollection(c)}>
+              {c.name}
+            </button>
+          ))}
+        </>
+      ),
+    });
+  }
+  sections.push({
+    id: "share",
+    label: "Share",
+    hint: "Copy or save this printing.",
+    content: (
+      <>
+        <button type="button" onClick={() => void copyImage()}>
+          Copy image
+        </button>
+        <button type="button" onClick={() => void saveImage()}>
+          Save image
+        </button>
+        <button type="button" onClick={() => void copyUrl()}>
+          Copy card page URL
+        </button>
+      </>
+    ),
+  });
+
+  const activeIndex = sections.findIndex((s) => s.id === fly);
+  const active = activeIndex >= 0 ? sections[activeIndex] : null;
+  const prevSection = activeIndex > 0 ? sections[activeIndex - 1] : null;
+  const nextSection = activeIndex >= 0 && activeIndex < sections.length - 1 ? sections[activeIndex + 1] : null;
+
   return createPortal(
     <div
       id="card-ctx-menu"
@@ -322,6 +458,48 @@ export function CardContextMenu({
       style={{ left: pos.left, top: pos.top }}
       role="menu"
     >
+      {active ? (
+        <>
+          <div className={styles.queue}>
+            {prevSection ? (
+              <button
+                type="button"
+                className={styles.queuePrev}
+                onClick={() => setFly(prevSection.id)}
+              >
+                {prevSection.label}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className={styles.queueActive}
+              aria-current="page"
+              onClick={() => setFly(null)}
+            >
+              {active.label}
+            </button>
+            {nextSection ? (
+              <button
+                type="button"
+                className={styles.queueNext}
+                onClick={() => setFly(nextSection.id)}
+              >
+                {nextSection.label}
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+          <div className={styles.fly}>
+            <p className={styles.sectionHint}>{active.hint}</p>
+            {active.content}
+          </div>
+          {status && <p className={styles.hint}>{status}</p>}
+        </>
+      ) : (
+        <>
       <div className={styles.pair}>
         <button
           type="button"
@@ -380,102 +558,17 @@ export function CardContextMenu({
         </button>
       )}
 
-      {linkChoices && linkChoices.length > 0 && (
-        <FlySection id="links" fly={fly} setFly={setFly} label="Works with" hint="Link this card to others in the combo.">
-          {linkChoices.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={c.on ? styles.active : undefined}
-              onClick={c.onToggle}
-            >
-              {c.on ? "● " : "○ "}
-              {c.name}
-            </button>
-          ))}
-        </FlySection>
-      )}
-
-      {moveTargets && moveTargets.length > 0 && (
-        <FlySection id="move" fly={fly} setFly={setFly} label="Move to" hint="Moves this copy onto another board.">
-          {moveTargets.map((t) => (
-            <button
-              key={t.label}
-              type="button"
-              onClick={() => {
-                t.onSelect();
-                onClose();
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </FlySection>
-      )}
-
-      <FlySection id="tabs" fly={fly} setFly={setFly} label="Card inspector" hint="Opens the inspector on this part of the card.">
-        {(tabs
-          ? MODAL_ITEMS.filter((item) => tabs.includes(item.id))
-          : MODAL_ITEMS
-        ).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              onOpenModal(item.id);
-              onClose();
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </FlySection>
-
-      {user && !hideAddToDeck && (
-        <>
-          <FlySection id="decks" fly={fly} setFly={setFly} label="Add to deck" hint="Adds one copy to that deck’s maybeboard.">
-            {!decks && <p className={styles.hint}>Loading…</p>}
-            {decks?.length === 0 && <p className={styles.hint}>No decks</p>}
-            {decks?.map((d) => (
-              <button key={d.id} type="button" onClick={() => void addToDeck(d.id)}>
-                {d.name}
-              </button>
-            ))}
-          </FlySection>
-
-          <FlySection id="drawers" fly={fly} setFly={setFly} label="Add to drawer" hint="Saves this card into a drawer.">
-            {!drawers && <p className={styles.hint}>Loading…</p>}
-            {drawers?.length === 0 && <p className={styles.hint}>No drawers</p>}
-            {drawers?.map((d) => (
-              <button key={d.id} type="button" onClick={() => void addToDrawer(d.id)}>
-                {d.name}
-              </button>
-            ))}
-          </FlySection>
-
-          <FlySection id="collections" fly={fly} setFly={setFly} label="Add to collection" hint="Marks this card in a collection.">
-            {!collections && <p className={styles.hint}>Loading…</p>}
-            {collections?.length === 0 && <p className={styles.hint}>No collections</p>}
-            {collections?.map((c) => (
-              <button key={c.id} type="button" onClick={() => void addToCollection(c)}>
-                {c.name}
-              </button>
-            ))}
-          </FlySection>
-        </>
-      )}
-
-      <FlySection id="share" fly={fly} setFly={setFly} label="Share" hint="Copy or save this printing.">
-        <button type="button" onClick={() => void copyImage()}>
-          Copy image
+      {sections.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          className={styles.sectionBtn}
+          onClick={() => setFly(section.id)}
+        >
+          <span>{section.label}</span>
+          <span className={styles.chev} aria-hidden>▸</span>
         </button>
-        <button type="button" onClick={() => void saveImage()}>
-          Save image
-        </button>
-        <button type="button" onClick={() => void copyUrl()}>
-          Copy card page URL
-        </button>
-      </FlySection>
+      ))}
 
       {onRemove && (
         <button
@@ -490,39 +583,9 @@ export function CardContextMenu({
         </button>
       )}
       {status && <p className={styles.hint}>{status}</p>}
+        </>
+      )}
     </div>,
     document.body
-  );
-}
-
-function FlySection({
-  id, fly, setFly, label, hint, children,
-}: {
-  id: Exclude<Flyout, null>;
-  fly: Flyout;
-  setFly: Dispatch<SetStateAction<Flyout>>;
-  label: string;
-  hint: string;
-  children: ReactNode;
-}) {
-  const open = fly === id;
-  return (
-    <>
-      <button
-        type="button"
-        className={`${styles.sectionBtn} ${open ? styles.active : ""}`}
-        aria-expanded={open}
-        onClick={() => setFly(open ? null : id)}
-      >
-        <span>{label}</span>
-        <span className={styles.chev} aria-hidden>{open ? "▾" : "▸"}</span>
-      </button>
-      {open && (
-        <div className={styles.fly}>
-          <p className={styles.sectionHint}>{hint}</p>
-          {children}
-        </div>
-      )}
-    </>
   );
 }
