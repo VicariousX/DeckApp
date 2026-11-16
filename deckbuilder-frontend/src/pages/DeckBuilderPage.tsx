@@ -1778,13 +1778,15 @@ export function DeckBuilderPage() {
           return tag;
         }}
       />
-      <BranchManagerDialog
-        open={branchManagerOpen}
-        deckId={id}
-        tree={branchTree(id)}
-        onClose={() => setBranchManagerOpen(false)}
-        onNewBranch={() => { setBranchManagerOpen(false); setCopyAsk("branch"); }}
-      />
+      {id && (
+        <BranchManagerDialog
+          open={branchManagerOpen}
+          deckId={id}
+          tree={branchTree(id)}
+          onClose={() => setBranchManagerOpen(false)}
+          onNewBranch={() => { setBranchManagerOpen(false); setCopyAsk("branch"); }}
+        />
+      )}
       {copyAsk && (
         <CopyReadyDialog
           title={copyAsk === "branch" ? "Branch this deck?" : "Clone this deck?"}
