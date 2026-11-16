@@ -37,7 +37,7 @@ export function DeckTextView({
             <span className={styles.boardZoneCount}>{board.count}</span>
           </header>
           {board.cards.length === 0 ? (
-            <p className={styles.boardZoneEmpty}>No cards on this board.</p>
+            <p className={styles.boardZoneEmpty}>Add cards to this board.</p>
           ) : (
             <div className={styles.groups}>
               {board.groups.map((g) => {
@@ -105,7 +105,7 @@ export function DeckTextView({
         </section>
       ))}
       {totalCards === 0 && (
-        <p className={styles.empty}>No cards yet. Use the search above to add some.</p>
+        <p className={styles.empty}>Add cards using the search above.</p>
       )}
     </div>
   );
