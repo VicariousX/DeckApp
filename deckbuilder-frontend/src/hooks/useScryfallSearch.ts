@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { apiUrl } from "../lib/apiBase";
 import type { ScryfallCard } from "../types/scryfallCard";
 
-const SCRYFALL_PAUSED = true;
+const SCRYFALL_PAUSED = false;
 
 type SearchJson = {
   data?: ScryfallCard[];
