@@ -16,7 +16,7 @@ export function apiUrl(path: string): string {
 }
 
 /** Direct API origin for WebSockets. Cloudflare Pages cannot proxy the upgrade. */
-const HOSTED_API = "https://deckapp-bwio.onrender.com";
+const HOSTED_API = "https://deckapp-1.onrender.com";
 
 export function tableSocketUrl(room: string, role: "host" | "guest", name: string): string {
   const explicit = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
