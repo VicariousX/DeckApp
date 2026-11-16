@@ -1,4 +1,4 @@
-import { apiUrl } from "../apiBase";
+import { fetchProxiedScryfall } from "../scryfallProxy";
 import { isScryfallPaused, tripScryfallPause } from "../scryfallPause";
 import {
   catalogReady,
@@ -59,29 +59,24 @@ function bulkFileUrl(data: BulkMeta): string | undefined {
 }
 
 async function fetchBulkMeta(type: CatalogFileKind): Promise<BulkMeta> {
-  const paths = [
-    apiUrl(`/api/scryfall/bulk-data/${type}`),
-    `https://api.scryfall.com/bulk-data/${type}`,
-  ];
   let lastErr = `No download URI for ${type}`;
   for (let attempt = 0; attempt < 3; attempt++) {
-    for (const url of paths) {
-      try {
-        const res = await fetch(url);
-        if (res.status === 429) { tripScryfallPause();
-          const wait = 35000 * (attempt + 1);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-        const data = (await res.json()) as BulkMeta & { error?: string };
-        const file = bulkFileUrl(data);
-        if (res.ok && file) {
-          return { ...data, download_uri: file };
-        }
-        lastErr = data.error || lastErr;
-      } catch (e) {
-        lastErr = e instanceof Error ? e.message : lastErr;
+    try {
+      const res = await fetchProxiedScryfall(`/api/scryfall/bulk-data/${type}`);
+      if (res.status === 429) {
+        tripScryfallPause();
+        const wait = 35000 * (attempt + 1);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
       }
+      const data = (await res.json()) as BulkMeta & { error?: string };
+      const file = bulkFileUrl(data);
+      if (res.ok && file) {
+        return { ...data, download_uri: file };
+      }
+      lastErr = data.error || lastErr;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : lastErr;
     }
   }
   throw new Error(lastErr);

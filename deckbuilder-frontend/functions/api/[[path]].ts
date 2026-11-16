@@ -23,20 +23,44 @@ export const onRequest: PagesFunction = async (context) => {
   }
 
   const target = `${BACKEND}${incoming.pathname}${incoming.search}`;
-  const headers = new Headers(context.request.headers);
-  headers.delete("host");
+  // Do not forward the browser's Host or CF-* headers. Render sits behind
+  // Cloudflare too, and those headers make the subrequest return an HTML 502.
+  const headers = new Headers();
+  const accept = context.request.headers.get("accept");
+  headers.set("Accept", accept && !accept.includes("text/html") ? accept : "application/json");
+  headers.set("User-Agent", "DeckApp/1.0");
+  const contentType = context.request.headers.get("content-type");
+  if (contentType) headers.set("Content-Type", contentType);
+  const authorization = context.request.headers.get("authorization");
+  if (authorization) headers.set("Authorization", authorization);
 
-  const init: RequestInit = {
+  const init: RequestInit & { duplex?: "half" } = {
     method: context.request.method,
     headers,
     redirect: "follow",
   };
   if (context.request.method !== "GET" && context.request.method !== "HEAD") {
     init.body = context.request.body;
+    init.duplex = "half";
   }
 
-  const res = await fetch(target, init);
+  let res: Response;
+  try {
+    res = await fetch(target, init);
+  } catch {
+    const headers = corsHeaders(incoming.origin);
+    headers.set("Content-Type", "application/json");
+    return new Response(JSON.stringify({ error: "API unreachable" }), {
+      status: 502,
+      headers,
+    });
+  }
+
   const out = new Headers(res.headers);
+  // The runtime already decoded the body. Leaving these on produces a 502.
+  for (const name of ["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"]) {
+    out.delete(name);
+  }
   out.set("Access-Control-Allow-Origin", incoming.origin || "*");
   return new Response(res.body, { status: res.status, headers: out });
 };

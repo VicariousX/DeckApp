@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { apiUrl } from "../lib/apiBase";
+import { fetchProxiedScryfall } from "../lib/scryfallProxy";
 import { isScryfallPaused, tripScryfallPause } from "../lib/scryfallPause";
 import type { ScryfallCard } from "../types/scryfallCard";
 
@@ -54,8 +54,7 @@ export function useScryfallSearch() {
           qs.set("order", ord);
           qs.set("dir", direction);
         }
-        const url = apiUrl(`/api/scryfall?${qs.toString()}`);
-        const response = await fetch(url);
+        const response = await fetchProxiedScryfall(`/api/scryfall?${qs.toString()}`);
         if (response.status === 429) tripScryfallPause();
         if (!response.ok) {
           const text = await response.text().catch(() => "");

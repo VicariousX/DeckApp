@@ -1,5 +1,5 @@
 import type { ScryfallCard } from "../types/scryfallCard";
-import { apiUrl } from "./apiBase";
+import { fetchProxiedScryfall } from "./scryfallProxy";
 import { enqueue, noteRateLimit } from "./requestQueue";
 import { isScryfallPaused, tripScryfallPause } from "./scryfallPause";
 import {
@@ -37,7 +37,7 @@ export async function fetchRandomCard(): Promise<{
 }> {
   if (isScryfallPaused()) return { card: null, error: "Scryfall paused" };
   try {
-    const res = await fetch(apiUrl("/api/scryfall/random"));
+    const res = await fetchProxiedScryfall("/api/scryfall/random");
     const data = await res.json();
     if (!res.ok) {
       return {
@@ -76,7 +76,7 @@ export async function fetchCardById(
         }
       }
       const res = await enqueue(() =>
-        fetch(apiUrl(`/api/scryfall/card/${encodeURIComponent(id)}`))
+        fetchProxiedScryfall(`/api/scryfall/card/${encodeURIComponent(id)}`)
       );
       if (res.status === 429) { noteRateLimit(); tripScryfallPause(); }
       const data = await res.json();
@@ -134,8 +134,8 @@ export async function fetchRulings(
         return { rulings: local, error: null };
       }
       const q = oracleId ? `?oracle=${encodeURIComponent(oracleId)}` : "";
-      const res = await fetch(
-        apiUrl(`/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`)
+      const res = await fetchProxiedScryfall(
+        `/api/scryfall/rulings/${encodeURIComponent(scryfallId)}${q}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -165,8 +165,8 @@ export async function fetchTokenAutocomplete(
   if (trimmed.length < 2) return { names: [], error: null };
   try {
     const query = `is:token ${trimmed}`;
-    const res = await fetch(
-      apiUrl(`/api/scryfall?q=${encodeURIComponent(query)}`)
+    const res = await fetchProxiedScryfall(
+      `/api/scryfall?q=${encodeURIComponent(query)}`
     );
     const data = await res.json();
     if (!res.ok) {
@@ -191,8 +191,8 @@ export async function fetchAutocomplete(
       const names = await autocompleteLocal(trimmed);
       if (names.length) return { names, error: null };
     }
-    const res = await fetch(
-      apiUrl(`/api/scryfall/autocomplete?q=${encodeURIComponent(trimmed)}`)
+    const res = await fetchProxiedScryfall(
+      `/api/scryfall/autocomplete?q=${encodeURIComponent(trimmed)}`
     );
     const data = await res.json();
     if (!res.ok) {
@@ -218,8 +218,8 @@ export async function fetchNamedCard(
         return { card: local, error: null };
       }
     }
-    const res = await fetch(
-      apiUrl(`/api/scryfall/named?${param}=${encodeURIComponent(name)}`)
+    const res = await fetchProxiedScryfall(
+      `/api/scryfall/named?${param}=${encodeURIComponent(name)}`
     );
     const data = await res.json();
     if (!res.ok) {
@@ -258,8 +258,8 @@ export async function fetchPrintings(
           return { cards: local, error: null };
         }
       }
-      const res = await fetch(
-        apiUrl(`/api/scryfall/prints?oracle_id=${encodeURIComponent(oracleId)}`)
+      const res = await fetchProxiedScryfall(
+        `/api/scryfall/prints?oracle_id=${encodeURIComponent(oracleId)}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -308,7 +308,7 @@ export async function fetchCollectionByIds(
     if (i > 0) await new Promise((r) => setTimeout(r, 600));
     const chunk = missing.slice(i, i + 75);
     try {
-      const res = await fetch(apiUrl("/api/scryfall/collection"), {
+      const res = await fetchProxiedScryfall("/api/scryfall/collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifiers: chunk.map((id) => ({ id })) }),
@@ -341,7 +341,7 @@ export async function fetchCollectionByNames(
   if (names.length === 0) return { cards: [], notFound: [], error: null };
   try {
     const identifiers = names.map((name) => ({ name }));
-    const res = await fetch(apiUrl("/api/scryfall/collection"), {
+    const res = await fetchProxiedScryfall("/api/scryfall/collection", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifiers }),
