@@ -18,8 +18,13 @@ import {
 import { CardInspectorModal } from "../../components/CardInspectorModal";
 import { CardSkinsPanel } from "../../components/CardSkinsPanel";
 import { isProxyAdmin } from "../../lib/proxyAdmin";
+import {
+  isScryfallPaused,
+  onScryfallPauseChange,
+  resetScryfallPause,
+} from "../../lib/scryfallPause";
 
-type AccountSection = "profile" | "skins" | "themes" | "data" | "random" | "password";
+type AccountSection = "profile" | "skins" | "themes" | "data" | "random" | "password" | "scryfall";
 
 function sectionFromSearch(raw: string | null): AccountSection {
   if (
@@ -28,7 +33,8 @@ function sectionFromSearch(raw: string | null): AccountSection {
     raw === "profile" ||
     raw === "skins" ||
     raw === "data" ||
-    raw === "random"
+    raw === "random" ||
+    raw === "scryfall"
   ) {
     return raw;
   }
@@ -54,6 +60,9 @@ export function AccountPanel() {
     readRandomHistory(user.id)
   );
   const [historyCardId, setHistoryCardId] = useState<string | null>(null);
+  const [scryfallPaused, setScryfallPaused] = useState(isScryfallPaused);
+
+  useEffect(() => onScryfallPauseChange(setScryfallPaused), []);
 
   useEffect(() => {
     const next = sectionFromSearch(searchParams.get("tab"));
@@ -198,6 +207,17 @@ export function AccountPanel() {
             <Link to="/proxy-set" className={styles.accountNavBtn}>
               Proxy set
             </Link>
+          )}
+          {isProxyAdmin(user) && (
+            <button
+              type="button"
+              className={`${styles.accountNavBtn} ${
+                section === "scryfall" ? styles.accountNavBtnActive : ""
+              }`}
+              onClick={() => goSection("scryfall")}
+            >
+              Scryfall{scryfallPaused ? " · paused" : ""}
+            </button>
           )}
         </nav>
 
@@ -363,6 +383,33 @@ export function AccountPanel() {
                 }
                 onClose={() => setHistoryCardId(null)}
               />
+            )}
+          </>
+        )}
+
+        {section === "scryfall" && isProxyAdmin(user) && (
+          <>
+            <h1 className={styles.title}>Scryfall</h1>
+            <p className={styles.subtitle}>
+              Kill switch status for this browser. A 429 trips it and blocks further Scryfall calls until reset.
+            </p>
+            <p className={styles.subtitle}>
+              Status:{" "}
+              <strong style={{ color: scryfallPaused ? "var(--color-error, #c44)" : "var(--color-success, #2a6)" }}>
+                {scryfallPaused ? "Paused" : "Active"}
+              </strong>
+            </p>
+            {scryfallPaused && (
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                onClick={() => {
+                  resetScryfallPause();
+                  setInfo("Scryfall kill switch reset.");
+                }}
+              >
+                Reset kill switch
+              </button>
             )}
           </>
         )}
