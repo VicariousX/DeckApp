@@ -1431,7 +1431,12 @@
   font-weight: 650;
 }
 
-/* --- Image layout: commander left of main --- */
+.imageBoard {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
 
 .imageBoardLayout {
   display: flex;

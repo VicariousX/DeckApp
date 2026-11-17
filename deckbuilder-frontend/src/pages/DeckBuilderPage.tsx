@@ -499,6 +499,17 @@ export function DeckBuilderPage() {
       label: b.label,
       group: "Boards",
     }));
+    if ((groupMode === "type" || groupMode === "tag") && detail) {
+      for (const section of boardSections) {
+        for (const g of section.groups) {
+          zones.push({
+            id: groupDropId(section.id, g.key),
+            label: g.label,
+            group: section.label,
+          });
+        }
+      }
+    }
     if (groupMode === "none" && detail) {
       for (const b of BOARDS) {
         const layout =
@@ -513,7 +524,7 @@ export function DeckBuilderPage() {
       }
     }
     return zones;
-  }, [groupMode, detail, listLayouts]);
+  }, [groupMode, detail, listLayouts, boardSections]);
 
   const tokenCards: DeckCard[] = useMemo(() => {
     if (!detail) return [];

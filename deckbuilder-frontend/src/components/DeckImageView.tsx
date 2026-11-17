@@ -1,14 +1,18 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import {
   ImageDndProvider,
   DroppableRegion,
   DraggableStackCard,
   boardDropId,
+  groupDropId,
+  listColDropId,
   stopDndPropagation,
   type MobileDropZone,
   type DropTarget,
 } from "./ImageDeckDnd";
+import { RateLimitedImg } from "./RateLimitedImg";
 import { StackCards } from "./StackCards";
+import { isBasicLand } from "../lib/deck/boardHelpers";
 import type { DeckCard, DeckBoard } from "../types/deck";
 import type { ListColumnLayout } from "../lib/deckPreferences";
 import { getListColumnLayout } from "../lib/deckPreferences";
@@ -44,12 +48,119 @@ type Props = {
   faceView: Record<string, "front" | "back">;
 };
 
+function cardsInColumn(
+  cards: DeckCard[],
+  layout: ListColumnLayout,
+  colId: string,
+  isFirst: boolean
+) {
+  const ids = new Set(layout.columns.map((c) => c.id));
+  return cards.filter((c) => {
+    const placed = layout.placement[c.id];
+    if (placed && ids.has(placed)) return placed === colId;
+    return isFirst;
+  });
+}
+
 export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
   issuesByOracle, mobileDropZones, tokenCards, stackImageSrc, looksMultiFace,
   onImageCardTap, openCardModal, onCardContext, onQty, toggleStackFace,
   handleImageDrop, faceView,
 }: Props) {
+  function renderCard(c: DeckCard, index: number | undefined, variant: "stack" | "grid" | "commander") {
+    const src = stackImageSrc(c);
+    const illegal = issuesByOracle.has(c.oracle_id.toLowerCase());
+    const frame =
+      variant === "commander" ? styles.commanderCard :
+      variant === "grid" ? styles.gridCard :
+      styles.stackCard;
+    const imgClass =
+      variant === "commander" ? styles.commanderCardImg :
+      variant === "grid" ? styles.gridCardImg :
+      styles.stackCardImg;
+    return (
+      <DraggableStackCard
+        key={c.id}
+        card={c}
+        stackIndex={variant === "stack" ? index : undefined}
+        disabled={!isOwner}
+        className={`${frame}${illegal ? ` ${styles.stackIllegal}` : ""}`}
+        onClick={(e) => {
+          if (isMobile) {
+            onImageCardTap(c, e.currentTarget as HTMLElement);
+            return;
+          }
+          openCardModal(c);
+        }}
+        onContextMenu={(e) => {
+          if (isMobile) { e.preventDefault(); return; }
+          onCardContext(e, c);
+        }}
+      >
+        <div className={styles.stackCardLink} title={c.name}>
+          {src ? (
+            <RateLimitedImg
+              src={src}
+              alt={c.name}
+              className={imgClass}
+              loading="lazy"
+              draggable={false}
+            />
+          ) : (
+            <div className={variant === "stack" ? styles.stackCardPlaceholder : imgClass}>{c.name}</div>
+          )}
+        </div>
+        {c.quantity > 1 && <span className={styles.stackQty}>×{c.quantity}</span>}
+        {looksMultiFace(c) && (
+          <button
+            type="button"
+            className={styles.stackFlipBtn}
+            onClick={(e) => { e.stopPropagation(); toggleStackFace(c, e); }}
+          >
+            {faceView[c.id] === "back" ? "Front" : "Back"}
+          </button>
+        )}
+        {isOwner && isBasicLand(c) && (
+          <div className={styles.stackCardControls}>
+            <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, -1); }}>−</button>
+            <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, 1); }}>+</button>
+          </div>
+        )}
+      </DraggableStackCard>
+    );
+  }
+
+  function renderStacks(columns: { key: string; label: string; cards: DeckCard[]; dropId: string }[]) {
+    return (
+      <div className={styles.stacksRow}>
+        {columns.map((col) => (
+          <DroppableRegion
+            key={col.key}
+            id={col.dropId}
+            className={styles.stackColumn}
+            activeClassName={styles.stackColumnDropActive}
+            disabled={!isOwner}
+          >
+            <header className={styles.stackHeader}>
+              <h3 className={styles.stackTitle}>{col.label}</h3>
+              <span className={styles.stackCount}>
+                {col.cards.reduce((n, c) => n + c.quantity, 0)}
+              </span>
+            </header>
+            {col.cards.length === 0 ? (
+              <p className={styles.boardZoneEmpty}>Empty</p>
+            ) : (
+              <StackCards count={col.cards.length}>
+                {col.cards.map((c, i) => renderCard(c, i, "stack"))}
+              </StackCards>
+            )}
+          </DroppableRegion>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <ImageDndProvider
       enabled={isOwner && panel === "deck"}
@@ -57,7 +168,9 @@ export function DeckImageView({
       mobileZones={mobileDropZones}
       onDropCard={handleImageDrop}
       renderOverlay={(cardId) => {
-        const c = tokenCards.find((x) => x.id === cardId);
+        const c =
+          displaySections.flatMap((s) => s.cards).find((x) => x.id === cardId) ??
+          tokenCards.find((x) => x.id === cardId);
         if (!c) return null;
         if (isMobile) {
           return (
@@ -68,7 +181,7 @@ export function DeckImageView({
         }
         const src = stackImageSrc(c);
         return src ? (
-          <img src={src} alt={c.name} className={styles.dndOverlayImg} draggable={false} />
+          <RateLimitedImg src={src} alt={c.name} className={styles.dndOverlayImg} draggable={false} />
         ) : (
           <div className={styles.stackCardPlaceholder}>{c.name}</div>
         );
@@ -77,7 +190,6 @@ export function DeckImageView({
       <div className={styles.imageBoardLayout}>
         {displaySections.map((board) => {
           const isCommander = panel === "deck" && board.id === "commander";
-          const useListCols = groupMode === "none";
           const layout = listLayouts[board.id] ?? getListColumnLayout(deckId, board.id);
 
           if (isCommander) {
@@ -95,49 +207,38 @@ export function DeckImageView({
                   <span className={styles.boardZoneCount}>{board.count}</span>
                 </header>
                 <div className={styles.commanderSlotCards}>
-                  {board.cards.slice(0, 3).map((c, cardIdx) => {
-                    const src = stackImageSrc(c);
-                    return (
-                      <DraggableStackCard
-                        key={c.id}
-                        card={c}
-                        disabled={!isOwner}
-                        className={`${styles.commanderCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
-                        style={{ zIndex: cardIdx + 1 }}
-                        onClick={(e) => {
-                          if (isMobile) {
-                            onImageCardTap(c, e.currentTarget as HTMLElement);
-                            return;
-                          }
-                          openCardModal(c);
-                        }}
-                        onContextMenu={(e) => {
-                          if (isMobile) { e.preventDefault(); return; }
-                          onCardContext(e, c);
-                        }}
-                      >
-                        <div className={styles.stackCardLink} title={c.name}>
-                          {src ? (
-                            <img src={src} alt={c.name} className={styles.commanderCardImg} loading="lazy" draggable={false} />
-                          ) : (
-                            <div className={styles.stackCardPlaceholder}>{c.name}</div>
-                          )}
-                        </div>
-                        {c.quantity > 1 && <span className={styles.stackQty}>×{c.quantity}</span>}
-                        {looksMultiFace(c) && (
-                          <button
-                            type="button"
-                            className={styles.faceFlip}
-                            onClick={(e) => { e.stopPropagation(); toggleStackFace(c, e); }}
-                          >
-                            {faceView[c.id] === "back" ? "Front" : "Back"}
-                          </button>
-                        )}
-                      </DraggableStackCard>
-                    );
-                  })}
+                  {board.cards.slice(0, 3).map((c) => renderCard(c, undefined, "commander"))}
                 </div>
               </DroppableRegion>
+            );
+          }
+
+          let body: ReactNode;
+          if (board.cards.length === 0) {
+            body = <p className={styles.boardZoneEmpty}>No cards on this board.</p>;
+          } else if (groupMode === "grid") {
+            body = (
+              <div className={styles.imageGrid}>
+                {board.cards.map((c) => renderCard(c, undefined, "grid"))}
+              </div>
+            );
+          } else if (groupMode === "none") {
+            body = renderStacks(
+              layout.columns.map((col, i) => ({
+                key: col.id,
+                label: col.name,
+                cards: cardsInColumn(board.cards, layout, col.id, i === 0),
+                dropId: listColDropId(board.id, col.id),
+              }))
+            );
+          } else {
+            body = renderStacks(
+              board.groups.map((g) => ({
+                key: g.key,
+                label: g.label,
+                cards: g.cards,
+                dropId: groupDropId(board.id, g.key),
+              }))
             );
           }
 
@@ -146,98 +247,15 @@ export function DeckImageView({
               key={board.id}
               id={boardDropId(board.id)}
               dataBoard={board.id}
-              className={styles.stackColumn}
+              className={styles.imageBoard}
               activeClassName={styles.stackColumnDropActive}
               disabled={!isOwner}
             >
-              <header className={styles.stackColumnHeader}>
-                <h2 className={styles.stackColumnTitle}>{board.label}</h2>
-                <span className={styles.boardZoneCount}>{board.count}</span>
+              <header className={styles.stackHeader}>
+                <h2 className={styles.stackTitle}>{board.label}</h2>
+                <span className={styles.stackCount}>{board.count}</span>
               </header>
-              {board.cards.length === 0 ? (
-                <p className={styles.boardZoneEmpty}>No cards on this board.</p>
-              ) : useListCols ? (
-                <div className={styles.listCols}>
-                  {layout.columns.map((col) => (
-                    <section key={col.id} className={styles.listCol}>
-                      <h3 className={styles.listColTitle}>{col.name}</h3>
-                      <StackCards count={board.cards.filter((c) => (layout.placement[c.id] ?? "col-default") === col.id).length}>
-                        {board.cards.filter((c) => (layout.placement[c.id] ?? "col-default") === col.id).map((c) => {
-                          const src = stackImageSrc(c);
-                          return (
-                            <DraggableStackCard
-                              key={c.id}
-                              card={c}
-                              disabled={!isOwner}
-                              className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
-                              onClick={(e) => {
-                                if (isMobile) { onImageCardTap(c, e.currentTarget as HTMLElement); return; }
-                                openCardModal(c);
-                              }}
-                              onContextMenu={(e) => {
-                                if (isMobile) { e.preventDefault(); return; }
-                                onCardContext(e, c);
-                              }}
-                            >
-                              <div className={styles.stackCardLink} title={c.name}>
-                                {src ? (
-                                  <img src={src} alt={c.name} className={styles.stackCardImg} loading="lazy" draggable={false} />
-                                ) : (
-                                  <div className={styles.stackCardPlaceholder}>{c.name}</div>
-                                )}
-                              </div>
-                              {c.quantity > 1 && <span className={styles.stackQty}>×{c.quantity}</span>}
-                              {isOwner && (
-                                <div className={styles.stackQtyControls}>
-                                  <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, -1); }}>−</button>
-                                  <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, 1); }}>+</button>
-                                </div>
-                              )}
-                            </DraggableStackCard>
-                          );
-                        })}
-                      </StackCards>
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                <StackCards count={board.cards.length}>
-                  {board.cards.map((c) => {
-                    const src = stackImageSrc(c);
-                    return (
-                      <DraggableStackCard
-                        key={c.id}
-                        card={c}
-                        disabled={!isOwner}
-                        className={`${styles.stackCard}${issuesByOracle.has(c.oracle_id.toLowerCase()) ? ` ${styles.stackIllegal}` : ""}`}
-                        onClick={(e) => {
-                          if (isMobile) { onImageCardTap(c, e.currentTarget as HTMLElement); return; }
-                          openCardModal(c);
-                        }}
-                        onContextMenu={(e) => {
-                          if (isMobile) { e.preventDefault(); return; }
-                          onCardContext(e, c);
-                        }}
-                      >
-                        <div className={styles.stackCardLink} title={c.name}>
-                          {src ? (
-                            <img src={src} alt={c.name} className={styles.stackCardImg} loading="lazy" draggable={false} />
-                          ) : (
-                            <div className={styles.stackCardPlaceholder}>{c.name}</div>
-                          )}
-                        </div>
-                        {c.quantity > 1 && <span className={styles.stackQty}>×{c.quantity}</span>}
-                        {isOwner && (
-                          <div className={styles.stackQtyControls}>
-                            <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, -1); }}>−</button>
-                            <button type="button" className={styles.stackQtyBtn} onClick={(e) => { e.stopPropagation(); stopDndPropagation(e); void onQty(c, 1); }}>+</button>
-                          </div>
-                        )}
-                      </DraggableStackCard>
-                    );
-                  })}
-                </StackCards>
-              )}
+              {body}
             </DroppableRegion>
           );
         })}

@@ -98,18 +98,18 @@ const deckCollision: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args);
   if (pointerHits.length > 0) {
     const id = (h: { id: string | number }) => String(h.id);
+    const cards = pointerHits.filter((h) => id(h).startsWith("card:"));
+    if (cards.length > 0) return cards;
     const listCols = pointerHits.filter(
       (h) => id(h).startsWith("listcol:") && !id(h).startsWith("listcol-new:")
     );
     if (listCols.length > 0) return listCols;
-    const boards = pointerHits.filter((h) => id(h).startsWith("board:"));
-    if (boards.length > 0) return boards;
-    const cards = pointerHits.filter((h) => id(h).startsWith("card:"));
-    if (cards.length > 0) return cards;
-    const listNew = pointerHits.filter((h) => id(h).startsWith("listcol-new:"));
-    if (listNew.length > 0) return listNew;
     const groups = pointerHits.filter((h) => id(h).startsWith("group:"));
     if (groups.length > 0) return groups;
+    const listNew = pointerHits.filter((h) => id(h).startsWith("listcol-new:"));
+    if (listNew.length > 0) return listNew;
+    const boards = pointerHits.filter((h) => id(h).startsWith("board:"));
+    if (boards.length > 0) return boards;
     return pointerHits;
   }
   return closestCenter(args);
