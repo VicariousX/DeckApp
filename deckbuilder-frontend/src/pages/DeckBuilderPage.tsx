@@ -1783,11 +1783,14 @@ export function DeckBuilderPage() {
                         listLayouts[board.id] ?? getListColumnLayout(detail.deck.id, board.id);
                       return {
                         ...board,
-                        groups: layout.columns.map((col, i) => ({
-                          key: col.id,
-                          label: col.name,
-                          cards: cardsForListColumn(board.cards, board.id, col.id, i === 0),
-                        })),
+                        groups:
+                          board.id === "commander"
+                            ? [{ key: "commander", label: "", cards: board.cards }]
+                            : layout.columns.map((col, i) => ({
+                                key: col.id,
+                                label: col.name,
+                                cards: cardsForListColumn(board.cards, board.id, col.id, i === 0),
+                              })),
                       };
                     })
                   : displaySections

@@ -470,10 +470,13 @@
 
 .groupsColumns {
   display: flex;
+  flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-start;
   gap: 0.75rem;
   overflow-x: auto;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   padding-bottom: 0.35rem;
 }
@@ -481,7 +484,9 @@
 .listCol {
   flex: 0 0 280px;
   width: 280px;
-  min-height: 4.5rem;
+  max-width: 280px;
+  min-height: 0;
+  height: auto;
 }
 
 .listColHead {
@@ -1244,10 +1249,36 @@
 /* --- Multi-board zones --- */
 
 .boardZones {
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-areas:
+    "commander main"
+    "side side"
+    "maybe maybe";
   gap: 1.1rem;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+.boardZones > [data-board="commander"] {
+  grid-area: commander;
+  max-width: 220px;
+}
+
+.boardZones > [data-board="main"] {
+  grid-area: main;
+  min-width: 0;
+}
+
+.boardZones > [data-board="side"] {
+  grid-area: side;
+  min-width: 0;
+}
+
+.boardZones > [data-board="maybe"] {
+  grid-area: maybe;
+  min-width: 0;
 }
 
 .boardZoneEmpty {
@@ -1557,9 +1588,12 @@
 
 .imageBoard {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  overflow: hidden;
 }
 
 .imageBoardLayout {
@@ -1582,7 +1616,7 @@
 @supports (display: grid) {
   .imageBoardLayout {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 200px minmax(0, 1fr);
     grid-template-areas:
       "commander main"
       "side side"
@@ -1591,6 +1625,7 @@
     align-items: start;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
   }
 
   .imageBoardLayout > [data-board="commander"] {
@@ -1611,8 +1646,9 @@
 }
 
 .commanderSlot {
-  width: min(200px, 28vw);
-  min-width: 148px;
+  width: 100%;
+  max-width: 200px;
+  min-width: 0;
   padding: 0.85rem 0.75rem 1rem;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));

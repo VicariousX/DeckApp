@@ -58,7 +58,7 @@ export function DeckTextView({
             <h2 className={styles.boardZoneTitle}>{board.label}</h2>
             <span className={styles.boardZoneCount}>{board.count}</span>
           </header>
-          {board.cards.length === 0 && groupMode !== "none" ? (
+          {board.cards.length === 0 && (groupMode !== "none" || board.id === "commander") ? (
             <p className={styles.boardZoneEmpty}>
               {board.id === "commander"
                 ? "Choose a commander with the field above."
@@ -67,12 +67,13 @@ export function DeckTextView({
                   : "Add cards to this board."}
             </p>
           ) : (
-            <div className={groupMode === "none" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
+            <div className={groupMode === "none" && board.id !== "commander" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
               {board.groups.map((g) => {
                 const count = g.cards.reduce((n, c) => n + c.quantity, 0);
+                const columnar = groupMode === "none" && board.id !== "commander";
                 const column = (
                   <>
-                    {groupMode === "none" ? (
+                    {columnar ? (
                       <header className={styles.listColHead}>
                         {isOwner ? (
                           <input
@@ -103,14 +104,14 @@ export function DeckTextView({
                       </h3>
                     ) : null}
                     {g.cards.length === 0 ? (
-                      <p className={styles.boardZoneEmpty}>{groupMode === "none" ? "Drop cards here" : "Empty"}</p>
+                      <p className={styles.boardZoneEmpty}>{columnar ? "Drop cards here" : "Empty"}</p>
                     ) : (
                       <ul className={styles.cardList}>
                         {g.cards.map((c) => (
                           <TextRow
                             key={c.id}
                             card={c}
-                            drag={Boolean(dragList)}
+                            drag={Boolean(dragList) && columnar}
                             illegal={issuesByOracle.has(c.oracle_id.toLowerCase())}
                             open={expandedId === c.id}
                             oracle={oracleById[c.id]}
@@ -126,9 +127,9 @@ export function DeckTextView({
                     )}
                   </>
                 );
-                if (groupMode !== "none" || !isOwner) {
+                if (!columnar || !isOwner) {
                   return (
-                    <div key={`${board.id}-${g.key}`} className={`${styles.group}${groupMode === "none" ? ` ${styles.listCol}` : ""}`}>
+                    <div key={`${board.id}-${g.key}`} className={`${styles.group}${columnar ? ` ${styles.listCol}` : ""}`}>
                       {column}
                     </div>
                   );
@@ -145,7 +146,7 @@ export function DeckTextView({
                   </DroppableRegion>
                 );
               })}
-              {groupMode === "none" && isOwner ? (
+              {columnar && isOwner ? (
                 <DroppableRegion
                   id={listColNewDropId(board.id)}
                   className={styles.listColAddWrap}
