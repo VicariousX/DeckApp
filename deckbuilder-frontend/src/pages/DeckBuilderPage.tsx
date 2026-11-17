@@ -177,7 +177,7 @@ export function DeckBuilderPage() {
     tokens: getTabViewPrefs("tokens"),
   }));
   const viewKey: BuilderTabKey = panel === "tokens" ? "tokens" : "deck";
-  const groupMode = tabPrefs[viewKey].group as GroupMode;
+  const storedGroupMode = tabPrefs[viewKey].group as GroupMode;
   const viewMode = tabPrefs[viewKey].view;
   const cardSort = tabPrefs[viewKey].sort;
   const sortDir = tabPrefs[viewKey].sortDir;
@@ -192,6 +192,8 @@ export function DeckBuilderPage() {
   const [tokenBusy, setTokenBusy] = useState(false);
   const isMobile = useIsMobile();
   const compact = useIsMobile(900);
+  const [mobileGroup, setMobileGroup] = useState<GroupMode | null>(null);
+  const groupMode: GroupMode = compact ? (mobileGroup ?? "type") : storedGroupMode;
   const [expandedOracleId, setExpandedOracleId] = useState<string | null>(null);
   const [oracleCache, setOracleCache] = useState<Record<string, string>>({});
   const [oracleFace, setOracleFace] = useState<Record<string, "text" | "image">>({});
@@ -383,6 +385,10 @@ export function DeckBuilderPage() {
   }
 
   function changeGroupMode(mode: GroupMode) {
+    if (compact) {
+      setMobileGroup(mode);
+      return;
+    }
     patchTab({ group: mode as DeckGroupMode });
   }
 
@@ -1237,6 +1243,18 @@ export function DeckBuilderPage() {
     }
 
     if (target.kind === "board") {
+      if (
+        groupMode === "none" &&
+        target.board !== "commander" &&
+        source.board === target.board
+      ) {
+        void (async () => {
+          await ensureBoardThen(source, target.board, () => {
+            createColumnAndPlace(target.board, source.id);
+          });
+        })();
+        return;
+      }
       if (source.board !== target.board) {
         void moveCardToBoard(source, target.board);
       }
@@ -1875,7 +1893,14 @@ export function DeckBuilderPage() {
               expandedId={expandedOracleId}
               oracleById={oracleCache}
               imageFor={(c) => imageUrls[c.id]}
-              onToggleOracle={(c) => setScrollId(c.id)}
+              onToggleOracle={(c) => {
+                if (isMobile) {
+                  if (expandedOracleId === c.id) setScrollId(c.id);
+                  else void toggleOracle(c);
+                  return;
+                }
+                setScrollId(c.id);
+              }}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
               onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}

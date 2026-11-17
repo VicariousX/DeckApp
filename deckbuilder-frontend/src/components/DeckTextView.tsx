@@ -62,6 +62,11 @@ export function DeckTextView({
             <span className={styles.stackCount}>{board.count}</span>
           </header>
           )}
+          {commander && (
+            <span className={styles.zoneLabel}>
+              {board.count > 1 ? "Commanders" : "Commander"}
+            </span>
+          )}
           {board.cards.length === 0 && (groupMode !== "none" || board.id === "commander") ? (
             <p className={styles.boardZoneEmpty}>
               {board.id === "commander"
@@ -171,7 +176,7 @@ export function DeckTextView({
                     aria-label="Add column"
                     onClick={() => onAddColumn?.(board.id)}
                   >
-                    +
+                    + New list
                   </button>
                 </DroppableRegion>
               ) : null}

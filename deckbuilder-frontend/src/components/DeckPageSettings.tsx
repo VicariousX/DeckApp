@@ -7,6 +7,7 @@ import {
 } from "../lib/deckPageControls";
 import type { CardSortKey } from "../lib/deckPreferences";
 import { getDeckScrollText, onDeckScrollText, setDeckScrollText } from "../lib/deckScrollPreference";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useEffect, useState } from "react";
 import styles from "./SettingsDrawer.module.css";
 
@@ -27,6 +28,7 @@ const SORTS: [CardSortKey, string][] = [
 
 export function DeckPageSettings() {
   const controls = useSyncExternalStore(subscribeDeckPageControls, getDeckPageControls, getDeckPageControls);
+  const narrow = useIsMobile(900);
   const [textScroll, setTextScroll] = useState(getDeckScrollText);
   const [historyOpen, setHistoryOpen] = useState(false);
   useEffect(() => onDeckScrollText(() => setTextScroll(getDeckScrollText())), []);
@@ -44,6 +46,7 @@ export function DeckPageSettings() {
       </label>
       {controls && (
         <>
+          {narrow && (
           <div>
             <div className={styles.sectionTitle}>Arrange</div>
             <div className={styles.pills} style={{ flexWrap: "wrap" }}>
@@ -59,6 +62,7 @@ export function DeckPageSettings() {
               ))}
             </div>
           </div>
+          )}
           <div className={styles.row}>
             <span>Sort</span>
             <span className={styles.pills}>

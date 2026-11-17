@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import {
   ImageDndProvider,
   DroppableRegion,
@@ -74,6 +75,14 @@ export function DeckImageView({
   onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
+  const peekId = useRef<string | null>(null);
+  useEffect(() => {
+    function clearPeek() {
+      peekId.current = null;
+    }
+    window.addEventListener("deckapp:unreveal", clearPeek);
+    return () => window.removeEventListener("deckapp:unreveal", clearPeek);
+  }, []);
   function renderCard(c: DeckCard, index: number | undefined, variant: "stack" | "grid" | "commander") {
     const src = stackImageSrc(c);
     const illegal = issuesByOracle.has(c.oracle_id.toLowerCase());
@@ -92,7 +101,15 @@ export function DeckImageView({
         stackIndex={variant === "stack" ? index : undefined}
         disabled={!isOwner}
         className={`${frame}${illegal ? ` ${styles.stackIllegal}` : ""}`}
-        onClick={() => onOpenScroll(c)}
+        onClick={() => {
+          if (isMobile && variant === "stack") {
+            if (peekId.current !== c.id) {
+              peekId.current = c.id;
+              return;
+            }
+          }
+          onOpenScroll(c);
+        }}
         onContextMenu={(e) => {
           if (isMobile) { e.preventDefault(); return; }
           onCardContext(e, c);
@@ -153,7 +170,7 @@ export function DeckImageView({
             {col.cards.length === 0 ? (
               <p className={styles.boardZoneEmpty}>Empty</p>
             ) : (
-              <StackCards count={col.cards.length}>
+              <StackCards count={col.cards.length} lockOnTap={isMobile}>
                 {col.cards.map((c, i) => renderCard(c, i, "stack"))}
               </StackCards>
             )}
@@ -206,6 +223,9 @@ export function DeckImageView({
                 disabled={!isOwner}
               >
                 <div className={styles.commanderSlotCards}>
+                  <p className={styles.commanderZoneLabel}>
+                    {board.count > 1 ? "Commanders" : "Commander"}
+                  </p>
                   {board.cards.slice(0, 3).map((c) => renderCard(c, undefined, "commander"))}
                 </div>
               </DroppableRegion>
@@ -264,7 +284,7 @@ export function DeckImageView({
                       {cards.length === 0 ? (
                         <p className={styles.boardZoneEmpty}>Drop cards here</p>
                       ) : (
-                        <StackCards count={cards.length}>
+                        <StackCards count={cards.length} lockOnTap={isMobile}>
                           {cards.map((c, idx) => renderCard(c, idx, "stack"))}
                         </StackCards>
                       )}
