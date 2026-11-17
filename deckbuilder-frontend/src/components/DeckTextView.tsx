@@ -68,9 +68,12 @@ export function DeckTextView({
             </p>
           ) : (
             <div className={groupMode === "none" && board.id !== "commander" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
+              {(() => {
+                const columnar = groupMode === "none" && board.id !== "commander";
+                return (
+                  <>
               {board.groups.map((g) => {
                 const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                const columnar = groupMode === "none" && board.id !== "commander";
                 const column = (
                   <>
                     {columnar ? (
@@ -162,6 +165,9 @@ export function DeckTextView({
                   </button>
                 </DroppableRegion>
               ) : null}
+                  </>
+                );
+              })()}
             </div>
           )}
         </section>
