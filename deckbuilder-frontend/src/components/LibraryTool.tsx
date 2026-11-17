@@ -42,7 +42,7 @@ export function LibraryTool(props: Props) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("import");
-  const { panelRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(
+  const { panelRef, anchorRef, panelStyle, onHandlePointerDown, onResizePointerDown } = useDraggablePanel(
     open && !isMobile,
     { w: 480, h: 640 }
   );
@@ -94,11 +94,13 @@ export function LibraryTool(props: Props) {
 
   return (
     <>
-      <button type="button" className={styles.trigger} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        Bulk tools
-      </button>
+      <div className={styles.anchor} ref={anchorRef}>
+        <button type="button" className={styles.trigger} data-bulk-tools aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          Bulk Tools
+        </button>
+      </div>
       {open && isMobile && (
-        <BottomSheet open onClose={() => setOpen(false)} title="Bulk tools">
+        <BottomSheet open onClose={() => setOpen(false)} title="Bulk Tools">
           {body}
         </BottomSheet>
       )}
@@ -106,7 +108,7 @@ export function LibraryTool(props: Props) {
         createPortal(
           <div className={styles.panel} ref={panelRef} style={panelStyle}>
             <div className={styles.head} onPointerDown={onHandlePointerDown}>
-              <span>Bulk tools</span>
+              <span>Bulk Tools</span>
               <button type="button" className={styles.close} data-no-drag aria-label="Close" onClick={() => setOpen(false)}>
                 ×
               </button>

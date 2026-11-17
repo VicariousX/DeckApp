@@ -2158,11 +2158,31 @@
     width: 9rem;
     max-width: 9rem;
   }
-  .composer .groupToggle {
+  .composer .toolbarView {
     margin-left: auto;
   }
-  .composer .toolbarView {
-    margin-left: 0;
+  .composer {
+    gap: 0.1rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  }
+  .composer .input,
+  .composer .addRowBtn,
+  .composer .groupBtn,
+  .composer .groupToggle,
+  .composer [data-bulk-tools] {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+  .composer .groupBtnActive {
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+  .composer [data-bulk-tools][aria-expanded="true"] {
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+    color: var(--color-accent);
   }
 }
 

@@ -45,9 +45,13 @@ export function useDraggablePanel(
     }
     // Pin under trigger in viewport space when opening
     const anchor = anchorRef.current;
+    const w = defaults?.w ?? 380;
     if (anchor) {
       const r = anchor.getBoundingClientRect();
-      setOffset({ x: r.left, y: r.bottom + 6 });
+      const x = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
+      setOffset({ x, y: r.bottom + 6 });
+    } else {
+      setOffset({ x: Math.max(8, window.innerWidth - w - 24), y: 72 });
     }
     if (defaults?.w || defaults?.h) {
       setSize({
