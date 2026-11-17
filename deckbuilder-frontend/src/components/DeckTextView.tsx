@@ -69,7 +69,13 @@ export function DeckTextView({
                   : "Add cards to this board."}
             </p>
           ) : (
-            <div className={groupMode === "none" && board.id !== "commander" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
+            <div className={
+              groupMode === "none" && board.id !== "commander"
+                ? `${styles.groups} ${styles.groupsColumns}`
+                : (groupMode === "type" || groupMode === "tag") && board.id !== "commander"
+                  ? `${styles.groups} ${styles.groupsSpread}`
+                  : styles.groups
+            }>
               {(() => {
                 const columnar = groupMode === "none" && board.id !== "commander";
                 return (
