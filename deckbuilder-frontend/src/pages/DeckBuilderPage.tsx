@@ -117,7 +117,9 @@ import { DeckTagsPanel } from "../components/DeckTagsPanel";
 import { DeckInspectorHost } from "../components/DeckInspectorHost";
 import { DeckScrollStage } from "../components/DeckScrollStage";
 import { registerSettings } from "../components/SettingsDrawer";
-import { getDeckScrollText, onDeckScrollText, setDeckScrollText } from "../lib/deckScrollPreference";
+import { DeckPageSettings } from "../components/DeckPageSettings";
+import { publishDeckPageControls } from "../lib/deckPageControls";
+import { getDeckScrollText, onDeckScrollText } from "../lib/deckScrollPreference";
 import { BranchManagerDialog } from "../components/BranchManagerDialog";
 import { QtyControl } from "../components/QtyControl";
 import { CardTagPicker } from "../components/CardTagPicker";
@@ -189,6 +191,7 @@ export function DeckBuilderPage() {
 
   const [tokenBusy, setTokenBusy] = useState(false);
   const isMobile = useIsMobile();
+  const compact = useIsMobile(900);
   const [expandedOracleId, setExpandedOracleId] = useState<string | null>(null);
   const [oracleCache, setOracleCache] = useState<Record<string, string>>({});
   const [oracleFace, setOracleFace] = useState<Record<string, "text" | "image">>({});
@@ -228,7 +231,7 @@ export function DeckBuilderPage() {
       if (!pathname.startsWith("/deck/")) return null;
       return {
         title: "Deck",
-        content: <DeckScrollSetting />,
+        content: <DeckPageSettings />,
       };
     });
   }, []);
@@ -1502,6 +1505,52 @@ export function DeckBuilderPage() {
     void loadDeck({ silent: true });
   }
 
+  useEffect(() => {
+    if (!detail || !id) {
+      publishDeckPageControls(null);
+      return;
+    }
+    publishDeckPageControls({
+      viewMode,
+      groupMode,
+      cardSort,
+      sortDir,
+      formatId: detail.deck.format,
+      formats: [
+        ...BUILTIN_FORMATS.map((f) => ({ id: f.id, name: f.name })),
+        ...houseFormats.map((f) => ({ id: `house:${f.id}`, name: f.name })),
+      ],
+      isOwner,
+      tools: compact && panel === "deck" ? (
+        <DeckToolRow
+          isOwner={isOwner}
+          deckName={detail.deck.name}
+          cards={detail.cards}
+          deckTokens={deckTokens}
+          commanderColorIdentity={commanderColorIdentity}
+          deckQtyByOracle={deckQtyByOracle}
+          exportSections={exportSections}
+          onBulkImport={onBulkImport}
+          onAddFromDrawer={(c) => void onAddFromDrawer(c)}
+          onAdjustFromDrawer={(c, d) => void onAdjustFromDrawer(c, d)}
+          onApplyDrawer={onApplyDrawer}
+        />
+      ) : null,
+      setGroup: changeGroupMode,
+      setSort: (sort) => patchTab({ sort }),
+      setDir: (dir) => patchTab({ sortDir: dir }),
+      setFormat: (format) => {
+        void updateDeck(id, { format }).then(({ deck, error: err }) => {
+          if (err || !deck) {
+            setError(err ?? "Could not update format");
+            return;
+          }
+          setDetail((prev) => (prev ? { ...prev, deck } : prev));
+        });
+      },
+    });
+  });
+
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
   }
@@ -1598,7 +1647,7 @@ export function DeckBuilderPage() {
                 <span className={styles.format}>{formatRule.name}</span>
                 {isOwner && (
                   <select
-                    className={styles.quietSelect}
+                    className={`${styles.quietSelect} ${styles.formatPick}`}
                     value={detail.deck.format}
                     aria-label="Format"
                     onChange={(e) => {
@@ -1713,7 +1762,7 @@ export function DeckBuilderPage() {
                   onClose={() => setSearchOpen(false)}
                 />
               )}
-              {panel === "deck" && (
+              {panel === "deck" && !compact && (
                 <DeckToolRow
                   isOwner={isOwner}
                   deckName={detail.deck.name}
@@ -1942,21 +1991,5 @@ export function DeckBuilderPage() {
         y={hoverPos.y}
       />
     </div>
-  );
-}
-
-function DeckScrollSetting() {
-  const [on, setOn] = useState(getDeckScrollText);
-  useEffect(() => onDeckScrollText(() => setOn(getDeckScrollText())), []);
-  return (
-    <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.88rem" }}>
-      <input
-        type="checkbox"
-        checked={on}
-        onChange={(e) => setDeckScrollText(e.target.checked)}
-        style={{ marginTop: 3 }}
-      />
-      <span>Scroll view shows oracle text and stats instead of the card image.</span>
-    </label>
   );
 }

@@ -35,7 +35,7 @@ export function DeckToolbar({
   const groupOptions = GROUP_OPTIONS.filter(([mode]) => viewMode === "image" || mode !== "grid");
   return (
     <div className={styles.toolbar}>
-      <div className={styles.groupToggle} role="group" aria-label="Group by">
+      <div className={`${styles.groupToggle} ${styles.toolbarDesk}`} role="group" aria-label="Group by">
         {groupOptions.map(([mode, label]) => (
           <button
             key={mode}
@@ -48,14 +48,13 @@ export function DeckToolbar({
         ))}
       </div>
       <input
-        className={styles.input}
-        style={{ maxWidth: "12rem" }}
+        className={`${styles.input} ${styles.toolbarFilter}`}
         placeholder="Filter…"
         value={cardFilter}
         onChange={(e) => onFilter(e.target.value)}
       />
       <select
-        className={styles.addRowBtn}
+        className={`${styles.addRowBtn} ${styles.toolbarDesk}`}
         value={cardSort}
         aria-label="Sort"
         onChange={(e) => onSort(e.target.value as CardSortKey)}
@@ -68,7 +67,7 @@ export function DeckToolbar({
       </select>
       <button
         type="button"
-        className={`${styles.groupBtn} ${styles.groupBtnActive}`}
+        className={`${styles.groupBtn} ${styles.groupBtnActive} ${styles.toolbarDesk}`}
         aria-label={sortDir === "asc" ? "Ascending. Click for descending." : "Descending. Click for ascending."}
         onClick={() => onSortDir(sortDir === "asc" ? "desc" : "asc")}
       >

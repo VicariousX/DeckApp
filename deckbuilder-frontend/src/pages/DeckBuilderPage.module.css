@@ -285,6 +285,10 @@
   background: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
+.toolbarFilter {
+  max-width: 12rem;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -2174,9 +2178,23 @@
   .toolbar {
     flex-wrap: nowrap;
     justify-content: flex-start;
-    overflow-x: auto;
     gap: 0.45rem;
     padding-bottom: 0.15rem;
+  }
+  .toolbarDesk,
+  .formatPick {
+    display: none;
+  }
+  .toolbarFilter {
+    flex: 1;
+    max-width: none;
+    min-width: 0;
+  }
+  .addSection {
+    padding: 0.55rem 0.6rem;
+  }
+  .addSection .sectionLabel {
+    display: none;
   }
   .groupBtn,
   .toolBtn,
