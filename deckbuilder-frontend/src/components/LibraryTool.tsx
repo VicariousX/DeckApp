@@ -95,10 +95,10 @@ export function LibraryTool(props: Props) {
   return (
     <>
       <button type="button" className={styles.trigger} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        Library
+        Bulk tools
       </button>
       {open && isMobile && (
-        <BottomSheet open onClose={() => setOpen(false)} title="Library">
+        <BottomSheet open onClose={() => setOpen(false)} title="Bulk tools">
           {body}
         </BottomSheet>
       )}
@@ -106,7 +106,7 @@ export function LibraryTool(props: Props) {
         createPortal(
           <div className={styles.panel} ref={panelRef} style={panelStyle}>
             <div className={styles.head} onPointerDown={onHandlePointerDown}>
-              <span>Library</span>
+              <span>Bulk tools</span>
               <button type="button" className={styles.close} data-no-drag aria-label="Close" onClick={() => setOpen(false)}>
                 ×
               </button>

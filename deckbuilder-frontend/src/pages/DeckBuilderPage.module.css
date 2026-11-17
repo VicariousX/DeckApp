@@ -287,7 +287,7 @@
 }
 
 .toolbarView {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .groupToggle {
@@ -2087,6 +2087,14 @@
   width: 100%;
 }
 
+.panelBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .composer {
   display: flex;
   flex-direction: column;
@@ -2127,18 +2135,34 @@
 
 @media (min-width: 901px) {
   .composer {
-    display: grid;
-    grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1.2fr);
-    align-items: end;
-    gap: 0.75rem 1.5rem;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
   }
-  .composer .addSection {
-    padding: 0;
-    border: none;
-    background: none;
+  .composer .addSection,
+  .composer .addRow,
+  .composer .toolbar {
+    display: contents;
   }
   .composer .sectionLabel {
     display: none;
+  }
+  .composer .inputWrap {
+    flex: 1 1 14rem;
+    min-width: 8rem;
+  }
+  .composer .toolbarFilter {
+    flex: 0 1 9rem;
+    width: 9rem;
+    max-width: 9rem;
+  }
+  .composer .groupToggle {
+    margin-left: auto;
+  }
+  .composer .toolbarView {
+    margin-left: 0;
   }
 }
 

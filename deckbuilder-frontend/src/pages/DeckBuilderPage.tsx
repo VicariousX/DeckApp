@@ -1694,9 +1694,6 @@ export function DeckBuilderPage() {
                   {deckCards.length} unique
                 </span>
               </p>
-              {legalityIssues.length > 0 && (
-                <LegalityDropdown issues={legalityIssues} />
-              )}
             </div>
             <div className={styles.headerActions}>
               <DeckHeaderActions
@@ -1726,12 +1723,17 @@ export function DeckBuilderPage() {
             </ul>
           )}
 
-          <PanelTabs
-            tabs={PANEL_TABS}
-            active={panel}
-            tagCount={detail.tags.length}
-            onChange={setPanel}
-          />
+          <div className={styles.panelBar}>
+            <PanelTabs
+              tabs={PANEL_TABS}
+              active={panel}
+              tagCount={detail.tags.length}
+              onChange={setPanel}
+            />
+            {legalityIssues.length > 0 && (
+              <LegalityDropdown issues={legalityIssues} />
+            )}
+          </div>
 
           {(panel === "deck" || panel === "tokens") && (
             <>
@@ -1781,6 +1783,21 @@ export function DeckBuilderPage() {
                   onSort={(sort) => patchTab({ sort })}
                   onSortDir={(sortDir) => patchTab({ sortDir })}
                   onFilter={(filter) => patchTab({ filter })}
+                  tools={panel === "deck" && !compact ? (
+                    <DeckToolRow
+                      isOwner={isOwner}
+                      deckName={detail.deck.name}
+                      cards={detail.cards}
+                      deckTokens={deckTokens}
+                      commanderColorIdentity={commanderColorIdentity}
+                      deckQtyByOracle={deckQtyByOracle}
+                      exportSections={exportSections}
+                      onBulkImport={onBulkImport}
+                      onAddFromDrawer={(c) => void onAddFromDrawer(c)}
+                      onAdjustFromDrawer={(c, d) => void onAdjustFromDrawer(c, d)}
+                      onApplyDrawer={onApplyDrawer}
+                    />
+                  ) : null}
                 />
               </div>
               {panel === "deck" && isOwner && (
@@ -1797,21 +1814,6 @@ export function DeckBuilderPage() {
                     if (live) void onQty(live, -1);
                   }}
                   onClose={() => setSearchOpen(false)}
-                />
-              )}
-              {panel === "deck" && !compact && (
-                <DeckToolRow
-                  isOwner={isOwner}
-                  deckName={detail.deck.name}
-                  cards={detail.cards}
-                  deckTokens={deckTokens}
-                  commanderColorIdentity={commanderColorIdentity}
-                  deckQtyByOracle={deckQtyByOracle}
-                  exportSections={exportSections}
-                  onBulkImport={onBulkImport}
-                  onAddFromDrawer={(c) => void onAddFromDrawer(c)}
-                  onAdjustFromDrawer={(c, d) => void onAdjustFromDrawer(c, d)}
-                  onApplyDrawer={onApplyDrawer}
                 />
               )}
             </>

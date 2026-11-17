@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { CardSortKey, DeckViewMode, SortDir } from "../lib/deckPreferences";
 import styles from "../pages/DeckBuilderPage.module.css";
 
@@ -14,6 +15,7 @@ type Props = {
   onSort: (sort: CardSortKey) => void;
   onSortDir: (dir: SortDir) => void;
   onFilter: (filter: string) => void;
+  tools?: ReactNode;
 };
 
 const GROUP_OPTIONS: [GroupMode, string][] = [
@@ -30,23 +32,11 @@ const VIEW_OPTIONS: [DeckViewMode, string][] = [
 
 export function DeckToolbar({
   groupMode, viewMode, cardSort, sortDir, cardFilter,
-  onGroupMode, onViewMode, onSort, onSortDir, onFilter,
+  onGroupMode, onViewMode, onSort, onSortDir, onFilter, tools,
 }: Props) {
   const groupOptions = GROUP_OPTIONS.filter(([mode]) => viewMode === "image" || mode !== "grid");
   return (
     <div className={styles.toolbar}>
-      <div className={`${styles.groupToggle} ${styles.toolbarDesk}`} role="group" aria-label="Group by">
-        {groupOptions.map(([mode, label]) => (
-          <button
-            key={mode}
-            type="button"
-            className={groupMode === mode ? `${styles.groupBtn} ${styles.groupBtnActive}` : styles.groupBtn}
-            onClick={() => onGroupMode(mode)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       <input
         className={`${styles.input} ${styles.toolbarFilter}`}
         placeholder="Filter…"
@@ -73,6 +63,19 @@ export function DeckToolbar({
       >
         {sortDir === "asc" ? "Asc" : "Desc"}
       </button>
+      {tools}
+      <div className={`${styles.groupToggle} ${styles.toolbarDesk}`} role="group" aria-label="Group by">
+        {groupOptions.map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            className={groupMode === mode ? `${styles.groupBtn} ${styles.groupBtnActive}` : styles.groupBtn}
+            onClick={() => onGroupMode(mode)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className={`${styles.groupToggle} ${styles.toolbarView}`} role="group" aria-label="Deck view">
         {VIEW_OPTIONS.map(([mode, label]) => (
           <button

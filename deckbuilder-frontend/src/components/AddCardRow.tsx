@@ -43,6 +43,9 @@ export function AddCardRow({
 }: Props) {
   return (
     <div className={styles.addRow} ref={wrapRef}>
+      {panel === "deck" && (
+        <DeckSearchToggle open={searchOpen} onToggle={onToggleSearch} />
+      )}
       <div className={styles.inputWrap}>
         <input
           className={styles.input}
@@ -74,6 +77,14 @@ export function AddCardRow({
           </ul>
         )}
       </div>
+      <button
+        type="button"
+        className={styles.primaryBtn}
+        disabled={addBusy || !query.trim()}
+        onClick={() => onAdd(query.trim())}
+      >
+        {addBusy ? "Adding…" : "Add"}
+      </button>
       {panel === "deck" && (
         <BoardCycle
           boards={boards}
@@ -85,9 +96,6 @@ export function AddCardRow({
           onToggleMenu={onToggleBoardMenu}
         />
       )}
-      {panel === "deck" && (
-        <DeckSearchToggle open={searchOpen} onToggle={onToggleSearch} />
-      )}
       {panel === "tokens" && (
         <button
           type="button"
@@ -98,14 +106,6 @@ export function AddCardRow({
           {tokenBusy ? "Refreshing…" : "Refresh"}
         </button>
       )}
-      <button
-        type="button"
-        className={styles.primaryBtn}
-        disabled={addBusy || !query.trim()}
-        onClick={() => onAdd(query.trim())}
-      >
-        {addBusy ? "Adding…" : "Add"}
-      </button>
     </div>
   );
 }

@@ -1,3 +1,7 @@
+.trigger {
+  flex: 0 0 auto;
+  align-self: center;
+}
 .trigger,
 .btn,
 .primary,
