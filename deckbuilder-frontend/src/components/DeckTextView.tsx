@@ -207,18 +207,20 @@ function DraggableTextRow(props: {
   return (
     <TextRowBody
       {...props}
-      rowRef={setDropRef}
+      rowRef={(node) => {
+        setNodeRef(node);
+        setDropRef(node);
+      }}
       dragging={isDragging}
       over={isOver}
-      gripRef={setNodeRef}
-      gripProps={{ ...listeners, ...attributes }}
+      dragProps={{ ...listeners, ...attributes }}
     />
   );
 }
 
 function TextRowBody({
   card, illegal, open, oracle, image, isOwner, onToggle, onContext, onQty, onMore,
-  rowRef, dragging, over, gripRef, gripProps,
+  rowRef, dragging, over, dragProps,
 }: {
   card: DeckCard;
   illegal: boolean;
@@ -233,8 +235,7 @@ function TextRowBody({
   rowRef?: (node: HTMLElement | null) => void;
   dragging?: boolean;
   over?: boolean;
-  gripRef?: (node: HTMLElement | null) => void;
-  gripProps?: Record<string, unknown>;
+  dragProps?: Record<string, unknown>;
 }) {
   const [face, setFace] = useState<"card" | "oracle">("card");
   const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -265,22 +266,12 @@ function TextRowBody({
   return (
     <li
       ref={rowRef}
-      className={`${styles.cardRow}${illegal ? ` ${styles.cardRowIllegal}` : ""}${open ? ` ${styles.cardRowOpen}` : ""}${over && !dragging ? ` ${styles.cardRowDrop}` : ""}`}
+      className={`${styles.cardRow}${dragProps ? ` ${styles.cardRowDrag}` : ""}${illegal ? ` ${styles.cardRowIllegal}` : ""}${open ? ` ${styles.cardRowOpen}` : ""}${over && !dragging ? ` ${styles.cardRowDrop}` : ""}`}
       style={dragging ? { opacity: 0.35 } : undefined}
+      {...dragProps}
     >
       <div className={styles.cardMain}>
         <div className={styles.cardPrimary}>
-          {gripRef ? (
-            <button
-              type="button"
-              className={styles.dragGrip}
-              aria-label={`Drag ${card.name}`}
-              ref={gripRef}
-              {...gripProps}
-            >
-              <span className={styles.dragGripBars} />
-            </button>
-          ) : null}
           <button
             type="button"
             className={styles.cardThumb}
@@ -302,7 +293,7 @@ function TextRowBody({
           </button>
           <ManaCost cost={card.mana_cost} size={14} />
           {isOwner && basic ? (
-            <span className={styles.qtyCompact}>
+            <span className={styles.qtyCompact} onPointerDown={(e) => e.stopPropagation()}>
               <button type="button" className={styles.qtyBtn} aria-label={`Decrease ${card.name}`} onClick={() => onQty(-1)}>−</button>
               <span className={styles.qty}>{card.quantity}</span>
               <button type="button" className={styles.qtyBtn} aria-label={`Increase ${card.name}`} onClick={() => onQty(1)}>+</button>
@@ -314,6 +305,7 @@ function TextRowBody({
             type="button"
             className={styles.moreBtn}
             aria-label={`Options for ${card.name}`}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               const r = e.currentTarget.getBoundingClientRect();
@@ -326,6 +318,7 @@ function TextRowBody({
         {open && (
           <div
             className={styles.cardExpand}
+            onPointerDown={(e) => e.stopPropagation()}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
