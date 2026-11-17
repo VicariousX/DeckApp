@@ -63,8 +63,10 @@
 
 .header {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: -0.45rem;
 }
 
 .title {
@@ -2903,7 +2905,9 @@
   }
   .header {
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 0.4rem;
+    margin-bottom: 0;
   }
   .title {
     font-size: 1.2rem;

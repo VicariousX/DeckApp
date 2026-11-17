@@ -1669,11 +1669,16 @@ export function DeckBuilderPage() {
         <Link to="/my-decks" className={styles.backLink}>
           ← My decks
         </Link>
-        {id && (
-          <Link to={`/play/${id}`} className={styles.backLink}>
-            Playtest
-          </Link>
-        )}
+        <div className={styles.topBarRight}>
+          {legalityIssues.length > 0 && (
+            <LegalityDropdown issues={legalityIssues} />
+          )}
+          {id && (
+            <Link to={`/play/${id}`} className={styles.backLink}>
+              Playtest
+            </Link>
+          )}
+        </div>
       </div>
 
       {initialLoading && (
@@ -1700,19 +1705,13 @@ export function DeckBuilderPage() {
                 </span>
               </p>
             </div>
-          </header>
-
-          <div className={styles.panelBar}>
             <PanelTabs
               tabs={PANEL_TABS}
               active={panel}
               tagCount={detail.tags.length}
               onChange={setPanel}
             />
-            {legalityIssues.length > 0 && (
-              <LegalityDropdown issues={legalityIssues} />
-            )}
-          </div>
+          </header>
 
           {(panel === "deck" || panel === "tokens") && (
             <>
