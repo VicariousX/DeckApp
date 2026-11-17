@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type DragEvent as ReactDragEvent,
+  type ReactNode,
 } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -360,6 +361,25 @@ export function DeckBuilderPage() {
 
   function changeGroupMode(mode: GroupMode) {
     patchTab({ group: mode as DeckGroupMode });
+  }
+
+  function wrapTextList(node: ReactNode) {
+    if (groupMode !== "none" || !isOwner) return node;
+    return (
+      <ImageDndProvider
+        enabled
+        isMobile={isMobile}
+        mobileZones={mobileDropZones}
+        onDropCard={handleImageDrop}
+        overlayClassName={styles.textDragOverlay}
+        renderOverlay={(cardId) => {
+          const card = detail?.cards.find((c) => c.id === cardId);
+          return <span>{card?.name ?? "Card"}</span>;
+        }}
+      >
+        {node}
+      </ImageDndProvider>
+    );
   }
 
   useEffect(() => {
@@ -1754,19 +1774,18 @@ export function DeckBuilderPage() {
             />
           )}
 
-          {(panel === "deck" || panel === "tokens") && viewMode === "text" && (
+          {(panel === "deck" || panel === "tokens") && viewMode === "text" && wrapTextList(
             <DeckTextView
               displaySections={
                 groupMode === "none" && detail
                   ? displaySections.map((board) => {
                       const layout =
                         listLayouts[board.id] ?? getListColumnLayout(detail.deck.id, board.id);
-                      const several = layout.columns.length > 1;
                       return {
                         ...board,
                         groups: layout.columns.map((col, i) => ({
                           key: col.id,
-                          label: several ? col.name : "",
+                          label: col.name,
                           cards: cardsForListColumn(board.cards, board.id, col.id, i === 0),
                         })),
                       };
@@ -1784,6 +1803,10 @@ export function DeckBuilderPage() {
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
               onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}
+              dragList={groupMode === "none" && isOwner}
+              onRenameColumn={renameListColumn}
+              onAddColumn={addListColumn}
+              onRemoveColumn={removeListColumn}
             />
           )}
         </>

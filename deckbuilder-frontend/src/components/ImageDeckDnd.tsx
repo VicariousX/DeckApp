@@ -130,6 +130,7 @@ type ImageDndProviderProps = {
   onDropCard: (sourceCardId: string, target: DropTarget) => void;
   children: ReactNode;
   renderOverlay?: (cardId: string) => ReactNode;
+  overlayClassName?: string;
 };
 
 const ImageDndOverContext = createContext<string | null>(null);
@@ -148,6 +149,7 @@ export function ImageDndProvider({
   onDropCard,
   children,
   renderOverlay,
+  overlayClassName,
 }: ImageDndProviderProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -263,7 +265,7 @@ export function ImageDndProvider({
     activeId && renderOverlay && pointer
       ? createPortal(
           <div
-            className={`${styles.dndOverlay}${isMobile ? ` ${styles.dndOverlayOrb}` : ""}`}
+            className={`${styles.dndOverlay}${isMobile ? ` ${styles.dndOverlayOrb}` : ""}${overlayClassName ? ` ${overlayClassName}` : ""}`}
             style={{
               position: "fixed",
               left: isMobile ? pointer.x - 36 : pointer.x - grabOffset.x,

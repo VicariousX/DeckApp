@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { ManaCost } from "./ManaCost";
 import { renderTextWithSymbols } from "../utils/symbols";
 import type { DeckCard, DeckBoard } from "../types/deck";
+import { DroppableRegion, cardDragId, listColDropId, listColNewDropId } from "./ImageDeckDnd";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type DisplaySection = {
@@ -25,6 +27,10 @@ type Props = {
   onCardContext: (e: { preventDefault: () => void; clientX: number; clientY: number }, c: DeckCard) => void;
   onQty: (c: DeckCard, d: number) => void;
   onMore: (c: DeckCard, x: number, y: number) => void;
+  dragList?: boolean;
+  onRenameColumn?: (board: DeckBoard, colId: string, name: string) => void;
+  onAddColumn?: (board: DeckBoard) => void;
+  onRemoveColumn?: (board: DeckBoard, colId: string) => void;
 };
 
 function isBasicLand(c: DeckCard) {
@@ -36,6 +42,7 @@ export function DeckTextView({
   displaySections, groupMode, addTargetBoard, isOwner, issuesByOracle,
   expandedId, oracleById, imageFor,
   onToggleOracle, onCardContext, onQty, onMore,
+  dragList, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
   const visible = displaySections.filter((board) => {
     if (board.cards.length > 0) return true;
@@ -51,7 +58,7 @@ export function DeckTextView({
             <h2 className={styles.boardZoneTitle}>{board.label}</h2>
             <span className={styles.boardZoneCount}>{board.count}</span>
           </header>
-          {board.cards.length === 0 ? (
+          {board.cards.length === 0 && groupMode !== "none" ? (
             <p className={styles.boardZoneEmpty}>
               {board.id === "commander"
                 ? "Choose a commander with the field above."
@@ -63,38 +70,97 @@ export function DeckTextView({
             <div className={groupMode === "none" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
               {board.groups.map((g) => {
                 const count = g.cards.reduce((n, c) => n + c.quantity, 0);
-                return (
-                  <div key={`${board.id}-${g.key}`} className={styles.group}>
-                    {g.label ? (
+                const column = (
+                  <>
+                    {groupMode === "none" ? (
+                      <header className={styles.listColHead}>
+                        {isOwner ? (
+                          <input
+                            className={styles.listColName}
+                            value={g.label || "Cards"}
+                            aria-label="Column name"
+                            onChange={(e) => onRenameColumn?.(board.id, g.key, e.target.value)}
+                          />
+                        ) : (
+                          <h3 className={styles.listColNameStatic}>{g.label || "Cards"}</h3>
+                        )}
+                        <span className={styles.groupCount}>{count}</span>
+                        {isOwner && board.groups.length > 1 ? (
+                          <button
+                            type="button"
+                            className={styles.listColRemove}
+                            aria-label={`Remove ${g.label || "column"}`}
+                            onClick={() => onRemoveColumn?.(board.id, g.key)}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </header>
+                    ) : g.label ? (
                       <h3 className={styles.groupTitle}>
                         {g.label}
                         <span className={styles.groupCount}>{count}</span>
                       </h3>
                     ) : null}
                     {g.cards.length === 0 ? (
-                      <p className={styles.boardZoneEmpty}>Empty</p>
+                      <p className={styles.boardZoneEmpty}>{groupMode === "none" ? "Drop cards here" : "Empty"}</p>
                     ) : (
-                    <ul className={styles.cardList}>
-                      {g.cards.map((c) => (
-                        <TextRow
-                          key={c.id}
-                          card={c}
-                          illegal={issuesByOracle.has(c.oracle_id.toLowerCase())}
-                          open={expandedId === c.id}
-                          oracle={oracleById[c.id]}
-                          image={imageFor(c)}
-                          isOwner={isOwner}
-                          onToggle={() => void onToggleOracle(c)}
-                          onContext={(e) => onCardContext(e, c)}
-                          onQty={(d) => void onQty(c, d)}
-                          onMore={(x, y) => onMore(c, x, y)}
-                        />
-                      ))}
-                    </ul>
+                      <ul className={styles.cardList}>
+                        {g.cards.map((c) => (
+                          <TextRow
+                            key={c.id}
+                            card={c}
+                            drag={Boolean(dragList)}
+                            illegal={issuesByOracle.has(c.oracle_id.toLowerCase())}
+                            open={expandedId === c.id}
+                            oracle={oracleById[c.id]}
+                            image={imageFor(c)}
+                            isOwner={isOwner}
+                            onToggle={() => void onToggleOracle(c)}
+                            onContext={(e) => onCardContext(e, c)}
+                            onQty={(d) => void onQty(c, d)}
+                            onMore={(x, y) => onMore(c, x, y)}
+                          />
+                        ))}
+                      </ul>
                     )}
-                  </div>
+                  </>
+                );
+                if (groupMode !== "none" || !isOwner) {
+                  return (
+                    <div key={`${board.id}-${g.key}`} className={`${styles.group}${groupMode === "none" ? ` ${styles.listCol}` : ""}`}>
+                      {column}
+                    </div>
+                  );
+                }
+                return (
+                  <DroppableRegion
+                    key={`${board.id}-${g.key}`}
+                    id={listColDropId(board.id, g.key)}
+                    className={`${styles.group} ${styles.listCol}`}
+                    activeClassName={styles.listColDrop}
+                    disabled={!isOwner}
+                  >
+                    {column}
+                  </DroppableRegion>
                 );
               })}
+              {groupMode === "none" && isOwner ? (
+                <DroppableRegion
+                  id={listColNewDropId(board.id)}
+                  className={styles.listColAddWrap}
+                  activeClassName={styles.listColDrop}
+                >
+                  <button
+                    type="button"
+                    className={styles.listColAdd}
+                    aria-label="Add column"
+                    onClick={() => onAddColumn?.(board.id)}
+                  >
+                    +
+                  </button>
+                </DroppableRegion>
+              ) : null}
             </div>
           )}
         </section>
@@ -103,8 +169,56 @@ export function DeckTextView({
   );
 }
 
-function TextRow({
+function TextRow(props: {
+  card: DeckCard;
+  drag?: boolean;
+  illegal: boolean;
+  open: boolean;
+  oracle: string | undefined;
+  image: string | undefined;
+  isOwner: boolean;
+  onToggle: () => void;
+  onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
+  onQty: (d: number) => void;
+  onMore: (x: number, y: number) => void;
+}) {
+  if (props.drag) return <DraggableTextRow {...props} />;
+  return <TextRowBody {...props} />;
+}
+
+function DraggableTextRow(props: {
+  card: DeckCard;
+  illegal: boolean;
+  open: boolean;
+  oracle: string | undefined;
+  image: string | undefined;
+  isOwner: boolean;
+  onToggle: () => void;
+  onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
+  onQty: (d: number) => void;
+  onMore: (x: number, y: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: cardDragId(props.card.id),
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: cardDragId(props.card.id),
+  });
+  return (
+    <TextRowBody
+      {...props}
+      rowRef={setDropRef}
+      dragging={isDragging}
+      over={isOver}
+      gripRef={setNodeRef}
+      gripProps={{ ...listeners, ...attributes }}
+    />
+  );
+}
+
+function TextRowBody({
   card, illegal, open, oracle, image, isOwner, onToggle, onContext, onQty, onMore,
+  rowRef, dragging, over, gripRef, gripProps,
 }: {
   card: DeckCard;
   illegal: boolean;
@@ -116,6 +230,11 @@ function TextRow({
   onContext: (e: { preventDefault: () => void; clientX: number; clientY: number }) => void;
   onQty: (d: number) => void;
   onMore: (x: number, y: number) => void;
+  rowRef?: (node: HTMLElement | null) => void;
+  dragging?: boolean;
+  over?: boolean;
+  gripRef?: (node: HTMLElement | null) => void;
+  gripProps?: Record<string, unknown>;
 }) {
   const [face, setFace] = useState<"card" | "oracle">("card");
   const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -144,9 +263,24 @@ function TextRow({
   }
 
   return (
-    <li className={`${styles.cardRow}${illegal ? ` ${styles.cardRowIllegal}` : ""}${open ? ` ${styles.cardRowOpen}` : ""}`}>
+    <li
+      ref={rowRef}
+      className={`${styles.cardRow}${illegal ? ` ${styles.cardRowIllegal}` : ""}${open ? ` ${styles.cardRowOpen}` : ""}${over && !dragging ? ` ${styles.cardRowDrop}` : ""}`}
+      style={dragging ? { opacity: 0.35 } : undefined}
+    >
       <div className={styles.cardMain}>
         <div className={styles.cardPrimary}>
+          {gripRef ? (
+            <button
+              type="button"
+              className={styles.dragGrip}
+              aria-label={`Drag ${card.name}`}
+              ref={gripRef}
+              {...gripProps}
+            >
+              <span className={styles.dragGripBars} />
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.cardThumb}

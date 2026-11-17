@@ -475,6 +475,135 @@
   align-items: start;
 }
 
+.listCol {
+  min-width: 0;
+  min-height: 4.5rem;
+}
+
+.listColHead {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.listColName,
+.listColNameStatic {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0;
+}
+
+.listColName:hover,
+.listColName:focus {
+  color: var(--color-text);
+  outline: none;
+}
+
+.listColRemove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+.listCol:hover .listColRemove,
+.listColRemove:focus {
+  opacity: 0.75;
+}
+
+.listColAddWrap {
+  align-self: start;
+  justify-self: start;
+}
+
+.listColAdd {
+  appearance: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.groupsColumns:hover .listColAdd,
+.listColAdd:hover,
+.listColAdd:focus,
+.listColAddWrap.listColDrop .listColAdd {
+  opacity: 1;
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.listColDrop {
+  outline: 1px dashed color-mix(in srgb, var(--color-accent) 70%, transparent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.dragGrip {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 0.9rem;
+  height: 1.4rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0.28;
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.cardRow:hover .dragGrip,
+.dragGrip:focus {
+  opacity: 0.85;
+}
+
+.dragGripBars {
+  width: 8px;
+  height: 12px;
+  background-image: radial-gradient(currentColor 1.1px, transparent 1.3px);
+  background-size: 4px 4px;
+  background-position: 0 0;
+}
+
+.cardRowDrop {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.textDragOverlay {
+  width: max-content;
+  max-width: 220px;
+  padding: 0.35rem 0.65rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .groupTitle {
   margin: 0 0 0.25rem;
   font-size: 0.78rem;
