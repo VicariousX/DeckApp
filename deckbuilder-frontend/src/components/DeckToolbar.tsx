@@ -73,7 +73,7 @@ export function DeckToolbar({
       >
         {sortDir === "asc" ? "Asc" : "Desc"}
       </button>
-      <div className={styles.groupToggle} role="group" aria-label="Deck view">
+      <div className={`${styles.groupToggle} ${styles.toolbarView}`} role="group" aria-label="Deck view">
         {VIEW_OPTIONS.map(([mode, label]) => (
           <button
             key={mode}

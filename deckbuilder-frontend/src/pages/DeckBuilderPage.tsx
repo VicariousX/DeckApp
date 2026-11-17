@@ -1523,6 +1523,7 @@ export function DeckBuilderPage() {
       isOwner,
       tools: compact && panel === "deck" ? (
         <DeckToolRow
+          stacked
           isOwner={isOwner}
           deckName={detail.deck.name}
           cards={detail.cards}
@@ -1714,39 +1715,57 @@ export function DeckBuilderPage() {
             onChange={setPanel}
           />
 
-          {(panel === "deck" || panel === "tokens") && isOwner && (
-            <section className={styles.addSection}>
-              <h2 className={styles.sectionLabel}>
-                {panel === "tokens" ? "Add token" : "Add card"}
-              </h2>
-              <AddCardRow
-                panel={panel}
-                query={query}
-                suggestions={suggestions}
-                suggestOpen={suggestOpen}
-                addBusy={addBusy}
-                tokenBusy={tokenBusy}
-                boards={BOARDS}
-                addTargetBoard={addTargetBoard}
-                boardMenuOpen={boardMenuOpen}
-                searchOpen={searchOpen}
-                wrapRef={wrapRef}
-                onQuery={setQuery}
-                onAdd={(name) => void addByName(name)}
-                onCycleBoard={() => {
-                  const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
-                  setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
-                  setBoardMenuOpen(false);
-                }}
-                onSelectBoard={(b) => {
-                  setAddTargetBoard(b);
-                  setBoardMenuOpen(false);
-                }}
-                onToggleBoardMenu={() => setBoardMenuOpen((v) => !v)}
-                onToggleSearch={() => setSearchOpen((v) => !v)}
-                onRefreshTokens={() => void refreshTokens()}
-              />
-              {panel === "deck" && (
+          {(panel === "deck" || panel === "tokens") && (
+            <>
+              <div className={styles.composer}>
+                {isOwner && (
+                  <section className={styles.addSection}>
+                    <h2 className={styles.sectionLabel}>
+                      {panel === "tokens" ? "Add token" : "Add card"}
+                    </h2>
+                    <AddCardRow
+                      panel={panel}
+                      query={query}
+                      suggestions={suggestions}
+                      suggestOpen={suggestOpen}
+                      addBusy={addBusy}
+                      tokenBusy={tokenBusy}
+                      boards={BOARDS}
+                      addTargetBoard={addTargetBoard}
+                      boardMenuOpen={boardMenuOpen}
+                      searchOpen={searchOpen}
+                      wrapRef={wrapRef}
+                      onQuery={setQuery}
+                      onAdd={(name) => void addByName(name)}
+                      onCycleBoard={() => {
+                        const i = BOARDS.findIndex((b) => b.id === addTargetBoard);
+                        setAddTargetBoard(BOARDS[(i + 1) % BOARDS.length].id);
+                        setBoardMenuOpen(false);
+                      }}
+                      onSelectBoard={(b) => {
+                        setAddTargetBoard(b);
+                        setBoardMenuOpen(false);
+                      }}
+                      onToggleBoardMenu={() => setBoardMenuOpen((v) => !v)}
+                      onToggleSearch={() => setSearchOpen((v) => !v)}
+                      onRefreshTokens={() => void refreshTokens()}
+                    />
+                  </section>
+                )}
+                <DeckToolbar
+                  groupMode={groupMode}
+                  viewMode={viewMode}
+                  cardSort={cardSort}
+                  sortDir={sortDir}
+                  cardFilter={cardFilter}
+                  onGroupMode={changeGroupMode}
+                  onViewMode={changeViewMode}
+                  onSort={(sort) => patchTab({ sort })}
+                  onSortDir={(sortDir) => patchTab({ sortDir })}
+                  onFilter={(filter) => patchTab({ filter })}
+                />
+              </div>
+              {panel === "deck" && isOwner && (
                 <DeckSearchDockHost
                   open={searchOpen}
                   cards={detail?.cards ?? []}
@@ -1777,22 +1796,7 @@ export function DeckBuilderPage() {
                   onApplyDrawer={onApplyDrawer}
                 />
               )}
-            </section>
-          )}
-
-          {(panel === "deck" || panel === "tokens") && (
-            <DeckToolbar
-              groupMode={groupMode}
-              viewMode={viewMode}
-              cardSort={cardSort}
-              sortDir={sortDir}
-              cardFilter={cardFilter}
-              onGroupMode={changeGroupMode}
-              onViewMode={changeViewMode}
-              onSort={(sort) => patchTab({ sort })}
-              onSortDir={(sortDir) => patchTab({ sortDir })}
-              onFilter={(filter) => patchTab({ filter })}
-            />
+            </>
           )}
 
           {panel === "tags" && (

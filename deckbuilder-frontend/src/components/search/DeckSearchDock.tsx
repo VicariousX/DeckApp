@@ -39,7 +39,7 @@ export function DeckSearchToggle({
       className={`${styles.cycleBtn} ${styles.searchOpenBtn}`}
       onClick={onToggle}
     >
-      {open ? "Close search" : "Open search"}
+      {open ? "Close" : "Search"}
     </button>
   );
 }

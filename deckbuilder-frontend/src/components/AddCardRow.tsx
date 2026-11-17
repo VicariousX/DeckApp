@@ -5,6 +5,13 @@ import type { DeckBoard } from "../types/deck";
 import type { PanelTab } from "./PanelTabs";
 import styles from "../pages/DeckBuilderPage.module.css";
 
+const BOARD_SHORT: Record<DeckBoard, string> = {
+  commander: "Cmd",
+  main: "Main",
+  side: "Side",
+  maybe: "Maybe",
+};
+
 type Board = { id: DeckBoard; label: string };
 
 type Props = {
@@ -71,6 +78,7 @@ export function AddCardRow({
         <BoardCycle
           boards={boards}
           current={addTargetBoard}
+          short={BOARD_SHORT[addTargetBoard]}
           open={boardMenuOpen}
           onCycle={onCycleBoard}
           onSelect={onSelectBoard}

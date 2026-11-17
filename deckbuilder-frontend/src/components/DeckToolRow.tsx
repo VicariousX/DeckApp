@@ -15,6 +15,7 @@ type Props = {
   commanderColorIdentity: string[];
   deckQtyByOracle: Record<string, number>;
   exportSections: ExportSection[];
+  stacked?: boolean;
   onBulkImport: (entries: BulkResolvedEntry[]) => void;
   onAddFromDrawer: (c: DrawerCardView) => void;
   onAdjustFromDrawer: (c: DrawerCardView, d: number) => void;
@@ -23,7 +24,7 @@ type Props = {
 
 export function DeckToolRow({
   isOwner, deckName, cards, deckTokens, commanderColorIdentity, deckQtyByOracle,
-  exportSections, onBulkImport, onAddFromDrawer, onAdjustFromDrawer, onApplyDrawer,
+  exportSections, stacked, onBulkImport, onAddFromDrawer, onAdjustFromDrawer, onApplyDrawer,
 }: Props) {
   const ttsParts = [
     {
@@ -48,7 +49,7 @@ export function DeckToolRow({
     : undefined;
 
   return (
-    <div className={styles.toolRow}>
+    <div className={`${styles.toolRow}${stacked ? ` ${styles.toolRowStack}` : ""}`}>
       <BulkCardImport title="Bulk import" respectQuantity={true} onImport={onBulkImport} />
       {isOwner && (
         <DrawerPanel

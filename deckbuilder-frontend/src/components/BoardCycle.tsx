@@ -7,27 +7,32 @@ type Props = {
   boards: Board[];
   current: DeckBoard;
   open: boolean;
+  short?: string;
   onCycle: () => void;
   onSelect: (board: DeckBoard) => void;
   onToggleMenu: () => void;
 };
 
-export function BoardCycle({ boards, current, open, onCycle, onSelect, onToggleMenu }: Props) {
+export function BoardCycle({ boards, current, open, short, onCycle, onSelect, onToggleMenu }: Props) {
   const label = boards.find((b) => b.id === current)?.label ?? "Mainboard";
   return (
     <div className={styles.boardCycleWrap}>
       <button
         type="button"
         className={styles.addRowBtn}
-        aria-label="Add to board. Click to cycle, right-click to choose."
-        title="Click to cycle boards. Right-click to choose."
-        onClick={onCycle}
+        aria-label={`Add to ${label}. Tap to choose a board.`}
+        title="Click to cycle boards. Right-click or tap to choose."
+        onClick={(e) => {
+          const touch = window.matchMedia("(pointer: coarse)").matches;
+          if (touch || e.altKey) onToggleMenu();
+          else onCycle();
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           onToggleMenu();
         }}
       >
-        {label}
+        {short ?? label}
       </button>
       {open && (
         <ul className={styles.boardCycleMenu} role="menu">

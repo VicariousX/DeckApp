@@ -94,7 +94,12 @@ export function DeckPageSettings() {
               </select>
             </div>
           )}
-          {controls.tools}
+          {controls.tools ? (
+            <div>
+              <div className={styles.sectionTitle}>Tools</div>
+              {controls.tools}
+            </div>
+          ) : null}
         </>
       )}
     </div>
