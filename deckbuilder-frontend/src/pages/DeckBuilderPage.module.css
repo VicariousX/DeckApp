@@ -1753,11 +1753,27 @@
   padding: 0;
 }
 
-.textCommand .boardZoneEmpty {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
+.textCommandDrop {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.desktopDropBar {
+  position: fixed;
+  top: 0.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: calc(100vw - 1.5rem);
+  overflow-x: auto;
+  padding: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 94%, #000);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .commanderCard {

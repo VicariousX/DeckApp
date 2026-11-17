@@ -393,6 +393,7 @@ export function DeckBuilderPage() {
         enabled
         isMobile={isMobile}
         mobileZones={mobileDropZones}
+        desktopZones={desktopDropZones}
         onDropCard={handleImageDrop}
         overlayClassName={styles.textDragOverlay}
         renderOverlay={(cardId) => {
@@ -574,6 +575,25 @@ export function DeckBuilderPage() {
     }
     return zones;
   }, [groupMode, detail, listLayouts, boardSections]);
+
+  const desktopDropZones = useMemo((): MobileDropZone[] => {
+    const zones: MobileDropZone[] = BOARDS.map((b) => ({
+      id: boardDropId(b.id),
+      label: b.id === "commander" ? "Command" : b.label.replace("board", ""),
+      group: "Boards",
+    }));
+    if (groupMode === "none") {
+      for (const b of BOARDS) {
+        if (b.id === "commander") continue;
+        zones.push({
+          id: listColNewDropId(b.id),
+          label: `New ${b.id === "main" ? "main" : b.id} list`,
+          group: "New list",
+        });
+      }
+    }
+    return zones;
+  }, [groupMode]);
 
   const tokenCards: DeckCard[] = useMemo(() => {
     if (!detail) return [];
@@ -1831,6 +1851,7 @@ export function DeckBuilderPage() {
               deckId={detail.deck.id}
               issuesByOracle={issuesByOracle}
               mobileDropZones={mobileDropZones}
+              desktopDropZones={desktopDropZones}
               tokenCards={tokenCards}
               stackImageSrc={stackImageSrc}
               looksMultiFace={looksMultiFace}

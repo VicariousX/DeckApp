@@ -3,7 +3,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { ManaCost } from "./ManaCost";
 import { renderTextWithSymbols } from "../utils/symbols";
 import type { DeckCard, DeckBoard } from "../types/deck";
-import { DroppableRegion, cardDragId, listColDropId, listColNewDropId } from "./ImageDeckDnd";
+import { DroppableRegion, boardDropId, cardDragId, listColDropId, listColNewDropId } from "./ImageDeckDnd";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type DisplaySection = {
@@ -54,12 +54,8 @@ export function DeckTextView({
     <div className={styles.textBoardLayout}>
       {visible.map((board) => {
         const commander = board.id === "commander";
-        return (
-        <section
-          key={board.id}
-          className={commander ? styles.textCommand : styles.imageBoard}
-          data-board={board.id}
-        >
+        const body = (
+          <>
           <header className={commander ? styles.textCommandHead : styles.stackHeader}>
             <h2 className={commander ? styles.commanderSlotTitle : styles.stackTitle}>{board.label}</h2>
             <span className={styles.stackCount}>{board.count}</span>
@@ -176,7 +172,30 @@ export function DeckTextView({
               })()}
             </div>
           )}
-        </section>
+          </>
+        );
+        if (commander && dragList) {
+          return (
+            <DroppableRegion
+              key={board.id}
+              id={boardDropId("commander")}
+              dataBoard="commander"
+              className={styles.textCommand}
+              activeClassName={styles.textCommandDrop}
+              disabled={!isOwner}
+            >
+              {body}
+            </DroppableRegion>
+          );
+        }
+        return (
+          <section
+            key={board.id}
+            className={commander ? styles.textCommand : styles.imageBoard}
+            data-board={board.id}
+          >
+            {body}
+          </section>
         );
       })}
     </div>

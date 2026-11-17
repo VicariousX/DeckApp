@@ -37,6 +37,7 @@ type Props = {
   deckId: string;
   issuesByOracle: Map<string, unknown[]>;
   mobileDropZones: MobileDropZone[];
+  desktopDropZones: MobileDropZone[];
   tokenCards: DeckCard[];
   stackImageSrc: (c: DeckCard) => string | undefined;
   looksMultiFace: (c: DeckCard) => boolean;
@@ -69,7 +70,7 @@ function cardsInColumn(
 
 export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
-  issuesByOracle, mobileDropZones, tokenCards, stackImageSrc, looksMultiFace,
+  issuesByOracle, mobileDropZones, desktopDropZones, tokenCards, stackImageSrc, looksMultiFace,
   onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
@@ -165,6 +166,7 @@ export function DeckImageView({
       enabled={isOwner && panel === "deck"}
       isMobile={isMobile}
       mobileZones={mobileDropZones}
+      desktopZones={desktopDropZones}
       onDropCard={handleImageDrop}
       renderOverlay={(cardId) => {
         const c =

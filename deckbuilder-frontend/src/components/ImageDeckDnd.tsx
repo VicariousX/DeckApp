@@ -125,6 +125,7 @@ type ImageDndProviderProps = {
   enabled: boolean;
   isMobile?: boolean;
   mobileZones?: MobileDropZone[];
+  desktopZones?: MobileDropZone[];
   onDragCardStart?: (cardId: string) => void;
   onDragCardEnd?: () => void;
   onDropCard: (sourceCardId: string, target: DropTarget) => void;
@@ -144,6 +145,7 @@ export function ImageDndProvider({
   enabled,
   isMobile = false,
   mobileZones = [],
+  desktopZones = [],
   onDragCardStart,
   onDragCardEnd,
   onDropCard,
@@ -321,6 +323,22 @@ export function ImageDndProvider({
                       ))}
                   </div>
                 </div>
+              ))}
+            </div>,
+            document.body
+          )}
+        {!isMobile && activeId && desktopZones.length > 0 &&
+          createPortal(
+            <div className={styles.desktopDropBar}>
+              {desktopZones.map((z) => (
+                <DroppableRegion
+                  key={z.id}
+                  id={z.id}
+                  className={styles.mobileDropZone}
+                  activeClassName={styles.mobileDropZoneActive}
+                >
+                  {z.label}
+                </DroppableRegion>
               ))}
             </div>,
             document.body
