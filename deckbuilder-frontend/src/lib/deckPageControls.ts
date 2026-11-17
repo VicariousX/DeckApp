@@ -19,10 +19,10 @@ export type DeckPageControls = {
   canCopy: boolean;
   isPublic: boolean;
   parentId: string | null;
-  history: { at: number; label: string }[];
+  history: { at: string; label: string }[];
   onClone: () => void;
   onBranches: () => void;
-  onRestore: (at: number) => void;
+  onRestore: (at: string) => void;
   onTogglePublic: () => void;
 };
 
