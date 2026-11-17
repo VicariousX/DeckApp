@@ -62,11 +62,13 @@ export function setDeckGroupMode(mode: DeckGroupMode): void {
 
 export type BuilderTabKey = "deck" | "tokens";
 export type CardSortKey = "default" | "name" | "cmc" | "type" | "qty";
+export type SortDir = "asc" | "desc";
 
 export type TabViewPrefs = {
   view: DeckViewMode;
   group: DeckGroupMode;
   sort: CardSortKey;
+  sortDir: SortDir;
   filter: string;
 };
 
@@ -81,10 +83,11 @@ export function getTabViewPrefs(tab: BuilderTabKey): TabViewPrefs {
           view: getDeckViewMode(),
           group: getDeckGroupMode(),
           sort: "default",
+          sortDir: "asc",
           filter: "",
         };
       }
-      return { view: "text", group: "grid", sort: "default", filter: "" };
+      return { view: "text", group: "grid", sort: "default", sortDir: "asc", filter: "" };
     }
     const p = JSON.parse(raw) as Partial<TabViewPrefs>;
     return {
@@ -97,10 +100,11 @@ export function getTabViewPrefs(tab: BuilderTabKey): TabViewPrefs {
         p.sort === "name" || p.sort === "cmc" || p.sort === "type" || p.sort === "qty"
           ? p.sort
           : "default",
+      sortDir: p.sortDir === "desc" ? "desc" : "asc",
       filter: typeof p.filter === "string" ? p.filter : "",
     };
   } catch {
-    return { view: "text", group: "type", sort: "default", filter: "" };
+    return { view: "text", group: "type", sort: "default", sortDir: "asc", filter: "" };
   }
 }
 

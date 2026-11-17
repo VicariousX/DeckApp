@@ -172,6 +172,7 @@ export function DeckBuilderPage() {
   const groupMode = tabPrefs[viewKey].group as GroupMode;
   const viewMode = tabPrefs[viewKey].view;
   const cardSort = tabPrefs[viewKey].sort;
+  const sortDir = tabPrefs[viewKey].sortDir;
   const cardFilter = tabPrefs[viewKey].filter;
   const [deckTokens, setDeckTokens] = useState<DeckToken[]>([]);
 
@@ -480,18 +481,18 @@ export function DeckBuilderPage() {
     }[];
     return BOARDS.map((b) => {
       const cards = filterCards(
-        sortCards(detail.cards.filter((c) => c.board === b.id), cardSort),
+        sortCards(detail.cards.filter((c) => c.board === b.id), cardSort, sortDir),
         cardFilter
       );
       return {
         id: b.id,
         label: b.label,
         cards,
-        groups: buildGroups(cards, groupMode, detail.tags),
+        groups: buildGroups(cards, groupMode, detail.tags, cardSort, sortDir),
         count: cards.reduce((n, c) => n + c.quantity, 0),
       };
     });
-  }, [detail, groupMode, cardSort, cardFilter]);
+  }, [detail, groupMode, cardSort, sortDir, cardFilter]);
 
   const mobileDropZones = useMemo((): MobileDropZone[] => {
     const zones: MobileDropZone[] = BOARDS.map((b) => ({
@@ -547,11 +548,12 @@ export function DeckBuilderPage() {
       updated_at: "",
       tag_ids: [],
     })),
-        cardSort
+        cardSort,
+        sortDir
       ),
       cardFilter
     );
-  }, [detail, deckTokens, cardSort, cardFilter]);
+  }, [detail, deckTokens, cardSort, sortDir, cardFilter]);
 
   const displaySections = useMemo(() => {
     if (panel !== "tokens") return boardSections;
@@ -560,11 +562,11 @@ export function DeckBuilderPage() {
         id: "main" as DeckBoard,
         label: "Tokens & extras",
         cards: tokenCards,
-        groups: buildGroups(tokenCards, groupMode, detail?.tags ?? []),
+        groups: buildGroups(tokenCards, groupMode, detail?.tags ?? [], cardSort, sortDir),
         count: tokenCards.reduce((n, c) => n + c.quantity, 0),
       },
     ];
-  }, [panel, boardSections, tokenCards, groupMode, detail?.tags]);
+  }, [panel, boardSections, tokenCards, groupMode, detail?.tags, cardSort, sortDir]);
 
   /** Best-effort commander identity from commander-board cards (mana cost until full CI cached). */
   const deckQtyByOracle = useMemo(() => {
@@ -1689,10 +1691,12 @@ export function DeckBuilderPage() {
               groupMode={groupMode}
               viewMode={viewMode}
               cardSort={cardSort}
+              sortDir={sortDir}
               cardFilter={cardFilter}
               onGroupMode={changeGroupMode}
               onViewMode={changeViewMode}
               onSort={(sort) => patchTab({ sort })}
+              onSortDir={(sortDir) => patchTab({ sortDir })}
               onFilter={(filter) => patchTab({ filter })}
             />
           )}

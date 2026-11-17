@@ -1,4 +1,4 @@
-import type { CardSortKey, DeckViewMode } from "../lib/deckPreferences";
+import type { CardSortKey, DeckViewMode, SortDir } from "../lib/deckPreferences";
 import styles from "../pages/DeckBuilderPage.module.css";
 
 type GroupMode = "type" | "tag" | "none" | "grid";
@@ -7,10 +7,12 @@ type Props = {
   groupMode: GroupMode;
   viewMode: DeckViewMode;
   cardSort: CardSortKey;
+  sortDir: SortDir;
   cardFilter: string;
   onGroupMode: (mode: GroupMode) => void;
   onViewMode: (mode: DeckViewMode) => void;
   onSort: (sort: CardSortKey) => void;
+  onSortDir: (dir: SortDir) => void;
   onFilter: (filter: string) => void;
 };
 
@@ -27,8 +29,8 @@ const VIEW_OPTIONS: [DeckViewMode, string][] = [
 ];
 
 export function DeckToolbar({
-  groupMode, viewMode, cardSort, cardFilter,
-  onGroupMode, onViewMode, onSort, onFilter,
+  groupMode, viewMode, cardSort, sortDir, cardFilter,
+  onGroupMode, onViewMode, onSort, onSortDir, onFilter,
 }: Props) {
   return (
     <div className={styles.toolbar}>
@@ -63,6 +65,14 @@ export function DeckToolbar({
         <option value="type">Sort: type</option>
         <option value="qty">Sort: quantity</option>
       </select>
+      <button
+        type="button"
+        className={`${styles.groupBtn} ${styles.groupBtnActive}`}
+        aria-label={sortDir === "asc" ? "Ascending. Click for descending." : "Descending. Click for ascending."}
+        onClick={() => onSortDir(sortDir === "asc" ? "desc" : "asc")}
+      >
+        {sortDir === "asc" ? "Asc" : "Desc"}
+      </button>
       <div className={styles.groupToggle} role="group" aria-label="Deck view">
         {VIEW_OPTIONS.map(([mode, label]) => (
           <button
