@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useAuth } from "../auth/AuthProvider";
 import { useIsMobile } from "../hooks/useIsMobile";
 import {
   SYNERGY_TAGS,
@@ -8,6 +9,7 @@ import {
   type SynergyCard,
   type TaggedCard,
 } from "../lib/synergy/engine";
+import { submitVerdict } from "../services/mechanicMarkService";
 import styles from "./SynergyMap.module.css";
 
 type Props = {
@@ -23,6 +25,7 @@ function labelFor(id: string) {
 
 export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }: Props) {
   const mobile = useIsMobile(900);
+  const { user } = useAuth();
   const { nodes } = useMemo(
     () => buildSynergyGraph(cards, 1, community),
     [cards, community]
@@ -62,6 +65,9 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
   }, [counts, nodes, community, byKey]);
   const [filter, setFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [verdicts, setVerdicts] = useState<Record<string, "validate" | "nullify">>({});
+  const [verdictBusy, setVerdictBusy] = useState<string | null>(null);
+  const [verdictNote, setVerdictNote] = useState<string | null>(null);
 
   const engines = columns.filter((t) => t.cards.length >= 2);
   const active = filter ?? (mobile && engines[0] ? engines[0].id : "all");
@@ -78,6 +84,28 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
     if (!marks.length) return null;
     if (marks.some((m) => m.economy === "both")) return "both";
     return marks[0].economy;
+  }
+
+  function dropped(cardKey: string, engineId: string) {
+    return verdicts[`${cardKey}:${engineId}`] === "nullify";
+  }
+
+  async function onVerdict(tag: string, verdict: "validate" | "nullify") {
+    if (!picked) return;
+    if (!user) {
+      setVerdictNote("Log in to train the map.");
+      return;
+    }
+    setVerdictBusy(`${picked.key}:${tag}`);
+    setVerdictNote(null);
+    const { error } = await submitVerdict(user.id, picked.key, tag, verdict);
+    setVerdictBusy(null);
+    if (error) {
+      setVerdictNote(error);
+      return;
+    }
+    setVerdicts((prev) => ({ ...prev, [`${picked.key}:${tag}`]: verdict }));
+    setVerdictNote(verdict === "validate" ? "Validated." : "Nullified.");
   }
 
   const links = extraEdges
@@ -116,19 +144,54 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
           )}
 
           {picked && (
-            <div className={styles.focus}>
-              <strong>{picked.name}</strong>
-              <div className={styles.focusTags}>
-                {picked.tags.map((t) => (
-                  <button key={t} type="button" className={styles.chip} onClick={() => setFilter(t)}>
-                    {labelFor(t)}
+            <div className={styles.viewer}>
+              {picked.image ? (
+                <img src={picked.image} alt="" className={styles.viewerImg} />
+              ) : (
+                <div className={styles.viewerPh}>{picked.name.slice(0, 1)}</div>
+              )}
+              <div className={styles.viewerBody}>
+                <div className={styles.viewerHead}>
+                  <strong>{picked.name}</strong>
+                  <button type="button" className={styles.clear} onClick={() => setSelected(null)}>
+                    Close
                   </button>
-                ))}
-                {picked.tags.length === 0 && <span className={styles.muted}>No tagged mechanic</span>}
+                </div>
+                {picked.oracle ? (
+                  <p className={styles.oracle}>{picked.oracle}</p>
+                ) : (
+                  <p className={styles.muted}>Oracle text is still loading.</p>
+                )}
+                <ul className={styles.verdicts}>
+                  {(picked.tags.length ? picked.tags : []).map((tag) => {
+                    const key = `${picked.key}:${tag}`;
+                    const state = verdicts[key];
+                    return (
+                      <li key={tag}>
+                        <span>{labelFor(tag)}</span>
+                        <button
+                          type="button"
+                          className={state === "validate" ? styles.verdictOn : styles.verdict}
+                          disabled={verdictBusy === key}
+                          onClick={() => void onVerdict(tag, "validate")}
+                        >
+                          Validate
+                        </button>
+                        <button
+                          type="button"
+                          className={state === "nullify" ? styles.verdictOff : styles.verdict}
+                          disabled={verdictBusy === key}
+                          onClick={() => void onVerdict(tag, "nullify")}
+                        >
+                          Nullify
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {picked.tags.length === 0 && <li className={styles.muted}>No plotted mechanic on this card.</li>}
+                </ul>
+                {verdictNote && <p className={styles.muted}>{verdictNote}</p>}
               </div>
-              <button type="button" className={styles.clear} onClick={() => setSelected(null)}>
-                Clear
-              </button>
             </div>
           )}
 
@@ -148,7 +211,8 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
           ) : (
             <div className={styles.columns}>
               {shown.map((engine) => {
-                const holdsPick = picked ? engine.cards.some((c) => c.key === picked.key) : false;
+                const visible = engine.cards.filter((card) => !dropped(card.key, engine.id));
+                const holdsPick = picked ? visible.some((c) => c.key === picked.key) : false;
                 return (
                   <section
                     key={engine.id}
@@ -156,10 +220,10 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
                   >
                     <header>
                       <h3>{engine.label}</h3>
-                      <span>{engine.cards.length}</span>
+                      <span>{visible.length}</span>
                     </header>
                     <ul>
-                      {engine.cards.map((card) => {
+                      {visible.map((card) => {
                         const on = card.key === selected;
                         const kin =
                           picked &&

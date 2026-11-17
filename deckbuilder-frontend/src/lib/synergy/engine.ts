@@ -125,6 +125,7 @@ export type SynergyCard = {
   name: string;
   oracle: string;
   keywords?: string[];
+  image?: string;
 };
 
 export type TaggedCard = SynergyCard & { tags: SynergyTagId[] };

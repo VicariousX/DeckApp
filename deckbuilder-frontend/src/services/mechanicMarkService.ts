@@ -148,3 +148,32 @@ export async function lockMark(
     .eq("id", markId);
   return { error: error?.message ?? null };
 }
+
+/** Confirm or reject a plotted mechanic so the community table can learn it. */
+export async function submitVerdict(
+  userId: string,
+  oracleId: string,
+  mechanicId: string,
+  verdict: "validate" | "nullify"
+): Promise<{ error: string | null }> {
+  const { data, error } = await supabase
+    .from("card_mechanic_marks")
+    .select("id")
+    .eq("oracle_id", oracleId)
+    .eq("mechanic_id", mechanicId)
+    .limit(1);
+  if (error) return { error: error.message };
+  let id = (data?.[0] as { id?: string } | undefined)?.id;
+  if (!id) {
+    const created = await proposeMark(userId, {
+      oracle_id: oracleId,
+      mechanic_id: mechanicId,
+      economy: "both",
+      flow: "both",
+      agency: "cause",
+    });
+    if (!created.mark) return { error: created.error ?? "Could not record that." };
+    id = created.mark.id;
+  }
+  return voteMark(userId, id, verdict === "validate" ? "endorse" : "flag");
+}

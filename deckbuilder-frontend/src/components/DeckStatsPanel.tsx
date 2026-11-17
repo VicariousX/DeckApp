@@ -75,6 +75,9 @@ export function DeckStatsPanel({
         name: c.name,
         oracle: oracleByName[c.name.toLowerCase()] ?? "",
         keywords: kwByName[c.name.toLowerCase()],
+        image: c.scryfall_id
+          ? `https://api.scryfall.com/cards/${c.scryfall_id}?format=image&version=normal`
+          : undefined,
       })),
     [cards, oracleByName, kwByName]
   );
