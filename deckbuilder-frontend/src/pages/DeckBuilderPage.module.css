@@ -1690,11 +1690,16 @@
 }
 
 .newColumnDropLabel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
   padding: 0.5rem;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .removeColumnBtn {

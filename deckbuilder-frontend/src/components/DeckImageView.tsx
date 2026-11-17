@@ -6,6 +6,7 @@ import {
   boardDropId,
   groupDropId,
   listColDropId,
+  listColNewDropId,
   stopDndPropagation,
   type MobileDropZone,
   type DropTarget,
@@ -46,6 +47,9 @@ type Props = {
   toggleStackFace: (c: DeckCard, e: MouseEvent) => void;
   handleImageDrop: (sourceCardId: string, target: DropTarget) => void;
   faceView: Record<string, "front" | "back">;
+  onRenameColumn?: (board: DeckBoard, colId: string, name: string) => void;
+  onAddColumn?: (board: DeckBoard) => void;
+  onRemoveColumn?: (board: DeckBoard, colId: string) => void;
 };
 
 function cardsInColumn(
@@ -66,7 +70,7 @@ export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
   issuesByOracle, mobileDropZones, tokenCards, stackImageSrc, looksMultiFace,
   onImageCardTap, openCardModal, onCardContext, onQty, toggleStackFace,
-  handleImageDrop, faceView,
+  handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
   function renderCard(c: DeckCard, index: number | undefined, variant: "stack" | "grid" | "commander") {
     const src = stackImageSrc(c);
@@ -214,7 +218,7 @@ export function DeckImageView({
           }
 
           let body: ReactNode;
-          if (board.cards.length === 0) {
+          if (board.cards.length === 0 && groupMode !== "none") {
             body = <p className={styles.boardZoneEmpty}>No cards on this board.</p>;
           } else if (groupMode === "grid") {
             body = (
@@ -223,13 +227,71 @@ export function DeckImageView({
               </div>
             );
           } else if (groupMode === "none") {
-            body = renderStacks(
-              layout.columns.map((col, i) => ({
-                key: col.id,
-                label: col.name,
-                cards: cardsInColumn(board.cards, layout, col.id, i === 0),
-                dropId: listColDropId(board.id, col.id),
-              }))
+            const cols = layout.columns;
+            body = (
+              <div className={styles.stacksRow}>
+                {cols.map((col, i) => {
+                  const cards = cardsInColumn(board.cards, layout, col.id, i === 0);
+                  return (
+                    <DroppableRegion
+                      key={col.id}
+                      id={listColDropId(board.id, col.id)}
+                      className={styles.stackColumn}
+                      activeClassName={styles.stackColumnDropActive}
+                      disabled={!isOwner}
+                    >
+                      <header className={styles.stackHeader}>
+                        {isOwner ? (
+                          <input
+                            className={styles.columnNameInput}
+                            value={col.name}
+                            aria-label="Column name"
+                            onChange={(e) => onRenameColumn?.(board.id, col.id, e.target.value)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h3 className={styles.stackTitle}>{col.name}</h3>
+                        )}
+                        <span className={styles.stackCount}>
+                          {cards.reduce((n, c) => n + c.quantity, 0)}
+                        </span>
+                        {isOwner && cols.length > 1 ? (
+                          <button
+                            type="button"
+                            className={styles.removeColumnBtn}
+                            aria-label={`Remove ${col.name}`}
+                            onClick={() => onRemoveColumn?.(board.id, col.id)}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </header>
+                      {cards.length === 0 ? (
+                        <p className={styles.boardZoneEmpty}>Drop cards here</p>
+                      ) : (
+                        <StackCards count={cards.length}>
+                          {cards.map((c, idx) => renderCard(c, idx, "stack"))}
+                        </StackCards>
+                      )}
+                    </DroppableRegion>
+                  );
+                })}
+                {isOwner ? (
+                  <DroppableRegion
+                    id={listColNewDropId(board.id)}
+                    className={`${styles.newColumnDrop} ${styles.newColumnDropVisible}`}
+                    activeClassName={styles.newColumnDropActive}
+                  >
+                    <button
+                      type="button"
+                      className={styles.newColumnDropLabel}
+                      onClick={() => onAddColumn?.(board.id)}
+                    >
+                      + Column
+                    </button>
+                  </DroppableRegion>
+                ) : null}
+              </div>
             );
           } else {
             body = renderStacks(

@@ -1739,6 +1739,9 @@ export function DeckBuilderPage() {
               toggleStackFace={toggleStackFace}
               handleImageDrop={handleImageDrop}
               faceView={faceView}
+              onRenameColumn={renameListColumn}
+              onAddColumn={addListColumn}
+              onRemoveColumn={removeListColumn}
             />
           )}
 
