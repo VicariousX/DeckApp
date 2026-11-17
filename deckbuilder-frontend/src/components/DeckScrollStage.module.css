@@ -1,0 +1,172 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(260px, 520px) minmax(180px, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 3.2rem 1.25rem 1.5rem;
+  background: rgba(0, 0, 0, 0.82);
+  touch-action: none;
+}
+
+.rail {
+  color: #fff;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  align-self: center;
+  max-height: min(78vh, 640px);
+  overflow: auto;
+}
+
+.railRight {
+  align-items: flex-start;
+}
+
+.name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.type,
+.meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.85rem;
+}
+
+.place {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.actions button,
+.qty button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.actions button:hover,
+.qty button:hover {
+  border-color: #fff;
+}
+
+.danger {
+  color: #ffb4b4;
+}
+
+.qty {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 750;
+}
+
+.exit {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.textFace {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 0.9rem 0.85rem 1rem;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)), var(--color-surface) 28%);
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.textName {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.textType,
+.textStats {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.oracle {
+  margin: 0.2rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.mobileActions {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .stage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 3rem 0.4rem 0.8rem;
+  }
+  .rail {
+    display: none;
+  }
+  .mobileActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+    padding-top: 0.35rem;
+  }
+  .mobileActions button {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+  }
+}

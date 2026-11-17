@@ -42,6 +42,7 @@ type Props = {
   looksMultiFace: (c: DeckCard) => boolean;
   onImageCardTap: (c: DeckCard, el: HTMLElement) => void;
   openCardModal: (c: DeckCard) => void;
+  onOpenScroll: (c: DeckCard) => void;
   onCardContext: (e: { preventDefault: () => void; clientX: number; clientY: number }, c: DeckCard) => void;
   onQty: (c: DeckCard, d: number) => void;
   toggleStackFace: (c: DeckCard, e: MouseEvent) => void;
@@ -69,7 +70,7 @@ function cardsInColumn(
 export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
   issuesByOracle, mobileDropZones, tokenCards, stackImageSrc, looksMultiFace,
-  onImageCardTap, openCardModal, onCardContext, onQty, toggleStackFace,
+  onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
   function renderCard(c: DeckCard, index: number | undefined, variant: "stack" | "grid" | "commander") {
@@ -90,13 +91,7 @@ export function DeckImageView({
         stackIndex={variant === "stack" ? index : undefined}
         disabled={!isOwner}
         className={`${frame}${illegal ? ` ${styles.stackIllegal}` : ""}`}
-        onClick={(e) => {
-          if (isMobile) {
-            onImageCardTap(c, e.currentTarget as HTMLElement);
-            return;
-          }
-          openCardModal(c);
-        }}
+        onClick={() => onOpenScroll(c)}
         onContextMenu={(e) => {
           if (isMobile) { e.preventDefault(); return; }
           onCardContext(e, c);

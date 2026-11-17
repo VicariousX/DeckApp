@@ -115,6 +115,9 @@ import { DeckTextView } from "../components/DeckTextView";
 import { DeckCardActions } from "../components/DeckCardActions";
 import { DeckTagsPanel } from "../components/DeckTagsPanel";
 import { DeckInspectorHost } from "../components/DeckInspectorHost";
+import { DeckScrollStage } from "../components/DeckScrollStage";
+import { registerSettings } from "../components/SettingsDrawer";
+import { getDeckScrollText, onDeckScrollText, setDeckScrollText } from "../lib/deckScrollPreference";
 import { BranchManagerDialog } from "../components/BranchManagerDialog";
 import { QtyControl } from "../components/QtyControl";
 import { CardTagPicker } from "../components/CardTagPicker";
@@ -125,6 +128,8 @@ import transitions from "../styles/pageTransitions.module.css";
 import styles from "./DeckBuilderPage.module.css";
 
 type GroupMode = "type" | "tag" | "none" | "grid";
+
+let deckScrollSettingReady = false;
 
 const BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "commander", label: "Commander" },
@@ -212,6 +217,21 @@ export function DeckBuilderPage() {
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [tagMenuCardId, setTagMenuCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<DeckCard | null>(null);
+  const [scrollId, setScrollId] = useState<string | null>(null);
+  const [scrollText, setScrollText] = useState(getDeckScrollText);
+
+  useEffect(() => onDeckScrollText(() => setScrollText(getDeckScrollText())), []);
+  useEffect(() => {
+    if (deckScrollSettingReady) return;
+    deckScrollSettingReady = true;
+    registerSettings((pathname) => {
+      if (!pathname.startsWith("/deck/")) return null;
+      return {
+        title: "Deck",
+        content: <DeckScrollSetting />,
+      };
+    });
+  }, []);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
   const [ctxMenu, setCtxMenu] = useState<{
     x: number;
@@ -1763,6 +1783,7 @@ export function DeckBuilderPage() {
               looksMultiFace={looksMultiFace}
               onImageCardTap={onImageCardTap}
               openCardModal={openCardModal}
+              onOpenScroll={(c) => setScrollId(c.id)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
               toggleStackFace={toggleStackFace}
@@ -1802,7 +1823,7 @@ export function DeckBuilderPage() {
               expandedId={expandedOracleId}
               oracleById={oracleCache}
               imageFor={(c) => imageUrls[c.id]}
-              onToggleOracle={(c) => void toggleOracle(c)}
+              onToggleOracle={(c) => setScrollId(c.id)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
               onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}
@@ -1842,6 +1863,20 @@ export function DeckBuilderPage() {
         moveCardToBoard={(c, b) => void moveCardToBoard(c, b)}
         placeCardInListColumn={placeCardInListColumn}
       />
+      {scrollId && (
+        <DeckScrollStage
+          cards={displaySections.flatMap((section) => section.cards)}
+          startId={scrollId}
+          textMode={scrollText}
+          isOwner={isOwner}
+          imageFor={(c) => stackImageSrc(c)}
+          onClose={() => setScrollId(null)}
+          onInspect={(c) => openCardModal(c)}
+          onQty={(c, d) => void onQty(c, d)}
+          onBoard={(c, b) => void moveCardToBoard(c, b)}
+          onRemove={(c) => void onRemove(c)}
+        />
+      )}
       <DeckInspectorHost
         modalCard={modalCard}
         modalJump={modalJump}
@@ -1907,5 +1942,21 @@ export function DeckBuilderPage() {
         y={hoverPos.y}
       />
     </div>
+  );
+}
+
+function DeckScrollSetting() {
+  const [on, setOn] = useState(getDeckScrollText);
+  useEffect(() => onDeckScrollText(() => setOn(getDeckScrollText())), []);
+  return (
+    <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.88rem" }}>
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => setDeckScrollText(e.target.checked)}
+        style={{ marginTop: 3 }}
+      />
+      <span>Scroll view shows oracle text and stats instead of the card image.</span>
+    </label>
   );
 }

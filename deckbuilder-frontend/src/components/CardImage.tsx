@@ -162,6 +162,7 @@ export function CardEnlargeOverlay({
   hint,
   mode = "tilt",
   embedded = false,
+  faces,
 }: {
   frontSrc: string;
   backSrc?: string;
@@ -193,6 +194,8 @@ export function CardEnlargeOverlay({
   mode?: "tilt" | "swipe";
   /** Render in place as the primary view instead of a pop-out overlay. */
   embedded?: boolean;
+  /** Replaces the card images (text scroll). Prev/next keep the swipe stack. */
+  faces?: { prev?: ReactNode; current: ReactNode; next?: ReactNode };
 }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -319,7 +322,7 @@ export function CardEnlargeOverlay({
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
           const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-          const onCard = Boolean(under?.closest("img"));
+          const onCard = Boolean(under?.closest(`img, .${styles.swipeCard}`));
           if (Math.hypot(dx, dy) < 28) {
             if (onCard) {
               onActivate?.();
@@ -403,7 +406,7 @@ export function CardEnlargeOverlay({
       >
         {swipe ? (
           <div className={styles.swipeStack} ref={stackRef}>
-            {prevSrc && (
+            {(faces?.prev || prevSrc) && (
               <div
                 className={styles.swipeCard}
                 style={{
@@ -412,7 +415,7 @@ export function CardEnlargeOverlay({
                   transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
                 }}
               >
-                <img src={prevSrc} alt="" className={styles.enlargeImage} draggable={false} />
+                {faces?.prev ?? <img src={prevSrc} alt="" className={styles.enlargeImage} draggable={false} />}
               </div>
             )}
             <div
@@ -423,7 +426,7 @@ export function CardEnlargeOverlay({
                 transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
               }}
             >
-              <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />
+              {faces?.current ?? <img src={src} alt={alt} className={styles.enlargeImage} draggable={false} />}
               {addedQty != null && addedQty > 0 && (
                 <span key={addedQty} className={`${styles.qtyBadge} ${styles.qtyBadgeStay} ${styles.qtyBadgeFlash}`}>
                   {presenceOnly ? "✓" : `×${addedQty}`}
@@ -431,7 +434,7 @@ export function CardEnlargeOverlay({
               )}
               {toast && <span className={styles.addEmblem}>{toast}</span>}
             </div>
-            {nextSrc && (
+            {(faces?.next || nextSrc) && (
               <div
                 className={styles.swipeCard}
                 style={{
@@ -440,7 +443,7 @@ export function CardEnlargeOverlay({
                   transition: dragging || settling ? "none" : "transform 0.23s ease, opacity 0.23s ease",
                 }}
               >
-                <img src={nextSrc} alt="" className={styles.enlargeImage} draggable={false} />
+                {faces?.next ?? <img src={nextSrc} alt="" className={styles.enlargeImage} draggable={false} />}
               </div>
             )}
           </div>
