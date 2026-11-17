@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { Link } from "react-router-dom";
 import {
   getDeckPageControls,
   subscribeDeckPageControls,
@@ -27,6 +28,7 @@ const SORTS: [CardSortKey, string][] = [
 export function DeckPageSettings() {
   const controls = useSyncExternalStore(subscribeDeckPageControls, getDeckPageControls, getDeckPageControls);
   const [textScroll, setTextScroll] = useState(getDeckScrollText);
+  const [historyOpen, setHistoryOpen] = useState(false);
   useEffect(() => onDeckScrollText(() => setTextScroll(getDeckScrollText())), []);
 
   return (
@@ -100,6 +102,41 @@ export function DeckPageSettings() {
               {controls.tools}
             </div>
           ) : null}
+          <div>
+            <div className={styles.sectionTitle}>Deck</div>
+            <div className={styles.pills} style={{ flexWrap: "wrap" }}>
+              {controls.canCopy && (
+                <>
+                  <button type="button" className={styles.pill} onClick={controls.onClone}>Clone</button>
+                  <button type="button" className={styles.pill} onClick={controls.onBranches}>Branches</button>
+                </>
+              )}
+              {controls.isOwner && (
+                <button type="button" className={styles.pill} onClick={() => setHistoryOpen((v) => !v)}>
+                  History
+                </button>
+              )}
+              {controls.isOwner && (
+                <button type="button" className={styles.pill} onClick={controls.onTogglePublic}>
+                  {controls.isPublic ? "Public" : "Make public"}
+                </button>
+              )}
+              {controls.parentId && (
+                <Link to={`/deck/${controls.parentId}`} className={styles.pill}>Parent</Link>
+              )}
+            </div>
+            {historyOpen && (
+              <ul style={{ margin: "0.55rem 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                {controls.history.length === 0 && <li style={{ color: "var(--color-text-muted)", fontSize: "0.82rem" }}>No saved edits yet.</li>}
+                {controls.history.map((snap) => (
+                  <li key={snap.at} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.82rem" }}>
+                    <span>{new Date(snap.at).toLocaleString()} · {snap.label}</span>
+                    <button type="button" className={styles.pill} onClick={() => controls.onRestore(snap.at)}>Restore</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </>
       )}
     </div>

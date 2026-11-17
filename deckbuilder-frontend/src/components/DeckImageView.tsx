@@ -142,12 +142,14 @@ export function DeckImageView({
             activeClassName={styles.stackColumnDropActive}
             disabled={!isOwner}
           >
+            {col.label ? (
             <header className={styles.stackHeader}>
               <h3 className={styles.stackTitle}>{col.label}</h3>
               <span className={styles.stackCount}>
                 {col.cards.reduce((n, c) => n + c.quantity, 0)}
               </span>
             </header>
+            ) : null}
             {col.cards.length === 0 ? (
               <p className={styles.boardZoneEmpty}>Empty</p>
             ) : (
@@ -290,7 +292,7 @@ export function DeckImageView({
             body = renderStacks(
               board.groups.map((g) => ({
                 key: g.key,
-                label: g.label,
+                label: board.id === "commander" ? "" : g.label,
                 cards: g.cards,
                 dropId: groupDropId(board.id, g.key),
               }))

@@ -24,15 +24,92 @@ export function sortCards(
   });
 }
 
-export function filterCards(cards: DeckCard[], q: string): DeckCard[] {
-  const s = q.trim().toLowerCase();
-  if (!s) return cards;
-  return cards.filter(
-    (c) =>
-      c.name.toLowerCase().includes(s) ||
-      (c.type_line || "").toLowerCase().includes(s) ||
-      (c.notes || "").toLowerCase().includes(s)
+export type CardFilterFacts = {
+  oracle?: string;
+  colors?: string[];
+  identity?: string[];
+  cmc?: number | null;
+};
+
+const COLOR_WORDS: Record<string, string> = {
+  w: "W", u: "U", b: "B", r: "R", g: "G", c: "C",
+  white: "W", blue: "U", black: "B", red: "R", green: "G", colorless: "C",
+  azorius: "WU", dimir: "UB", rakdos: "BR", gruul: "RG", selesnya: "GW",
+  orzhov: "WB", izzet: "UR", golgari: "BG", boros: "RW", simic: "GU",
+  bant: "GWU", esper: "WUB", grixis: "UBR", jund: "BRG", naya: "RGW",
+  mardu: "RWB", temur: "GUR", abzan: "WBG", jeskai: "URW", sultai: "BGU",
+};
+
+function colorLetters(token: string): string[] {
+  const key = token.toLowerCase();
+  if (COLOR_WORDS[key]) return COLOR_WORDS[key].split("");
+  return key.toUpperCase().split("").filter((letter) => "WUBRGC".includes(letter));
+}
+
+function hasColors(have: string[], need: string[]): boolean {
+  const set = new Set(have.map((c) => c.toUpperCase()));
+  return need.every((letter) => (letter === "C" ? set.size === 0 : set.has(letter)));
+}
+
+function compare(value: number, op: string, target: number): boolean {
+  if (op === "<") return value < target;
+  if (op === ">") return value > target;
+  if (op === "<=") return value <= target;
+  if (op === ">=") return value >= target;
+  return value === target;
+}
+
+export function filterCards(
+  cards: DeckCard[],
+  q: string,
+  facts: Record<string, CardFilterFacts> = {}
+): DeckCard[] {
+  const raw = q.trim();
+  if (!raw) return cards;
+  const checks: Array<(card: DeckCard, fact?: CardFilterFacts) => boolean> = [];
+  let rest = ` ${raw} `;
+
+  rest = rest.replace(
+    /(?:^|\s)(?:mv|cmc|mana(?:\s+value)?)\s*(<=|>=|<|>|=|:)?\s*(\d+(?:\.\d+)?)(?=\s|$)/gi,
+    (_m, op: string | undefined, n: string) => {
+      const target = Number(n);
+      const operator = !op || op === ":" ? "=" : op;
+      checks.push((card, fact) => compare(card.cmc ?? fact?.cmc ?? 0, operator, target));
+      return " ";
+    }
   );
+  rest = rest.replace(
+    /(?:^|\s)(?:id|ci|identity)\s*:\s*([a-z]+)(?=\s|$)/gi,
+    (_m, token: string) => {
+      const need = colorLetters(token);
+      checks.push((_card, fact) => hasColors(fact?.identity ?? [], need));
+      return " ";
+    }
+  );
+  rest = rest.replace(
+    /(?:^|\s)(?:c|color|colors)\s*:\s*([a-z]+)(?=\s|$)/gi,
+    (_m, token: string) => {
+      const need = colorLetters(token);
+      checks.push((_card, fact) => hasColors(fact?.colors ?? fact?.identity ?? [], need));
+      return " ";
+    }
+  );
+
+  const text = rest.trim().toLowerCase();
+  if (text) {
+    const words = text.split(/\s+/).filter(Boolean);
+    checks.push((card, fact) => {
+      const blob = [card.name, card.type_line, card.notes, fact?.oracle]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return words.every((word) => blob.includes(word));
+    });
+  }
+  return cards.filter((card) => {
+    const fact = facts[card.oracle_id?.toLowerCase()] ?? facts[card.id?.toLowerCase()];
+    return checks.every((check) => check(card, fact));
+  });
 }
 
 /** Image-view qty controls only for basic lands (repeatable). */

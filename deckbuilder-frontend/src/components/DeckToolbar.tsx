@@ -39,11 +39,12 @@ export function DeckToolbar({
     <div className={styles.toolbar}>
       <input
         className={`${styles.input} ${styles.toolbarFilter}`}
-        placeholder="Filter…"
+        placeholder="Name, type, MV<=3, c:wu, id:bug"
         value={cardFilter}
         onChange={(e) => onFilter(e.target.value)}
       />
       <span className={styles.barRule} aria-hidden="true" />
+      <div className={styles.barCluster}>
       <select
         className={`${styles.addRowBtn} ${styles.toolbarDesk}`}
         value={cardSort}
@@ -88,6 +89,7 @@ export function DeckToolbar({
             {label}
           </button>
         ))}
+      </div>
       </div>
     </div>
   );

@@ -16,6 +16,14 @@ export type DeckPageControls = {
   setSort: (sort: CardSortKey) => void;
   setDir: (dir: SortDir) => void;
   setFormat: (id: string) => void;
+  canCopy: boolean;
+  isPublic: boolean;
+  parentId: string | null;
+  history: { at: number; label: string }[];
+  onClone: () => void;
+  onBranches: () => void;
+  onRestore: (at: number) => void;
+  onTogglePublic: () => void;
 };
 
 let current: DeckPageControls | null = null;

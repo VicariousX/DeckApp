@@ -75,6 +75,7 @@ import {
   filterCards,
   isBasicLand,
   sortCards,
+  type CardFilterFacts,
   type CardGroup,
 } from "../lib/deck/boardHelpers";
 import type { ExportSection } from "../lib/cards/exportCardList";
@@ -103,7 +104,6 @@ import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { LegalityDropdown } from "../components/LegalityDropdown";
-import { DeckHeaderActions } from "../components/DeckHeaderActions";
 import { PanelTabs, type PanelTab } from "../components/PanelTabs";
 import { BoardCycle } from "../components/BoardCycle";
 import { DeckToolbar } from "../components/DeckToolbar";
@@ -162,13 +162,13 @@ export function DeckBuilderPage() {
   const [detail, setDetail] = useState<DeckDetail | null>(null);
   const [houseFormats, setHouseFormats] = useState<HouseFormat[]>([]);
   const [history, setHistory] = useState<DeckSnapshot[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [branchManagerOpen, setBranchManagerOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [copyAsk, setCopyAsk] = useState<null | "clone" | "branch">(null);
   const [copyReady, setCopyReady] = useState<{ id: string; name: string; kind: "clone" | "branch" } | null>(null);
   const [copyBusy, setCopyBusy] = useState(false);
   const [legalityCards, setLegalityCards] = useState<Record<string, CardLegality>>({});
+  const [filterFacts, setFilterFacts] = useState<Record<string, CardFilterFacts>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelTab>("deck");
@@ -449,7 +449,6 @@ export function DeckBuilderPage() {
         board: card.board,
       });
     }
-    setHistoryOpen(false);
     void loadDeck({ silent: true });
   }
 
@@ -531,7 +530,8 @@ export function DeckBuilderPage() {
     return BOARDS.map((b) => {
       const cards = filterCards(
         sortCards(detail.cards.filter((c) => c.board === b.id), cardSort, sortDir),
-        cardFilter
+        cardFilter,
+        filterFacts
       );
       return {
         id: b.id,
@@ -541,7 +541,7 @@ export function DeckBuilderPage() {
         count: cards.reduce((n, c) => n + c.quantity, 0),
       };
     });
-  }, [detail, groupMode, cardSort, sortDir, cardFilter]);
+  }, [detail, groupMode, cardSort, sortDir, cardFilter, filterFacts]);
 
   const mobileDropZones = useMemo((): MobileDropZone[] => {
     const zones: MobileDropZone[] = BOARDS.map((b) => ({
@@ -619,9 +619,10 @@ export function DeckBuilderPage() {
         cardSort,
         sortDir
       ),
-      cardFilter
+      cardFilter,
+      filterFacts
     );
-  }, [detail, deckTokens, cardSort, sortDir, cardFilter]);
+  }, [detail, deckTokens, cardSort, sortDir, cardFilter, filterFacts]);
 
   const displaySections = useMemo(() => {
     if (panel !== "tokens") return boardSections;
@@ -706,6 +707,7 @@ export function DeckBuilderPage() {
     void fetchCollectionByIds(detail.cards.map((c) => c.scryfall_id)).then(({ cards }) => {
       if (cancelled) return;
       const next: Record<string, CardLegality> = {};
+      const facts: Record<string, CardFilterFacts> = {};
       for (const card of cards) {
         const oracle = (card.oracle_id || card.id || "").toLowerCase();
         if (!oracle) continue;
@@ -717,8 +719,16 @@ export function DeckBuilderPage() {
           usd: card.prices?.usd ? Number(card.prices.usd) : null,
           edhrec_rank: card.edhrec_rank,
         };
+        const faces = card.card_faces ?? [];
+        facts[oracle] = {
+          oracle: [card.oracle_text, ...faces.map((face) => face.oracle_text ?? "")].filter(Boolean).join("\n"),
+          colors: card.colors ?? [],
+          identity: card.color_identity ?? [],
+          cmc: card.cmc,
+        };
       }
       setLegalityCards(next);
+      setFilterFacts(facts);
     });
     return () => {
       cancelled = true;
@@ -1569,6 +1579,26 @@ export function DeckBuilderPage() {
           setDetail((prev) => (prev ? { ...prev, deck } : prev));
         });
       },
+      canCopy: Boolean(user),
+      isPublic: detail.deck.is_public,
+      parentId,
+      history: history.map((snap) => ({ at: snap.at, label: snap.label })),
+      onClone: () => setCopyAsk("clone"),
+      onBranches: () => setBranchManagerOpen(true),
+      onRestore: (at) => {
+        const snap = history.find((item) => item.at === at);
+        if (snap) void restoreSnapshot(snap);
+      },
+      onTogglePublic: () => {
+        const next = !detail.deck.is_public;
+        void updateDeck(id, { is_public: next }).then(({ deck, error: err }) => {
+          if (err || !deck) {
+            setError(err ?? "Could not update visibility");
+            return;
+          }
+          setDetail((prev) => (prev ? { ...prev, deck } : prev));
+        });
+      },
     });
   });
 
@@ -1664,64 +1694,13 @@ export function DeckBuilderPage() {
               <h1 className={styles.title}>{detail.deck.name}</h1>
               <p className={styles.meta}>
                 <span className={styles.format}>{formatRule.name}</span>
-                {isOwner && (
-                  <select
-                    className={`${styles.quietSelect} ${styles.formatPick}`}
-                    value={detail.deck.format}
-                    aria-label="Format"
-                    onChange={(e) => {
-                      if (!id) return;
-                      const format = e.target.value;
-                      void updateDeck(id, { format }).then(({ deck, error: err }) => {
-                        if (err || !deck) {
-                          setError(err ?? "Could not update format");
-                          return;
-                        }
-                        setDetail((prev) => (prev ? { ...prev, deck } : prev));
-                      });
-                    }}
-                  >
-                    {BUILTIN_FORMATS.map((f) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                    {houseFormats.map((f) => (
-                      <option key={f.id} value={`house:${f.id}`}>{f.name}</option>
-                    ))}
-                  </select>
-                )}
                 <span>
                   {totalCards} card{totalCards === 1 ? "" : "s"} ·{" "}
                   {deckCards.length} unique
                 </span>
               </p>
             </div>
-            <div className={styles.headerActions}>
-              <DeckHeaderActions
-                isMobile={isMobile}
-                user={user}
-                isOwner={isOwner}
-                parentId={parentId}
-                deck={detail.deck}
-                deckId={id!}
-                onClone={() => setCopyAsk("clone")}
-                onBranches={() => setBranchManagerOpen(true)}
-                onHistory={() => setHistoryOpen((v) => !v)}
-                onError={setError}
-                onDeckUpdate={(deck) => setDetail((prev) => (prev ? { ...prev, deck } : prev))}
-              />
-            </div>
           </header>
-          {historyOpen && (
-            <ul className={styles.legalList}>
-              {history.length === 0 && <li className={styles.legalItem}>No saved edits yet.</li>}
-              {history.map((snap) => (
-                <li key={snap.at} className={styles.legalItem}>
-                  {new Date(snap.at).toLocaleString()} · {snap.label}
-                  <button type="button" className={styles.secondaryBtn} onClick={() => void restoreSnapshot(snap)}>Restore</button>
-                </li>
-              ))}
-            </ul>
-          )}
 
           <div className={styles.panelBar}>
             <PanelTabs

@@ -290,6 +290,24 @@
   display: none;
 }
 
+.barCluster {
+  display: contents;
+}
+
+@media (min-width: 901px) {
+  .composer .barCluster {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    margin-left: 0.15rem;
+    padding: 0.12rem 0.2rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-text) 16%, transparent);
+    background: color-mix(in srgb, var(--color-bg) 40%, transparent);
+  }
+}
+
 .groupToggle {
   display: flex;
   gap: 0.3rem;

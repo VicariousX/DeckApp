@@ -110,7 +110,7 @@ export function DeckTextView({
                           </button>
                         ) : null}
                       </header>
-                    ) : g.label ? (
+                    ) : !commander && g.label ? (
                       <h3 className={styles.groupTitle}>
                         {g.label}
                         <span className={styles.groupCount}>{count}</span>
