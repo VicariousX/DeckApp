@@ -161,6 +161,11 @@ export function MyDecksPage() {
             {deck.format}
             {deck.is_public ? " · public" : " · private"}
           </span>
+          {deck.updated_at ? (
+            <span className={styles.deckWhen}>
+              {new Date(deck.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          ) : null}
         </Link>
         <div className={styles.menuWrap}>
           <button
@@ -221,6 +226,7 @@ export function MyDecksPage() {
         </div>
       </header>
 
+      <div className={styles.forms}>
       <form className={styles.createCard} onSubmit={onCreate}>
         <h2 className={styles.createTitle}>New deck</h2>
         <div className={styles.createRow}>
@@ -247,6 +253,7 @@ export function MyDecksPage() {
           </button>
         </div>
       </form>
+      </div>
 
       {error && <p className={styles.error} role="alert">{error}</p>}
       {loading && <p className={styles.status}>Loading decks…</p>}
