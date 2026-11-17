@@ -1599,9 +1599,7 @@ export function DeckBuilderPage() {
 
   return (
     <div
-      className={`${transitions.page} ${styles.page}${
-        panel === "deck" || panel === "tokens" ? ` ${styles.pageStacks}` : ""
-      }`}
+      className={`${transitions.page} ${styles.page}`}
       onDragEnter={(e) => {
         if (isExternalCardDrag(e)) setExtHover(true);
       }}
