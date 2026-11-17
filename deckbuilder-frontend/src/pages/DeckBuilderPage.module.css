@@ -468,6 +468,13 @@
   gap: 0.85rem;
 }
 
+.groupsColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.85rem 1.25rem;
+  align-items: start;
+}
+
 .groupTitle {
   margin: 0 0 0.25rem;
   font-size: 0.78rem;

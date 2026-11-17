@@ -32,10 +32,11 @@ export function DeckToolbar({
   groupMode, viewMode, cardSort, sortDir, cardFilter,
   onGroupMode, onViewMode, onSort, onSortDir, onFilter,
 }: Props) {
+  const groupOptions = GROUP_OPTIONS.filter(([mode]) => viewMode === "image" || mode !== "grid");
   return (
     <div className={styles.toolbar}>
       <div className={styles.groupToggle} role="group" aria-label="Group by">
-        {GROUP_OPTIONS.map(([mode, label]) => (
+        {groupOptions.map(([mode, label]) => (
           <button
             key={mode}
             type="button"

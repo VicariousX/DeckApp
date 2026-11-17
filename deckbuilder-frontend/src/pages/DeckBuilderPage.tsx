@@ -354,12 +354,17 @@ export function DeckBuilderPage() {
   }
 
   function changeViewMode(mode: DeckViewMode) {
-    patchTab({ view: mode });
+    if (mode === "text" && groupMode === "grid") patchTab({ view: "text", group: "none" });
+    else patchTab({ view: mode });
   }
 
   function changeGroupMode(mode: GroupMode) {
     patchTab({ group: mode as DeckGroupMode });
   }
+
+  useEffect(() => {
+    if (viewMode === "text" && groupMode === "grid") patchTab({ group: "none" });
+  }, [viewMode, groupMode]);
 
 
   const isOwner = Boolean(user && detail && detail.deck.user_id === user.id);
@@ -1751,7 +1756,24 @@ export function DeckBuilderPage() {
 
           {(panel === "deck" || panel === "tokens") && viewMode === "text" && (
             <DeckTextView
-              displaySections={displaySections}
+              displaySections={
+                groupMode === "none" && detail
+                  ? displaySections.map((board) => {
+                      const layout =
+                        listLayouts[board.id] ?? getListColumnLayout(detail.deck.id, board.id);
+                      const several = layout.columns.length > 1;
+                      return {
+                        ...board,
+                        groups: layout.columns.map((col, i) => ({
+                          key: col.id,
+                          label: several ? col.name : "",
+                          cards: cardsForListColumn(board.cards, board.id, col.id, i === 0),
+                        })),
+                      };
+                    })
+                  : displaySections
+              }
+              groupMode={groupMode}
               addTargetBoard={addTargetBoard}
               isOwner={isOwner}
               issuesByOracle={issuesByOracle}

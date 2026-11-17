@@ -14,6 +14,7 @@ type DisplaySection = {
 
 type Props = {
   displaySections: DisplaySection[];
+  groupMode: "type" | "tag" | "none" | "grid";
   addTargetBoard: DeckBoard;
   isOwner: boolean;
   issuesByOracle: Map<string, unknown[]>;
@@ -32,7 +33,7 @@ function isBasicLand(c: DeckCard) {
 }
 
 export function DeckTextView({
-  displaySections, addTargetBoard, isOwner, issuesByOracle,
+  displaySections, groupMode, addTargetBoard, isOwner, issuesByOracle,
   expandedId, oracleById, imageFor,
   onToggleOracle, onCardContext, onQty, onMore,
 }: Props) {
@@ -59,15 +60,20 @@ export function DeckTextView({
                   : "Add cards to this board."}
             </p>
           ) : (
-            <div className={styles.groups}>
+            <div className={groupMode === "none" ? `${styles.groups} ${styles.groupsColumns}` : styles.groups}>
               {board.groups.map((g) => {
                 const count = g.cards.reduce((n, c) => n + c.quantity, 0);
                 return (
                   <div key={`${board.id}-${g.key}`} className={styles.group}>
-                    <h3 className={styles.groupTitle}>
-                      {g.label}
-                      <span className={styles.groupCount}>{count}</span>
-                    </h3>
+                    {g.label ? (
+                      <h3 className={styles.groupTitle}>
+                        {g.label}
+                        <span className={styles.groupCount}>{count}</span>
+                      </h3>
+                    ) : null}
+                    {g.cards.length === 0 ? (
+                      <p className={styles.boardZoneEmpty}>Empty</p>
+                    ) : (
                     <ul className={styles.cardList}>
                       {g.cards.map((c) => (
                         <TextRow
@@ -85,6 +91,7 @@ export function DeckTextView({
                         />
                       ))}
                     </ul>
+                    )}
                   </div>
                 );
               })}
