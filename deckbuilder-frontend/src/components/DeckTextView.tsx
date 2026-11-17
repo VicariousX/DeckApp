@@ -51,16 +51,16 @@ export function DeckTextView({
   });
 
   return (
-    <div className={styles.imageBoardLayout}>
+    <div className={styles.textBoardLayout}>
       {visible.map((board) => {
         const commander = board.id === "commander";
         return (
         <section
           key={board.id}
-          className={commander ? styles.commanderSlot : styles.imageBoard}
+          className={commander ? styles.textCommand : styles.imageBoard}
           data-board={board.id}
         >
-          <header className={commander ? styles.commanderSlotHeader : styles.stackHeader}>
+          <header className={commander ? styles.textCommandHead : styles.stackHeader}>
             <h2 className={commander ? styles.commanderSlotTitle : styles.stackTitle}>{board.label}</h2>
             <span className={styles.stackCount}>{board.count}</span>
           </header>

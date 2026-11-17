@@ -1697,13 +1697,67 @@
   align-items: center;
 }
 
-.imageBoard .cardList,
-.commanderSlot .cardList {
+.textBoardLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
   width: 100%;
+  min-width: 0;
 }
 
-.commanderSlot .cardName {
-  font-size: 0.78rem;
+.textCommand {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  width: 100%;
+  max-width: none;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.9rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-accent) 16%, transparent),
+      transparent 42%
+    ),
+    color-mix(in srgb, var(--color-surface) 88%, #000);
+}
+
+.textCommandHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.textCommand .groups,
+.textCommand .cardList {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.85rem;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.textCommand .cardRow {
+  width: auto;
+  border: none;
+  padding: 0;
+}
+
+.textCommand .boardZoneEmpty {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
 .commanderCard {
