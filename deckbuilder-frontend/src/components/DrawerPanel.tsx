@@ -38,6 +38,8 @@ type Props = {
   commanderColorIdentity?: string[];
   applyBoardLabel?: string;
   deckQtyByOracle?: Record<string, number>;
+  /** Render the drawer body only, for a parent tool with its own chrome. */
+  embedded?: boolean;
 };
 
 function identityOf(c: DrawerCardView): string[] {
@@ -101,6 +103,7 @@ export function DrawerPanel({
   commanderColorIdentity = [],
   applyBoardLabel = "Mainboard",
   deckQtyByOracle = {},
+  embedded = false,
 }: Props) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -145,6 +148,8 @@ export function DrawerPanel({
     null
   );
 
+  const shown = embedded || open;
+
   const loadList = useCallback(async () => {
     if (!user) return;
     setLoadingList(true);
@@ -161,11 +166,11 @@ export function DrawerPanel({
   }, [user]);
 
   useEffect(() => {
-    if (open) void loadList();
-  }, [open, loadList]);
+    if (shown) void loadList();
+  }, [shown, loadList]);
 
   useEffect(() => {
-    if (!user || !activeId || !open) return;
+    if (!user || !activeId || !shown) return;
     let cancelled = false;
     async function load() {
       setLoadingCards(true);
@@ -182,7 +187,7 @@ export function DrawerPanel({
     return () => {
       cancelled = true;
     };
-  }, [user, activeId, open]);
+  }, [user, activeId, shown]);
 
   const sortedCards = useMemo(
     () => sortCardsBy(cards, sortKey),
@@ -735,6 +740,17 @@ export function DrawerPanel({
           </div>
     </>
   );
+
+  if (embedded) {
+    return (
+      <div className={styles.embedded}>
+        <Link to="/drawers" className={styles.manageLink}>
+          Manage drawers
+        </Link>
+        {panelBody}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrap} ref={anchorRef}>

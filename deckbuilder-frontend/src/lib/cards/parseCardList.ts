@@ -21,7 +21,18 @@ export type ParseCardListResult = {
 
 const SECTION_RE =
   /^(sideboard|maybeboard|commander|deck|mainboard|main|companion|considerations)\s*:?\s*$/i;
-const COMMENT_RE = /^\s*(#|\/\/)/;
+const HASH_COMMENT_RE = /^\s*#/;
+const FACE_LINE_RE = /^\/\/\s+(.+)$/;
+
+/** Turn "Fire/Ice", "Fire / Ice", and "Fire // Ice" into Scryfall's "Fire // Ice". */
+export function normalizeMtgName(name: string): string {
+  let s = name.trim().replace(/\s+/g, " ");
+  if (!s.includes("/")) return s;
+  const parts = s.split(/\s*\/{1,3}\s*/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return s;
+  if (parts.some((part) => part.length < 2 || /^\d+$/.test(part))) return s;
+  return parts.join(" // ");
+}
 
 /**
  * Strip trailing set/collector noise:
@@ -40,8 +51,8 @@ function cleanName(rest: string): { name: string; setCode?: string } {
     // trailing collector number only
     s = s.replace(/\s+\d+\s*$/, "").trim();
   }
-  // DFCs sometimes pasted with // — keep as-is (Scryfall accepts full name)
-  return { name: s, setCode };
+  // DFCs sometimes pasted with / or // — store the Scryfall full name
+  return { name: normalizeMtgName(s), setCode };
 }
 
 /**
@@ -50,7 +61,7 @@ function cleanName(rest: string): { name: string; setCode?: string } {
 export function parseCardListLine(line: string): ParsedCardLine | null {
   const raw = line.trim();
   if (!raw) return null;
-  if (COMMENT_RE.test(raw)) return null;
+  if (HASH_COMMENT_RE.test(raw)) return null;
   if (SECTION_RE.test(raw)) return null;
   // Ignore pure separators
   if (/^[-=_]{3,}$/.test(raw)) return null;
@@ -84,7 +95,22 @@ export function parseCardList(text: string): ParseCardListResult {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (COMMENT_RE.test(trimmed)) continue;
+    if (HASH_COMMENT_RE.test(trimmed)) continue;
+    const faceLine = trimmed.match(FACE_LINE_RE);
+    if (faceLine) {
+      const back = normalizeMtgName(faceLine[1]);
+      const prev = entries[entries.length - 1];
+      if (
+        prev &&
+        !prev.name.includes("//") &&
+        back.length >= 2 &&
+        back.length <= 80 &&
+        !/[.!?]/.test(back)
+      ) {
+        prev.name = normalizeMtgName(`${prev.name} // ${back}`);
+      }
+      continue;
+    }
     if (SECTION_RE.test(trimmed)) {
       const section = trimmed.toLowerCase();
       if (section.startsWith("side")) board = "side";

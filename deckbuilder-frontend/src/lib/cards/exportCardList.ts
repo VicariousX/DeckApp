@@ -1,6 +1,4 @@
-/**
- * Text export helpers for decks, drawers, and future TTS packaging.
- */
+import { normalizeMtgName } from "./parseCardList";
 
 export type ExportLineItem = {
   name: string;
@@ -32,9 +30,10 @@ function formatLine(
   style: "x" | "plain"
 ): string {
   const qty = Math.max(1, item.quantity ?? 1);
-  if (qty === 1 && style === "x") return `1x ${item.name}`;
-  if (style === "x") return `${qty}x ${item.name}`;
-  return `${qty} ${item.name}`;
+  const name = normalizeMtgName(item.name);
+  if (qty === 1 && style === "x") return `1x ${name}`;
+  if (style === "x") return `${qty}x ${name}`;
+  return `${qty} ${name}`;
 }
 
 /** Build a plain-text list from sections (e.g. Mainboard / Sideboard). */

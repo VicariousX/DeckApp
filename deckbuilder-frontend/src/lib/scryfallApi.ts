@@ -1,4 +1,5 @@
 import type { ScryfallCard } from "../types/scryfallCard";
+import { normalizeMtgName } from "./cards/parseCardList";
 import { fetchProxiedScryfall } from "./scryfallProxy";
 import { enqueue, noteRateLimit } from "./requestQueue";
 import { isScryfallPaused, tripScryfallPause } from "./scryfallPause";
@@ -390,10 +391,28 @@ export async function fetchCardsByNames(
     }
     for (const c of cards) {
       byName.set(c.name.toLowerCase(), c);
+      byName.set(normalizeMtgName(c.name).toLowerCase(), c);
       const face0 = c.card_faces?.[0]?.name;
       if (face0) byName.set(face0.toLowerCase(), c);
     }
     notFound.push(...nf);
+  }
+  const unresolved = notFound.filter((name) => name.includes("/"));
+  if (unresolved.length > 0) {
+    const fronts = unresolved.map((name) => normalizeMtgName(name).split(" // ")[0]?.trim() || name);
+    const second = await fetchCollectionByNames(fronts);
+    for (const card of second.cards) {
+      const front = (card.card_faces?.[0]?.name ?? card.name.split("//")[0] ?? "").trim().toLowerCase();
+      byName.set(card.name.toLowerCase(), card);
+      if (front) byName.set(front, card);
+      for (const original of unresolved) {
+        const originalFront = normalizeMtgName(original).split(" // ")[0]?.trim().toLowerCase();
+        if (originalFront && originalFront === front) {
+          byName.set(original.toLowerCase(), card);
+          byName.set(normalizeMtgName(original).toLowerCase(), card);
+        }
+      }
+    }
   }
   return { byName, notFound, error: null };
 }

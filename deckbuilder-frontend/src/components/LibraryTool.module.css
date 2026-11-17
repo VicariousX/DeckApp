@@ -1,0 +1,179 @@
+.trigger,
+.btn,
+.primary,
+.tab,
+.tabOn,
+.close {
+  appearance: none;
+  height: 2.5rem;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.trigger:hover,
+.btn:hover,
+.tab:hover {
+  border-color: var(--color-accent);
+}
+
+.primary {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+}
+
+.panel {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.9rem;
+  cursor: grab;
+  font-weight: 750;
+}
+
+.close {
+  width: 2.5rem;
+  padding: 0;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0 0.55rem 0.45rem;
+}
+
+.tab,
+.tabOn {
+  flex: 1;
+}
+
+.tabOn {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.35rem 0.75rem 0.85rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.hint,
+.meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.hint em {
+  font-style: normal;
+  color: var(--color-text);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error, #e07);
+  font-size: 0.8rem;
+}
+
+.row,
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.control,
+.area {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.control {
+  height: 2.5rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  min-width: 0;
+  flex: 1;
+}
+
+.area,
+.preview {
+  min-height: 9rem;
+  padding: 0.65rem 0.75rem;
+  white-space: pre-wrap;
+}
+
+.preview {
+  margin: 0;
+  overflow: auto;
+  max-height: 16rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  font-size: 0.78rem;
+}
+
+.file,
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+}
+
+.resize {
+  position: absolute;
+  z-index: 2;
+}
+.resizeE { top: 0; right: 0; width: 8px; height: 100%; cursor: ew-resize; }
+.resizeS { left: 0; bottom: 0; width: 100%; height: 8px; cursor: ns-resize; }
+.resizeSe { right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
