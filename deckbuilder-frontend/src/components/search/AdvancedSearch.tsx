@@ -24,7 +24,7 @@ import {
   type Node,
   uid,
 } from "../../lib/search/syntaxModel";
-import { renderManaSymbol, renderTextWithSymbols } from "../../utils/symbols";
+import { renderManaSymbol } from "../../utils/symbols";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   loadSearchCatalog,
@@ -1058,9 +1058,12 @@ export function AdvancedSearch({
           >
             <div className={styles.logicHead}>
               <h2>Bench</h2>
-              <span className={styles.hint}>Held tokens are not in the query</span>
+              <span className={styles.hint}>Held out of the query</span>
             </div>
             <div className={`${styles.bubble} ${styles.bubbleAnd}`}>
+              {bench.length === 0 ? (
+                <p className={styles.emptyBoard}>Drop a token here to hold it.</p>
+              ) : (
               <div className={styles.tokens}>
                 {bench.map((c) => (
                   <Token
@@ -1088,6 +1091,7 @@ export function AdvancedSearch({
                   />
                 ))}
               </div>
+              )}
             </div>
           </section>
       </>
@@ -1678,19 +1682,32 @@ function Bubble({
       }}
     >
       <div className={styles.bubbleBar}>
-        <button
-          type="button"
-          className={styles.joinMark}
-          disabled={isRoot}
-          onClick={() => {
-            if (isRoot) return;
-            onPatch((tree) =>
-              replaceNode(tree, group.id, { ...group, join: group.join === "and" ? "or" : "and" })
-            );
-          }}
-        >
-          {isRoot ? "AND" : group.join.toUpperCase()}
-        </button>
+        {isRoot ? (
+          <span className={styles.joinLabel}>Match all</span>
+        ) : (
+          <span className={styles.joinSwitch} role="group" aria-label="Group match">
+            <button
+              type="button"
+              data-on={group.join === "and"}
+              onClick={() => {
+                if (group.join === "and") return;
+                onPatch((tree) => replaceNode(tree, group.id, { ...group, join: "and" }));
+              }}
+            >
+              AND
+            </button>
+            <button
+              type="button"
+              data-on={group.join === "or"}
+              onClick={() => {
+                if (group.join === "or") return;
+                onPatch((tree) => replaceNode(tree, group.id, { ...group, join: "or" }));
+              }}
+            >
+              OR
+            </button>
+          </span>
+        )}
         <button
           type="button"
           className={styles.ghost}
@@ -1711,14 +1728,17 @@ function Bubble({
             })
           }
         >
-          + ( )
+          Add group
         </button>
         {!isRoot && (
           <button type="button" className={styles.ghost} onClick={() => onPatch((tree) => removeNode(tree, group.id))}>
-            ×
+            Remove
           </button>
         )}
       </div>
+      {group.items.length === 0 ? (
+        <p className={styles.emptyBoard}>Drop a token here, or add one from the field above.</p>
+      ) : (
       <div className={styles.tokens}>
         {group.items.map((n) =>
           n.kind === "clause" ? (
@@ -1727,13 +1747,14 @@ function Bubble({
               clause={n}
               onEdit={() => onEdit(n)}
               onRemove={() => onPatch((tree) => removeNode(tree, n.id))}
-              onExtract={isRoot ? undefined : () => onExtract(n)}
+              onExtract={() => onExtract(n)}
               onSave={() => onSave(n)}
               dragSrc="board"
             />
           ) : (
             <div
               key={n.id}
+              className={styles.groupDrag}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/token", n.id);
@@ -1752,6 +1773,7 @@ function Bubble({
           )
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -1774,11 +1796,17 @@ function Token({
   dragSrc?: "board" | "bench" | "drawer";
 }) {
   const syntax = serializeClause(clause);
+  const opt = FIELD_OPTS.find(
+    (f) => f.category === clause.category && f.key === clause.field
+  );
+  const raw = opt?.label || clause.field || "Text";
+  const label = raw.includes(" · ") ? raw.split(" · ").slice(1).join(" · ") : raw;
   return (
     <div className={styles.tokenWrap}>
       <div
         className={`${styles.token}${clause.excluded ? ` ${styles.tokenNot}` : ""}`}
         draggable
+        title={syntax || label}
         onDragStart={(e) => {
           e.dataTransfer.setData("text/token", clause.id);
           e.dataTransfer.setData("text/token-src", dragSrc);
@@ -1786,31 +1814,36 @@ function Token({
           e.dataTransfer.effectAllowed = "copy";
         }}
       >
-        <code>{renderTextWithSymbols(syntax, 14)}</code>
+        {clause.excluded ? <span className={styles.tokenNotFlag}>Not</span> : null}
+        <span className={styles.tokenMain}>
+          {clause.field ? <span className={styles.tokenField}>{label}</span> : null}
+          {clause.field && clause.op !== ":" ? <span className={styles.tokenOp}>{clause.op}</span> : null}
+          <span className={styles.tokenValue}>{clause.value || syntax || "—"}</span>
+        </span>
+        <span className={styles.tokenActs}>
+          {onApply && (
+            <button type="button" onClick={onApply} aria-label="Add to query" title="Add to query">
+              +
+            </button>
+          )}
+          {onExtract && (
+            <button type="button" onClick={onExtract} aria-label="Move to bench" title="Move to bench">
+              ▴
+            </button>
+          )}
+          {onSave && (
+            <button type="button" onClick={onSave} aria-label="Save token" title="Save token">
+              ☆
+            </button>
+          )}
+          <button type="button" onClick={onEdit} aria-label="Edit token" title="Edit">
+            ✎
+          </button>
+          <button type="button" onClick={onRemove} aria-label="Remove token" title="Remove">
+            ×
+          </button>
+        </span>
       </div>
-      <span className={styles.tokenActs}>
-        {onApply && (
-          <button type="button" tabIndex={-1} data-skip-tab onClick={onApply} title="Add to query">
-            +
-          </button>
-        )}
-        {onExtract && (
-          <button type="button" tabIndex={-1} data-skip-tab onClick={onExtract} title="Move to bench">
-            ▴
-          </button>
-        )}
-        {onSave && (
-          <button type="button" tabIndex={-1} data-skip-tab onClick={onSave} title="Save to drawer">
-            ☆
-          </button>
-        )}
-        <button type="button" tabIndex={-1} data-skip-tab onClick={onEdit} title="Edit">
-          ✎
-        </button>
-        <button type="button" tabIndex={-1} data-skip-tab onClick={onRemove} title="Remove">
-          ×
-        </button>
-      </span>
     </div>
   );
 }

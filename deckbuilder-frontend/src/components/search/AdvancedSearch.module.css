@@ -395,7 +395,6 @@
 .bubble {
   border-radius: 12px;
   padding: 0.45rem;
-  min-height: 2.6rem;
   background: color-mix(in srgb, var(--color-surface) 65%, transparent);
 }
 
@@ -410,75 +409,156 @@
 .bubbleBar {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 0.3rem;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
 }
 
-.joinMark {
+.joinLabel {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: var(--color-accent);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
-.joinMark:disabled {
-  cursor: default;
+.joinSwitch {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.joinSwitch button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.22rem 0.5rem;
+  cursor: pointer;
+}
+
+.joinSwitch button[data-on="true"] {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+}
+
+.emptyBoard {
+  margin: 0;
+  padding: 0.2rem 0.15rem 0.15rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.groupDrag {
+  width: 100%;
 }
 
 .tokens {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: flex-start;
-}
-
-.tokenWrap {
-  position: relative;
-  display: inline-flex;
   flex-direction: column;
-  align-items: center;
-  z-index: 1;
+  gap: 0.35rem;
+  align-items: stretch;
 }
 
-.tokenWrap:hover,
-.tokenWrap:focus-within {
-  z-index: 4;
+.tokenWrap,
+.savedRow {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  gap: 0.25rem;
 }
 
 .token {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.55rem;
-  border-radius: 999px;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.2rem 0.25rem 0.2rem 0.55rem;
+  border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   cursor: grab;
 }
 
-.token code {
+.tokenMain {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.tokenField {
+  flex: 0 0 auto;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tokenOp {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: var(--color-accent);
+}
+
+.tokenValue {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenNotFlag {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, crimson 70%, var(--color-text));
+}
+
+.tokenNot {
+  border-color: color-mix(in srgb, crimson 45%, var(--color-accent));
+}
+
+.tokenActs {
   display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  font-size: 0.78rem;
+  flex: 0 0 auto;
+  gap: 0.12rem;
+}
+
+.tokenActs button {
+  min-width: 1.85rem;
+  min-height: 1.85rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.tokenActs button:hover {
+  border-color: var(--color-border);
   color: var(--color-text);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
 }
 
 .drawerBar {
   display: flex;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
-}
-
-.savedRow {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
 }
 
 .catalogActs {
@@ -494,55 +574,6 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-}
-
-.tokenNot {
-  border-color: color-mix(in srgb, crimson 45%, var(--color-accent));
-}
-
-.tokenActs {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.18rem);
-  transform: translate(-50%, -6px);
-  display: inline-flex;
-  gap: 0.15rem;
-  padding: 0.12rem;
-  border-radius: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-md);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.14s ease, transform 0.14s ease;
-  z-index: 5;
-}
-
-.tokenWrap:hover .tokenActs,
-.tokenWrap:focus-within .tokenActs {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-}
-
-.tokenWrap::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  height: 2.1rem;
-}
-
-.tokenActs button {
-  min-width: 1.35rem;
-  min-height: 1.2rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  font-size: 0.78rem;
 }
 
 .saveRow {
