@@ -377,7 +377,7 @@ export function DeckStatsPanel({
       <section className={`${styles.card} ${styles.map}`}>
         <h3 className={styles.cardTitle}>Synergy</h3>
         <p className={styles.note}>
-          Cards link when they share a mechanic in oracle text or keywords. Filter a tag to inspect one engine.
+          Shared mechanics are columns. Select a card to see every engine it sits in.
         </p>
         <SynergyMap cards={synergyCards} community={community} />
       </section>

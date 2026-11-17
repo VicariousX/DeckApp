@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 import {
   SYNERGY_TAGS,
   buildSynergyGraph,
-  isolatedKeys,
   tagCounts,
   type CommunityMark,
   type SynergyCard,
-  type SynergyTagId,
+  type TaggedCard,
 } from "../lib/synergy/engine";
 import styles from "./SynergyMap.module.css";
 
@@ -17,151 +17,175 @@ type Props = {
   onSelect?: (key: string) => void;
 };
 
-type Pt = { x: number; y: number };
-
-function layout(
-  keys: string[],
-  groups: Map<string, string>
-): Record<string, Pt> {
-  const buckets = new Map<string, string[]>();
-  for (const k of keys) {
-    const g = groups.get(k) ?? "_";
-    const list = buckets.get(g) ?? [];
-    list.push(k);
-    buckets.set(g, list);
-  }
-  const names = [...buckets.keys()];
-  const out: Record<string, Pt> = {};
-  const R = 160;
-  names.forEach((name, gi) => {
-    const ang = (gi / Math.max(1, names.length)) * Math.PI * 2 - Math.PI / 2;
-    const cx = 200 + Math.cos(ang) * R;
-    const cy = 200 + Math.sin(ang) * R;
-    const members = buckets.get(name) ?? [];
-    members.forEach((key, i) => {
-      const spread = (i - (members.length - 1) / 2) * 18;
-      out[key] = {
-        x: cx + Math.cos(ang + Math.PI / 2) * spread * 0.15,
-        y: cy + spread * 0.35,
-      };
-    });
-  });
-  return out;
+function labelFor(id: string) {
+  return SYNERGY_TAGS.find((t) => t.id === id)?.label ?? id;
 }
 
 export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }: Props) {
-  const [filter, setFilter] = useState<SynergyTagId | "all">("all");
-  const { nodes, edges } = useMemo(
+  const mobile = useIsMobile(900);
+  const { nodes } = useMemo(
     () => buildSynergyGraph(cards, 1, community),
     [cards, community]
   );
-  const counts = useMemo(() => tagCounts(nodes), [nodes]);
-  const lonely = useMemo(() => isolatedKeys(nodes, edges), [nodes, edges]);
-
-  const visibleEdges = edges.filter((e) =>
-    filter === "all" ? true : e.tags.includes(filter)
+  const counts = useMemo(
+    () => [...tagCounts(nodes)].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    [nodes]
   );
-  const used = new Set<string>();
-  for (const e of visibleEdges) {
-    used.add(e.a);
-    used.add(e.b);
-  }
-  if (filter === "all") for (const n of nodes) used.add(n.key);
+  const byKey = useMemo(() => new Map(nodes.map((n) => [n.key, n])), [nodes]);
+  const columns = useMemo(() => {
+    const fromTags = counts.map((t) => ({
+      id: t.id as string,
+      label: t.label,
+      cards: nodes
+        .filter((n) => n.tags.includes(t.id))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+    const grouped = new Map<string, string[]>();
+    for (const mark of community) {
+      const list = grouped.get(mark.mechanic) ?? [];
+      if (!list.includes(mark.key)) list.push(mark.key);
+      grouped.set(mark.mechanic, list);
+    }
+    const fromCommunity = [...grouped.entries()]
+      .filter(([id, keys]) => keys.length >= 2 && !fromTags.some((c) => c.id === id))
+      .map(([id, keys]) => ({
+        id,
+        label: labelFor(id),
+        cards: keys
+          .map((key) => byKey.get(key))
+          .filter((card): card is TaggedCard => Boolean(card))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+    return [...fromTags, ...fromCommunity].sort(
+      (a, b) => b.cards.length - a.cards.length || a.label.localeCompare(b.label)
+    );
+  }, [counts, nodes, community, byKey]);
+  const [filter, setFilter] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
-  const groups = new Map<string, string>();
-  for (const n of nodes) groups.set(n.key, n.tags[0] ?? "_");
-  const pts = layout([...used], groups);
-  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const engines = columns.filter((t) => t.cards.length >= 2);
+  const active = filter ?? (mobile && engines[0] ? engines[0].id : "all");
+  const shown = active === "all" ? engines : columns.filter((t) => t.id === active);
+  const picked = selected ? byKey.get(selected) : undefined;
+
+  function choose(key: string) {
+    setSelected((cur) => (cur === key ? null : key));
+    onSelect?.(key);
+  }
+
+  function role(key: string) {
+    const marks = community.filter((m) => m.key === key);
+    if (!marks.length) return null;
+    if (marks.some((m) => m.economy === "both")) return "both";
+    return marks[0].economy;
+  }
+
+  const links = extraEdges
+    .map((e) => ({ ...e, an: byKey.get(e.a)?.name, bn: byKey.get(e.b)?.name }))
+    .filter((e) => e.an && e.bn);
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.filters}>
-        <button
-          type="button"
-          className={filter === "all" ? styles.chipOn : styles.chip}
-          onClick={() => setFilter("all")}
-        >
-          All
-        </button>
-        {counts.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={filter === t.id ? styles.chipOn : styles.chip}
-            onClick={() => setFilter(t.id)}
-          >
-            {t.label} {t.count}
-          </button>
-        ))}
-      </div>
-      <svg className={styles.svg} viewBox="0 0 400 400" role="img">
-        {extraEdges.map((e, i) => {
-          const a = pts[e.a];
-          const b = pts[e.b];
-          if (!a || !b) return null;
-          return (
-            <line
-              key={`x-${i}`}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              className={styles.lockEdge}
-            />
-          );
-        })}
-        {visibleEdges.map((e, i) => {
-          const a = pts[e.a];
-          const b = pts[e.b];
-          if (!a || !b) return null;
-          return (
-            <line
-              key={`${e.a}-${e.b}-${i}`}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              className={styles.edge}
-              strokeOpacity={Math.min(0.85, 0.25 + e.weight * 0.2)}
-            />
-          );
-        })}
-        {nodes
-          .filter((n) => used.has(n.key))
-          .map((n) => {
-            const p = pts[n.key];
-            if (!p) return null;
-            return (
-              <g
-                key={n.key}
-                className={styles.node}
-                onClick={() => onSelect?.(n.key)}
-              >
-                <circle cx={p.x} cy={p.y} r={7} />
-                <text x={p.x + 9} y={p.y + 3}>
-                  {n.name.length > 16 ? `${n.name.slice(0, 15)}…` : n.name}
-                </text>
-              </g>
-            );
-          })}
-      </svg>
-      <div className={styles.legend}>
-        {counts.slice(0, 8).map((t) => (
-          <span key={t.id}>
-            {SYNERGY_TAGS.find((x) => x.id === t.id)?.label}: {t.count}
-          </span>
-        ))}
-      </div>
-      {filter === "all" && lonely.length > 0 && (
-        <p className={styles.lonely}>
-          Unlinked:{" "}
-          {lonely
-            .map((k) => byKey.get(k)?.name)
-            .filter(Boolean)
-            .slice(0, 8)
-            .join(", ")}
-          {lonely.length > 8 ? "…" : ""}
+      {columns.length === 0 && links.length === 0 ? (
+        <p className={styles.empty}>
+          No engines yet. Shared mechanics show up once card text is loaded.
         </p>
+      ) : (
+        <>
+          {columns.length > 0 && (
+          <div className={styles.filters} role="tablist" aria-label="Engines">
+            <button
+              type="button"
+              className={active === "all" ? styles.chipOn : styles.chip}
+              onClick={() => setFilter("all")}
+            >
+              All
+            </button>
+            {columns.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={active === t.id ? styles.chipOn : styles.chip}
+                onClick={() => setFilter(t.id)}
+              >
+                {t.label}
+                <span>{t.cards.length}</span>
+              </button>
+            ))}
+          </div>
+          )}
+
+          {picked && (
+            <div className={styles.focus}>
+              <strong>{picked.name}</strong>
+              <div className={styles.focusTags}>
+                {picked.tags.map((t) => (
+                  <button key={t} type="button" className={styles.chip} onClick={() => setFilter(t)}>
+                    {labelFor(t)}
+                  </button>
+                ))}
+                {picked.tags.length === 0 && <span className={styles.muted}>No tagged mechanic</span>}
+              </div>
+              <button type="button" className={styles.clear} onClick={() => setSelected(null)}>
+                Clear
+              </button>
+            </div>
+          )}
+
+          {links.length > 0 && (
+            <div className={styles.links}>
+              {links.map((e, i) => (
+                <button key={`${e.a}-${e.b}-${i}`} type="button" className={styles.link} onClick={() => choose(e.a)}>
+                  {e.an} <span>↔</span> {e.bn}
+                  {e.label ? <em>{e.label}</em> : null}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {shown.length === 0 ? (
+            <p className={styles.empty}>Nothing shares a mechanic yet.</p>
+          ) : (
+            <div className={styles.columns}>
+              {shown.map((engine) => {
+                const holdsPick = picked ? engine.cards.some((c) => c.key === picked.key) : false;
+                return (
+                  <section
+                    key={engine.id}
+                    className={`${styles.column}${picked && !holdsPick ? ` ${styles.columnDim}` : ""}${holdsPick ? ` ${styles.columnOn}` : ""}`}
+                  >
+                    <header>
+                      <h3>{engine.label}</h3>
+                      <span>{engine.cards.length}</span>
+                    </header>
+                    <ul>
+                      {engine.cards.map((card) => {
+                        const on = card.key === selected;
+                        const kin =
+                          picked &&
+                          !on &&
+                          card.tags.some((t) => t !== engine.id && picked.tags.includes(t));
+                        const mark = role(card.key);
+                        return (
+                          <li key={card.key}>
+                            <button
+                              type="button"
+                              className={`${styles.card}${on ? ` ${styles.cardOn}` : ""}${kin ? ` ${styles.cardKin}` : ""}`}
+                              onClick={() => choose(card.key)}
+                            >
+                              <span>{card.name}</span>
+                              {mark && <em>{mark}</em>}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
