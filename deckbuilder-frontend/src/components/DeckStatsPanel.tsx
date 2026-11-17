@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { primaryTypeGroup } from "../lib/cards/cardTypes";
 import { fetchCardsByNames } from "../lib/scryfallApi";
 import {
   CARD_TYPES,
@@ -25,7 +24,7 @@ import type { DeckCard, DeckTag } from "../types/deck";
 import { SynergyMap } from "./SynergyMap";
 import type { CommunityMark, SynergyCard } from "../lib/synergy/engine";
 import { listMarksForOracles } from "../services/mechanicMarkService";
-import styles from "../pages/DeckBuilderPage.module.css";
+import styles from "./DeckStatsPanel.module.css";
 
 type Props = {
   deckId: string;
@@ -154,225 +153,234 @@ export function DeckStatsPanel({
   };
   const drawK = columnCount(cards, drawCol, tags, oracleByName);
   const pDraw = drawAtLeast(N, drawK, Math.max(1, drawN), Math.max(1, drawNeed));
+  const nonlands = mainboard(cards).filter(
+    (c) => !(c.type_line || "").toLowerCase().includes("land")
+  );
+  const nonlandN = copies(nonlands);
+  const avgMv = nonlandN
+    ? nonlands.reduce((n, c) => n + (c.cmc || 0) * (c.quantity || 1), 0) / nonlandN
+    : 0;
+  const landN = types.find((t) => t.label === "Land")?.count ?? 0;
+  const creatureN = types.find((t) => t.label === "Creature")?.count ?? 0;
+  const games = rec.wins + rec.losses + rec.draws;
+  const winPct = games > 0 ? Math.round((rec.wins / games) * 100) : null;
+  const boardName: Record<string, string> = {
+    commander: "Command",
+    main: "Main",
+    side: "Side",
+    maybe: "Maybe",
+  };
 
   return (
-    <section className={styles.placeholderPanel}>
-      <h2 className={styles.sectionLabel}>Deck stats</h2>
-      <ul className={styles.statsList}>
-        <li>
-          <strong>Total</strong>: {totalCards} cards ({cards.length} unique)
-        </li>
+    <div className={styles.page}>
+      <header className={styles.head}>
+        <h2 className={styles.title}>Stats</h2>
+        <p className={styles.note}>Mainboard and command zone. Record stays on this device.</p>
+      </header>
+
+      <div className={styles.tiles}>
+        <div className={styles.tile}>
+          <span className={styles.tileLabel}>Cards</span>
+          <span className={styles.tileValue}>{totalCards}</span>
+          <span className={styles.tileNote}>{cards.length} unique</span>
+        </div>
+        <div className={styles.tile}>
+          <span className={styles.tileLabel}>Avg mana</span>
+          <span className={styles.tileValue}>{avgMv.toFixed(2)}</span>
+          <span className={styles.tileNote}>Nonland</span>
+        </div>
+        <div className={styles.tile}>
+          <span className={styles.tileLabel}>Lands</span>
+          <span className={styles.tileValue}>{landN}</span>
+        </div>
+        <div className={styles.tile}>
+          <span className={styles.tileLabel}>Creatures</span>
+          <span className={styles.tileValue}>{creatureN}</span>
+        </div>
+        <div className={styles.tile}>
+          <span className={styles.tileLabel}>Win rate</span>
+          <span className={styles.tileValue}>{winPct == null ? "—" : `${winPct}%`}</span>
+          <span className={styles.tileNote}>
+            {games > 0 ? `${rec.wins}–${rec.losses}–${rec.draws}` : "No games yet"}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.boards}>
         {Object.entries(boardCounts).map(([id, n]) => (
-          <li key={id}>
-            <strong>{id}</strong>: {n}
-          </li>
+          <span key={id} className={styles.board}>
+            {boardName[id] ?? id} <strong>{n}</strong>
+          </span>
         ))}
-      </ul>
+      </div>
 
-      <h3 className={styles.sectionLabel}>Mana curve</h3>
-      <div className={styles.chart}>
-        {curve.map((b) => (
-          <div key={b.bucket} className={styles.chartCol}>
-            <div
-              className={styles.chartBar}
-              style={{ height: `${(b.count / curveMax) * 100}%` }}
-              title={`${b.bucket}: ${b.count}`}
-            />
-            <span>{b.bucket}</span>
-            <small>{b.count}</small>
+      <div className={styles.grid3}>
+        <section className={styles.card}>
+          <h3 className={styles.cardTitle}>Mana curve</h3>
+          <div className={styles.chart}>
+            {curve.map((b) => (
+              <div key={b.bucket} className={styles.chartCol}>
+                <div
+                  className={styles.chartBar}
+                  style={{ height: `${(b.count / curveMax) * 100}%` }}
+                  title={`${b.bucket}: ${b.count}`}
+                />
+                <span>{b.bucket}</span>
+                <small>{b.count}</small>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <h3 className={styles.sectionLabel}>Color balance</h3>
-      <div className={styles.chart}>
-        {colors.map((b) => (
-          <div key={b.color} className={styles.chartCol}>
-            <div
-              className={`${styles.chartBar} ${styles[`pip${b.color}`] ?? ""}`}
-              style={{ height: `${(b.count / colorMax) * 100}%` }}
-            />
-            <span>{b.color}</span>
-            <small>{b.count}</small>
+        </section>
+        <section className={styles.card}>
+          <h3 className={styles.cardTitle}>Colors</h3>
+          <div className={styles.chart}>
+            {colors.map((b) => (
+              <div key={b.color} className={styles.chartCol}>
+                <div
+                  className={`${styles.chartBar} ${styles[`pip${b.color}`] ?? ""}`}
+                  style={{ height: `${(b.count / colorMax) * 100}%` }}
+                />
+                <span>{b.color}</span>
+                <small>{b.count}</small>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <h3 className={styles.sectionLabel}>Types</h3>
-      <div className={styles.chartH}>
-        {types.map((t) => (
-          <div key={t.label} className={styles.chartHRow}>
-            <span>{t.label}</span>
-            <div className={styles.chartHTrack}>
-              <div
-                className={styles.chartHFill}
-                style={{ width: `${(t.count / typeMax) * 100}%` }}
-              />
-            </div>
-            <small>{t.count}</small>
+        </section>
+        <section className={styles.card}>
+          <h3 className={styles.cardTitle}>Types</h3>
+          <div className={styles.bars}>
+            {types.map((t) => (
+              <div key={t.label} className={styles.barRow}>
+                <span>{t.label}</span>
+                <div className={styles.track}>
+                  <div className={styles.fill} style={{ width: `${(t.count / typeMax) * 100}%` }} />
+                </div>
+                <small>{t.count}</small>
+              </div>
+            ))}
+            {types.length === 0 && <p className={styles.note}>No cards yet.</p>}
           </div>
-        ))}
+        </section>
       </div>
 
-      <h3 className={styles.sectionLabel}>Synergy map</h3>
-      <p className={styles.hint}>
-        Links form when cards share a mechanic in oracle text or keywords
-        (tokens, sacrifice, graveyard, and so on). Filter a tag to inspect one
-        engine.
-      </p>
-      <SynergyMap cards={synergyCards} community={community} />
-
-      <h3 className={styles.sectionLabel}>Draw odds</h3>
-      <div className={styles.addRow}>
-        <select
-          className={styles.addRowBtn}
-          value={drawKind}
-          onChange={(e) => setDrawKind(e.target.value as StatKind)}
-        >
-          {KINDS.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-        <input
-          className={styles.input}
-          list="draw-suggest"
-          value={drawValue}
-          placeholder="Value"
-          onChange={(e) => setDrawValue(e.target.value)}
-        />
-        <datalist id="draw-suggest">
-          {suggestionsFor(drawKind).map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-        <label className={styles.hint}>
-          At least
-          <input
-            className={styles.qtyInput}
-            type="number"
-            min={1}
-            value={drawNeed}
-            onChange={(e) => setDrawNeed(Math.max(1, Number(e.target.value) || 1))}
-          />
-        </label>
-        <label className={styles.hint}>
-          Seen
-          <input
-            className={styles.qtyInput}
-            type="number"
-            min={1}
-            max={N || 1}
-            value={drawN}
-            onChange={(e) => setDrawN(Number(e.target.value) || 7)}
-          />
-        </label>
-      </div>
-      <p>
-        Chance of at least {drawNeed} in {drawN}:{" "}
-        <strong>{(pDraw * 100).toFixed(1)}%</strong>
-        {` (${drawK} of ${N})`}
-      </p>
-
-      <h3 className={styles.sectionLabel}>Attribute columns</h3>
-      <div className={styles.addRow}>
-        <select
-          className={styles.addRowBtn}
-          value={kind}
-          onChange={(e) => setKind(e.target.value as StatKind)}
-        >
-          {KINDS.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-        <input
-          className={styles.input}
-          list="col-suggest"
-          value={value}
-          placeholder="Value"
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <datalist id="col-suggest">
-          {suggestionsFor(kind).map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-        <button
-          type="button"
-          className={styles.ghostBtn}
-          onClick={() => {
-            if (!value.trim()) return;
-            persistCols([
-              ...cols,
-              {
-                id: `col-${Date.now()}`,
-                label: `${kind}: ${value.trim()}`,
-                kind,
-                value: value.trim(),
-              },
-            ]);
-            setValue("");
-          }}
-        >
-          Add column
-        </button>
-      </div>
-      <div className={styles.statTable}>
-        {cols.map((c) => (
-          <div key={c.id} className={styles.statCell}>
-            <header>
-              {c.label}
-              <button
-                type="button"
-                onClick={() => persistCols(cols.filter((x) => x.id !== c.id))}
-              >
-                ×
-              </button>
-            </header>
-            <strong>{columnCount(cards, c, tags, oracleByName)}</strong>
-            <small>
-              {mainboard(cards)
-                .filter((card) => matchColumn(card, c, tags, oracleByName))
-                .slice(0, 4)
-                .map((card) => card.name)
-                .join(", ") || "—"}
-            </small>
-          </div>
-        ))}
-        {cols.length === 0 && <p className={styles.hint}>Add a column to count a slice of the deck.</p>}
-      </div>
-
-      <h3 className={styles.sectionLabel}>Record</h3>
-      <div className={styles.addRow}>
-        {(["wins", "losses", "draws"] as const).map((k) => (
-          <label key={k} className={styles.hint}>
-            {k}
-            <span className={styles.qtyBtns}>
-              <button
-                type="button"
-                onClick={() => persistRec({ ...rec, [k]: Math.max(0, rec[k] - 1) })}
-              >
-                −
-              </button>
-              <strong>{rec[k]}</strong>
-              <button type="button" onClick={() => persistRec({ ...rec, [k]: rec[k] + 1 })}>
-                +
-              </button>
+      <div className={styles.split}>
+        <section className={styles.card}>
+          <h3 className={styles.cardTitle}>Draw odds</h3>
+          <div className={styles.odds}>
+            <strong>{(pDraw * 100).toFixed(1)}%</strong>
+            <span>
+              at least {drawNeed} in {drawN} cards · {drawK} of {N}
             </span>
-          </label>
-        ))}
-        <span className={styles.hint}>
-          {rec.wins + rec.losses + rec.draws > 0
-            ? `${((rec.wins / (rec.wins + rec.losses + rec.draws)) * 100).toFixed(0)}% wins`
-            : "No games yet"}
-        </span>
+          </div>
+          <div className={styles.form}>
+            <label className={styles.field}>
+              Match
+              <select className={styles.control} value={drawKind} onChange={(e) => setDrawKind(e.target.value as StatKind)}>
+                {KINDS.map((k) => (
+                  <option key={k.id} value={k.id}>{k.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              Value
+              <input className={styles.control} list="draw-suggest" value={drawValue} placeholder="Creature" onChange={(e) => setDrawValue(e.target.value)} />
+              <datalist id="draw-suggest">
+                {suggestionsFor(drawKind).map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </label>
+            <label className={styles.field}>
+              At least
+              <input className={styles.control} type="number" min={1} value={drawNeed} onChange={(e) => setDrawNeed(Math.max(1, Number(e.target.value) || 1))} />
+            </label>
+            <label className={styles.field}>
+              Seen
+              <input className={styles.control} type="number" min={1} max={N || 1} value={drawN} onChange={(e) => setDrawN(Number(e.target.value) || 7)} />
+            </label>
+          </div>
+        </section>
+
+        <section className={styles.card}>
+          <h3 className={styles.cardTitle}>Record</h3>
+          <div className={styles.record}>
+            {(["wins", "losses", "draws"] as const).map((k) => (
+              <div key={k} className={styles.step}>
+                <span>{k}</span>
+                <strong>{rec[k]}</strong>
+                <div>
+                  <button type="button" aria-label={`Decrease ${k}`} onClick={() => persistRec({ ...rec, [k]: Math.max(0, rec[k] - 1) })}>−</button>
+                  <button type="button" aria-label={`Increase ${k}`} onClick={() => persistRec({ ...rec, [k]: rec[k] + 1 })}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
-      <p className={styles.hint}>
-        Type mix uses {primaryTypeGroup("Creature")} grouping. Record is stored on this device.
-      </p>
-    </section>
+
+      <section className={styles.card}>
+        <h3 className={styles.cardTitle}>Counts</h3>
+        <div className={`${styles.form} ${styles.formAdd}`}>
+          <label className={styles.field}>
+            Match
+            <select className={styles.control} value={kind} onChange={(e) => setKind(e.target.value as StatKind)}>
+              {KINDS.map((k) => (
+                <option key={k.id} value={k.id}>{k.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            Value
+            <input className={styles.control} list="col-suggest" value={value} placeholder="Instant, Goblin, draw…" onChange={(e) => setValue(e.target.value)} />
+            <datalist id="col-suggest">
+              {suggestionsFor(kind).map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </label>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => {
+              if (!value.trim()) return;
+              persistCols([
+                ...cols,
+                { id: `col-${Date.now()}`, label: `${kind}: ${value.trim()}`, kind, value: value.trim() },
+              ]);
+              setValue("");
+            }}
+          >
+            Add count
+          </button>
+        </div>
+        <div className={styles.counts}>
+          {cols.map((c) => (
+            <div key={c.id} className={styles.count}>
+              <header>
+                {c.label}
+                <button type="button" aria-label={`Remove ${c.label}`} onClick={() => persistCols(cols.filter((x) => x.id !== c.id))}>×</button>
+              </header>
+              <strong>{columnCount(cards, c, tags, oracleByName)}</strong>
+              <small>
+                {mainboard(cards)
+                  .filter((card) => matchColumn(card, c, tags, oracleByName))
+                  .slice(0, 4)
+                  .map((card) => card.name)
+                  .join(", ") || "—"}
+              </small>
+            </div>
+          ))}
+        </div>
+        {cols.length === 0 && <p className={styles.note}>Add a count to slice the deck by type, tag, or oracle text.</p>}
+      </section>
+
+      <section className={`${styles.card} ${styles.map}`}>
+        <h3 className={styles.cardTitle}>Synergy</h3>
+        <p className={styles.note}>
+          Cards link when they share a mechanic in oracle text or keywords. Filter a tag to inspect one engine.
+        </p>
+        <SynergyMap cards={synergyCards} community={community} />
+      </section>
+    </div>
   );
 }

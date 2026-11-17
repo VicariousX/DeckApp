@@ -1,0 +1,366 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 0.5rem;
+}
+
+.tile {
+  padding: 0.7rem 0.8rem 0.75rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  min-width: 0;
+}
+
+.tileLabel {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tileValue {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.45rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.tileNote {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.board {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.board strong {
+  color: var(--color-text);
+  font-weight: 750;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+@media (min-width: 901px) {
+  .grid3 {
+    grid-template-columns: 1.15fr 0.85fr 1.2fr;
+  }
+  .split {
+    grid-template-columns: 1.4fr 0.8fr;
+  }
+}
+
+.card {
+  min-width: 0;
+  padding: 0.85rem 0.9rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+  height: 9.5rem;
+}
+
+.chartCol {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.chartBar {
+  width: 100%;
+  max-width: 2.4rem;
+  min-height: 2px;
+  border-radius: 6px 6px 2px 2px;
+  background: color-mix(in srgb, var(--color-accent) 72%, var(--color-surface));
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) 1.6rem;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 55%, transparent);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.odds {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.odds strong {
+  font-size: 2rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.odds span {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 1.2fr) auto auto;
+  gap: 0.45rem;
+  align-items: end;
+}
+
+.formAdd {
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 1.2fr) auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.control,
+.btn {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-alt, var(--color-surface)) 90%, transparent);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+  padding: 0 0.8rem;
+}
+
+.control {
+  width: 100%;
+}
+
+.btn {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--color-accent);
+}
+
+.record {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.step span {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.step strong {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.step div {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.step button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.count {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.count header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.count header button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.count strong {
+  font-size: 1.4rem;
+}
+
+.count small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map svg {
+  max-height: min(52vh, 26rem);
+}
+
+.pipW { background: #f0e68c; }
+.pipU { background: #64b5f6; }
+.pipB { background: #7e57c2; }
+.pipR { background: #ef5350; }
+.pipG { background: #66bb6a; }
+.pipC { background: #b0bec5; }
+
+@media (max-width: 700px) {
+  .form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form .btn {
+    grid-column: 1 / -1;
+  }
+  .barRow {
+    grid-template-columns: 5.2rem minmax(0, 1fr) 1.5rem;
+  }
+  .tileValue {
+    font-size: 1.25rem;
+  }
+}
