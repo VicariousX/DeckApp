@@ -135,6 +135,11 @@
   padding-bottom: 0.35rem;
 }
 .searchOpenBtn {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   background: var(--color-accent);
   color: var(--color-on-accent, #fff);
   border-color: transparent;

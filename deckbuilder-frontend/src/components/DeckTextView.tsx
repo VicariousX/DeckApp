@@ -51,12 +51,18 @@ export function DeckTextView({
   });
 
   return (
-    <div className={styles.boardZones}>
-      {visible.map((board) => (
-        <section key={board.id} className={styles.boardZone} data-board={board.id}>
-          <header className={styles.boardZoneHeader}>
-            <h2 className={styles.boardZoneTitle}>{board.label}</h2>
-            <span className={styles.boardZoneCount}>{board.count}</span>
+    <div className={styles.imageBoardLayout}>
+      {visible.map((board) => {
+        const commander = board.id === "commander";
+        return (
+        <section
+          key={board.id}
+          className={commander ? styles.commanderSlot : styles.imageBoard}
+          data-board={board.id}
+        >
+          <header className={commander ? styles.commanderSlotHeader : styles.stackHeader}>
+            <h2 className={commander ? styles.commanderSlotTitle : styles.stackTitle}>{board.label}</h2>
+            <span className={styles.stackCount}>{board.count}</span>
           </header>
           {board.cards.length === 0 && (groupMode !== "none" || board.id === "commander") ? (
             <p className={styles.boardZoneEmpty}>
@@ -171,7 +177,8 @@ export function DeckTextView({
             </div>
           )}
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }
