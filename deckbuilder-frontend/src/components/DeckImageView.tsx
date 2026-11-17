@@ -203,10 +203,6 @@ export function DeckImageView({
                 activeClassName={styles.stackColumnDropActive}
                 disabled={!isOwner}
               >
-                <header className={styles.commanderSlotHeader}>
-                  <h2 className={styles.commanderSlotTitle}>Commander</h2>
-                  <span className={styles.boardZoneCount}>{board.count}</span>
-                </header>
                 <div className={styles.commanderSlotCards}>
                   {board.cards.slice(0, 3).map((c) => renderCard(c, undefined, "commander"))}
                 </div>

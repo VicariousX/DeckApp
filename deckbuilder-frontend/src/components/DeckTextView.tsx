@@ -56,10 +56,12 @@ export function DeckTextView({
         const commander = board.id === "commander";
         const body = (
           <>
-          <header className={commander ? styles.textCommandHead : styles.stackHeader}>
-            <h2 className={commander ? styles.commanderSlotTitle : styles.stackTitle}>{board.label}</h2>
+          {!commander && (
+          <header className={styles.stackHeader}>
+            <h2 className={styles.stackTitle}>{board.label}</h2>
             <span className={styles.stackCount}>{board.count}</span>
           </header>
+          )}
           {board.cards.length === 0 && (groupMode !== "none" || board.id === "commander") ? (
             <p className={styles.boardZoneEmpty}>
               {board.id === "commander"

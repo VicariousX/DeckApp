@@ -43,6 +43,7 @@ export function DeckToolbar({
         value={cardFilter}
         onChange={(e) => onFilter(e.target.value)}
       />
+      <span className={styles.barRule} aria-hidden="true" />
       <select
         className={`${styles.addRowBtn} ${styles.toolbarDesk}`}
         value={cardSort}

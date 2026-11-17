@@ -414,5 +414,9 @@ export async function fetchCardsByNames(
       }
     }
   }
-  return { byName, notFound, error: null };
+  const resolved = notFound.filter((name) => {
+    const key = name.trim().toLowerCase();
+    return !byName.has(key) && !byName.has(normalizeMtgName(name).toLowerCase());
+  });
+  return { byName, notFound: resolved, error: null };
 }

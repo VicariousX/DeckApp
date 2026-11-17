@@ -286,8 +286,8 @@
   justify-content: flex-start;
 }
 
-.toolbarView {
-  margin-left: 0;
+.barRule {
+  display: none;
 }
 
 .groupToggle {
@@ -2153,13 +2153,23 @@
     flex: 1 1 14rem;
     min-width: 8rem;
   }
+  .composer .inputWrap,
   .composer .toolbarFilter {
-    flex: 0 1 9rem;
-    width: 9rem;
-    max-width: 9rem;
+    flex: 1 1 10rem;
+    width: auto;
+    max-width: none;
+    min-width: 7rem;
+  }
+  .composer .barRule {
+    display: block;
+    flex: 0 0 1px;
+    width: 1px;
+    align-self: stretch;
+    margin: 0.4rem 0.2rem;
+    background: color-mix(in srgb, var(--color-text) 18%, transparent);
   }
   .composer .toolbarView {
-    margin-left: auto;
+    margin-left: 0.15rem;
   }
   .composer {
     gap: 0.1rem;

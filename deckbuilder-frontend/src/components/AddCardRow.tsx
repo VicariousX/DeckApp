@@ -46,6 +46,19 @@ export function AddCardRow({
       {panel === "deck" && (
         <DeckSearchToggle open={searchOpen} onToggle={onToggleSearch} />
       )}
+      {panel === "deck" && <span className={styles.barRule} aria-hidden="true" />}
+      {panel === "deck" && (
+        <BoardCycle
+          boards={boards}
+          current={addTargetBoard}
+          short={BOARD_SHORT[addTargetBoard]}
+          open={boardMenuOpen}
+          onCycle={onCycleBoard}
+          onSelect={onSelectBoard}
+          onToggleMenu={onToggleBoardMenu}
+        />
+      )}
+      {panel === "deck" && <span className={styles.barRule} aria-hidden="true" />}
       <div className={styles.inputWrap}>
         <input
           className={styles.input}
@@ -85,17 +98,7 @@ export function AddCardRow({
       >
         {addBusy ? "Adding…" : "Add"}
       </button>
-      {panel === "deck" && (
-        <BoardCycle
-          boards={boards}
-          current={addTargetBoard}
-          short={BOARD_SHORT[addTargetBoard]}
-          open={boardMenuOpen}
-          onCycle={onCycleBoard}
-          onSelect={onSelectBoard}
-          onToggleMenu={onToggleBoardMenu}
-        />
-      )}
+      {panel === "deck" && <span className={styles.barRule} aria-hidden="true" />}
       {panel === "tokens" && (
         <button
           type="button"

@@ -5,7 +5,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import { BottomSheet } from "./BottomSheet";
 import { DrawerPanel } from "./DrawerPanel";
 import { namesFromTtsJson } from "../lib/cards/ttsDeck";
-import { mergeParsedEntries, parseCardList } from "../lib/cards/parseCardList";
+import { mergeParsedEntries, normalizeMtgName, parseCardList } from "../lib/cards/parseCardList";
 import {
   copyTextToClipboard,
   downloadTextFile,
@@ -182,7 +182,7 @@ function ImportPane({ onImport }: { onImport: (entries: BulkResolvedEntry[]) => 
     setBusy(true);
     setError(null);
     setNote(`Looking up ${parsed.length} names…`);
-    const { byName, notFound, error: err } = await fetchCardsByNames(parsed.map((e) => e.name));
+    const { byName, error: err } = await fetchCardsByNames(parsed.map((e) => e.name));
     setBusy(false);
     if (err && byName.size === 0) {
       setError(err);
@@ -190,9 +190,11 @@ function ImportPane({ onImport }: { onImport: (entries: BulkResolvedEntry[]) => 
       return;
     }
     const resolved: BulkResolvedEntry[] = [];
-    const absent = [...notFound];
+    const absent: string[] = [];
     for (const entry of parsed) {
-      const card = byName.get(entry.name.toLowerCase());
+      const card =
+        byName.get(entry.name.toLowerCase()) ??
+        byName.get(normalizeMtgName(entry.name).toLowerCase());
       if (!card) {
         if (!absent.includes(entry.name)) absent.push(entry.name);
         continue;
