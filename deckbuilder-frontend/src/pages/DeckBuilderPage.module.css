@@ -38,7 +38,7 @@
   overflow-x: hidden;
 }
 
-/* Image mode: page grows with boards (no internal vertical board scroll) */
+/* Deck and token boards use the full width in both text and image view. */
 .pageStacks {
   max-width: 100%;
   width: 100%;

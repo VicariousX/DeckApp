@@ -1580,7 +1580,7 @@ export function DeckBuilderPage() {
   return (
     <div
       className={`${transitions.page} ${styles.page}${
-        viewMode === "image" ? ` ${styles.pageStacks}` : ""
+        panel === "deck" || panel === "tokens" ? ` ${styles.pageStacks}` : ""
       }`}
       onDragEnter={(e) => {
         if (isExternalCardDrag(e)) setExtHover(true);
