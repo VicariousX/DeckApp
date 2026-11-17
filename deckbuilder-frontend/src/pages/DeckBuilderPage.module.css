@@ -309,8 +309,8 @@
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 650;
-  min-height: 2.75rem;
-  padding: 0.4rem 0.85rem;
+  min-height: 2.05rem;
+  padding: 0.28rem 0.7rem;
   border-radius: 999px;
   cursor: pointer;
 }
@@ -2002,7 +2002,23 @@
 }
 
 /* Mobile: compact cards + vertical board arrangement */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .page {
+    padding: 0.65rem 0.55rem 1rem;
+  }
+  .toolbar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    gap: 0.45rem;
+    padding-bottom: 0.15rem;
+  }
+  .groupBtn,
+  .toolBtn,
+  .primaryBtn,
+  .ghostBtn {
+    min-height: 2.5rem;
+  }
   .qtyBtn,
   .stackQtyBtn,
   .removeBtn {

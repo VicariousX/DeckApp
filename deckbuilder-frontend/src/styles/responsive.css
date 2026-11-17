@@ -1,0 +1,30 @@
+/* Desktop keeps the airy scale. Phones and small tablets use a tighter one. */
+
+@media (max-width: 900px) {
+  :root {
+    --space-xxs: 2px;
+    --space-xs: 4px;
+    --space-sm: 6px;
+    --space-md: 10px;
+    --space-lg: 12px;
+    --space-xl: 16px;
+    --space-xxl: 20px;
+    --space-xxxl: 28px;
+    --grid-gap-sm: var(--space-sm);
+    --grid-gap-md: var(--space-md);
+    --grid-gap-lg: var(--space-lg);
+  }
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

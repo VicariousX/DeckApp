@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: 760px;
+  max-width: 980px;
   margin: 0 auto;
   padding: 1.5rem var(--space-xl) 3rem;
   display: flex;
@@ -203,7 +203,14 @@
   font-size: 0.82rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 900px) {
+  .page {
+    padding: 0.85rem 0.75rem 1.5rem;
+  }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .grid {
     grid-template-columns: 1fr;
   }

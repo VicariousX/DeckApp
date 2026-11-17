@@ -1,6 +1,6 @@
 .page {
   width: 100%;
-  max-width: 720px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 1.5rem var(--space-xl) 3rem;
   display: flex;
@@ -309,9 +309,9 @@
   border-color: var(--color-error-border, rgba(232, 93, 93, 0.35));
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .page {
-    padding: 1rem;
+    padding: 0.85rem 0.75rem 1.5rem;
   }
   .header {
     flex-direction: column;

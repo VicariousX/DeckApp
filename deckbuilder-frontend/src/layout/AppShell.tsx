@@ -256,6 +256,9 @@ export function AppShell() {
           )}
           <SettingsButton onClick={() => setSettingsOpen(true)} />
         </nav>
+        <span className={styles.mobileSettings}>
+          <SettingsButton onClick={() => setSettingsOpen(true)} />
+        </span>
       </header>
       {isPlay && (
         <button

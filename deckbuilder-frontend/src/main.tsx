@@ -10,6 +10,7 @@ import "./ui/themes/premium.css";
 import "./ui/themes/arcane.css";
 import "./ui/themes/all-themes.css";
 import "./ui/density/airy.css";
+import "./styles/responsive.css";
 import "./ui/backgrounds/bg-hero.css";
 import "./styles/pageChrome.css";
 

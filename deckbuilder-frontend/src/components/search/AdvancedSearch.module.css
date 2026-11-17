@@ -664,7 +664,7 @@
   cursor: nwse-resize;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .liveBar {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:

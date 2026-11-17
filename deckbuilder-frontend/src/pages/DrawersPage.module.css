@@ -87,9 +87,22 @@
   align-items: start;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
+  .page {
+    padding: 0.85rem 0.75rem 1.5rem;
+  }
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .headerTools {
+    align-items: flex-start;
+  }
   .layout {
     grid-template-columns: 1fr;
+  }
+  .sidebar {
+    padding: 0.55rem;
   }
 }
 

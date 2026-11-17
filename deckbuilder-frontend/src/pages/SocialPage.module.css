@@ -94,6 +94,18 @@
 .menu { position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 5; min-width: 9rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.4rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
 .menu button { border: none; background: transparent; color: var(--color-text); text-align: left; padding: 0.4rem 0.5rem; }
 
-@media (max-width: 760px) {
-  .header, .messages, .workspace, .review { display: flex; flex-direction: column; }
+@media (max-width: 900px) {
+  .page {
+    padding: 0.85rem 0.75rem 1.5rem;
+  }
+  .header,
+  .messages,
+  .workspace,
+  .review {
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    align-items: flex-start;
+  }
 }
