@@ -473,13 +473,22 @@
 
 @media (min-width: 901px) {
   .groupsSpread {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    align-items: start;
-    gap: 1rem 1.25rem;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: safe center;
+    align-items: flex-start;
+    gap: 1rem;
+    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 0.35rem;
   }
   .groupsSpread > * {
-    min-width: 0;
+    flex: 0 0 280px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
   }
 }
 
@@ -488,6 +497,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: flex-start;
+  justify-content: safe center;
   gap: 0.75rem;
   overflow-x: auto;
   width: 100%;
@@ -1862,7 +1872,8 @@
 .stacksRow {
   display: flex;
   flex-direction: row;
-  align-items: stretch; /* columns + new-column share full board height */
+  align-items: stretch;
+  justify-content: safe center;
   gap: 0.85rem;
   width: 100%;
   max-width: 100%;

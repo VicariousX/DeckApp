@@ -211,6 +211,7 @@
   .columns {
     flex-direction: row;
     align-items: flex-start;
+    justify-content: safe center;
     overflow-x: auto;
     padding-bottom: 0.35rem;
   }
