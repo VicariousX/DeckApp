@@ -972,32 +972,25 @@ export function PlaytestPage() {
           setTableMenu(clampMenu(e.clientX, e.clientY, 220, 360));
         }}
       >
-        <div className={styles.top}>
+        <header className={styles.top}>
           <div className={styles.identity}>
-          <Link to={`/deck/${id}`} className={styles.back}>
-            ← {table.deckName}
-          </Link>
-          <h1 className={styles.title}>Table</h1>
-          <span className={styles.muted}>Turn {table.turn} · click a stat to change it · right-click the table for more</span>
-          <button type="button" className={styles.btn} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>Untap</button>
-          <button type="button" className={styles.primary} onClick={() => dispatch({ type: "nextTurn" })}>Next turn</button>
+            <Link to={`/deck/${id}`} className={styles.back}>
+              ← Deck
+            </Link>
+            <h1 className={styles.title}>{table.deckName}</h1>
+            <span className={styles.turn}>Turn {table.turn}</span>
           </div>
-          <div className={styles.tools}>
-          <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
-            Settings
-          </button>
-          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
-            Tokens
-          </button>
-          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
-            Side
-          </button>
-          <button type="button" className={styles.btn} onClick={() => setKit({ kind: "spawn", tab: "spawn" })}>
-            Spawn
-          </button>
-          <button type="button" className={styles.primary} onClick={() => void start(true)}>
-            New game
-          </button>
+          <div className={styles.turnFlow} role="group" aria-label="Turn">
+            <button type="button" className={styles.btn} onClick={() => dispatch({ type: "untapAll", seatId: seat.id })}>
+              Untap
+            </button>
+            <button type="button" className={styles.btn} onClick={() => dispatch({ type: "draw", seatId: seat.id })}>
+              Draw
+            </button>
+            <button type="button" className={styles.primary} onClick={() => dispatch({ type: "nextTurn" })}>
+              Next turn
+            </button>
+          </div>
           <div className={styles.stats}>
             {(
               [
@@ -1027,8 +1020,24 @@ export function PlaytestPage() {
               </button>
             ))}
           </div>
+          <div className={styles.tools}>
+            <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
+              Settings
+            </button>
+            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
+              Tokens
+            </button>
+            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "side", tab: "side" })}>
+              Side
+            </button>
+            <button type="button" className={styles.btn} onClick={() => setKit({ kind: "spawn", tab: "spawn" })}>
+              Spawn
+            </button>
+            <button type="button" className={styles.primary} onClick={() => void start(true)}>
+              New game
+            </button>
           </div>
-        </div>
+        </header>
         <div className={styles.stage}>
         <div className={styles.board}>
           <div className={`${styles.battlefield} ${styles[`mat${(settings.playmat || "felt")[0].toUpperCase()}${(settings.playmat || "felt").slice(1)}`] ?? styles.matFelt}`} ref={bfRef}>
@@ -1096,7 +1105,7 @@ export function PlaytestPage() {
                     <CardView
                       key={c.instanceId}
                       card={c}
-                      style={{ marginLeft: i ? -28 : 0, zIndex: i }}
+                      style={{ zIndex: i }}
                     />
                   ))}
                 </div>
@@ -1104,9 +1113,9 @@ export function PlaytestPage() {
             </div>
           </ZoneDrop>
           <ZoneDrop zone="hand" className={`${styles.hand} ${settings.hideHand ? styles.handHidden : ""}`}>
-            <div className={styles.pileHead}>
-              <span>Hand</span>
-              <span>{seat.zones.hand.length}</span>
+            <div className={styles.railHead}>
+              <span className={styles.railCount}>{seat.zones.hand.length}</span>
+              <span className={styles.railLabel}>Hand</span>
               <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "cmc" })}>CMC</button>
               <button type="button" className={styles.ghost} onClick={() => dispatch({ type: "sortHand", seatId: seat.id, by: "type" })}>Type</button>
               <button type="button" className={styles.ghost} onClick={() => persist({ ...settings, hideHand: !settings.hideHand })}>
