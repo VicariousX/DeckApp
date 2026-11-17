@@ -1924,7 +1924,7 @@ export function DeckBuilderPage() {
           isOwner={isOwner}
           imageFor={(c) => stackImageSrc(c)}
           onClose={() => setScrollId(null)}
-          onInspect={(c) => openCardModal(c)}
+          onInspect={(c, jump) => openCardModal(c, jump)}
           onQty={(c, d) => void onQty(c, d)}
           onBoard={(c, b) => void moveCardToBoard(c, b)}
           onRemove={(c) => void onRemove(c)}
