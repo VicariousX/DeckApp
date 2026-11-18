@@ -9,26 +9,30 @@
   overflow: hidden;
 }
 
-.sheetGrab {
-  appearance: none;
+.mobileNav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.4rem;
   flex-shrink: 0;
-  width: 100%;
-  height: 1.15rem;
-  margin: 0;
-  padding: 0.35rem 0 0.15rem;
-  border: none;
-  background: transparent;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  cursor: pointer;
 }
 
-.sheetGrab span {
-  width: 2.5rem;
-  height: 0.28rem;
+.mobileNav .navBtn:last-of-type {
+  justify-self: end;
+}
+
+.closeText {
+  appearance: none;
+  justify-self: center;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 42%, transparent);
+  padding: 0.32rem 0.9rem;
+  cursor: pointer;
 }
 
 .navRow {
@@ -113,6 +117,37 @@
   font-size: 0.85rem;
   padding: 0.75rem;
   text-align: center;
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.cardFace {
+  position: relative;
+  width: min(200px, 100%);
+  flex: 0 1 auto;
+}
+
+.sideQty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  font-weight: 750;
+  font-size: 0.85rem;
+}
+
+.sideRemove {
+  min-height: 4.5rem;
+  padding: 0.4rem 0.35rem;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  color: var(--color-error);
 }
 
 .quickQty {
@@ -683,11 +718,14 @@
     overflow: hidden;
   }
   .visual {
-    width: min(168px, 44vw);
-    max-width: min(168px, 44vw);
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     padding: 0;
     align-items: center;
+  }
+  .cardFace {
+    width: min(156px, 42vw);
   }
   .visual :global(img),
   .image,
@@ -761,11 +799,14 @@
     overflow: hidden;
   }
   .visual {
-    width: min(168px, 44vw);
-    max-width: min(168px, 44vw);
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     padding: 0;
     align-items: center;
+  }
+  .cardFace {
+    width: min(156px, 42vw);
   }
   .visual :global(img),
   .image {
@@ -834,31 +875,38 @@
 
 .collapseBtn {
   appearance: none;
-  align-self: center;
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted);
+  position: absolute;
+  left: 50%;
+  bottom: 0.4rem;
+  z-index: 3;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
   font: inherit;
-  font-size: 0.95rem;
-  font-weight: 650;
-  padding: 0.2rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.7rem;
   border-radius: 999px;
   cursor: pointer;
-  margin-top: 0.35rem;
-  margin-bottom: 0.1rem;
-  max-width: 100%;
-  text-align: center;
-  line-height: 1.2;
+  backdrop-filter: blur(8px);
 }
-.visualCollapsed .collapseBtn {
-  font-size: 0.82rem;
-  color: var(--color-text);
+
+.collapseBtnClosed {
+  position: static;
+  transform: none;
+  align-self: center;
+  margin: 0.15rem 0;
 }
+
 .visualCollapsed {
   width: auto !important;
   max-width: none !important;
   padding: 0 !important;
 }
-.visualCollapsed > :not(.collapseBtn) {
+
+.visualCollapsed .cardRow {
   display: none;
 }

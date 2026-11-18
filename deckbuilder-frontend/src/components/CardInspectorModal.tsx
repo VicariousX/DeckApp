@@ -94,6 +94,7 @@ export function CardInspectorModal({
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
+  const tabSwipe = useRef<{ x: number; y: number } | null>(null);
 
   function setSub(tabId: string, subId: string) {
     setSubByTab((prev) => (prev[tabId] === subId ? prev : { ...prev, [tabId]: subId }));
@@ -568,12 +569,7 @@ export function CardInspectorModal({
         }}
       >
         {isMobile ? (
-          <button type="button" className={styles.sheetGrab} onClick={onClose} aria-label="Close">
-            <span />
-          </button>
-        ) : null}
-        {(hasPrev || hasNext) && (
-          <div className={styles.navRow}>
+          <div className={styles.mobileNav}>
             <button
               type="button"
               className={styles.navBtn}
@@ -583,7 +579,9 @@ export function CardInspectorModal({
             >
               ← Prev
             </button>
-            <span className={styles.navHint}>←→ cards · Esc</span>
+            <button type="button" className={styles.closeText} onClick={onClose}>
+              Close
+            </button>
             <button
               type="button"
               className={styles.navBtn}
@@ -594,67 +592,134 @@ export function CardInspectorModal({
               Next →
             </button>
           </div>
+        ) : (
+          (hasPrev || hasNext) && (
+            <div className={styles.navRow}>
+              <button
+                type="button"
+                className={styles.navBtn}
+                disabled={!hasPrev}
+                onClick={onPrev}
+                aria-label="Previous card"
+              >
+                ← Prev
+              </button>
+              <span className={styles.navHint}>←→ cards · Esc</span>
+              <button
+                type="button"
+                className={styles.navBtn}
+                disabled={!hasNext}
+                onClick={onNext}
+                aria-label="Next card"
+              >
+                Next →
+              </button>
+            </div>
+          )
         )}
 
         <div className={styles.layout}>
           <div className={`${styles.visual}${imageOpen ? "" : ` ${styles.visualCollapsed}`}`}>
-            {loading && (
-              <div className={styles.imagePlaceholder}>Loading…</div>
-            )}
-            {!loading && displayCard && (
-              <CardImage
-                key={`${displayCard.id}:${artRevision}`}
-                card={displayCard}
-                overrideFrontSrc={frontSrc}
-                overrideBackSrc={backSrc}
-                bothLayout="stack"
-                tilt
-                hideFaceBadge
-                hideControls
-              />
-            )}
-            {!loading && !displayCard && (
-              frontSrc ? (
-                <img
-                  src={frontSrc}
-                  alt={displayName}
-                  className={styles.image}
-                />
-              ) : (
-                <div className={styles.imagePlaceholder}>{displayName}</div>
-              )
-            )}
-            <button
-              type="button"
-              className={styles.collapseBtn}
-              onClick={() => {
-                const next = !imageOpen;
-                setImageOpen(next);
-                writeImageShown(next);
-              }}
-              aria-expanded={imageOpen}
-              aria-label={imageOpen ? "Hide image" : "Show image"}
-            >
-              {imageOpen ? "⌃" : displayName}
-            </button>
-            {deck?.isOwner && (
-              <div className={styles.quickQty}>
-                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">
-                  −
-                </button>
-                <span>{deck.card.quantity}</span>
-                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">
-                  +
-                </button>
-                <button type="button" className={`${styles.quickBtn} ${styles.quickRemove}`} onClick={deck.onRemove}>
+            <div className={styles.cardRow}>
+              {isMobile && imageOpen && deck?.isOwner ? (
+                <div className={styles.sideQty}>
+                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
+                  <span>{deck.card.quantity}</span>
+                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
+                </div>
+              ) : null}
+              <div className={styles.cardFace}>
+                {loading && (
+                  <div className={styles.imagePlaceholder}>Loading…</div>
+                )}
+                {!loading && displayCard && (
+                  <CardImage
+                    key={`${displayCard.id}:${artRevision}`}
+                    card={displayCard}
+                    overrideFrontSrc={frontSrc}
+                    overrideBackSrc={backSrc}
+                    bothLayout="stack"
+                    tilt
+                    hideFaceBadge
+                    hideControls
+                  />
+                )}
+                {!loading && !displayCard && (
+                  frontSrc ? (
+                    <img src={frontSrc} alt={displayName} className={styles.image} />
+                  ) : (
+                    <div className={styles.imagePlaceholder}>{displayName}</div>
+                  )
+                )}
+                {imageOpen ? (
+                  <button
+                    type="button"
+                    className={styles.collapseBtn}
+                    onClick={() => {
+                      setImageOpen(false);
+                      writeImageShown(false);
+                    }}
+                    aria-expanded
+                    aria-label="Hide image"
+                  >
+                    Hide
+                  </button>
+                ) : null}
+              </div>
+              {isMobile && imageOpen && deck?.isOwner ? (
+                <button
+                  type="button"
+                  className={`${styles.quickBtn} ${styles.sideRemove}`}
+                  onClick={deck.onRemove}
+                >
                   Remove
                 </button>
+              ) : null}
+            </div>
+            {!imageOpen ? (
+              <button
+                type="button"
+                className={`${styles.collapseBtn} ${styles.collapseBtnClosed}`}
+                onClick={() => {
+                  setImageOpen(true);
+                  writeImageShown(true);
+                }}
+                aria-expanded={false}
+                aria-label="Show image"
+              >
+                Show card
+              </button>
+            ) : null}
+            {!isMobile && deck?.isOwner && (
+              <div className={styles.quickQty}>
+                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
+                <span>{deck.card.quantity}</span>
+                <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
+                <button type="button" className={`${styles.quickBtn} ${styles.quickRemove}`} onClick={deck.onRemove}>Remove</button>
               </div>
             )}
           </div>
 
           <div className={styles.body}>
-            <div className={styles.tabBar} role="tablist">
+            <div
+              className={styles.tabBar}
+              role="tablist"
+              onPointerDown={(e) => {
+                if (!isMobile) return;
+                tabSwipe.current = { x: e.clientX, y: e.clientY };
+              }}
+              onPointerUp={(e) => {
+                const start = tabSwipe.current;
+                tabSwipe.current = null;
+                if (!isMobile || !start) return;
+                const dx = e.clientX - start.x;
+                const dy = e.clientY - start.y;
+                if (dy < -64 && Math.abs(dy) > Math.abs(dx) + 8) onClose();
+              }}
+              onPointerCancel={() => {
+                tabSwipe.current = null;
+              }}
+            >
               {tabs.map((t) => (
                 <button
                   key={t.id}
