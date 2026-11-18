@@ -91,10 +91,10 @@ export function CardInspectorModal({
   const infoSub = (subByTab.info ?? "details") as "details" | "rulings";
   const artSub = (subByTab.artwork ?? "prints") as "upload" | "prints" | "proxy";
   const [imageOpen, setImageOpen] = useState(readImageShown);
-  const [drag, setDrag] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const gesture = useRef<{ x: number; y: number; fromTop: boolean } | null>(null);
   const tabSwipe = useRef<{ x: number; y: number } | null>(null);
+  const cardNatural = useRef<HTMLDivElement | null>(null);
+  const barDrag = useRef<{ y: number; h: number; max: number } | null>(null);
+  const [cardReveal, setCardReveal] = useState<number | null>(null);
 
   function setSub(tabId: string, subId: string) {
     setSubByTab((prev) => (prev[tabId] === subId ? prev : { ...prev, [tabId]: subId }));
@@ -103,12 +103,6 @@ export function CardInspectorModal({
   useEffect(() => {
     onTabChange?.(active, infoSub, artSub);
   }, [active, infoSub, artSub, onTabChange]);
-
-  useEffect(() => {
-    if (!isMobile) return;
-    if (active === "info" && infoSub === "details") return;
-    setImageOpen(false);
-  }, [isMobile, active, infoSub]);
   const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);
@@ -510,10 +504,10 @@ export function CardInspectorModal({
   return (
     <Modal
       onClose={onClose}
-      hideClose={isMobile}
+      hideClose
       style={
         isMobile
-          ? { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" }
+          ? undefined
           : {
               width: modalSize.w,
               height: modalSize.h,
@@ -522,52 +516,7 @@ export function CardInspectorModal({
             }
       }
     >
-      <div
-        className={styles.shell}
-        ref={shellRef}
-        style={{
-          transform: `translate(${drag.x}px, ${drag.y}px)`,
-          transition: dragging ? "none" : "transform 0.22s ease",
-        }}
-        onPointerDown={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest("button, input, textarea, a, [role='button'], [data-panel-scroll]")) return;
-          const top = shellRef.current?.getBoundingClientRect().top ?? 0;
-          gesture.current = { x: e.clientX, y: e.clientY, fromTop: e.clientY - top < 56 };
-          setDragging(true);
-        }}
-        onPointerMove={(e) => {
-          const start = gesture.current;
-          if (!start) return;
-          const dx = e.clientX - start.x;
-          const dy = e.clientY - start.y;
-          if (Math.abs(dx) > Math.abs(dy)) setDrag({ x: dx, y: 0 });
-          else if (start.fromTop && dy > 0) setDrag({ x: 0, y: dy });
-          else setDrag({ x: 0, y: 0 });
-        }}
-        onPointerUp={(e) => {
-          const start = gesture.current;
-          gesture.current = null;
-          setDragging(false);
-          if (!start) return;
-          const dx = e.clientX - start.x;
-          const dy = e.clientY - start.y;
-          setDrag({ x: 0, y: 0 });
-          if (start.fromTop && dy > 110 && Math.abs(dy) > Math.abs(dx)) {
-            onClose();
-            return;
-          }
-          if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy)) {
-            if (dx < 0 && hasNext && onNext) onNext();
-            if (dx > 0 && hasPrev && onPrev) onPrev();
-          }
-        }}
-        onPointerCancel={() => {
-          gesture.current = null;
-          setDragging(false);
-          setDrag({ x: 0, y: 0 });
-        }}
-      >
+      <div className={styles.shell} ref={shellRef}>
         {isMobile ? (
           <div className={styles.mobileNav}>
             <button
@@ -619,54 +568,9 @@ export function CardInspectorModal({
         )}
 
         <div className={styles.layout}>
-          <div className={`${styles.visual}${imageOpen ? "" : ` ${styles.visualCollapsed}`}`}>
+          <div className={`${styles.visual}${!isMobile && !imageOpen ? ` ${styles.visualCollapsed}` : ""}`}>
             <div className={styles.cardRow}>
-              {isMobile && imageOpen && deck?.isOwner ? (
-                <div className={styles.sideQty}>
-                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
-                  <span>{deck.card.quantity}</span>
-                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
-                </div>
-              ) : null}
-              <div className={styles.cardFace}>
-                {loading && (
-                  <div className={styles.imagePlaceholder}>Loading…</div>
-                )}
-                {!loading && displayCard && (
-                  <CardImage
-                    key={`${displayCard.id}:${artRevision}`}
-                    card={displayCard}
-                    overrideFrontSrc={frontSrc}
-                    overrideBackSrc={backSrc}
-                    bothLayout="stack"
-                    tilt
-                    hideFaceBadge
-                    hideControls
-                  />
-                )}
-                {!loading && !displayCard && (
-                  frontSrc ? (
-                    <img src={frontSrc} alt={displayName} className={styles.image} />
-                  ) : (
-                    <div className={styles.imagePlaceholder}>{displayName}</div>
-                  )
-                )}
-                {imageOpen ? (
-                  <button
-                    type="button"
-                    className={styles.collapseBtn}
-                    onClick={() => {
-                      setImageOpen(false);
-                      writeImageShown(false);
-                    }}
-                    aria-expanded
-                    aria-label="Hide image"
-                  >
-                    Hide
-                  </button>
-                ) : null}
-              </div>
-              {isMobile && imageOpen && deck?.isOwner ? (
+              {isMobile && deck?.isOwner ? (
                 <button
                   type="button"
                   className={`${styles.quickBtn} ${styles.sideRemove}`}
@@ -675,21 +579,84 @@ export function CardInspectorModal({
                   Remove
                 </button>
               ) : null}
+              <div
+                className={styles.cardClip}
+                style={isMobile && cardReveal != null ? { height: cardReveal } : undefined}
+              >
+                <div className={styles.cardFace} ref={cardNatural}>
+                  {loading && (
+                    <div className={styles.imagePlaceholder}>Loading…</div>
+                  )}
+                  {!loading && displayCard && (
+                    <CardImage
+                      key={`${displayCard.id}:${artRevision}`}
+                      card={displayCard}
+                      overrideFrontSrc={frontSrc}
+                      overrideBackSrc={backSrc}
+                      bothLayout="stack"
+                      tilt
+                      hideFaceBadge
+                      hideControls
+                    />
+                  )}
+                  {!loading && !displayCard && (
+                    frontSrc ? (
+                      <img src={frontSrc} alt={displayName} className={styles.image} />
+                    ) : (
+                      <div className={styles.imagePlaceholder}>{displayName}</div>
+                    )
+                  )}
+                </div>
+              </div>
+              {isMobile && deck?.isOwner ? (
+                <div className={styles.sideQty}>
+                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
+                  <span>{deck.card.quantity}</span>
+                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
+                </div>
+              ) : null}
             </div>
-            {!imageOpen ? (
+            {isMobile ? (
+              <div
+                className={styles.dragBar}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize card"
+                onPointerDown={(e) => {
+                  const max = cardNatural.current?.offsetHeight ?? 0;
+                  const current = cardReveal ?? max;
+                  barDrag.current = { y: e.clientY, h: current, max };
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                  const start = barDrag.current;
+                  if (!start) return;
+                  const next = Math.max(0, Math.min(start.max, start.h + (e.clientY - start.y)));
+                  setCardReveal(next);
+                }}
+                onPointerUp={() => {
+                  barDrag.current = null;
+                }}
+                onPointerCancel={() => {
+                  barDrag.current = null;
+                }}
+              >
+                <span />
+              </div>
+            ) : (
               <button
                 type="button"
-                className={`${styles.collapseBtn} ${styles.collapseBtnClosed}`}
+                className={styles.collapseChip}
                 onClick={() => {
-                  setImageOpen(true);
-                  writeImageShown(true);
+                  const next = !imageOpen;
+                  setImageOpen(next);
+                  writeImageShown(next);
                 }}
-                aria-expanded={false}
-                aria-label="Show image"
+                aria-expanded={imageOpen}
               >
-                Show card
+                {imageOpen ? "Hide card" : "Show card"}
               </button>
-            ) : null}
+            )}
             {!isMobile && deck?.isOwner && (
               <div className={styles.quickQty}>
                 <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
