@@ -2405,6 +2405,12 @@
   flex-direction: column;
   gap: 0.28rem;
   min-width: 0;
+  height: 100%;
+}
+
+.peekRemove {
+  margin-top: auto;
+  color: var(--color-error, #e07a7a);
 }
 
 .peekRight {
@@ -2421,12 +2427,12 @@
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 750;
   line-height: 1.1;
   border-radius: 8px;
-  min-height: 1.85rem;
-  padding: 0.15rem 0.25rem;
+  min-height: 1.65rem;
+  padding: 0.1rem 0.2rem;
   cursor: pointer;
 }
 

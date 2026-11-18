@@ -75,7 +75,7 @@ function cardsInColumn(
 export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
   issuesByOracle, mobileDropZones, desktopDropZones, tokenCards, stackImageSrc, looksMultiFace,
-  onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, onBoard, toggleStackFace,
+  onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, onBoard, onRemove, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
   const [peekCard, setPeekCard] = useState<DeckCard | null>(null);
@@ -86,6 +86,17 @@ export function DeckImageView({
     window.addEventListener("deckapp:unreveal", clearPeek);
     return () => window.removeEventListener("deckapp:unreveal", clearPeek);
   }, []);
+  useEffect(() => {
+    if (!peekCard) return;
+    function onAway(e: PointerEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (t.closest("[data-stack-idx]") || t.closest("[data-peek-ui]")) return;
+      setPeekCard(null);
+    }
+    document.addEventListener("pointerdown", onAway);
+    return () => document.removeEventListener("pointerdown", onAway);
+  }, [peekCard]);
   const livePeek =
     displaySections.flatMap((section) => section.cards).find((card) => card.id === peekCard?.id) ??
     null;
@@ -98,23 +109,25 @@ export function DeckImageView({
         <StackCards
           count={cards.length}
           revealIndex={isMobile ? (peekIndex >= 0 ? peekIndex : null) : undefined}
-          onReveal={
-            isMobile
-              ? (index) => {
-                  const next = cards[index];
-                  if (next) setPeekCard(next);
-                }
-              : undefined
-          }
         >
           {cardsNode}
         </StackCards>
         {peekIndex >= 0 && livePeek ? (
           <div
             className={styles.peekSides}
+            data-peek-ui=""
             style={{ top: `calc(${peekIndex} * var(--stack-peek))` }}
           >
             <div className={styles.peekLeft}>
+              {isOwner ? (
+                <div className={styles.peekQty}>
+                  <button type="button" aria-label="Decrease quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, -1)}>−</button>
+                  <span>×{livePeek.quantity}</span>
+                  <button type="button" aria-label="Increase quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, 1)}>+</button>
+                </div>
+              ) : (
+                <span className={styles.peekQty}>×{livePeek.quantity}</span>
+              )}
               {PEEK_BOARDS.map((board) => (
                 <button
                   key={board.id}
@@ -127,27 +140,29 @@ export function DeckImageView({
                   {board.label}
                 </button>
               ))}
+              {isOwner && onRemove ? (
+                <button
+                  type="button"
+                  className={styles.peekRemove}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => onRemove(livePeek)}
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
             <div className={styles.peekGap} />
             <div className={styles.peekRight}>
-              {isOwner ? (
-                <div className={styles.peekQty}>
-                  <button type="button" aria-label="Decrease quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, -1)}>−</button>
-                  <span>×{livePeek.quantity}</span>
-                  <button type="button" aria-label="Increase quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, 1)}>+</button>
-                </div>
-              ) : (
-                <span className={styles.peekQty}>×{livePeek.quantity}</span>
-              )}
-              <button type="button" className={styles.peekOn} onPointerDown={(e) => e.stopPropagation()} onClick={() => openCardModal(livePeek)}>
-                Inspector
-              </button>
-              <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => openCardModal(livePeek, "info:rulings")}>
-                Rulings
-              </button>
-              <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => openCardModal(livePeek, "artwork:prints")}>
-                Art
-              </button>
+              {PEEK_TABS.map(([jump, label]) => (
+                <button
+                  key={jump}
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => openCardModal(livePeek, jump)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         ) : null}
@@ -173,12 +188,19 @@ export function DeckImageView({
         stackIndex={variant === "stack" ? index : undefined}
         disabled={!isOwner}
         className={`${frame}${illegal ? ` ${styles.stackIllegal}` : ""}`}
-        onClick={() => {
+        onPointerUp={() => {
+          if (!isMobile || variant !== "stack") return;
+          if (peekCard?.id === c.id) {
+            setPeekCard(null);
+            onOpenScroll(c);
+            return;
+          }
+          setPeekCard(c);
+        }}
+        onClick={(e) => {
           if (isMobile && variant === "stack") {
-            if (peekCard?.id !== c.id) {
-              setPeekCard(c);
-              return;
-            }
+            e.stopPropagation();
+            return;
           }
           onOpenScroll(c);
         }}
@@ -418,4 +440,13 @@ const PEEK_BOARDS: { id: DeckBoard; label: string }[] = [
   { id: "main", label: "Main" },
   { id: "side", label: "Side" },
   { id: "maybe", label: "Maybe" },
+];
+
+const PEEK_TABS: [ModalJump, string][] = [
+  ["info:rulings", "Rulings"],
+  ["deck", "Deck"],
+  ["drawers", "Drawers"],
+  ["collections", "Collections"],
+  ["mechanics", "Mechanics"],
+  ["artwork", "Art"],
 ];

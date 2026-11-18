@@ -25,7 +25,6 @@ type Props = {
   lockOnTap?: boolean;
   /** When set, this stack shows only that card. Null clears it. Omit for pointer hover. */
   revealIndex?: number | null;
-  onReveal?: (index: number) => void;
 };
 
 type CardRect = {
@@ -70,13 +69,12 @@ export function StackCards({
   children,
   lockOnTap = false,
   revealIndex,
-  onReveal,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const hoverIdxRef = useRef<number | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const lockedRef = useRef(false);
-  const controlled = onReveal != null;
+  const controlled = revealIndex !== undefined;
   const shown = controlled ? (revealIndex ?? null) : hoverIdx;
 
   const setHover = useCallback((idx: number | null) => {
@@ -150,12 +148,7 @@ export function StackCards({
   }
 
   function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
-    if (controlled) {
-      updateHoverFromPointer(e.clientX, e.clientY);
-      if (hoverIdxRef.current != null) onReveal(hoverIdxRef.current);
-      return;
-    }
-    if (!lockOnTap) return;
+    if (controlled || !lockOnTap) return;
     updateHoverFromPointer(e.clientX, e.clientY);
     lockedRef.current = hoverIdxRef.current != null;
   }

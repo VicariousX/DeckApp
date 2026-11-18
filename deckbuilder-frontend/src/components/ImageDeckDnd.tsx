@@ -22,6 +22,7 @@ import {
   type CSSProperties,
   type ReactNode,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import type { DeckBoard, DeckCard } from "../types/deck";
@@ -357,6 +358,7 @@ type DraggableCardProps = {
   style?: CSSProperties;
   children: ReactNode;
   onClick?: (e: ReactMouseEvent<HTMLDivElement>) => void;
+  onPointerUp?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onContextMenu?: (e: ReactMouseEvent) => void;
   /** Index within its StackCards (0 = back of stack). */
   stackIndex?: number;
@@ -369,6 +371,7 @@ export function DraggableStackCard({
   style,
   children,
   onClick,
+  onPointerUp,
   onContextMenu,
   stackIndex,
 }: DraggableCardProps) {
@@ -425,10 +428,11 @@ export function DraggableStackCard({
         isRevealed ? ` ${styles.stackCardRevealed}` : ""
       }`}
       style={dragStyle}
-      onClick={onClick}
       onContextMenu={onContextMenu}
       {...listeners}
       {...attributes}
+      onPointerUp={onPointerUp}
+      onClick={onClick}
     >
       {children}
     </div>
