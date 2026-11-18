@@ -192,10 +192,12 @@ export function DeckImageView({
             {col.cards.length === 0 ? (
               <p className={styles.boardZoneEmpty}>Empty</p>
             ) : (
+              <>
               <StackCards count={col.cards.length} lockOnTap={isMobile}>
                 {col.cards.map((c, i) => renderCard(c, i, "stack"))}
               </StackCards>
               {peekTray(col.cards)}
+              </>
             )}
           </DroppableRegion>
         ))}
@@ -307,10 +309,12 @@ export function DeckImageView({
                       {cards.length === 0 ? (
                         <p className={styles.boardZoneEmpty}>Drop cards here</p>
                       ) : (
+                        <>
                         <StackCards count={cards.length} lockOnTap={isMobile}>
                           {cards.map((c, idx) => renderCard(c, idx, "stack"))}
                         </StackCards>
                         {peekTray(cards)}
+                        </>
                       )}
                     </DroppableRegion>
                   );
