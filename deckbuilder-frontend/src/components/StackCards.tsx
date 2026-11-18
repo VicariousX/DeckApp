@@ -23,6 +23,9 @@ type Props = {
   children: ReactNode;
   /** On touch, a tap locks the revealed card instead of following the pointer. */
   lockOnTap?: boolean;
+  /** When set, this stack shows only that card. Null clears it. Omit for pointer hover. */
+  revealIndex?: number | null;
+  onReveal?: (index: number) => void;
 };
 
 type CardRect = {
@@ -61,11 +64,20 @@ function readCardRects(container: HTMLElement): CardRect[] {
  * live visual bounding boxes (so shifted "front" cards remain reachable).
  * Gaps between cards never clear the reveal — they hand off to the nearest card.
  */
-export function StackCards({ count, className, children, lockOnTap = false }: Props) {
+export function StackCards({
+  count,
+  className,
+  children,
+  lockOnTap = false,
+  revealIndex,
+  onReveal,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const hoverIdxRef = useRef<number | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const lockedRef = useRef(false);
+  const controlled = onReveal != null;
+  const shown = controlled ? (revealIndex ?? null) : hoverIdx;
 
   const setHover = useCallback((idx: number | null) => {
     if (hoverIdxRef.current === idx) return;
@@ -138,6 +150,11 @@ export function StackCards({ count, className, children, lockOnTap = false }: Pr
   }
 
   function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (controlled) {
+      updateHoverFromPointer(e.clientX, e.clientY);
+      if (hoverIdxRef.current != null) onReveal(hoverIdxRef.current);
+      return;
+    }
     if (!lockOnTap) return;
     updateHoverFromPointer(e.clientX, e.clientY);
     lockedRef.current = hoverIdxRef.current != null;
@@ -154,11 +171,11 @@ export function StackCards({ count, className, children, lockOnTap = false }: Pr
   }, [lockOnTap, setHover]);
 
   return (
-    <StackHoverContext.Provider value={hoverIdx}>
+    <StackHoverContext.Provider value={shown}>
       <div
         ref={ref}
         className={`${styles.stackCards}${className ? ` ${className}` : ""}`}
-        data-hover-idx={hoverIdx === null ? undefined : String(hoverIdx)}
+        data-hover-idx={shown === null ? undefined : String(shown)}
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}
