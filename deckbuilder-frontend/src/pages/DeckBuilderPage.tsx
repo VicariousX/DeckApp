@@ -1853,6 +1853,8 @@ export function DeckBuilderPage() {
               looksMultiFace={looksMultiFace}
               onImageCardTap={onImageCardTap}
               openCardModal={openCardModal}
+              onBoard={(c, b) => void moveCardToBoard(c, b)}
+              onRemove={(c) => void onRemove(c)}
               onOpenScroll={(c) => setScrollId(c.id)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}

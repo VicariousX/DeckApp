@@ -2378,6 +2378,65 @@
 }
 
 /* Empty region under the stack — part of the droppable box */
+.peekTray {
+  width: min(100%, 26rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  padding: 0.45rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+}
+
+.peekRow,
+.peekBoards,
+.peekLinks,
+.peekQty {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.peekBoards,
+.peekLinks {
+  flex-wrap: wrap;
+}
+
+.peekTray button {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  min-height: 2rem;
+  padding: 0.2rem 0.65rem;
+  cursor: pointer;
+}
+
+.peekQty {
+  font-weight: 750;
+}
+
+.peekQty button {
+  width: 2rem;
+  padding: 0;
+}
+
+.peekPrimary,
+.peekOn {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.peekRemove {
+  color: var(--color-error, #e07a7a);
+}
+
 .stackColumnSpacer {
   flex: 1 1 auto;
   min-height: 3rem;
@@ -2651,15 +2710,21 @@
     overflow-x: hidden;
     overflow-y: visible;
     min-height: 0;
-    gap: 0.65rem;
+    gap: 1.15rem;
     padding-bottom: 0.15rem;
+    mask-image: none;
+    -webkit-mask-image: none;
   }
   .stackColumn {
     width: 100%;
     min-width: 0;
     min-height: 0;
-    padding: 0.15rem 0.1rem;
+    padding: 0.15rem 0.1rem 0.85rem;
     align-items: center;
+    overflow: visible;
+  }
+  .stackCards[data-hover-idx] {
+    padding-bottom: calc(var(--stack-card-h) + 0.35rem);
   }
   .stackCards {
     align-items: center;

@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   ImageDndProvider,
   DroppableRegion,
@@ -16,6 +16,7 @@ import { RateLimitedImg } from "./RateLimitedImg";
 import { StackCards } from "./StackCards";
 import { isBasicLand } from "../lib/deck/boardHelpers";
 import type { DeckCard, DeckBoard } from "../types/deck";
+import type { ModalJump } from "./CardContextMenu";
 import type { ListColumnLayout } from "../lib/deckPreferences";
 import { getListColumnLayout } from "../lib/deckPreferences";
 import styles from "../pages/DeckBuilderPage.module.css";
@@ -43,7 +44,9 @@ type Props = {
   stackImageSrc: (c: DeckCard) => string | undefined;
   looksMultiFace: (c: DeckCard) => boolean;
   onImageCardTap: (c: DeckCard, el: HTMLElement) => void;
-  openCardModal: (c: DeckCard) => void;
+  openCardModal: (c: DeckCard, jump?: ModalJump) => void;
+  onBoard?: (c: DeckCard, board: DeckBoard) => void;
+  onRemove?: (c: DeckCard) => void;
   onOpenScroll: (c: DeckCard) => void;
   onCardContext: (e: { preventDefault: () => void; clientX: number; clientY: number }, c: DeckCard) => void;
   onQty: (c: DeckCard, d: number) => void;
@@ -72,17 +75,36 @@ function cardsInColumn(
 export function DeckImageView({
   panel, isOwner, isMobile, groupMode, displaySections, listLayouts, deckId,
   issuesByOracle, mobileDropZones, desktopDropZones, tokenCards, stackImageSrc, looksMultiFace,
-  onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, toggleStackFace,
+  onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, onBoard, onRemove, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
-  const peekId = useRef<string | null>(null);
+  const [peekCard, setPeekCard] = useState<DeckCard | null>(null);
   useEffect(() => {
     function clearPeek() {
-      peekId.current = null;
+      setPeekCard(null);
     }
     window.addEventListener("deckapp:unreveal", clearPeek);
     return () => window.removeEventListener("deckapp:unreveal", clearPeek);
   }, []);
+  const livePeek =
+    displaySections.flatMap((section) => section.cards).find((card) => card.id === peekCard?.id) ??
+    null;
+
+  function peekTray(cards: DeckCard[]) {
+    if (!isMobile || !livePeek || !cards.some((card) => card.id === livePeek.id)) return null;
+    return (
+      <PeekTray
+        card={livePeek}
+        isOwner={isOwner}
+        onQty={onQty}
+        onBoard={onBoard}
+        onOpen={openCardModal}
+        onRemove={onRemove}
+        onScroll={() => onOpenScroll(livePeek)}
+      />
+    );
+  }
+
   function renderCard(c: DeckCard, index: number | undefined, variant: "stack" | "grid" | "commander") {
     const src = stackImageSrc(c);
     const illegal = issuesByOracle.has(c.oracle_id.toLowerCase());
@@ -103,8 +125,8 @@ export function DeckImageView({
         className={`${frame}${illegal ? ` ${styles.stackIllegal}` : ""}`}
         onClick={() => {
           if (isMobile && variant === "stack") {
-            if (peekId.current !== c.id) {
-              peekId.current = c.id;
+            if (peekCard?.id !== c.id) {
+              setPeekCard(c);
               return;
             }
           }
@@ -173,6 +195,7 @@ export function DeckImageView({
               <StackCards count={col.cards.length} lockOnTap={isMobile}>
                 {col.cards.map((c, i) => renderCard(c, i, "stack"))}
               </StackCards>
+              {peekTray(col.cards)}
             )}
           </DroppableRegion>
         ))}
@@ -287,6 +310,7 @@ export function DeckImageView({
                         <StackCards count={cards.length} lockOnTap={isMobile}>
                           {cards.map((c, idx) => renderCard(c, idx, "stack"))}
                         </StackCards>
+                        {peekTray(cards)}
                       )}
                     </DroppableRegion>
                   );
@@ -338,5 +362,87 @@ export function DeckImageView({
         })}
       </div>
     </ImageDndProvider>
+  );
+}
+
+const PEEK_BOARDS: { id: DeckBoard; label: string }[] = [
+  { id: "commander", label: "Command" },
+  { id: "main", label: "Main" },
+  { id: "side", label: "Side" },
+  { id: "maybe", label: "Maybe" },
+];
+
+const PEEK_OPENS: [ModalJump, string][] = [
+  ["info", "Inspector"],
+  ["info:rulings", "Rulings"],
+  ["deck", "Deck"],
+  ["drawers", "Drawers"],
+  ["collections", "Collections"],
+  ["mechanics", "Mechanics"],
+  ["artwork:prints", "Printings"],
+];
+
+function PeekTray({
+  card,
+  isOwner,
+  onQty,
+  onBoard,
+  onOpen,
+  onRemove,
+  onScroll,
+}: {
+  card: DeckCard;
+  isOwner: boolean;
+  onQty: (c: DeckCard, d: number) => void;
+  onBoard?: (c: DeckCard, board: DeckBoard) => void;
+  onOpen: (c: DeckCard, jump?: ModalJump) => void;
+  onRemove?: (c: DeckCard) => void;
+  onScroll: () => void;
+}) {
+  return (
+    <div className={styles.peekTray}>
+      <div className={styles.peekRow}>
+        {isOwner ? (
+          <div className={styles.peekQty}>
+            <button type="button" aria-label="Decrease quantity" onClick={() => onQty(card, -1)}>−</button>
+            <span>×{card.quantity}</span>
+            <button type="button" aria-label="Increase quantity" onClick={() => onQty(card, 1)}>+</button>
+          </div>
+        ) : (
+          <span className={styles.peekQty}>×{card.quantity}</span>
+        )}
+        <button type="button" className={styles.peekPrimary} onClick={() => onOpen(card)}>
+          Inspector
+        </button>
+        <button type="button" onClick={onScroll}>Scroll</button>
+      </div>
+      {isOwner && onBoard ? (
+        <div className={styles.peekBoards} role="group" aria-label="Board">
+          {PEEK_BOARDS.map((board) => (
+            <button
+              key={board.id}
+              type="button"
+              aria-pressed={card.board === board.id}
+              className={card.board === board.id ? styles.peekOn : undefined}
+              onClick={() => onBoard(card, board.id)}
+            >
+              {board.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className={styles.peekLinks}>
+        {PEEK_OPENS.slice(1).map(([jump, label]) => (
+          <button key={jump} type="button" onClick={() => onOpen(card, jump)}>
+            {label}
+          </button>
+        ))}
+        {isOwner && onRemove ? (
+          <button type="button" className={styles.peekRemove} onClick={() => onRemove(card)}>
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
