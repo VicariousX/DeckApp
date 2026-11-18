@@ -569,21 +569,21 @@ export function CardInspectorModal({
 
         <div className={styles.layout}>
           <div className={`${styles.visual}${!isMobile && !imageOpen ? ` ${styles.visualCollapsed}` : ""}`}>
-            <div className={styles.cardRow}>
-              {isMobile && deck?.isOwner ? (
-                <button
-                  type="button"
-                  className={`${styles.quickBtn} ${styles.sideRemove}`}
-                  onClick={deck.onRemove}
-                >
-                  Remove
-                </button>
-              ) : null}
-              <div
-                className={styles.cardClip}
-                style={isMobile && cardReveal != null ? { height: cardReveal } : undefined}
-              >
-                <div className={styles.cardFace} ref={cardNatural}>
+            <div
+              className={styles.cardClip}
+              style={isMobile && cardReveal != null ? { height: cardReveal } : undefined}
+            >
+              <div className={styles.cardRow} ref={cardNatural}>
+                {isMobile && deck?.isOwner ? (
+                  <button
+                    type="button"
+                    className={`${styles.quickBtn} ${styles.sideRemove}`}
+                    onClick={deck.onRemove}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+                <div className={styles.cardFace}>
                   {loading && (
                     <div className={styles.imagePlaceholder}>Loading…</div>
                   )}
@@ -607,21 +607,21 @@ export function CardInspectorModal({
                     )
                   )}
                 </div>
+                {isMobile && deck?.isOwner ? (
+                  <div className={styles.sideQty}>
+                    <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
+                    <span>{deck.card.quantity}</span>
+                    <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
+                  </div>
+                ) : null}
               </div>
-              {isMobile && deck?.isOwner ? (
-                <div className={styles.sideQty}>
-                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(1)} aria-label="Increase">+</button>
-                  <span>{deck.card.quantity}</span>
-                  <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
-                </div>
-              ) : null}
             </div>
             {isMobile ? (
               <div
-                className={styles.dragBar}
+                className={`${styles.dragBar}${cardReveal === 0 ? ` ${styles.dragBarClosed}` : ""}`}
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Resize card"
+                aria-label={cardReveal === 0 ? "Show card" : "Resize card"}
                 onPointerDown={(e) => {
                   const max = cardNatural.current?.offsetHeight ?? 0;
                   const current = cardReveal ?? max;
@@ -635,13 +635,22 @@ export function CardInspectorModal({
                   setCardReveal(next);
                 }}
                 onPointerUp={() => {
+                  const start = barDrag.current;
                   barDrag.current = null;
+                  if (!start) return;
+                  setCardReveal((cur) => {
+                    if (cur == null) return null;
+                    if (cur <= 28) return 0;
+                    if (start.max - cur <= 28) return null;
+                    return cur;
+                  });
                 }}
                 onPointerCancel={() => {
                   barDrag.current = null;
                 }}
               >
                 <span />
+                {cardReveal === 0 ? <em>Card</em> : null}
               </div>
             ) : (
               <button
