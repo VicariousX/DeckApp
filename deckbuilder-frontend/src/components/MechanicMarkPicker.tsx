@@ -7,8 +7,6 @@ import {
   MECHANICS,
   mechanicById,
   type Agency,
-  type Economy,
-  type Flow,
   type MechanicFamily,
 } from "../lib/mechanics/catalog";
 import {
@@ -31,12 +29,6 @@ const STATUS_LABEL: Record<MarkStatus, string> = {
   flagged: "Flagged",
   rejected: "Rejected",
 };
-
-function storedRelation(relation: Agency): { economy: Economy; flow: Flow; agency: Agency } {
-  if (relation === "benefit") return { economy: "payoff", flow: "both", agency: "benefit" };
-  if (relation === "both") return { economy: "both", flow: "both", agency: "both" };
-  return { economy: "producer", flow: "both", agency: "cause" };
-}
 
 function ThemeSelect({
   label,
@@ -204,7 +196,7 @@ export function MechanicMarkPicker({ oracleId }: Props) {
     const { error } = await proposeMark(user.id, {
       oracle_id: oracleId,
       mechanic_id: selected.id,
-      ...storedRelation(relation),
+      relation,
     });
     setBusy(false);
     setStatus(error ?? `Proposed ${selected.name}.`);
@@ -241,7 +233,7 @@ export function MechanicMarkPicker({ oracleId }: Props) {
                       {STATUS_LABEL[m.status]}
                     </span>
                   </div>
-                  <p className={styles.role}>{AGENCY_LABEL[m.agency]}</p>
+                  <p className={styles.role}>{AGENCY_LABEL[m.relation]}</p>
                   {def?.hint ? <p className={styles.markHint}>{def.hint}</p> : null}
                   {(user && m.status !== "locked") || admin ? (
                     <div className={styles.markActions}>

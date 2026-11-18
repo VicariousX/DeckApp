@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import type { Agency, Economy, Flow } from "../lib/mechanics/catalog";
+import type { Agency } from "../lib/mechanics/catalog";
 
 export type MarkStatus =
   | "proposed"
@@ -12,9 +12,7 @@ export type MechanicMark = {
   id: string;
   oracle_id: string;
   mechanic_id: string;
-  economy: Economy;
-  flow: Flow;
-  agency: Agency;
+  relation: Agency;
   status: MarkStatus;
   proposed_by: string | null;
   endorse_count: number;
@@ -45,7 +43,7 @@ export async function listMarksForOracles(
   const { data, error } = await supabase
     .from("card_mechanic_marks")
     .select(
-      "id, oracle_id, mechanic_id, economy, flow, agency, status, proposed_by, endorse_count, flag_count"
+      "id, oracle_id, mechanic_id, relation, status, proposed_by, endorse_count, flag_count"
     )
     .in("oracle_id", oracleIds)
     .in("status", VISIBLE)
@@ -56,14 +54,14 @@ export async function listMarksForOracles(
 
 export async function oracleIdsForMechanic(
   mechanicId: string,
-  economy?: Economy
+  relation?: Agency
 ): Promise<{ ids: string[]; error: string | null }> {
   let q = supabase
     .from("card_mechanic_marks")
     .select("oracle_id")
     .eq("mechanic_id", mechanicId)
     .in("status", ["accepted", "locked"]);
-  if (economy && economy !== "both") q = q.in("economy", [economy, "both"]);
+  if (relation && relation !== "both") q = q.in("relation", [relation, "both"]);
   const { data, error } = await q;
   if (error) return { ids: [], error: error.message };
   return {
@@ -77,9 +75,7 @@ export async function proposeMark(
   input: {
     oracle_id: string;
     mechanic_id: string;
-    economy: Economy;
-    flow: Flow;
-    agency: Agency;
+    relation: Agency;
   }
 ): Promise<{ mark: MechanicMark | null; error: string | null }> {
   const { data, error } = await supabase
@@ -90,7 +86,7 @@ export async function proposeMark(
       status: "proposed",
     })
     .select(
-      "id, oracle_id, mechanic_id, economy, flow, agency, status, proposed_by, endorse_count, flag_count"
+      "id, oracle_id, mechanic_id, relation, status, proposed_by, endorse_count, flag_count"
     )
     .maybeSingle();
   if (error) return { mark: null, error: error.message };
@@ -168,9 +164,7 @@ export async function submitVerdict(
     const created = await proposeMark(userId, {
       oracle_id: oracleId,
       mechanic_id: mechanicId,
-      economy: "both",
-      flow: "both",
-      agency: "cause",
+      relation: "both",
     });
     if (!created.mark) return { error: created.error ?? "Could not record that." };
     id = created.mark.id;

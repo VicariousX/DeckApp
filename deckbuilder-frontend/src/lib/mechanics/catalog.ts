@@ -352,24 +352,10 @@ export function mechanicById(id: string): MechanicDef | undefined {
   return MECHANICS.find((m) => m.id === id);
 }
 
-export const ECONOMY = ["producer", "payoff", "both"] as const;
-export const FLOW = ["feed", "bleed", "both"] as const;
 export const AGENCY = ["cause", "benefit", "both"] as const;
 
-export type Economy = (typeof ECONOMY)[number];
-export type Flow = (typeof FLOW)[number];
 export type Agency = (typeof AGENCY)[number];
 
-export const ECONOMY_LABEL: Record<Economy, string> = {
-  producer: "Producer",
-  payoff: "Payoff",
-  both: "Both",
-};
-export const FLOW_LABEL: Record<Flow, string> = {
-  feed: "Feed",
-  bleed: "Bleed",
-  both: "Both",
-};
 export const AGENCY_LABEL: Record<Agency, string> = {
   cause: "Cause",
   benefit: "Benefit",

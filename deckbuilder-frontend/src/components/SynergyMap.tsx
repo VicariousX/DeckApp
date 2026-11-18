@@ -82,8 +82,9 @@ export function SynergyMap({ cards, community = [], extraEdges = [], onSelect }:
   function role(key: string) {
     const marks = community.filter((m) => m.key === key);
     if (!marks.length) return null;
-    if (marks.some((m) => m.economy === "both")) return "both";
-    return marks[0].economy;
+    if (marks.some((m) => m.relation === "both")) return "Both";
+    if (marks[0].relation === "cause") return "Cause";
+    return "Benefit";
   }
 
   function dropped(cardKey: string, engineId: string) {

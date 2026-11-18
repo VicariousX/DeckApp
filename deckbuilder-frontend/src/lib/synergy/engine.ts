@@ -147,7 +147,7 @@ export type SynergyEdge = {
 export type CommunityMark = {
   key: string;
   mechanic: string;
-  economy: "producer" | "payoff" | "both";
+  relation: "cause" | "benefit" | "both";
 };
 
 export function buildSynergyGraph(
@@ -180,10 +180,10 @@ export function buildSynergyGraph(
         for (const y of marks.get(nodes[j].key) ?? []) {
           if (x.mechanic !== y.mechanic) continue;
           const pair =
-            x.economy === "both" ||
-            y.economy === "both" ||
-            (x.economy === "producer" && y.economy === "payoff") ||
-            (x.economy === "payoff" && y.economy === "producer");
+            x.relation === "both" ||
+            y.relation === "both" ||
+            (x.relation === "cause" && y.relation === "benefit") ||
+            (x.relation === "benefit" && y.relation === "cause");
           push(nodes[i].key, nodes[j].key, x.mechanic, pair ? 3 : 1);
         }
       }

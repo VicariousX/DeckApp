@@ -48,7 +48,7 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     void (async () => {
       const sets: string[][] = [];
       for (const t of mechParsed.terms) {
-        const { ids } = await oracleIdsForMechanic(t.id, t.economy);
+        const { ids } = await oracleIdsForMechanic(t.id, t.relation);
         sets.push(ids);
       }
       if (cancel) return;

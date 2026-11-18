@@ -116,7 +116,7 @@ export function DeckStatsPanel({
           .map((m) => ({
             key: m.oracle_id,
             mechanic: m.mechanic_id,
-            economy: m.economy,
+            relation: m.relation,
           }))
       );
     });

@@ -230,7 +230,7 @@ export const CATEGORIES: CategoryDef[] = [
         key: "mech",
         label: "Mechanic",
         kind: "select",
-        hint: "DeckApp marks. mech:tokens or mech:tokens:producer",
+        hint: "DeckApp marks. mech:tokens or mech:tokens:cause",
         options: MECHANICS.map((m) => ({ value: m.id, label: m.name })),
       },
     ],
