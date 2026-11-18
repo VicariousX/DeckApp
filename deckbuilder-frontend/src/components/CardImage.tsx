@@ -217,7 +217,7 @@ export function CardEnlargeOverlay({
       // Parent (scroll stage) owns the overlay entry and scroll lock.
       function onTouch(e: TouchEvent) {
         const target = e.target as HTMLElement | null;
-        if (target?.closest("button")) return;
+        if (target?.closest("[data-modal-root], button")) return;
         e.preventDefault();
       }
       window.addEventListener("touchmove", onTouch, { passive: false, capture: true });

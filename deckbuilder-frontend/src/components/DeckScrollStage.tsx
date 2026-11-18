@@ -83,7 +83,11 @@ export function DeckScrollStage({
       }, 180);
       setIndex((cur) => wrap(cur + delta, length));
     }
+    function blocked() {
+      return document.querySelector("[data-modal-root]") != null;
+    }
     function onKey(e: KeyboardEvent) {
+      if (blocked()) return;
       if (e.key === "Escape") onClose();
       else if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -94,6 +98,7 @@ export function DeckScrollStage({
       }
     }
     function onWheel(e: WheelEvent) {
+      if (blocked()) return;
       if (Math.abs(e.deltaY) < 8) return;
       e.preventDefault();
       go(e.deltaY > 0 ? 1 : -1);

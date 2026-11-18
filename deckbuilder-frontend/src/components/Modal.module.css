@@ -85,6 +85,14 @@
   .overlay {
     padding: 0;
   }
+  .closeButton {
+    top: max(0.4rem, env(safe-area-inset-top));
+    right: 0.45rem;
+    width: 2.3rem;
+    height: 2.3rem;
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+    border: 1px solid var(--color-border);
+  }
   .modal {
     width: 100vw;
     max-width: 100vw;

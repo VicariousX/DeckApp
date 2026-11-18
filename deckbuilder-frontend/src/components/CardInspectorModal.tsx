@@ -102,6 +102,12 @@ export function CardInspectorModal({
   useEffect(() => {
     onTabChange?.(active, infoSub, artSub);
   }, [active, infoSub, artSub, onTabChange]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (active === "info" && infoSub === "details") return;
+    setImageOpen(false);
+  }, [isMobile, active, infoSub]);
   const [rulings, setRulings] = useState<ScryfallRuling[]>([]);
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);
@@ -503,7 +509,6 @@ export function CardInspectorModal({
   return (
     <Modal
       onClose={onClose}
-      hideClose
       style={
         isMobile
           ? { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" }

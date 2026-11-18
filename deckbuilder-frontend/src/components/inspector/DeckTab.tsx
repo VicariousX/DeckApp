@@ -183,7 +183,7 @@ function AddToDeckPanel({
   }
 
   return (
-    <div className={styles.panelScrollSolid}>
+    <div className={styles.deckFill}>
       <p className={styles.extraLabel}>This card is in</p>
       <MembershipList
         memberships={memberships.filter((m) => m.kind === "deck")}
@@ -198,7 +198,7 @@ function AddToDeckPanel({
       {status && <p className={styles.muted}>{status}</p>}
       {!decks && <p className={styles.muted}>Loading decks…</p>}
       {decks?.length === 0 && <p className={styles.muted}>No decks yet.</p>}
-      <div className={styles.addDeckList}>
+      <div className={styles.deckPicker}>
         {decks?.filter((d) => d.id !== excludeId).map((d) => (
           <button
             key={d.id}
@@ -246,7 +246,7 @@ export function DeckTab({
   }
 
   return (
-    <div className={styles.panelScrollSolid}>
+    <div className={styles.deckFill}>
       <div className={styles.deckExtras}>
         <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
           <span className={styles.extraLabel}>Quantity</span>
