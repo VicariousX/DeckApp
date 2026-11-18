@@ -1,7 +1,6 @@
 import type { ScryfallCard } from "../../types/scryfallCard";
 import type { DeckAppCard } from "../../types/deckAppCard";
 import { CardArtPanel } from "../CardArtPanel";
-import { SubTabRail } from "./SubTabRail";
 import type { SubTab } from "./types";
 import styles from "../CardInspectorModal.module.css";
 
@@ -23,8 +22,7 @@ export function ArtworkTab({
   onResolvedChange?: (resolved: DeckAppCard) => void;
 }) {
   return (
-    <div className={styles.panelScroll}>
-      <SubTabRail subTabs={ART_SUBS} active={subId} onSelect={onSelectSub} />
+    <>
       {card ? (
         <CardArtPanel
           card={card}
@@ -35,6 +33,6 @@ export function ArtworkTab({
       ) : (
         <p className={styles.muted}>Load card to edit art.</p>
       )}
-    </div>
+    </>
   );
 }

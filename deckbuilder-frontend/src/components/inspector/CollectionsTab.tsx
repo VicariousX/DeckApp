@@ -79,7 +79,7 @@ export function CollectionsTab({
   }
 
   return (
-    <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+    <div>
       <p className={styles.extraLabel}>{name} in collections</p>
       <MembershipList
         memberships={memberships}

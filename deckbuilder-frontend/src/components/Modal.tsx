@@ -23,6 +23,10 @@ export function Modal({
       close: onClose,
     });
     setZIndex(handle.zIndex);
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
     function onWheel(e: WheelEvent) {
       const t = e.target as HTMLElement | null;
       if (t?.closest("[data-modal-root]")) return;
@@ -37,6 +41,8 @@ export function Modal({
     window.addEventListener("touchmove", onTouch, { passive: false });
     return () => {
       handle.release();
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouch);
     };

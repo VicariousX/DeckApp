@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { fetchCardById, fetchRulings, type ScryfallRuling } from "../lib/scryfallApi";
@@ -25,6 +18,7 @@ import {
   InfoTab,
   INFO_SUBS,
   MechanicsTab,
+  SubTabRail,
   type CardInspectorCollectionControls,
   type CardInspectorDeckControls,
   type CardInspectorDrawerControls,
@@ -112,13 +106,6 @@ export function CardInspectorModal({
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
-  const [overscrollHint, setOverscrollHint] = useState<{
-    dir: "up" | "down";
-    ticks: number;
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
 
 
   const [contentKey, setContentKey] = useState(0);
@@ -447,204 +434,7 @@ export function CardInspectorModal({
     };
   }, [isMobile, hasPrev, hasNext, onPrev, onNext]);
 
-
-  // Wheel: vertical = tabs (only outside scrollable regions);
-  // horizontal = prev/next card with gesture gating (once per flick, then paced).
-  useEffect(() => {
-    const shell = shellRef.current;
-    if (!shell) return;
-
-    let gestureAxis: "x" | "y" | null = null;
-    let gestureConsumed = false;
-    let firstRepeatDone = false;
-    let gestureTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastNavAt = 0;
-    const GESTURE_IDLE_MS = 240;
-    const FIRST_NAV_COOLDOWN = 900;
-    const REPEAT_NAV_MS = 950;
-    const FIRST_REPEAT_DELAY_MS = 1100;
-
-    function resetGestureSoon() {
-      if (gestureTimer) clearTimeout(gestureTimer);
-      gestureTimer = setTimeout(() => {
-        gestureAxis = null;
-        gestureConsumed = false;
-        firstRepeatDone = false;
-      }, GESTURE_IDLE_MS);
-    }
-
-    function findVerticalScrollEl(
-      start: EventTarget | null
-    ): HTMLElement | null {
-      let el = start instanceof Element ? start : null;
-      while (el && el !== shell) {
-        if (el instanceof HTMLElement) {
-          const style = window.getComputedStyle(el);
-          const oy = style.overflowY;
-          if (
-            (oy === "auto" || oy === "scroll" || oy === "overlay") &&
-            el.scrollHeight > el.clientHeight + 1
-          ) {
-            return el;
-          }
-        }
-        el = el.parentElement;
-      }
-      return null;
-    }
-
-    function isInsideHorizontalScrollRegion(start: EventTarget | null): boolean {
-      let el = start instanceof Element ? start : null;
-      while (el && el !== shell) {
-        if (el instanceof HTMLElement) {
-          const style = window.getComputedStyle(el);
-          const ox = style.overflowX;
-          if (
-            (ox === "auto" || ox === "scroll" || ox === "overlay") &&
-            el.scrollWidth > el.clientWidth + 1
-          ) {
-            return true;
-          }
-        }
-        el = el.parentElement;
-      }
-      return false;
-    }
-
-    /** Overscroll buffer: 3 filled dots at edge, 4th tick switches tabs. */
-    let edgeTicks = 0;
-    let edgeDir: "up" | "down" | null = null;
-    const EDGE_TICKS_BEFORE_TAB = 3;
-
-    function clearEdgeBuffer() {
-      edgeTicks = 0;
-      edgeDir = null;
-      setOverscrollHint(null);
-    }
-
-    function showEdgeDots(
-      dir: "up" | "down",
-      ticks: number,
-      scrollEl: HTMLElement
-    ) {
-      const r = scrollEl.getBoundingClientRect();
-      setOverscrollHint({
-        dir,
-        ticks: Math.min(3, Math.max(0, ticks)),
-        // Sit just outside the scrollable field
-        top: dir === "up" ? r.top - 14 : r.bottom + 6,
-        left: r.left,
-        width: r.width,
-      });
-    }
-
-    function navVertical(deltaY: number) {
-      shiftVertical(deltaY < 0 ? -1 : 1);
-    }
-
-    function navHorizontal(deltaX: number) {
-      if (deltaX > 0 && hasNext && onNext) onNext();
-      else if (deltaX < 0 && hasPrev && onPrev) onPrev();
-    }
-
-    function onWheel(e: WheelEvent) {
-      const absX = Math.abs(e.deltaX);
-      const absY = Math.abs(e.deltaY);
-      if (absX < 4 && absY < 4) return;
-
-      const preferX = absX > absY;
-
-      if (preferX && isInsideHorizontalScrollRegion(e.target)) {
-        return;
-      }
-
-      // Vertical over a scrollable region: allow native scroll until edge buffer
-      if (!preferX) {
-        const scrollEl = findVerticalScrollEl(e.target);
-        if (scrollEl) {
-          const atTop = scrollEl.scrollTop <= 0;
-          const atBottom =
-            scrollEl.scrollTop + scrollEl.clientHeight >=
-            scrollEl.scrollHeight - 1;
-          const scrollingUp = e.deltaY < 0;
-          const scrollingDown = e.deltaY > 0;
-          const pastEdge =
-            (scrollingUp && atTop) || (scrollingDown && atBottom);
-
-          if (!pastEdge) {
-            clearEdgeBuffer();
-            return; // native scroll
-          }
-
-          // At edge — buffered tab switch (3 dots, then switch)
-          e.preventDefault();
-          const dir: "up" | "down" = scrollingUp ? "up" : "down";
-          if (edgeDir !== dir) {
-            edgeDir = dir;
-            edgeTicks = 1;
-            showEdgeDots(dir, edgeTicks, scrollEl);
-            return;
-          }
-          edgeTicks += 1;
-          if (edgeTicks <= EDGE_TICKS_BEFORE_TAB) {
-            showEdgeDots(dir, edgeTicks, scrollEl);
-            return;
-          }
-          // 4th tick past edge → switch tabs
-          clearEdgeBuffer();
-          resetGestureSoon();
-          navVertical(e.deltaY);
-          return;
-        }
-      }
-
-      e.preventDefault();
-      clearEdgeBuffer();
-      resetGestureSoon();
-
-      if (!gestureAxis) {
-        gestureAxis = preferX ? "x" : "y";
-        gestureConsumed = false;
-      }
-
-      const now = Date.now();
-
-      // Horizontal wheel no longer changes cards (mouse back/forward does)
-      if (gestureAxis === "x") {
-        return;
-      }
-
-      if (!gestureConsumed) {
-        gestureConsumed = true;
-        lastNavAt = now;
-        navVertical(e.deltaY);
-        return;
-      }
-      if (now - lastNavAt >= FIRST_NAV_COOLDOWN) {
-        lastNavAt = now;
-        navVertical(e.deltaY);
-      }
-    }
-
-    shell.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      shell.removeEventListener("wheel", onWheel);
-      if (gestureTimer) clearTimeout(gestureTimer);
-    };
-  }, [
-    active,
-    artSub,
-    infoSub,
-    activeIndex,
-    tabs,
-    hasNext,
-    hasPrev,
-    onNext,
-    onPrev,
-  ]);
-
   function selectTab(id: TabId) {
-    setOverscrollHint(null);
     if (id === active) return;
     setActive(id);
     setContentKey((k) => k + 1);
@@ -691,16 +481,12 @@ export function CardInspectorModal({
     };
   }, []);
 
-  const above = tabs.slice(0, activeIndex);
-  const below = tabs.slice(activeIndex + 1);
-
   function handleRemove() {
     if (!deck) return;
     deck.onRemove();
     if (hasNext && onNext) onNext();
     else onClose();
   }
-
 
   function shiftVertical(dir: -1 | 1) {
     const tab = tabs[activeIndex];
@@ -718,20 +504,20 @@ export function CardInspectorModal({
     selectTab(tabs[next].id);
   }
 
-  function shiftSub(direction: "up" | "down") {
-    shiftVertical(direction === "up" ? -1 : 1);
-  }
-
   return (
     <Modal
       onClose={onClose}
       hideClose
-      style={{
-        width: modalSize.w,
-        height: modalSize.h,
-        maxWidth: "none",
-        maxHeight: "none",
-      }}
+      style={
+        isMobile
+          ? { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" }
+          : {
+              width: modalSize.w,
+              height: modalSize.h,
+              maxWidth: "none",
+              maxHeight: "none",
+            }
+      }
     >
       <div
         className={styles.shell}
@@ -741,7 +527,8 @@ export function CardInspectorModal({
           transition: dragging ? "none" : "transform 0.22s ease",
         }}
         onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest("button, input, textarea, a, [role='button']")) return;
+          const target = e.target as HTMLElement;
+          if (target.closest("button, input, textarea, a, [role='button'], [data-panel-scroll]")) return;
           const top = shellRef.current?.getBoundingClientRect().top ?? 0;
           gesture.current = { x: e.clientX, y: e.clientY, fromTop: e.clientY - top < 56 };
           setDragging(true);
@@ -770,10 +557,6 @@ export function CardInspectorModal({
           if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy)) {
             if (dx < 0 && hasNext && onNext) onNext();
             if (dx > 0 && hasPrev && onPrev) onPrev();
-            return;
-          }
-          if (Math.abs(dy) > 70 && Math.abs(dy) > Math.abs(dx) && !start.fromTop) {
-            shiftSub(dy < 0 ? "down" : "up");
           }
         }}
         onPointerCancel={() => {
@@ -793,9 +576,7 @@ export function CardInspectorModal({
             >
               ← Prev
             </button>
-            <span className={styles.navHint}>
-              ↑↓ tabs/sub · ←→ cards · Esc
-            </span>
+            <span className={styles.navHint}>←→ cards · Esc</span>
             <button
               type="button"
               className={styles.navBtn}
@@ -866,21 +647,20 @@ export function CardInspectorModal({
           </div>
 
           <div className={styles.body}>
-            {above.length > 0 && (
-              <div className={styles.tabRail} role="tablist">
-                {above.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    className={styles.tabPill}
-                    onClick={() => selectTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className={styles.tabBar} role="tablist">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={t.id === active}
+                  className={t.id === active ? styles.tabBtnOn : styles.tabBtn}
+                  onClick={() => selectTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
             <div
               key={contentKey}
@@ -891,6 +671,13 @@ export function CardInspectorModal({
                 <span>{activeTab?.label}</span>
                 {activeTab?.titleExtra}
               </div>
+              {activeTab?.subTabs && activeTab.subTabs.length > 0 && (
+                <SubTabRail
+                  subTabs={activeTab.subTabs}
+                  active={subByTab[activeTab.id] ?? activeTab.subTabs[0].id}
+                  onSelect={(id) => setSub(activeTab.id, id)}
+                />
+              )}
 
               {tabs.map((tab) => {
                 if (!tab.keepMounted && tab.id !== active) return null;
@@ -898,38 +685,19 @@ export function CardInspectorModal({
                   ? subByTab[tab.id] ?? tab.subTabs[0]?.id ?? null
                   : null;
                 const hidden = tab.keepMounted && tab.id !== active;
-                const body = tab.render(subId);
-                if (tab.keepMounted) {
-                  return (
-                    <div
-                      key={tab.id}
-                      className={styles.panelScroll}
-                      hidden={hidden}
-                      style={hidden ? { display: "none" } : undefined}
-                    >
-                      {body}
-                    </div>
-                  );
-                }
-                return <div key={tab.id}>{body}</div>;
+                return (
+                  <div
+                    key={tab.id}
+                    className={styles.panelScroll}
+                    data-panel-scroll=""
+                    hidden={hidden || undefined}
+                    style={hidden ? { display: "none" } : undefined}
+                  >
+                    {tab.render(subId)}
+                  </div>
+                );
               })}
             </div>
-
-            {below.length > 0 && (
-              <div className={styles.tabRail} role="tablist">
-                {below.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    className={styles.tabPill}
-                    onClick={() => selectTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         <div
@@ -938,29 +706,6 @@ export function CardInspectorModal({
           title="Drag to resize"
         />
       </div>
-      {overscrollHint &&
-        createPortal(
-          <div
-            className={styles.overscrollDots}
-            style={{
-              top: overscrollHint.top,
-              left: overscrollHint.left,
-              width: overscrollHint.width,
-            }}
-            data-dir={overscrollHint.dir}
-            aria-hidden
-          >
-            {[1, 2, 3].map((n) => (
-              <span
-                key={n}
-                className={`${styles.overscrollDot}${
-                  overscrollHint.ticks >= n ? ` ${styles.overscrollDotFilled}` : ""
-                }`}
-              />
-            ))}
-          </div>,
-          document.body
-        )}
     </Modal>
   );
 }

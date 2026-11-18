@@ -7,9 +7,5 @@ export function MechanicsTab({ card }: { card: ScryfallCard | null }) {
   if (!oracleId) {
     return <p className={styles.muted}>Load card to mark mechanics.</p>;
   }
-  return (
-    <div className={styles.panelScroll}>
-      <MechanicMarkPicker oracleId={oracleId.toLowerCase()} />
-    </div>
-  );
+  return <MechanicMarkPicker oracleId={oracleId.toLowerCase()} />;
 }

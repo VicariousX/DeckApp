@@ -179,7 +179,7 @@ function AddToDeckPanel({
   }
 
   return (
-    <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+    <div className={styles.panelScrollSolid}>
       <p className={styles.extraLabel}>This card is in</p>
       <MembershipList
         memberships={memberships.filter((m) => m.kind === "deck")}
@@ -242,7 +242,7 @@ export function DeckTab({
   }
 
   return (
-    <div className={`${styles.panelScroll} ${styles.panelScrollSolid}`}>
+    <div className={styles.panelScrollSolid}>
       <div className={styles.deckExtras}>
         <div className={`${styles.qtyRow} ${styles.deckGroup}`}>
           <span className={styles.extraLabel}>Quantity</span>

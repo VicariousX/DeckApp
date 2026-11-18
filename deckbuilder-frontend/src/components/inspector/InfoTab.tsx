@@ -3,9 +3,8 @@ import type { ScryfallCard } from "../../types/scryfallCard";
 import type { ScryfallRuling } from "../../lib/scryfallApi";
 import { CardDetail } from "../CardDetail";
 import { getFaceImage } from "../../utils/scryfall";
-import { SubTabRail } from "./SubTabRail";
-import type { SubTab } from "./types";
 import styles from "../CardInspectorModal.module.css";
+import type { SubTab } from "./types";
 
 export const INFO_SUBS: SubTab[] = [
   { id: "details", label: "Details" },
@@ -42,8 +41,7 @@ export function InfoTab({
   rulingsError: string | null;
 }) {
   return (
-    <div className={styles.panelScroll}>
-      <SubTabRail subTabs={INFO_SUBS} active={subId} onSelect={onSelectSub} />
+    <>
       {subId === "details" && (
         <>
           {error && (
@@ -99,6 +97,6 @@ export function InfoTab({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
