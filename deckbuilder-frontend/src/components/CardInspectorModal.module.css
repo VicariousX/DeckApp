@@ -9,6 +9,28 @@
   overflow: hidden;
 }
 
+.sheetGrab {
+  appearance: none;
+  flex-shrink: 0;
+  width: 100%;
+  height: 1.15rem;
+  margin: 0;
+  padding: 0.35rem 0 0.15rem;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sheetGrab span {
+  width: 2.5rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 42%, transparent);
+}
+
 .navRow {
   display: flex;
   align-items: center;
@@ -661,14 +683,19 @@
     overflow: hidden;
   }
   .visual {
-    width: 100%;
-    max-width: 100%;
-    padding: 0.25rem 0.4rem 0.4rem;
+    width: min(168px, 44vw);
+    max-width: min(168px, 44vw);
+    margin: 0 auto;
+    padding: 0;
+    align-items: center;
   }
   .visual :global(img),
   .image,
   .imagePlaceholder {
-    max-height: 32vh;
+    max-height: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
   .body {
     overflow: hidden;
@@ -734,15 +761,18 @@
     overflow: hidden;
   }
   .visual {
-    width: 100%;
-    max-width: 100%;
-    padding: 0.2rem 0.5rem 0.2rem;
+    width: min(168px, 44vw);
+    max-width: min(168px, 44vw);
+    margin: 0 auto;
+    padding: 0;
     align-items: center;
   }
   .visual :global(img),
   .image {
-    max-height: 22vh;
-    width: min(180px, 42vw);
+    max-height: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
   .tabBar {
     order: 2;

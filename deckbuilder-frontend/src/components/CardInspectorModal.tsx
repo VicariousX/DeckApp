@@ -509,6 +509,7 @@ export function CardInspectorModal({
   return (
     <Modal
       onClose={onClose}
+      hideClose={isMobile}
       style={
         isMobile
           ? { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" }
@@ -566,6 +567,11 @@ export function CardInspectorModal({
           setDrag({ x: 0, y: 0 });
         }}
       >
+        {isMobile ? (
+          <button type="button" className={styles.sheetGrab} onClick={onClose} aria-label="Close">
+            <span />
+          </button>
+        ) : null}
         {(hasPrev || hasNext) && (
           <div className={styles.navRow}>
             <button

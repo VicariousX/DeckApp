@@ -47,7 +47,8 @@
 .printGridFill {
   resize: vertical;
   min-height: 10rem;
-  height: 16rem;
+  height: auto;
+  flex: 1;
 }
 
 .pageArt .innerHead {
@@ -405,32 +406,18 @@
 
 .printGridFill {
   flex: 1;
-  min-height: 10rem;
+  min-height: 0;
+  height: auto;
+  max-height: none;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
   gap: 0.5rem;
   align-content: start;
   align-items: start;
-  padding: 0.35rem 0.15rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  padding: 0.15rem 0.05rem 0.35rem;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, transparent) transparent;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 32px,
-    #000 calc(100% - 32px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 32px,
-    #000 calc(100% - 32px),
-    transparent 100%
-  );
 }
 
 .printGridFill::-webkit-scrollbar {
@@ -460,10 +447,12 @@
 }
 
 @media (max-width: 768px) {
+  .printGrid {
+    max-height: none;
+  }
   .printGrid,
   .printGridFill {
-    max-height: 46vh;
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
   }
 }
