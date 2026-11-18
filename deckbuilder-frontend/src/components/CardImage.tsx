@@ -322,11 +322,11 @@ export function CardEnlargeOverlay({
           const dx = e.clientX - start.x;
           const dy = e.clientY - start.y;
           const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-          const onCard = Boolean(under?.closest(`img, .${styles.swipeCard}`));
+          const onCard = Boolean(under?.closest(`.${styles.swipeCurrent}`));
           if (Math.hypot(dx, dy) < 28) {
             if (onCard) {
               onActivate?.();
-            } else if (embedded && window.innerWidth > 768 && !under?.closest("button, a")) {
+            } else if (!under?.closest("button, a")) {
               onClose?.();
             }
             setAxis(null);
@@ -419,7 +419,7 @@ export function CardEnlargeOverlay({
               </div>
             )}
             <div
-              className={styles.swipeCard}
+              className={`${styles.swipeCard} ${styles.swipeCurrent}`}
               style={{
                 transform: `perspective(900px) translate(${offset}px, ${vOffset}px) rotateY(${offset / 16}deg)`,
                 opacity: Math.max(0.35, 1 - Math.abs(offset) / 520),

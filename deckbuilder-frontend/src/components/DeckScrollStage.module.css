@@ -220,10 +220,6 @@
   white-space: pre-wrap;
 }
 
-.mobileActions {
-  display: none;
-}
-
 @media (max-width: 800px) {
   .stage {
     display: flex;
@@ -233,24 +229,5 @@
   }
   .rail {
     display: none;
-  }
-  .mobileActions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.35rem;
-    padding-top: 0.35rem;
-  }
-  .mobileActions button {
-    appearance: none;
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    font: inherit;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
   }
 }

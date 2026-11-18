@@ -2760,6 +2760,9 @@
   .stackCards[data-hover-idx] {
     padding-bottom: calc(var(--stack-card-h) + 0.35rem);
   }
+  .stackCards[data-hover-end] {
+    padding-bottom: 0.75rem;
+  }
   .stackFrame,
   .stackCards {
     --stack-width: min(200px, 54vw);

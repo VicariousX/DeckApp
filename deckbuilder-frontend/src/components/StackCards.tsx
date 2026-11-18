@@ -169,6 +169,7 @@ export function StackCards({
         ref={ref}
         className={`${styles.stackCards}${className ? ` ${className}` : ""}`}
         data-hover-idx={shown === null ? undefined : String(shown)}
+        data-hover-end={shown != null && shown >= count - 1 ? "" : undefined}
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
         onPointerUp={onPointerUp}

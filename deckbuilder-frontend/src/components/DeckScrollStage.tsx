@@ -250,21 +250,6 @@ export function DeckScrollStage({
           </button>
         ) : null}
       </aside>
-      <div className={styles.mobileActions}>
-        <button type="button" onClick={() => onInspect(current)}>
-          Inspector
-        </button>
-        {isOwner ? (
-          <>
-            <button type="button" onClick={() => onQty(current, -1)}>
-              −
-            </button>
-            <button type="button" onClick={() => onQty(current, 1)}>
-              +
-            </button>
-          </>
-        ) : null}
-      </div>
     </div>,
     document.body
   );
