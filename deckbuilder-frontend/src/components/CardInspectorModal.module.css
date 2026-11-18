@@ -149,43 +149,42 @@
 .dragBar {
   flex-shrink: 0;
   width: 100%;
-  min-height: 2.4rem;
-  margin: 0.2rem 0 0;
-  padding: 0.35rem 0;
+  height: 1.15rem;
+  min-height: 1.15rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
   touch-action: none;
   cursor: ns-resize;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface-alt) 70%, transparent);
+  background: transparent;
 }
 
 .dragBar span {
-  width: 3.2rem;
-  height: 0.32rem;
+  width: 86%;
+  height: 0.18rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 50%, transparent);
+  background: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
-.dragBar em {
+.dragName {
   font-style: normal;
-  font-size: 0.72rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
   font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.dragBarClosed {
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text);
 }
 
 .collapseChip {
   appearance: none;
   align-self: center;
-  margin-top: 0.45rem;
+  margin: 0 0 0.45rem;
   border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   color: var(--color-text);
@@ -947,23 +946,6 @@
   .navHint {
     display: none;
   }
-}
-
-.collapseChip {
-  appearance: none;
-  align-self: center;
-  margin-top: 0.45rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.32rem 0.75rem;
-  border-radius: 999px;
-  cursor: pointer;
 }
 
 .visualCollapsed .cardRow {

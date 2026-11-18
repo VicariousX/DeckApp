@@ -569,6 +569,20 @@ export function CardInspectorModal({
 
         <div className={styles.layout}>
           <div className={`${styles.visual}${!isMobile && !imageOpen ? ` ${styles.visualCollapsed}` : ""}`}>
+            {!isMobile ? (
+              <button
+                type="button"
+                className={styles.collapseChip}
+                onClick={() => {
+                  const next = !imageOpen;
+                  setImageOpen(next);
+                  writeImageShown(next);
+                }}
+                aria-expanded={imageOpen}
+              >
+                {imageOpen ? "Hide card" : "Show card"}
+              </button>
+            ) : null}
             <div
               className={styles.cardClip}
               style={isMobile && cardReveal != null ? { height: cardReveal } : undefined}
@@ -649,23 +663,13 @@ export function CardInspectorModal({
                   barDrag.current = null;
                 }}
               >
-                <span />
-                {cardReveal === 0 ? <em>Card</em> : null}
+                {cardReveal === 0 ? (
+                  <em className={styles.dragName}>{displayName}</em>
+                ) : (
+                  <span />
+                )}
               </div>
-            ) : (
-              <button
-                type="button"
-                className={styles.collapseChip}
-                onClick={() => {
-                  const next = !imageOpen;
-                  setImageOpen(next);
-                  writeImageShown(next);
-                }}
-                aria-expanded={imageOpen}
-              >
-                {imageOpen ? "Hide card" : "Show card"}
-              </button>
-            )}
+            ) : null}
             {!isMobile && deck?.isOwner && (
               <div className={styles.quickQty}>
                 <button type="button" className={styles.quickBtn} onClick={() => deck.onQty(-1)} aria-label="Decrease">−</button>
