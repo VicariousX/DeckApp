@@ -298,13 +298,15 @@ function makeSaved(clause: Clause, label?: string): SavedToken {
 }
 
 function withoutClauses(root: Group, pred: (c: Clause) => boolean): Group {
-  return {
-    ...root,
-    items: root.items.flatMap((n) => {
-      if (n.kind === "clause") return pred(n) ? [] : [n];
-      return [{ ...n, items: withoutClauses(n, pred).items }];
-    }),
-  };
+  const items: Node[] = [];
+  for (const n of root.items) {
+    if (n.kind === "clause") {
+      if (!pred(n)) items.push(n);
+    } else {
+      items.push({ ...n, items: withoutClauses(n, pred).items });
+    }
+  }
+  return { ...root, items };
 }
 
 function hasClause(root: Group, pred: (c: Clause) => boolean): boolean {
