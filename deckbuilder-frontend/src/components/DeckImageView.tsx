@@ -119,15 +119,7 @@ export function DeckImageView({
             style={{ top: `calc(${peekIndex} * var(--stack-peek))` }}
           >
             <div className={styles.peekLeft}>
-              {isOwner ? (
-                <div className={styles.peekQty}>
-                  <button type="button" aria-label="Decrease quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, -1)}>−</button>
-                  <span>×{livePeek.quantity}</span>
-                  <button type="button" aria-label="Increase quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, 1)}>+</button>
-                </div>
-              ) : (
-                <span className={styles.peekQty}>×{livePeek.quantity}</span>
-              )}
+              <span className={styles.peekInset} />
               {PEEK_BOARDS.map((board) => (
                 <button
                   key={board.id}
@@ -150,19 +142,33 @@ export function DeckImageView({
                   Remove
                 </button>
               ) : null}
+              <span className={styles.peekInset} />
             </div>
             <div className={styles.peekGap} />
             <div className={styles.peekRight}>
-              {PEEK_TABS.map(([jump, label]) => (
-                <button
-                  key={jump}
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => openCardModal(livePeek, jump)}
-                >
-                  {label}
-                </button>
-              ))}
+              <span className={styles.peekInset} />
+              {isOwner ? (
+                <div className={styles.peekQty}>
+                  <button type="button" aria-label="Decrease quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, -1)}>−</button>
+                  <span>×{livePeek.quantity}</span>
+                  <button type="button" aria-label="Increase quantity" onPointerDown={(e) => e.stopPropagation()} onClick={() => onQty(livePeek, 1)}>+</button>
+                </div>
+              ) : (
+                <span className={styles.peekQty}>×{livePeek.quantity}</span>
+              )}
+              <div className={styles.peekTabStack}>
+                {PEEK_TABS.map(([jump, label]) => (
+                  <button
+                    key={jump}
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => openCardModal(livePeek, jump)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className={styles.peekInset} />
             </div>
           </div>
         ) : null}

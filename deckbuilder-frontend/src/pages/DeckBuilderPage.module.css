@@ -2408,8 +2408,22 @@
   height: 100%;
 }
 
-.peekRemove {
+.peekInset {
+  flex: 0 0 1.65rem;
+}
+
+.peekRemove,
+.peekTabStack {
   margin-top: auto;
+}
+
+.peekTabStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.peekRemove {
   color: var(--color-error, #e07a7a);
 }
 
@@ -2441,14 +2455,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.15rem;
-  min-height: 1.85rem;
+  min-height: 1.65rem;
   font-size: 0.78rem;
   font-weight: 750;
 }
 
 .peekQty button {
-  width: 1.7rem;
-  min-height: 1.7rem;
+  width: 1.65rem;
+  min-height: 1.65rem;
   padding: 0;
 }
 

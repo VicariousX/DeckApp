@@ -1895,14 +1895,7 @@ export function DeckBuilderPage() {
               expandedId={expandedOracleId}
               oracleById={oracleCache}
               imageFor={(c) => imageUrls[c.id]}
-              onToggleOracle={(c) => {
-                if (isMobile) {
-                  if (expandedOracleId === c.id) setScrollId(c.id);
-                  else void toggleOracle(c);
-                  return;
-                }
-                setScrollId(c.id);
-              }}
+              onToggleOracle={(c) => setScrollId(c.id)}
               onCardContext={onCardContext}
               onQty={(c, d) => void onQty(c, d)}
               onMore={(c, x, y) => setCtxMenu({ x, y, card: c })}
