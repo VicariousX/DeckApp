@@ -36,6 +36,7 @@ import {
 } from "../../services/searchTokenService";
 import { loadRemotePins, saveRemotePins } from "../../services/comboService";
 import { PillSwitch } from "../PillSwitch";
+import { CommanderQueryFlags } from "./CommanderQueryFlags";
 import styles from "./AdvancedSearch.module.css";
 
 const SYMBOLS = [
@@ -296,20 +297,76 @@ function makeSaved(clause: Clause, label?: string): SavedToken {
   };
 }
 
+function withoutClauses(root: Group, pred: (c: Clause) => boolean): Group {
+  return {
+    ...root,
+    items: root.items.flatMap((n) => {
+      if (n.kind === "clause") return pred(n) ? [] : [n];
+      return [{ ...n, items: withoutClauses(n, pred).items }];
+    }),
+  };
+}
+
+function hasClause(root: Group, pred: (c: Clause) => boolean): boolean {
+  for (const n of root.items) {
+    if (n.kind === "clause" && pred(n)) return true;
+    if (n.kind === "group" && hasClause(n, pred)) return true;
+  }
+  return false;
+}
+
+function ensureClause(root: Group, clause: Clause, pred: (c: Clause) => boolean): Group {
+  if (hasClause(root, pred)) return root;
+  return { ...root, items: [...root.items, clause] };
+}
+
+function stripToken(q: string, token: string): string {
+  const esc = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return q.replace(new RegExp(`(^|\\s)${esc}(?=\\s|$)`, "ig"), " ").replace(/\s+/g, " ").trim();
+}
+
+function identityClause(token: string): Clause | null {
+  const match = token.match(/^id(:|<=)(.+)$/i);
+  if (!match) return null;
+  return {
+    kind: "clause",
+    id: uid(),
+    category: "colors",
+    field: "id",
+    op: match[1] as CmpOp,
+    value: match[2],
+    excluded: false,
+    joinAfter: "and",
+  };
+}
+
+function commanderClause(): Clause {
+  return {
+    kind: "clause",
+    id: uid(),
+    category: "flags",
+    field: "is",
+    op: ":",
+    value: "commander",
+    excluded: false,
+    joinAfter: "and",
+  };
+}
+
 export function AdvancedSearch({
   initialQuery = "",
   onSearch,
   compact = false,
   pinHost = null,
-  identityToken,
-  identityNonce = 0,
+  inDeck = false,
+  commanderIdentity,
 }: {
   initialQuery?: string;
   onSearch?: (query: string) => void;
   compact?: boolean;
   pinHost?: HTMLElement | null;
-  identityToken?: string;
-  identityNonce?: number;
+  inDeck?: boolean;
+  commanderIdentity?: string;
 }) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -351,35 +408,20 @@ export function AdvancedSearch({
   const [pinLayout, setPinLayout] = useState<PinLayout>(loadPinLayout);
   const [pinDrafts, setPinDrafts] = useState<Record<string, Draft>>({});
   const [editPins, setEditPins] = useState(false);
+  const [applyId, setApplyId] = useState(false);
+  const [isCommander, setIsCommander] = useState(false);
 
-  useEffect(() => {
-    if (!identityToken || !identityNonce) return;
-    const match = identityToken.match(/^id(:|<=)(.+)$/i);
-    if (!match) return;
-    const op = match[1] as CmpOp;
-    const value = match[2];
+  function syncFlag(on: boolean, token: string, make: () => Clause | null, pred: (c: Clause) => boolean) {
+    if (barDirty) {
+      setBar((q) => (on ? (q.toLowerCase().includes(token.toLowerCase()) ? q : `${q} ${token}`.trim()) : stripToken(q, token)));
+      return;
+    }
     setRoot((r) => {
-      const exists = r.items.some(
-        (n) =>
-          n.kind === "clause" &&
-          n.field === "id" &&
-          n.op === op &&
-          n.value.toLowerCase() === value.toLowerCase()
-      );
-      if (exists) return r;
-      const clause: Clause = {
-        kind: "clause",
-        id: uid(),
-        category: "colors",
-        field: "id",
-        op,
-        value,
-        excluded: false,
-        joinAfter: "and",
-      };
-      return { ...r, join: "and", items: [...r.items, clause] };
+      if (!on) return withoutClauses(r, pred);
+      const clause = make();
+      return clause ? ensureClause(r, clause, pred) : r;
     });
-  }, [identityNonce, identityToken]);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -559,15 +601,8 @@ export function AdvancedSearch({
   }
 
   function submit(q: string) {
-    let trimmed = q.trim();
-    if (!trimmed && identityToken) trimmed = identityToken;
+    const trimmed = q.trim();
     if (!trimmed) return;
-    if (
-      identityToken &&
-      !trimmed.toLowerCase().includes(identityToken.toLowerCase())
-    ) {
-      trimmed = `${trimmed} ${identityToken}`;
-    }
     if (onSearch) {
       onSearch(trimmed);
       return;
@@ -577,6 +612,32 @@ export function AdvancedSearch({
 
   return (
     <div className={`${styles.wrap}${compact ? ` ${styles.wrapCompact}` : ""}`}>
+      {inDeck ? (
+        <CommanderQueryFlags
+          identity={commanderIdentity}
+          applyId={applyId}
+          isCommander={isCommander}
+          onApplyId={(on) => {
+            setApplyId(on);
+            if (!commanderIdentity) return;
+            syncFlag(
+              on,
+              commanderIdentity,
+              () => identityClause(commanderIdentity),
+              (c) => c.field === "id" && `${c.field}${c.op}${c.value}`.toLowerCase() === commanderIdentity.toLowerCase()
+            );
+          }}
+          onIsCommander={(on) => {
+            setIsCommander(on);
+            syncFlag(
+              on,
+              "is:commander",
+              commanderClause,
+              (c) => c.field === "is" && c.value.toLowerCase() === "commander"
+            );
+          }}
+        />
+      ) : null}
       <div className={styles.liveBar}>
         <label className={styles.liveLabel} htmlFor="adv-live">
           Syntax
@@ -617,6 +678,8 @@ export function AdvancedSearch({
             setBar("");
             setBarDirty(false);
             setDraft(EMPTY);
+            setApplyId(false);
+            setIsCommander(false);
           }}
         >
           Clear

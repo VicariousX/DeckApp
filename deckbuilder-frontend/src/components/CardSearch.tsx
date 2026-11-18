@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import styles from "./CardSearch.module.css";
 import { fetchAutocomplete } from "../lib/scryfallApi";
+import { CommanderQueryFlags } from "./search/CommanderQueryFlags";
 
 const GHOST_COUNT = 5;
 
@@ -11,12 +12,17 @@ export function CardSearch({
   onSearch,
   compact = false,
   extraQuery,
+  inDeck = false,
+  commanderIdentity,
 }: {
   mode?: "standard" | "advanced";
   onSearch?: (query: string) => void;
   compact?: boolean;
   /** Appended to the query without showing it in the box. */
   extraQuery?: string;
+  /** Deck builder dock: show commander toggles above the input. */
+  inDeck?: boolean;
+  commanderIdentity?: string;
 }) {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
@@ -25,6 +31,8 @@ export function CardSearch({
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [applyId, setApplyId] = useState(false);
+  const [isCommander, setIsCommander] = useState(false);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,8 +70,13 @@ export function CardSearch({
 
   function runSearch(term: string) {
     const t = term.trim();
-    if (!t) return;
-    const full = extraQuery ? `${t} ${extraQuery}` : t;
+    const bits: string[] = [];
+    if (t) bits.push(t);
+    if (extraQuery) bits.push(extraQuery);
+    if (inDeck && applyId && commanderIdentity) bits.push(commanderIdentity);
+    if (inDeck && isCommander) bits.push("is:commander");
+    if (!bits.length) return;
+    const full = bits.join(" ");
     setInputValue(t);
     setSubmitted(true);
     setSuggestOpen(false);
@@ -96,6 +109,15 @@ export function CardSearch({
   return (
     <div className={`${styles.searchContainer}${compact ? ` ${styles.compact}` : ""}`}>
       <div className={styles.searchBar} ref={wrapRef}>
+        {inDeck ? (
+          <CommanderQueryFlags
+            identity={commanderIdentity}
+            applyId={applyId}
+            isCommander={isCommander}
+            onApplyId={setApplyId}
+            onIsCommander={setIsCommander}
+          />
+        ) : null}
         <div className={styles.inputWrap}>
           <input
             value={inputValue}

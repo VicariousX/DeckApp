@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { renderManaSymbol } from "../../utils/symbols";
 import { buildSimpleQuery, type Color, type IdLogic, type Logic, type StatChip, type StatField, type StatOp } from "../../lib/search/simpleQuery";
 import styles from "../../pages/LoginPage.module.css";
@@ -59,7 +59,13 @@ const SUBTYPES = [
 ];
 const TYPE_OPTIONS = [...SUPERTYPES, ...CARD_TYPES, ...SUBTYPES];
 
-export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => void }) {
+export function SimpleSearchForm({
+  onSearch,
+  commanderIdentity,
+}: {
+  onSearch: (query: string) => void;
+  commanderIdentity?: string;
+}) {
   const [name, setName] = useState("");
   const [idColors, setIdColors] = useState<Color[]>([]);
   const [idLogic, setIdLogic] = useState<IdLogic>("or");
@@ -69,6 +75,7 @@ export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => vo
   const [types, setTypes] = useState<string[]>([]);
   const [typeLogic, setTypeLogic] = useState<Logic>("or");
   const [isCommander, setIsCommander] = useState(false);
+  const [applyIdentity, setApplyIdentity] = useState(false);
   const [oracleInput, setOracleInput] = useState("");
   const [oracle, setOracle] = useState<string[]>([]);
   const [oracleLogic, setOracleLogic] = useState<Logic>("or");
@@ -107,10 +114,12 @@ export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => vo
   }
 
   function buildQuery(): string {
-    return buildSimpleQuery({
+    const q = buildSimpleQuery({
       name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
       isCommander, oracle, oracleLogic, stats, mechanic: "",
     });
+    const identity = applyIdentity && commanderIdentity ? commanderIdentity : "";
+    return [q, identity].filter(Boolean).join(" ");
   }
 
   function submit(e: React.FormEvent) {
@@ -127,13 +136,39 @@ export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => vo
         .no-spin { -moz-appearance: textfield; }
       `}</style>
       <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Card name…" />
-      <ColorRow label="Identity" selected={idColors} logic={idLogic} onToggle={(c) => toggleColor(idColors, setIdColors, c)} onLogic={setIdLogic} options={["or", "and", "commander"]} />
+      <ColorRow
+        label="Identity"
+        selected={idColors}
+        logic={idLogic}
+        onToggle={(c) => toggleColor(idColors, setIdColors, c)}
+        onLogic={setIdLogic}
+        options={["or", "and", "commander"]}
+        extra={commanderIdentity ? (
+          <button
+            type="button"
+            aria-pressed={applyIdentity}
+            onClick={() => setApplyIdentity((v) => !v)}
+            style={{
+              padding: "2px 8px",
+              borderRadius: 6,
+              border: applyIdentity ? "1px solid var(--color-accent)" : "1px solid #444",
+              background: applyIdentity ? "var(--color-accent)" : "transparent",
+              color: applyIdentity ? "#000" : "inherit",
+              fontSize: "0.7rem",
+              fontWeight: 650,
+              cursor: "pointer",
+            }}
+          >
+            Apply commander ID
+          </button>
+        ) : null}
+      />
       <ColorRow label="Color" selected={cardColors} logic={cardLogic} onToggle={(c) => toggleColor(cardColors, setCardColors, c)} onLogic={setCardLogic} options={["or", "and"]} />
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span className={styles.label}>Type</span>
         <LogicToggle value={typeLogic} onChange={setTypeLogic} options={["or", "and"]} />
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-          <span className={styles.label}>Commander</span>
+          <span className={styles.label}>Is a commander</span>
           <PillToggle on={isCommander} onChange={setIsCommander} />
         </span>
       </div>
@@ -175,12 +210,13 @@ export function SimpleSearchForm({ onSearch }: { onSearch: (query: string) => vo
   );
 }
 
-function ColorRow<L extends string>({ label, selected, logic, onToggle, onLogic, options }: { label: string; selected: Color[]; logic: L; onToggle: (c: Color) => void; onLogic: (v: L) => void; options: readonly L[] }) {
+function ColorRow<L extends string>({ label, selected, logic, onToggle, onLogic, options, extra }: { label: string; selected: Color[]; logic: L; onToggle: (c: Color) => void; onLogic: (v: L) => void; options: readonly L[]; extra?: ReactNode }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span className={styles.label}>{label}</span>
         <LogicToggle value={logic} onChange={onLogic} options={options} />
+        {extra}
       </div>
       <div style={{ display: "flex", gap: 6 }}>
         {COLORS.map((c) => {

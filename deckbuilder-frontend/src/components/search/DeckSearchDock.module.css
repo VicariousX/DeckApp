@@ -123,8 +123,14 @@
   cursor: pointer;
 }
 
-.tabs .cycleWrap {
-  margin-left: auto;
+.tabWrap {
+  position: relative;
+}
+
+.tabMenu {
+  left: 0;
+  right: auto;
+  min-width: 9.5rem;
 }
 
 .tabsSticky {

@@ -64,13 +64,21 @@ export function DeckSearchDock({
   const isMobile = useIsMobile();
   const [pinHost, setPinHost] = useState<HTMLDivElement | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([newTab("simple")]);
-  const [identityOn, setIdentityOn] = useState(false);
-  const [identityNonce, setIdentityNonce] = useState(0);
   const [pinOpen, setPinOpen] = useState(true);
   const [activeId, setActiveId] = useState(tabs[0].id);
-  const [modeMenu, setModeMenu] = useState(false);
+  const [modeFor, setModeFor] = useState<string | null>(null);
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const resultsRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!modeFor) return;
+    function onDoc(e: PointerEvent) {
+      if (!tabsRef.current?.contains(e.target as Node)) setModeFor(null);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, [modeFor]);
 
   useEffect(() => {
     if (!active.query) return;
@@ -94,7 +102,7 @@ export function DeckSearchDock({
           : t
       )
     );
-    setModeMenu(false);
+    setModeFor(null);
   }
 
   function runQuery(q: string, tabMode: SearchKind) {
@@ -110,31 +118,57 @@ export function DeckSearchDock({
   }
 
   const tabBar = (
-      <div className={`${styles.tabs} ${isMobile ? styles.tabsSticky : ""}`}>
+      <div className={`${styles.tabs} ${isMobile ? styles.tabsSticky : ""}`} ref={tabsRef}>
         {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`${styles.tab}${t.id === active.id ? ` ${styles.tabOn}` : ""}`}
-            onClick={() => setActiveId(t.id)}
-          >
-            {t.title}
-            {tabs.length > 1 && (
-              <span
-                className={styles.tabClose}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTabs((list) => {
-                    const next = list.filter((x) => x.id !== t.id);
-                    if (activeId === t.id) setActiveId(next[0]?.id ?? "");
-                    return next.length ? next : [newTab("simple")];
-                  });
-                }}
-              >
-                ×
-              </span>
+          <div key={t.id} className={styles.tabWrap}>
+            <button
+              type="button"
+              className={`${styles.tab}${t.id === active.id ? ` ${styles.tabOn}` : ""}`}
+              onClick={() => {
+                if (t.id !== active.id) {
+                  setActiveId(t.id);
+                  setModeFor(null);
+                  return;
+                }
+                setModeFor((cur) => (cur === t.id ? null : t.id));
+              }}
+            >
+              {t.title}
+              {tabs.length > 1 && (
+                <span
+                  className={styles.tabClose}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTabs((list) => {
+                      const next = list.filter((x) => x.id !== t.id);
+                      if (activeId === t.id) setActiveId(next[0]?.id ?? "");
+                      return next.length ? next : [newTab("simple")];
+                    });
+                    setModeFor(null);
+                  }}
+                >
+                  ×
+                </span>
+              )}
+            </button>
+            {modeFor === t.id && (
+              <ul className={`${styles.menu} ${styles.tabMenu}`} role="menu">
+                {(["simple", "standard", "advanced"] as const).map((m) => (
+                  <li key={m}>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={m === t.mode}
+                      className={m === t.mode ? styles.menuOn : undefined}
+                      onClick={() => setActiveMode(m)}
+                    >
+                      {m === "advanced" ? "Advanced" : m === "standard" ? "Standard" : "Simple"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-          </button>
+          </div>
         ))}
         <button
           type="button"
@@ -143,44 +177,11 @@ export function DeckSearchDock({
             const t = newTab(active.mode);
             setTabs((list) => [...list, t]);
             setActiveId(t.id);
+            setModeFor(null);
           }}
         >
           +
         </button>
-        <div className={styles.cycleWrap}>
-          <button
-            type="button"
-            className={styles.tabMode}
-            title="Click to cycle. Right-click to choose."
-            onClick={() => {
-              const order: SearchKind[] = ["simple", "standard", "advanced"];
-              const next = order[(order.indexOf(active.mode) + 1) % order.length];
-              setActiveMode(next);
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setModeMenu((v) => !v);
-            }}
-          >
-            {active.mode === "advanced" ? "Advanced" : active.mode === "standard" ? "Standard" : "Simple"}
-          </button>
-          {modeMenu && (
-            <ul className={styles.menu} role="menu">
-              {(["simple", "standard", "advanced"] as const).map((m) => (
-                <li key={m}>
-                  <button
-                    type="button"
-                    className={m === active.mode ? styles.menuOn : undefined}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setActiveMode(m)}
-                  >
-                    {m === "advanced" ? "Advanced" : m === "standard" ? "Standard" : "Simple"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </div>
   );
 
@@ -191,32 +192,24 @@ export function DeckSearchDock({
           compact
           initialQuery={active.query}
           pinHost={isMobile ? pinHost : null}
-          identityToken={identityOn ? seedQuery : undefined}
-          identityNonce={identityNonce}
+          inDeck
+          commanderIdentity={seedQuery}
           onSearch={(q) => runQuery(q, "advanced")}
         />
       ) : active.mode === "standard" ? (
         <CardSearch
           compact
           mode="standard"
-          extraQuery={identityOn ? seedQuery : undefined}
+          inDeck
+          commanderIdentity={seedQuery}
           onSearch={(q) => runQuery(q, "standard")}
         />
       ) : (
-        <SimpleSearchForm onSearch={(q) => runQuery(q, "simple")} />
+        <SimpleSearchForm
+          commanderIdentity={seedQuery}
+          onSearch={(q) => runQuery(q, "simple")}
+        />
       )}
-              {seedQuery && (
-          <button
-            type="button"
-            className={styles.identityBtn}
-            onClick={() => {
-              setIdentityOn(true);
-              setIdentityNonce((n) => n + 1);
-            }}
-          >
-            {identityOn ? "Commander ID applied" : "Apply commander ID"}
-          </button>
-        )}
       {active.query && (
         <div ref={resultsRef}>
           <SearchResultsPanel
@@ -248,18 +241,6 @@ export function DeckSearchDock({
   ) : (
     <>
       {tabBar}
-      {seedQuery && (
-        <button
-          type="button"
-          className={styles.identityBtn}
-          onClick={() => {
-            setIdentityOn(true);
-            setIdentityNonce((n) => n + 1);
-          }}
-        >
-          {identityOn ? "Commander ID applied" : "Apply commander ID"}
-        </button>
-      )}
       {searchBody}
     </>
   );
