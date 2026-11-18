@@ -246,10 +246,6 @@ export function CardInspectorModal({
   }, [tabs, active]);
 
   useEffect(() => {
-    setOverscrollHint(null);
-  }, [active, infoSub, artSub]);
-
-  useEffect(() => {
     setRulings([]);
     setRulingsError(null);
   }, [scryfallId]);
