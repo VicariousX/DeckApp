@@ -3,10 +3,6 @@ import { useAuth } from "../auth/AuthProvider";
 import {
   AGENCY,
   AGENCY_LABEL,
-  ECONOMY,
-  ECONOMY_LABEL,
-  FLOW,
-  FLOW_LABEL,
   MECHANIC_FAMILIES,
   MECHANICS,
   mechanicById,
@@ -36,15 +32,11 @@ const STATUS_LABEL: Record<MarkStatus, string> = {
   rejected: "Rejected",
 };
 
-const AXES: {
-  id: string;
-  caption: string;
-  value: "economy" | "flow" | "agency";
-}[] = [
-  { id: "Economy", caption: "Makes the mechanic, or pays it off.", value: "economy" },
-  { id: "Flow", caption: "Feeds the engine, or spends it.", value: "flow" },
-  { id: "Agency", caption: "Causes the effect, or benefits from it.", value: "agency" },
-];
+function storedRelation(relation: Agency): { economy: Economy; flow: Flow; agency: Agency } {
+  if (relation === "benefit") return { economy: "payoff", flow: "both", agency: "benefit" };
+  if (relation === "both") return { economy: "both", flow: "both", agency: "both" };
+  return { economy: "producer", flow: "both", agency: "cause" };
+}
 
 export function MechanicMarkPicker({ oracleId }: Props) {
   const { user } = useAuth();
@@ -54,9 +46,7 @@ export function MechanicMarkPicker({ oracleId }: Props) {
   const [mechanicId, setMechanicId] = useState(
     MECHANICS.find((m) => m.family === MECHANIC_FAMILIES[0].id)?.id ?? "tokens"
   );
-  const [economy, setEconomy] = useState<Economy>("producer");
-  const [flow, setFlow] = useState<Flow>("feed");
-  const [agency, setAgency] = useState<Agency>("cause");
+  const [relation, setRelation] = useState<Agency>("cause");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -107,9 +97,7 @@ export function MechanicMarkPicker({ oracleId }: Props) {
     const { error } = await proposeMark(user.id, {
       oracle_id: oracleId,
       mechanic_id: selected.id,
-      economy,
-      flow,
-      agency,
+      ...storedRelation(relation),
     });
     setBusy(false);
     setStatus(error ?? `Proposed ${selected.name}.`);
@@ -146,9 +134,7 @@ export function MechanicMarkPicker({ oracleId }: Props) {
                       {STATUS_LABEL[m.status]}
                     </span>
                   </div>
-                  <p className={styles.role}>
-                    {ECONOMY_LABEL[m.economy]} · {FLOW_LABEL[m.flow]} · {AGENCY_LABEL[m.agency]}
-                  </p>
+                  <p className={styles.role}>{AGENCY_LABEL[m.agency]}</p>
                   {def?.hint ? <p className={styles.markHint}>{def.hint}</p> : null}
                   {(user && m.status !== "locked") || admin ? (
                     <div className={styles.markActions}>
@@ -194,40 +180,38 @@ export function MechanicMarkPicker({ oracleId }: Props) {
         <div className={styles.sectionHead}>
           <h3>Propose</h3>
         </div>
-        <p className={styles.lead}>
-          Marks tell the synergy map whether this card makes a mechanic or pays it off.
-        </p>
+        <p className={styles.lead}>How this card relates to a mechanic.</p>
+        <div className={styles.familyRail} role="tablist" aria-label="Mechanic categories">
+          {MECHANIC_FAMILIES.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={family === f.id}
+              className={family === f.id ? styles.familyOn : styles.family}
+              onClick={() => {
+                setFamily(f.id);
+                setQ("");
+                const first = MECHANICS.find((m) => m.family === f.id);
+                if (first) setMechanicId(first.id);
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <input
           className={styles.search}
           value={q}
-          placeholder="Search mechanics"
+          placeholder={q ? "Search mechanics" : `Search ${familyLabel(family)}`}
           aria-label="Search mechanics"
           onChange={(e) => setQ(e.target.value)}
         />
-        {!q ? (
-          <div className={styles.familyRail} role="tablist" aria-label="Mechanic families">
-            {MECHANIC_FAMILIES.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={family === f.id}
-                className={family === f.id ? styles.familyOn : styles.family}
-                onClick={() => {
-                  setFamily(f.id);
-                  const first = MECHANICS.find((m) => m.family === f.id);
-                  if (first) setMechanicId(first.id);
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        ) : (
+        {q ? (
           <p className={styles.count}>
             {pool.length} match{pool.length === 1 ? "" : "es"}
           </p>
-        )}
+        ) : null}
         <div className={styles.mechList} role="listbox" aria-label="Mechanics">
           {pool.length === 0 ? (
             <p className={styles.empty}>No mechanic matches that.</p>
@@ -251,47 +235,27 @@ export function MechanicMarkPicker({ oracleId }: Props) {
         {selected ? (
           <p className={styles.preview}>
             <strong>{selected.name}</strong>
-            <span>
-              {ECONOMY_LABEL[economy]} · {FLOW_LABEL[flow]} · {AGENCY_LABEL[agency]}
-            </span>
+            <span>{AGENCY_LABEL[relation]}</span>
           </p>
         ) : null}
 
-        <div className={styles.axes}>
-          {AXES.map((axis) => {
-            const current = axis.value === "economy" ? economy : axis.value === "flow" ? flow : agency;
-            const options =
-              axis.value === "economy"
-                ? ECONOMY.map((v) => ({ id: v, label: ECONOMY_LABEL[v] }))
-                : axis.value === "flow"
-                  ? FLOW.map((v) => ({ id: v, label: FLOW_LABEL[v] }))
-                  : AGENCY.map((v) => ({ id: v, label: AGENCY_LABEL[v] }));
-            return (
-              <div key={axis.value} className={styles.axis}>
-                <div className={styles.axisLabel}>
-                  <span>{axis.id}</span>
-                  <small>{axis.caption}</small>
-                </div>
-                <div className={styles.seg} role="group" aria-label={axis.id}>
-                  {options.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={current === opt.id ? styles.segOn : undefined}
-                      aria-pressed={current === opt.id}
-                      onClick={() => {
-                        if (axis.value === "economy") setEconomy(opt.id as Economy);
-                        else if (axis.value === "flow") setFlow(opt.id as Flow);
-                        else setAgency(opt.id as Agency);
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+        <div className={styles.axis}>
+          <div className={styles.axisLabel}>
+            <span>Relationship</span>
+          </div>
+          <div className={styles.seg} role="group" aria-label="Relationship">
+            {AGENCY.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={relation === id ? styles.segOn : undefined}
+                aria-pressed={relation === id}
+                onClick={() => setRelation(id)}
+              >
+                {AGENCY_LABEL[id]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button

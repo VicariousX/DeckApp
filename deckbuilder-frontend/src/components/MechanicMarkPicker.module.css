@@ -154,16 +154,14 @@
 
 .familyRail {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
-  scrollbar-width: thin;
 }
 
 .family,
 .familyOn {
   appearance: none;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-height: 1.9rem;
   border-radius: 999px;
   border: 1px solid var(--color-border);
@@ -172,7 +170,7 @@
   font: inherit;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 0.2rem 0.65rem;
+  padding: 0.2rem 0.6rem;
   cursor: pointer;
 }
 
