@@ -139,90 +139,128 @@
   min-height: 0;
 }
 
-.search {
+.field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fieldLabel {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.selectBtn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   width: 100%;
-  box-sizing: border-box;
-  min-height: 2.3rem;
-  padding: 0.4rem 0.65rem;
+  min-height: 2.45rem;
+  padding: 0.4rem 0.7rem;
   border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  color: inherit;
+  color: var(--color-text);
   font: inherit;
-  font-size: 0.85rem;
-}
-
-.familyRail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.family,
-.familyOn {
-  appearance: none;
-  flex: 1 1 auto;
-  min-height: 1.9rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.2rem 0.6rem;
+  font-size: 0.86rem;
+  text-align: left;
   cursor: pointer;
 }
 
-.familyOn {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-  color: var(--color-text);
+.selectBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
-.mechList {
-  flex: 1 1 auto;
-  min-height: 9rem;
+.selectBtn:focus-visible,
+.menuSearch:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.placeholder {
+  color: var(--color-text-muted);
+}
+
+.caret {
+  flex-shrink: 0;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0.65;
+}
+
+.menu {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 48%, transparent);
+  overflow: hidden;
+}
+
+.menuSearch {
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 40%, var(--color-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.menuList {
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-bg) 35%, var(--color-surface));
 }
 
-.mech,
-.mechOn {
+.option,
+.optionOn {
   appearance: none;
   width: 100%;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
   text-align: left;
-  padding: 0.5rem 0.65rem;
+  padding: 0.48rem 0.7rem;
   border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
-.mech span,
-.mechOn span {
-  font-size: 0.86rem;
+.option span,
+.optionOn span {
+  font-size: 0.84rem;
   font-weight: 700;
 }
 
-.mech small,
-.mechOn small {
-  font-size: 0.72rem;
+.option small,
+.optionOn small {
+  font-size: 0.7rem;
   color: var(--color-text-muted);
-  text-align: right;
 }
 
-.mechOn {
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+.optionOn {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
 .preview {

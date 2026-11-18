@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import {
   AGENCY,
@@ -38,16 +38,138 @@ function storedRelation(relation: Agency): { economy: Economy; flow: Flow; agenc
   return { economy: "producer", flow: "both", agency: "cause" };
 }
 
+function ThemeSelect({
+  label,
+  placeholder,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  options: { id: string; label: string; hint?: string }[];
+  disabled?: boolean;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [box, setBox] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: PointerEvent) {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, [open]);
+
+  const shown = useMemo(() => {
+    const s = filter.trim().toLowerCase();
+    if (!s) return options;
+    return options.filter(
+      (o) => o.label.toLowerCase().includes(s) || o.hint?.toLowerCase().includes(s)
+    );
+  }, [filter, options]);
+
+  const current = options.find((o) => o.id === value);
+
+  function toggle() {
+    if (disabled) return;
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+    const below = window.innerHeight - rect.bottom;
+    setBox({
+      top: below < 220 ? rect.top - 4 : rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      up: below < 220,
+    });
+    setFilter("");
+    setOpen(true);
+  }
+
+  return (
+    <div className={styles.field} ref={root}>
+      <span className={styles.fieldLabel}>{label}</span>
+      <button
+        ref={button}
+        type="button"
+        className={styles.selectBtn}
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={toggle}
+      >
+        <span className={current ? undefined : styles.placeholder}>
+          {current?.label ?? placeholder}
+        </span>
+        <i className={styles.caret} />
+      </button>
+      {open && box ? (
+        <div
+          className={styles.menu}
+          role="listbox"
+          style={{
+            top: box.up ? undefined : box.top,
+            bottom: box.up ? window.innerHeight - box.top : undefined,
+            left: box.left,
+            width: box.width,
+          }}
+        >
+          {options.length > 8 ? (
+            <input
+              className={styles.menuSearch}
+              value={filter}
+              placeholder="Filter"
+              aria-label={`Filter ${label}`}
+              autoFocus
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          ) : null}
+          <div className={styles.menuList}>
+            {shown.length === 0 ? (
+              <p className={styles.empty}>Nothing matches.</p>
+            ) : (
+              shown.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  role="option"
+                  aria-selected={o.id === value}
+                  className={o.id === value ? styles.optionOn : styles.option}
+                  onClick={() => {
+                    onChange(o.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span>{o.label}</span>
+                  {o.hint ? <small>{o.hint}</small> : null}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function MechanicMarkPicker({ oracleId }: Props) {
   const { user } = useAuth();
   const [marks, setMarks] = useState<MechanicMark[]>([]);
   const [admin, setAdmin] = useState(false);
-  const [family, setFamily] = useState(MECHANIC_FAMILIES[0].id);
-  const [mechanicId, setMechanicId] = useState(
-    MECHANICS.find((m) => m.family === MECHANIC_FAMILIES[0].id)?.id ?? "tokens"
-  );
+  const [family, setFamily] = useState<MechanicFamily | "">("");
+  const [mechanicId, setMechanicId] = useState("");
   const [relation, setRelation] = useState<Agency>("cause");
-  const [q, setQ] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [voting, setVoting] = useState<string | null>(null);
@@ -67,26 +189,11 @@ export function MechanicMarkPicker({ oracleId }: Props) {
     void isCurrentUserAdmin(user.id).then(setAdmin);
   }, [user]);
 
-  const pool = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return MECHANICS.filter((m) => {
-      if (!s) return m.family === family;
-      return (
-        m.name.toLowerCase().includes(s) ||
-        m.id.includes(s) ||
-        m.hint.toLowerCase().includes(s)
-      );
-    });
-  }, [family, q]);
-
-  const selected = mechanicById(mechanicId) ?? pool[0];
-  const familyLabel = (id: MechanicFamily) =>
-    MECHANIC_FAMILIES.find((f) => f.id === id)?.label ?? id;
-
-  function chooseMechanic(id: string, nextFamily?: MechanicFamily) {
-    setMechanicId(id);
-    if (nextFamily) setFamily(nextFamily);
-  }
+  const subs = useMemo(
+    () => (family ? MECHANICS.filter((m) => m.family === family) : []),
+    [family]
+  );
+  const selected = mechanicId ? mechanicById(mechanicId) : undefined;
 
   async function submit() {
     if (!user || !selected) {
@@ -180,57 +287,25 @@ export function MechanicMarkPicker({ oracleId }: Props) {
         <div className={styles.sectionHead}>
           <h3>Propose</h3>
         </div>
-        <p className={styles.lead}>How this card relates to a mechanic.</p>
-        <div className={styles.familyRail} role="tablist" aria-label="Mechanic categories">
-          {MECHANIC_FAMILIES.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="tab"
-              aria-selected={family === f.id}
-              className={family === f.id ? styles.familyOn : styles.family}
-              onClick={() => {
-                setFamily(f.id);
-                setQ("");
-                const first = MECHANICS.find((m) => m.family === f.id);
-                if (first) setMechanicId(first.id);
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <input
-          className={styles.search}
-          value={q}
-          placeholder={q ? "Search mechanics" : `Search ${familyLabel(family)}`}
-          aria-label="Search mechanics"
-          onChange={(e) => setQ(e.target.value)}
+        <p className={styles.lead}>Pick a category, then the mechanic.</p>
+        <ThemeSelect
+          label="Category"
+          placeholder="Choose a category"
+          value={family}
+          options={MECHANIC_FAMILIES.map((f) => ({ id: f.id, label: f.label }))}
+          onChange={(id) => {
+            setFamily(id as MechanicFamily);
+            setMechanicId("");
+          }}
         />
-        {q ? (
-          <p className={styles.count}>
-            {pool.length} match{pool.length === 1 ? "" : "es"}
-          </p>
-        ) : null}
-        <div className={styles.mechList} role="listbox" aria-label="Mechanics">
-          {pool.length === 0 ? (
-            <p className={styles.empty}>No mechanic matches that.</p>
-          ) : (
-            pool.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                role="option"
-                aria-selected={selected?.id === m.id}
-                className={selected?.id === m.id ? styles.mechOn : styles.mech}
-                onClick={() => chooseMechanic(m.id, q ? m.family : undefined)}
-              >
-                <span>{m.name}</span>
-                <small>{q ? familyLabel(m.family) : m.hint}</small>
-              </button>
-            ))
-          )}
-        </div>
+        <ThemeSelect
+          label="Mechanic"
+          placeholder={family ? "Choose a mechanic" : "Choose a category first"}
+          value={mechanicId}
+          disabled={!family}
+          options={subs.map((m) => ({ id: m.id, label: m.name, hint: m.hint }))}
+          onChange={setMechanicId}
+        />
 
         {selected ? (
           <p className={styles.preview}>
