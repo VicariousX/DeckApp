@@ -45,6 +45,7 @@ export function DeckInspectorHost({
       onNext={onNext}
       deck={{
         card: live,
+        deckId,
         isOwner,
         tags: detail?.tags ?? [],
         onQty: (d) => void onQty(live, d),

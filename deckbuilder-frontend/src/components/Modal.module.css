@@ -92,7 +92,7 @@
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0;
-    padding: 0.6rem 0.7rem 1rem;
+    padding: max(0.45rem, env(safe-area-inset-top)) 0.7rem 0;
     overflow: hidden;
   }
 }

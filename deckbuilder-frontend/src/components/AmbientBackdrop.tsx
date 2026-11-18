@@ -13,6 +13,10 @@ export function AmbientBackdrop() {
     let last = -1;
 
     function tick() {
+      if (document.documentElement.hasAttribute("data-scroll-lock")) {
+        raf.current = requestAnimationFrame(tick);
+        return;
+      }
       const y = window.scrollY || 0;
       if (Math.abs(y - last) >= 0.5) {
         // Normalize into a gentle range for CSS (0–1 over ~1200px)

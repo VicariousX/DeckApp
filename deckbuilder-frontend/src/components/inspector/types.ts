@@ -3,6 +3,7 @@ import type { DeckBoard, DeckCard, DeckTag } from "../../types/deck";
 
 export type CardInspectorDeckControls = {
   card: DeckCard;
+  deckId?: string;
   isOwner: boolean;
   tags: DeckTag[];
   onQty: (delta: number) => void;

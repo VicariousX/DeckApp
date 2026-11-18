@@ -128,11 +128,15 @@ function AddToDeckPanel({
   oracleId,
   name,
   typeLine,
+  excludeId,
+  heading,
 }: {
   scryfallId: string;
   oracleId?: string;
   name: string;
   typeLine?: string;
+  excludeId?: string;
+  heading?: string;
 }) {
   const { user } = useAuth();
   const [decks, setDecks] = useState<Deck[] | null>(null);
@@ -190,12 +194,12 @@ function AddToDeckPanel({
         measureClassName={styles.muted}
         emptyClassName={styles.muted}
       />
-      <p className={styles.extraLabel}>Add {name} to a deck</p>
+      <p className={styles.extraLabel}>{heading ?? `Add ${name} to a deck`}</p>
       {status && <p className={styles.muted}>{status}</p>}
       {!decks && <p className={styles.muted}>Loading decks…</p>}
       {decks?.length === 0 && <p className={styles.muted}>No decks yet.</p>}
       <div className={styles.addDeckList}>
-        {decks?.map((d) => (
+        {decks?.filter((d) => d.id !== excludeId).map((d) => (
           <button
             key={d.id}
             type="button"
@@ -328,6 +332,14 @@ export function DeckTab({
           </button>
         </div>
       )}
+      <AddToDeckPanel
+        scryfallId={scryfallId}
+        oracleId={oracleId}
+        name={name}
+        typeLine={typeLine}
+        excludeId={deck.deckId}
+        heading="Add to another deck"
+      />
     </div>
   );
 }

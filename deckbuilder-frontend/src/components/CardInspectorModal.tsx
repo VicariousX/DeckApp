@@ -536,7 +536,7 @@ export function CardInspectorModal({
           const dy = e.clientY - start.y;
           if (Math.abs(dx) > Math.abs(dy)) setDrag({ x: dx, y: 0 });
           else if (start.fromTop && dy > 0) setDrag({ x: 0, y: dy });
-          else setDrag({ x: 0, y: Math.max(-40, Math.min(40, dy * 0.25)) });
+          else setDrag({ x: 0, y: 0 });
         }}
         onPointerUp={(e) => {
           const start = gesture.current;

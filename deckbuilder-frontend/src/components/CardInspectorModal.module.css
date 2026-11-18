@@ -720,27 +720,46 @@
   }
   .visual :global(img),
   .image {
-    max-height: 32vh;
-    width: min(220px, 56vw);
+    max-height: 22vh;
+    width: min(180px, 42vw);
   }
   .tabBar {
+    order: 2;
     position: sticky;
-    top: 0;
-    z-index: 3;
-    background: var(--color-surface);
-  }
-  .tabBtn,
-  .tabBtnOn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.82rem;
+    bottom: 0;
+    z-index: 4;
+    margin-top: auto;
+    border-bottom: none;
+    border-top: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+    padding: 0.15rem 0.2rem calc(0.2rem + env(safe-area-inset-bottom));
   }
   .tabPanel {
+    order: 1;
     min-height: 0;
     border: none;
     background: transparent;
   }
+  .tabPanelTitle {
+    display: none;
+  }
+  .tabBtn,
+  .tabBtnOn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.7rem 0.15rem 0.45rem;
+    font-size: 0.68rem;
+    text-align: center;
+  }
   .panelScroll {
     max-height: none;
+    padding-bottom: 0.85rem;
+  }
+  .resizeHandle {
+    display: none;
+  }
+  .navHint {
+    display: none;
   }
 }
 
