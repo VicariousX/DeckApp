@@ -16,7 +16,7 @@ body {
     BlinkMacSystemFont,
     "Helvetica Neue",
     sans-serif;
-  background: var(--color-bg);
+  background: transparent;
   color: var(--color-text);
   line-height: 1.5;
 }

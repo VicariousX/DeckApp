@@ -155,8 +155,22 @@ export function RouteStage() {
 
   const flight = travel?.motion === "flight";
 
+  const skyZone = zoneFor(placeKey(top.loc.pathname, top.loc.search));
+
   return (
     <div className={`route-stage${travel ? " is-traveling" : ""}${flight ? " is-flight" : ""}${fade ? " is-fading" : ""}`}>
+      <div
+        className="map-sky"
+        aria-hidden
+        style={
+          {
+            ["--cols" as string]: String(GRID.cols),
+            ["--rows" as string]: String(GRID.rows),
+            ["--col" as string]: String(skyZone.col),
+            ["--row" as string]: String(skyZone.row),
+          } as CSSProperties
+        }
+      />
       <div
         ref={worldRef}
         className={travel ? `map-world${flight ? " is-flight" : ""}` : "route-hold"}

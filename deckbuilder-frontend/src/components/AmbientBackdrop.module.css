@@ -4,7 +4,7 @@
   z-index: -2;
   pointer-events: none;
   overflow: hidden;
-  background: var(--color-bg);
+  background: transparent;
 }
 
 .glowA {

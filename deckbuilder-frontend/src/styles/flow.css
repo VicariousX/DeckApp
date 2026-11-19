@@ -64,7 +64,7 @@ select:focus {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -141,12 +141,13 @@ select:focus {
   width: calc(var(--cols) * 100%);
   height: calc(var(--rows) * 100%);
   transform-origin: 0 0;
-}
-
-.map-world.is-flight {
   background:
     linear-gradient(rgba(7, 6, 15, 0.12), rgba(7, 6, 15, 0.12)),
     url("/map-sky.jpg") center / 100% 100% no-repeat;
+}
+
+.route-stage.is-traveling .map-sky {
+  visibility: hidden;
 }
 
 .map-plate {
@@ -266,7 +267,20 @@ select:focus {
   height: 100%;
   overflow: hidden;
   pointer-events: none;
-  background: var(--color-bg);
+  background: transparent;
+}
+
+.map-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("/map-sky.jpg");
+  background-repeat: no-repeat;
+  background-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
+  background-position:
+    calc(var(--col) * 100% / (var(--cols) - 1))
+    calc(var(--row) * 100% / (var(--rows) - 1));
 }
 
 @keyframes routeFade {
