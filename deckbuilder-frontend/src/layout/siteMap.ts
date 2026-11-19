@@ -35,6 +35,47 @@ export const ZONES = {
   proxy: { id: "proxy", label: "Proxies", col: 5, row: 3, cluster: "table", heavy: false },
 } as const satisfies Record<string, Zone>;
 
+export function zoneHref(id: string, deckId?: string | null): string | null {
+  switch (id) {
+    case "simple":
+      return "/search/simple";
+    case "standard":
+      return "/search?mode=standard";
+    case "advanced":
+      return "/search?mode=advanced";
+    case "results":
+      return "/search/results";
+    case "login":
+      return "/login";
+    case "home":
+      return "/";
+    case "social":
+      return "/social";
+    case "formats":
+      return "/formats";
+    case "public":
+      return "/decks";
+    case "mine":
+      return "/my-decks";
+    case "drawers":
+      return "/drawers";
+    case "collections":
+      return "/collections";
+    case "combos":
+      return "/combos";
+    case "proxy":
+      return "/proxy-set";
+    case "deck":
+      return deckId ? `/deck/${deckId}` : "/my-decks";
+    case "branches":
+      return deckId ? `/deck/${deckId}/branches` : "/my-decks";
+    case "play":
+      return deckId ? `/play/${deckId}` : "/my-decks";
+    default:
+      return null;
+  }
+}
+
 export function zoneAt(col: number, row: number): Zone | undefined {
   return Object.values(ZONES).find((zone) => zone.col === col && zone.row === row);
 }

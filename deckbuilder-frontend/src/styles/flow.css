@@ -182,12 +182,22 @@ select:focus {
   pointer-events: none;
 }
 
+.map-stand-slot.is-live {
+  pointer-events: auto;
+}
+
 .map-stand {
   width: 68%;
   height: 64%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   border-radius: 5vw;
   background: rgba(12, 10, 22, 0.55);
   box-shadow:
@@ -260,6 +270,29 @@ select:focus {
 
 .map-cell.is-from .map-label {
   color: var(--color-text);
+}
+
+.map-overlay {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  z-index: 40;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.map-back {
+  pointer-events: auto;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(7, 6, 15, 0.72);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .map-page {

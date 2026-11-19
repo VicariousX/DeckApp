@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { useLocation, type Location } from "react-router-dom";
+import { createContext, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useLocation, useNavigate, type Location } from "react-router-dom";
 import { AppRoutes } from "./AppRoutes";
-import { GRID, placeKey, zoneFor, ZONES, type Zone } from "./siteMap";
+import { GRID, placeKey, zoneFor, zoneHref, ZONES, type Zone } from "./siteMap";
+import { getLastViewedDeck } from "../lib/deckPreferences";
 
 type Frame = { id: number; loc: Location };
 type Travel = {
@@ -15,6 +16,20 @@ type Travel = {
 };
 
 const FIT = 0.9 / Math.max(GRID.cols, GRID.rows);
+
+function overviewCamera() {
+  return camera(GRID.cols / 2 - 0.5, GRID.rows / 2 - 0.5, FIT);
+}
+
+type Overview = {
+  phase: "out" | "hold" | "in";
+  from: Zone;
+  to: Zone;
+  toId: number;
+  ms: number;
+};
+
+export const MapOverviewContext = createContext({ openOverview: () => {} });
 
 function camera(col: number, row: number, scale: number) {
   const x = (100 * (0.5 - (col + 0.5) * scale)) / GRID.cols;
@@ -94,25 +109,44 @@ function cellStyle(zone: Zone): CSSProperties {
  */
 export function RouteStage() {
   const live = useLocation();
+  const navigate = useNavigate();
   const liveKey = placeKey(live.pathname, live.search);
   const [frames, setFrames] = useState<Frame[]>(() => [{ id: 1, loc: live }]);
   const [travel, setTravel] = useState<Travel | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [fade, setFade] = useState(false);
   const worldRef = useRef<HTMLDivElement>(null);
   const top = frames[frames.length - 1];
   const topKey = placeKey(top.loc.pathname, top.loc.search);
 
-  if (liveKey !== topKey && !travel) {
+  const openOverview = useCallback(() => {
+    if (travel) return;
+    setOverview((cur) => {
+      if (cur) return cur;
+      const from = zoneFor(placeKey(live.pathname, live.search));
+      const reduce =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      return { phase: reduce ? "hold" : "out", from, to: from, toId: top.id, ms: 920 };
+    });
+  }, [travel, live.pathname, live.search, top.id]);
+
+  if (liveKey !== topKey && !travel && overview?.phase !== "in") {
     const from = zoneFor(topKey);
     const to = zoneFor(liveKey);
     const nextId = top.id + 1;
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
+    const onMap = Boolean(overview);
+    if (onMap && !reduce) {
+      setFrames((current) => [...current, { id: nextId, loc: live }]);
+      setOverview({ phase: "in", from, to, toId: nextId, ms: 880 });
+    } else if (reduce) {
       setFrames([{ id: nextId, loc: live }]);
+      setOverview(null);
       setFade(true);
-    } else {
+    } else if (!overview) {
       const mobile = window.matchMedia("(max-width: 720px)").matches;
       const plan = travelPlan(from, to, mobile);
       setFrames((current) => [...current, { id: nextId, loc: live }]);
@@ -146,6 +180,40 @@ export function RouteStage() {
   }, [travel]);
 
   useEffect(() => {
+    if (!overview || overview.phase === "hold") return;
+    const world = worldRef.current;
+    if (!world) return;
+    const start =
+      overview.phase === "out"
+        ? camera(overview.from.col, overview.from.row, 1)
+        : overviewCamera();
+    const end =
+      overview.phase === "out"
+        ? overviewCamera()
+        : camera(overview.to.col, overview.to.row, 1);
+    const anim = world.animate([{ transform: start }, { transform: end }], {
+      duration: overview.ms,
+      easing: "cubic-bezier(0.22, 0.8, 0.2, 1)",
+      fill: "both",
+    });
+    const phase = overview.phase;
+    const toId = overview.toId;
+    const same = overview.from.id === overview.to.id;
+    const timer = window.setTimeout(() => {
+      if (phase === "out") {
+        setOverview((cur) => (cur && cur.phase === "out" ? { ...cur, phase: "hold" } : cur));
+      } else {
+        if (!same) setFrames((current) => current.filter((frame) => frame.id === toId));
+        setOverview(null);
+      }
+    }, overview.ms + 40);
+    return () => {
+      window.clearTimeout(timer);
+      anim.cancel();
+    };
+  }, [overview]);
+
+  useEffect(() => {
     if (!fade) return;
     const timer = window.setTimeout(() => setFade(false), 280);
     return () => window.clearTimeout(timer);
@@ -154,11 +222,50 @@ export function RouteStage() {
   const occupied = new Set(frames.map((frame) => zoneFor(placeKey(frame.loc.pathname, frame.loc.search)).id));
 
   const flight = travel?.motion === "flight";
-
+  const showMap = flight || overview != null;
   const skyZone = zoneFor(placeKey(top.loc.pathname, top.loc.search));
 
+  function closeOverview() {
+    setOverview((cur) => {
+      if (!cur || cur.phase === "in") return cur;
+      const reduce =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) return null;
+      return { ...cur, phase: "in", to: cur.from, toId: cur.from.id === cur.to.id ? cur.toId : top.id, ms: 780 };
+    });
+  }
+
+  function pickZone(zone: Zone) {
+    if (!overview || overview.phase !== "hold") return;
+    if (zone.id === overview.from.id) {
+      closeOverview();
+      return;
+    }
+    const href = zoneHref(zone.id, getLastViewedDeck()?.id ?? null);
+    if (href) navigate(href);
+  }
+
+  useEffect(() => {
+    if (!overview) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeOverview();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const worldTransform = overview
+    ? overview.phase === "out"
+      ? camera(overview.from.col, overview.from.row, 1)
+      : overviewCamera()
+    : travel
+      ? String(framesOf(travel)[0]?.transform ?? "none")
+      : undefined;
+
   return (
-    <div className={`route-stage${travel ? " is-traveling" : ""}${flight ? " is-flight" : ""}${fade ? " is-fading" : ""}`}>
+    <MapOverviewContext.Provider value={{ openOverview }}>
+    <div className={`route-stage${travel || overview ? " is-traveling" : ""}${showMap ? " is-flight" : ""}${fade ? " is-fading" : ""}`}>
       <div
         className="map-sky"
         aria-hidden
@@ -173,52 +280,66 @@ export function RouteStage() {
       />
       <div
         ref={worldRef}
-        className={travel ? `map-world${flight ? " is-flight" : ""}` : "route-hold"}
+        className={travel || overview ? "map-world is-flight" : "route-hold"}
         style={
-          travel
+          travel || overview
             ? ({
                 ["--cols" as string]: String(GRID.cols),
                 ["--rows" as string]: String(GRID.rows),
-                transform: String(framesOf(travel)[0]?.transform ?? "none"),
+                transform: worldTransform,
               } as CSSProperties)
             : undefined
         }
       >
-        {flight &&
+        {showMap &&
           PLATES.map((plate) => (
             <div key={plate.id} className={`map-plate map-plate-${plate.id}`} style={plateStyle(plate)}>
               <span>{plate.label}</span>
             </div>
           ))}
-        {flight &&
+        {showMap &&
           Object.values(ZONES).map((zone) =>
             occupied.has(zone.id) ? null : (
-              <div key={zone.id} className="map-stand-slot" style={cellStyle(zone)}>
-                <div className={`map-stand${zone.heavy ? " is-heavy" : ""}`} data-cluster={zone.cluster}>
+              <div key={zone.id} className={`map-stand-slot${overview?.phase === "hold" ? " is-live" : ""}`} style={cellStyle(zone)}>
+                <button
+                  type="button"
+                  className={`map-stand${zone.heavy ? " is-heavy" : ""}`}
+                  data-cluster={zone.cluster}
+                  onClick={() => pickZone(zone)}
+                >
                   <header>{zone.label}</header>
                   <div className="map-stand-body" />
-                </div>
+                </button>
               </div>
             )
           )}
         {frames.map((frame) => {
           const zone = zoneFor(placeKey(frame.loc.pathname, frame.loc.search));
           const incoming = travel?.toId === frame.id;
+          const placed = Boolean(travel || overview);
           return (
             <div
               key={frame.id}
               className={
-                travel
-                  ? `map-frame${flight ? " is-card" : ""}${incoming && travel.same ? " is-incoming" : ""}`
+                placed
+                  ? `map-frame${flight ? " is-card" : ""}${incoming && travel?.same ? " is-incoming" : ""}`
                   : "route-page"
               }
-              style={travel ? { ...cellStyle(zone), animationDuration: `${travel.ms}ms` } : undefined}
+              style={placed ? { ...cellStyle(zone), animationDuration: `${travel?.ms ?? 0}ms` } : undefined}
             >
               <AppRoutes location={frame.loc} />
             </div>
           );
         })}
       </div>
+      {overview && (
+        <div className="map-overlay">
+          <button type="button" className="map-back" onClick={closeOverview}>
+            Back
+          </button>
+        </div>
+      )}
     </div>
+    </MapOverviewContext.Provider>
   );
 }
