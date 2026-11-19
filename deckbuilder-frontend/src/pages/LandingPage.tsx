@@ -80,19 +80,34 @@ export function LandingPage() {
         <h2 className={styles.sectionTitle}>Search</h2>
         <div className={styles.modes}>
           <Link to="/search/simple" className={styles.mode}>
-            <strong>Simple</strong>
-            <span>Filters for color, type, and text</span>
+            <span className={styles.modeCopy}>
+              <strong>Simple</strong>
+              <span>Filters for color, type, and text</span>
+            </span>
+            <em className={styles.go} aria-hidden>→</em>
           </Link>
           <Link to="/search?mode=standard" className={styles.mode}>
-            <strong>Standard</strong>
-            <span>Look up a card by name</span>
+            <span className={styles.modeCopy}>
+              <strong>Standard</strong>
+              <span>Look up a card by name</span>
+            </span>
+            <em className={styles.go} aria-hidden>→</em>
           </Link>
           <Link to="/search?mode=advanced" className={styles.mode}>
-            <strong>Advanced</strong>
-            <span>Write a Scryfall query</span>
+            <span className={styles.modeCopy}>
+              <strong>Advanced</strong>
+              <span>Write a Scryfall query</span>
+            </span>
+            <em className={styles.go} aria-hidden>→</em>
           </Link>
         </div>
-        <button type="button" className={styles.random} onClick={() => void openRandom()} disabled={randomBusy}>
+        <button
+          type="button"
+          className={`${styles.random}${randomBusy ? ` ${styles.randomBusy}` : ""}`}
+          onClick={() => void openRandom()}
+          disabled={randomBusy}
+        >
+          <i className={styles.pip} aria-hidden />
           {randomBusy ? "Drawing…" : "Random card"}
         </button>
       </section>

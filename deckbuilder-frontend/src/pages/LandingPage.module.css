@@ -54,9 +54,9 @@
 
 .mode {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-height: 4.6rem;
   padding: 0.7rem 0.75rem;
   border-radius: 12px;
@@ -64,6 +64,14 @@
   background: color-mix(in srgb, var(--color-bg) 35%, transparent);
   color: inherit;
   text-decoration: none;
+}
+
+.modeCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .mode strong {
@@ -77,13 +85,20 @@
   color: var(--color-text-muted);
 }
 
-.mode:hover {
-  border-color: var(--color-accent);
+.go {
+  flex-shrink: 0;
+  font-style: normal;
+  font-size: 1rem;
+  color: var(--color-accent);
+  opacity: 0.4;
 }
 
 .random {
   appearance: none;
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   border: none;
   background: transparent;
   color: var(--color-accent);
@@ -94,9 +109,17 @@
   cursor: pointer;
 }
 
+.pip {
+  width: 0.72rem;
+  height: 1rem;
+  border-radius: 2px;
+  border: 1.5px solid currentColor;
+  box-shadow: 2px 2px 0 color-mix(in srgb, currentColor 35%, transparent);
+}
+
 .random:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+  opacity: 0.7;
+  cursor: progress;
 }
 
 .split {
@@ -282,10 +305,6 @@ a.titleAccent:hover {
 
   .mode {
     min-height: 0;
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
   }
 }
 
@@ -691,4 +710,136 @@ a.titleAccent:hover {
 
 .inlineLink:hover {
   text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .glow {
+    animation: glowDrift 16s ease-in-out infinite alternate;
+  }
+
+  .hero,
+  .searchPanel,
+  .split,
+  .footerHint {
+    animation: rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .searchPanel {
+    animation-delay: 0.08s;
+  }
+
+  .split {
+    animation-delay: 0.16s;
+  }
+
+  .footerHint {
+    animation-delay: 0.24s;
+  }
+
+  .mode,
+  .link,
+  .lead,
+  .random,
+  .go,
+  .pip {
+    transition:
+      translate 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.28s ease,
+      background 0.28s ease,
+      box-shadow 0.28s ease,
+      color 0.28s ease,
+      opacity 0.28s ease,
+      filter 0.28s ease,
+      rotate 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pip {
+    animation: idleTilt 4.8s ease-in-out infinite;
+  }
+
+  .randomBusy .pip {
+    animation: drawSpin 0.7s linear infinite;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .mode:hover,
+  .link:hover,
+  .lead:hover {
+    translate: 0 -3px;
+  }
+
+  .mode:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg));
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  }
+
+  .mode:hover .go {
+    opacity: 1;
+    translate: 4px 0;
+  }
+
+  .link:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  }
+
+  .lead:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--color-accent) 28%, transparent);
+  }
+
+  .random:hover .pip {
+    rotate: -8deg;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mode:active,
+  .link:active,
+  .lead:active,
+  .random:active {
+    translate: 0 1px;
+    transition-duration: 0.08s;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes glowDrift {
+  from {
+    translate: -3% 0;
+    scale: 1;
+  }
+  to {
+    translate: 3% 8%;
+    scale: 1.06;
+  }
+}
+
+@keyframes idleTilt {
+  0%,
+  100% {
+    rotate: -6deg;
+  }
+  50% {
+    rotate: 7deg;
+  }
+}
+
+@keyframes drawSpin {
+  to {
+    rotate: 360deg;
+  }
 }
