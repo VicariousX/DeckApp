@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MapOverviewContext } from "../../layout/RouteStage";
+import { useTheme } from "../../theme/ThemeProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   getAvatarUrl,
@@ -132,6 +133,7 @@ export function AccountPanel() {
 
   const avatar = getAvatarUrl(user);
   const map = useContext(MapOverviewContext);
+  const { skyNav } = useTheme();
 
   return (
     <div className={styles.accountLayout}>
@@ -149,9 +151,11 @@ export function AccountPanel() {
             <div className={styles.accountEmail}>{user.email}</div>
           </div>
         </div>
-        <button type="button" className={styles.mapBtn} onClick={map.openOverview}>
-          View map
-        </button>
+        {skyNav && (
+          <button type="button" className={styles.mapBtn} onClick={map.openOverview}>
+            View map
+          </button>
+        )}
 
         <nav className={styles.accountNav}>
           <button

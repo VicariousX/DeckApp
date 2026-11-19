@@ -10,12 +10,15 @@ import {
 import { isAppTheme, type AppThemeId, THEME_IDS } from "./themes";
 
 const STORAGE_KEY = "deckapp-theme";
+const SKY_KEY = "deckapp-skynav";
 
 type ThemeContextValue = {
   theme: AppThemeId;
   setTheme: (theme: AppThemeId) => void;
   /** Cycles signature themes only (legacy helper). */
   toggleTheme: () => void;
+  skyNav: boolean;
+  setSkyNav: (on: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -28,6 +31,18 @@ function readStoredTheme(): AppThemeId {
     /* ignore */
   }
   return "arcane";
+}
+
+function applySky(on: boolean) {
+  document.documentElement.dataset.skynav = on ? "on" : "off";
+}
+
+function readSky(): boolean {
+  try {
+    return localStorage.getItem(SKY_KEY) !== "off";
+  } catch {
+    return true;
+  }
 }
 
 function applyTheme(theme: AppThemeId) {
@@ -45,10 +60,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (typeof document !== "undefined") {
       const initial = readStoredTheme();
       applyTheme(initial);
+      applySky(readSky());
       return initial;
     }
     return "arcane";
   });
+  const [skyNav, setSkyNavState] = useState(readSky);
 
   useEffect(() => {
     applyTheme(theme);
@@ -59,6 +76,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  useEffect(() => {
+    applySky(skyNav);
+    try {
+      localStorage.setItem(SKY_KEY, skyNav ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+  }, [skyNav]);
+
   const setTheme = useCallback((next: AppThemeId) => {
     setThemeState(next);
   }, []);
@@ -67,9 +93,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState((t) => (t === "premium" ? "arcane" : "premium"));
   }, []);
 
+  const setSkyNav = useCallback((on: boolean) => {
+    setSkyNavState(on);
+  }, []);
+
   const value = useMemo(
-    () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme]
+    () => ({ theme, setTheme, toggleTheme, skyNav, setSkyNav }),
+    [theme, setTheme, toggleTheme, skyNav, setSkyNav]
   );
 
   return (

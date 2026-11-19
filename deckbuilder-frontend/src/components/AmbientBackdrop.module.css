@@ -7,6 +7,10 @@
   background: transparent;
 }
 
+:global(html[data-skynav="off"]) .root {
+  background: var(--color-bg);
+}
+
 .glowA {
   position: absolute;
   width: 90vmax;

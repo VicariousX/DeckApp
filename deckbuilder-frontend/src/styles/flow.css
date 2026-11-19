@@ -311,6 +311,16 @@ select:focus {
   background: transparent;
 }
 
+html[data-skynav="off"],
+html[data-skynav="off"] body {
+  background: var(--color-bg);
+  background-color: var(--color-bg);
+}
+
+html[data-skynav="off"] .map-sky {
+  display: none;
+}
+
 .map-sky {
   position: fixed;
   inset: 0;

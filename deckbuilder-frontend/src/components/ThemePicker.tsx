@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme/ThemeProvider";
+import { PillSwitch } from "./PillSwitch";
 import {
   THEME_GROUPS,
   themesInGroup,
@@ -8,7 +9,7 @@ import {
 import styles from "./ThemePicker.module.css";
 
 export function ThemePicker() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, skyNav, setSkyNav } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,6 +53,9 @@ export function ThemePicker() {
       </button>
       {open && (
         <div className={styles.panel} role="listbox" aria-label="Themes">
+          <div className={styles.skyRow}>
+            <PillSwitch checked={skyNav} onChange={setSkyNav} label="SkyNav" />
+          </div>
           {THEME_GROUPS.map((g) => (
             <div key={g.id} className={styles.group}>
               <div className={styles.groupLabel}>{g.label}</div>

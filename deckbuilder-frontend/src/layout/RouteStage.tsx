@@ -3,6 +3,7 @@ import { useLocation, useNavigate, type Location } from "react-router-dom";
 import { AppRoutes } from "./AppRoutes";
 import { GRID, placeKey, zoneFor, zoneHref, ZONES, type Zone } from "./siteMap";
 import { getLastViewedDeck } from "../lib/deckPreferences";
+import { useTheme } from "../theme/ThemeProvider";
 
 type Frame = { id: number; loc: Location };
 type Travel = {
@@ -110,6 +111,7 @@ function cellStyle(zone: Zone): CSSProperties {
 export function RouteStage() {
   const live = useLocation();
   const navigate = useNavigate();
+  const { skyNav } = useTheme();
   const liveKey = placeKey(live.pathname, live.search);
   const [frames, setFrames] = useState<Frame[]>(() => [{ id: 1, loc: live }]);
   const [travel, setTravel] = useState<Travel | null>(null);
@@ -120,7 +122,7 @@ export function RouteStage() {
   const topKey = placeKey(top.loc.pathname, top.loc.search);
 
   const openOverview = useCallback(() => {
-    if (travel) return;
+    if (travel || !skyNav) return;
     setOverview((cur) => {
       if (cur) return cur;
       const from = zoneFor(placeKey(live.pathname, live.search));
@@ -129,7 +131,7 @@ export function RouteStage() {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       return { phase: reduce ? "hold" : "out", from, to: from, toId: top.id, ms: 920 };
     });
-  }, [travel, live.pathname, live.search, top.id]);
+  }, [travel, skyNav, live.pathname, live.search, top.id]);
 
   if (liveKey !== topKey && !travel && overview?.phase !== "in") {
     const from = zoneFor(topKey);
@@ -139,14 +141,15 @@ export function RouteStage() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const onMap = Boolean(overview);
-    if (onMap && !reduce) {
-      setFrames((current) => [...current, { id: nextId, loc: live }]);
-      setOverview({ phase: "in", from, to, toId: nextId, ms: 880 });
-    } else if (reduce) {
+    if (!skyNav || reduce) {
       setFrames([{ id: nextId, loc: live }]);
       setOverview(null);
-      setFade(true);
-    } else if (!overview) {
+      setTravel(null);
+      if (skyNav) setFade(true);
+    } else if (onMap) {
+      setFrames((current) => [...current, { id: nextId, loc: live }]);
+      setOverview({ phase: "in", from, to, toId: nextId, ms: 880 });
+    } else {
       const mobile = window.matchMedia("(max-width: 720px)").matches;
       const plan = travelPlan(from, to, mobile);
       setFrames((current) => [...current, { id: nextId, loc: live }]);
@@ -218,6 +221,17 @@ export function RouteStage() {
     const timer = window.setTimeout(() => setFade(false), 280);
     return () => window.clearTimeout(timer);
   }, [fade]);
+
+  const skyWasOn = useRef(skyNav);
+  useEffect(() => {
+    if (skyWasOn.current && !skyNav) {
+      setTravel(null);
+      setOverview(null);
+      setFade(false);
+      setFrames((current) => current.slice(-1));
+    }
+    skyWasOn.current = skyNav;
+  }, [skyNav]);
 
   const occupied = new Set(frames.map((frame) => zoneFor(placeKey(frame.loc.pathname, frame.loc.search)).id));
 

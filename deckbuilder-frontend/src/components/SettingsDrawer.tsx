@@ -5,6 +5,7 @@ import { THEMES, type AppThemeId } from "../theme/themes";
 import { readCatalogTier, writeCatalogTier } from "../lib/catalog/preference";
 import type { CatalogTier } from "../lib/catalog/types";
 import styles from "./SettingsDrawer.module.css";
+import { PillSwitch } from "./PillSwitch";
 
 type SettingsSection = {
   title: string;
@@ -29,7 +30,7 @@ export function SettingsButton({ onClick }: { onClick: () => void }) {
 
 export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const location = useLocation();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, skyNav, setSkyNav } = useTheme();
   const [catalogTier, setCatalogTier] = useState<CatalogTier>(() => readCatalogTier());
 
   useEffect(() => {
@@ -74,6 +75,9 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
                   onClick={() => setTheme(t.id as AppThemeId)}
                 />
               ))}
+            </div>
+            <div className={styles.row}>
+              <PillSwitch checked={skyNav} onChange={setSkyNav} label="SkyNav" />
             </div>
           </section>
           <section className={styles.section}>
