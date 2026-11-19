@@ -252,7 +252,7 @@ export function CardInspectorModal({
     if (!el || prev == null || prev === next) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const [prevTab, prevSub] = prev.split(":");
-    const tabIds = tabs.map((t) => t.id);
+    const tabIds = tabs.map((t) => String(t.id));
     const tabChange = prevTab !== active;
     const dir = tabChange
       ? tabIds.indexOf(active) < tabIds.indexOf(prevTab) ? -1 : 1
