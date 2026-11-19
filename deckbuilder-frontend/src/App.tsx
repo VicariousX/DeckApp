@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "./layout/AppShell";
+import { RouteStage } from "./layout/RouteStage";
 import { LandingPage } from "./pages/LandingPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SearchResultsPage } from "./pages/SearchResultsPage";
@@ -23,7 +24,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<RouteStage><LandingPage /></RouteStage>} />
 
         <Route element={<AppShell />}>
           <Route path="/search" element={<SearchPage />} />

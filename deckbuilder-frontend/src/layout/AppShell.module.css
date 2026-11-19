@@ -42,20 +42,20 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg);
-  padding: 0.85rem var(--space-xl);
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  padding: 0.7rem var(--space-xl);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
 .brand {
-  font-size: 1.1rem;
+  font-size: 1.12rem;
   font-weight: 750;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.03em;
   color: var(--color-text);
   text-decoration: none;
   transition: color var(--hover-transition);
@@ -278,9 +278,9 @@
   left: 0;
   min-width: 11rem;
   padding: 0.4rem;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-surface) 96%, black);
-  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface) 94%, black);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
   box-shadow: var(--shadow-lg);
   z-index: 50;
   display: flex;
