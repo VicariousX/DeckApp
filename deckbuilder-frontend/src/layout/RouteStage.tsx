@@ -58,6 +58,24 @@ function travelPlan(from: Zone, to: Zone, mobile: boolean): Pick<Travel, "motion
   return { motion, same, ms: same ? (mobile ? 700 : 860) : mobile ? 1100 : 1400 };
 }
 
+const PLATES = [
+  { id: "search", label: "Search", col: 0, row: 0, cols: 5, rows: 1 },
+  { id: "home", label: "Home", col: 1, row: 1, cols: 5, rows: 1 },
+  { id: "library", label: "Library", col: 0, row: 2, cols: 4, rows: 1 },
+  { id: "table", label: "Table", col: 4, row: 2, cols: 2, rows: 2 },
+] as const;
+
+function plateStyle(plate: (typeof PLATES)[number]): CSSProperties {
+  const padX = 0.45;
+  const padY = 0.35;
+  return {
+    left: `${(plate.col / GRID.cols) * 100 + padX}%`,
+    top: `${(plate.row / GRID.rows) * 100 + padY}%`,
+    width: `${(plate.cols / GRID.cols) * 100 - padX * 2}%`,
+    height: `${(plate.rows / GRID.rows) * 100 - padY * 2}%`,
+  };
+}
+
 function cellStyle(zone: Zone): CSSProperties {
   return {
     position: "absolute",
@@ -135,11 +153,13 @@ export function RouteStage() {
 
   const occupied = new Set(frames.map((frame) => zoneFor(placeKey(frame.loc.pathname, frame.loc.search)).id));
 
+  const flight = travel?.motion === "flight";
+
   return (
-    <div className={`route-stage${travel ? " is-traveling" : ""}${fade ? " is-fading" : ""}`}>
+    <div className={`route-stage${travel ? " is-traveling" : ""}${flight ? " is-flight" : ""}${fade ? " is-fading" : ""}`}>
       <div
         ref={worldRef}
-        className={travel ? "map-world" : "route-hold"}
+        className={travel ? `map-world${flight ? " is-flight" : ""}` : "route-hold"}
         style={
           travel
             ? ({
@@ -150,11 +170,20 @@ export function RouteStage() {
             : undefined
         }
       >
-        {travel?.motion === "flight" &&
+        {flight &&
+          PLATES.map((plate) => (
+            <div key={plate.id} className={`map-plate map-plate-${plate.id}`} style={plateStyle(plate)}>
+              <span>{plate.label}</span>
+            </div>
+          ))}
+        {flight &&
           Object.values(ZONES).map((zone) =>
             occupied.has(zone.id) ? null : (
-              <div key={zone.id} className="map-cell" style={cellStyle(zone)}>
-                <span className="map-label">{zone.label}</span>
+              <div key={zone.id} className="map-stand-slot" style={cellStyle(zone)}>
+                <div className={`map-stand${zone.heavy ? " is-heavy" : ""}`} data-cluster={zone.cluster}>
+                  <header>{zone.label}</header>
+                  <div className="map-stand-body" />
+                </div>
               </div>
             )
           )}
@@ -166,7 +195,7 @@ export function RouteStage() {
               key={frame.id}
               className={
                 travel
-                  ? `map-frame${incoming && travel.same ? " is-incoming" : ""}`
+                  ? `map-frame${flight ? " is-card" : ""}${incoming && travel.same ? " is-incoming" : ""}`
                   : "route-page"
               }
               style={travel ? { ...cellStyle(zone), animationDuration: `${travel.ms}ms` } : undefined}
