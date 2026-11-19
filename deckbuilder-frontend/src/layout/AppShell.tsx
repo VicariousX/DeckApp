@@ -149,8 +149,8 @@ export function AppShell() {
             </button>
             {searchOpen && (
               <div className={styles.decksDropdown} role="menu" onMouseDown={(e) => e.stopPropagation()}>
-                <NavLink to="/search?mode=standard" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Standard</NavLink>
                 <NavLink to="/search/simple" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Simple</NavLink>
+                <NavLink to="/search?mode=standard" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Standard</NavLink>
                 <NavLink to="/search?mode=advanced" role="menuitem" className={styles.decksItem} onClick={() => setSearchOpen(false)}>Advanced</NavLink>
               </div>
             )}
@@ -281,8 +281,8 @@ export function AppShell() {
             <div className={styles.tabSheet} role="menu">
               {searchOpen && (
                 <>
-                  <NavLink to="/search?mode=standard" role="menuitem" className={styles.decksItem} onClick={closeSheets}>Standard</NavLink>
                   <NavLink to="/search/simple" role="menuitem" className={styles.decksItem} onClick={closeSheets}>Simple</NavLink>
+                  <NavLink to="/search?mode=standard" role="menuitem" className={styles.decksItem} onClick={closeSheets}>Standard</NavLink>
                   <NavLink to="/search?mode=advanced" role="menuitem" className={styles.decksItem} onClick={closeSheets}>Advanced</NavLink>
                 </>
               )}

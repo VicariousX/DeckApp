@@ -76,28 +76,33 @@ export function LandingPage() {
         </p>
       </div>
 
-      <div className={styles.grid}>
-        {/* Search */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Search</h2>
-          <button type="button" className={styles.featured} onClick={() => void openRandom()} disabled={randomBusy}>
-            {randomBusy ? "Drawing…" : "Random card"}
-          </button>
-          <div className={`${styles.links} ${styles.links3}`}>
-            <Link to="/search?mode=standard" className={styles.link}>Standard</Link>
-            <Link to="/search/simple" className={styles.link}>Simple</Link>
-            <Link to="/search?mode=advanced" className={styles.link}>Advanced</Link>
-          </div>
-        </section>
+      <section className={styles.searchPanel} aria-label="Search">
+        <h2 className={styles.sectionTitle}>Search</h2>
+        <div className={styles.modes}>
+          <Link to="/search/simple" className={styles.mode}>
+            <strong>Simple</strong>
+            <span>Filters for color, type, and text</span>
+          </Link>
+          <Link to="/search?mode=standard" className={styles.mode}>
+            <strong>Standard</strong>
+            <span>Look up a card by name</span>
+          </Link>
+          <Link to="/search?mode=advanced" className={styles.mode}>
+            <strong>Advanced</strong>
+            <span>Write a Scryfall query</span>
+          </Link>
+        </div>
+        <button type="button" className={styles.random} onClick={() => void openRandom()} disabled={randomBusy}>
+          {randomBusy ? "Drawing…" : "Random card"}
+        </button>
+      </section>
 
-        {/* My */}
+      <div className={styles.split}>
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>My</h2>
-          {user ? (
-            <Link to="/login" className={styles.featured}>Profile</Link>
-          ) : (
-            <Link to="/login" className={styles.featured}>Log in</Link>
-          )}
+          <Link to="/login" className={styles.lead}>
+            {user ? "Profile" : "Log in"}
+          </Link>
           <div className={styles.links}>
             <Link to="/my-decks" className={styles.link}>Decks</Link>
             <Link to="/drawers" className={styles.link}>Drawers</Link>
@@ -106,10 +111,9 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Community */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Community</h2>
-          <a href="https://discord.com/invite/placeholder" className={styles.featured} target="_blank" rel="noreferrer">
+          <a href="https://discord.com/invite/placeholder" className={styles.lead} target="_blank" rel="noreferrer">
             Discord
           </a>
           <div className={styles.links}>
