@@ -11,6 +11,7 @@ import {
 import { PasswordSetForm } from "./PasswordSetForm";
 import styles from "../LoginPage.module.css";
 import { ThemePicker } from "../../components/ThemePicker";
+import { SkyPlotter } from "../../components/SkyPlotter";
 import { BulkDataPanel } from "../../components/BulkDataPanel";
 import {
   clearRandomHistory,
@@ -296,6 +297,7 @@ export function AccountPanel() {
                 {busy ? "Saving…" : "Save profile"}
               </button>
             </form>
+            <SkyPlotter />
           </>
         )}
 

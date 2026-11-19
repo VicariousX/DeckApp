@@ -3,6 +3,7 @@ import { useLocation, useNavigate, type Location } from "react-router-dom";
 import { AppRoutes } from "./AppRoutes";
 import { GRID, placeKey, zoneFor, zoneHref, ZONES, type Zone } from "./siteMap";
 import { getLastViewedDeck } from "../lib/deckPreferences";
+import { focusOf, skyImageUrl, skySide, subscribeSky, type SkySide } from "../lib/skyPlot";
 import { useTheme } from "../theme/ThemeProvider";
 
 type Frame = { id: number; loc: Location };
@@ -38,27 +39,32 @@ function camera(col: number, row: number, scale: number) {
   return `translate(${x}%, ${y}%) scale(${scale})`;
 }
 
-function framesOf(travel: Travel): Keyframe[] {
+function aim(zone: Zone, scale: number, side: SkySide) {
+  const focus = focusOf(zone.id, side);
+  return camera(focus.col, focus.row, scale);
+}
+
+function framesOf(travel: Travel, side: SkySide): Keyframe[] {
   const { from, to, same, motion } = travel;
   if (motion === "pan") {
     return [
-      { offset: 0, transform: camera(from.col, from.row, 1) },
-      { offset: 1, transform: camera(to.col, to.row, 1) },
+      { offset: 0, transform: aim(from, 1, side) },
+      { offset: 1, transform: aim(to, 1, side) },
     ];
   }
   if (same) {
     const mid = Math.min(0.42, FIT * 2.6);
     return [
-      { offset: 0, transform: camera(from.col, from.row, 1) },
-      { offset: 0.45, transform: camera(from.col, from.row, mid) },
-      { offset: 1, transform: camera(to.col, to.row, 1) },
+      { offset: 0, transform: aim(from, 1, side) },
+      { offset: 0.45, transform: aim(from, mid, side) },
+      { offset: 1, transform: aim(to, 1, side) },
     ];
   }
   return [
-    { offset: 0, transform: camera(from.col, from.row, 1) },
-    { offset: 0.28, transform: camera(from.col, from.row, FIT) },
-    { offset: 0.68, transform: camera(to.col, to.row, FIT) },
-    { offset: 1, transform: camera(to.col, to.row, 1) },
+    { offset: 0, transform: aim(from, 1, side) },
+    { offset: 0.28, transform: aim(from, FIT, side) },
+    { offset: 0.68, transform: aim(to, FIT, side) },
+    { offset: 1, transform: aim(to, 1, side) },
   ];
 }
 
@@ -66,7 +72,9 @@ function travelPlan(from: Zone, to: Zone, mobile: boolean): Pick<Travel, "motion
   const same = from.id === to.id;
   const motion = to.heavy ? "flight" : "pan";
   if (motion === "pan") {
-    const dist = Math.hypot(to.col - from.col, to.row - from.row);
+    const a = focusOf(from.id);
+    const b = focusOf(to.id);
+    const dist = Math.hypot(b.col - a.col, b.row - a.row);
     const near = from.cluster === to.cluster;
     const ms = Math.round(Math.min(mobile ? 380 : 460, (near ? 240 : 300) + dist * (near ? 36 : 55)));
     return { motion, ms, same };
@@ -92,11 +100,12 @@ function plateStyle(plate: (typeof PLATES)[number]): CSSProperties {
   };
 }
 
-function cellStyle(zone: Zone): CSSProperties {
+function cellStyle(zone: Zone, side: SkySide): CSSProperties {
+  const focus = focusOf(zone.id, side);
   return {
     position: "absolute",
-    left: `${(zone.col / GRID.cols) * 100}%`,
-    top: `${(zone.row / GRID.rows) * 100}%`,
+    left: `${(focus.col / GRID.cols) * 100}%`,
+    top: `${(focus.row / GRID.rows) * 100}%`,
     width: `${100 / GRID.cols}%`,
     height: `${100 / GRID.rows}%`,
     overflow: "hidden",
@@ -166,7 +175,7 @@ export function RouteStage() {
   useEffect(() => {
     if (!travel) return;
     const world = worldRef.current;
-    const anim = world?.animate(framesOf(travel), {
+    const anim = world?.animate(framesOf(travel, skySide()), {
       duration: travel.ms,
       easing: travel.motion === "pan" ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "linear",
       fill: "both",
@@ -188,12 +197,12 @@ export function RouteStage() {
     if (!world) return;
     const start =
       overview.phase === "out"
-        ? camera(overview.from.col, overview.from.row, 1)
+        ? aim(overview.from, 1, skySide())
         : overviewCamera();
     const end =
       overview.phase === "out"
         ? overviewCamera()
-        : camera(overview.to.col, overview.to.row, 1);
+        : aim(overview.to, 1, skySide());
     const anim = world.animate([{ transform: start }, { transform: end }], {
       duration: overview.ms,
       easing: "cubic-bezier(0.22, 0.8, 0.2, 1)",
@@ -233,6 +242,40 @@ export function RouteStage() {
     skyWasOn.current = skyNav;
   }, [skyNav]);
 
+  const [side, setSide] = useState<SkySide>(() => skySide());
+  const [plotTick, setPlotTick] = useState(0);
+  const [skyUrl, setSkyUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () => setSide(skySide());
+    window.addEventListener("resize", update);
+    const off = subscribeSky(() => {
+      setPlotTick((tick) => tick + 1);
+      setSide(skySide());
+    });
+    return () => {
+      window.removeEventListener("resize", update);
+      off();
+    };
+  }, []);
+
+  useEffect(() => {
+    let dead = false;
+    void skyImageUrl(side).then((url) => {
+      if (dead) {
+        if (url) URL.revokeObjectURL(url);
+        return;
+      }
+      setSkyUrl((prev) => {
+        if (prev && prev !== url) URL.revokeObjectURL(prev);
+        return url;
+      });
+    });
+    return () => {
+      dead = true;
+    };
+  }, [side, plotTick]);
+
   const occupied = new Set(frames.map((frame) => zoneFor(placeKey(frame.loc.pathname, frame.loc.search)).id));
 
   const flight = travel?.motion === "flight";
@@ -271,11 +314,13 @@ export function RouteStage() {
 
   const worldTransform = overview
     ? overview.phase === "out"
-      ? camera(overview.from.col, overview.from.row, 1)
+      ? aim(overview.from, 1, side)
       : overviewCamera()
     : travel
-      ? String(framesOf(travel)[0]?.transform ?? "none")
+      ? String(framesOf(travel, side)[0]?.transform ?? "none")
       : undefined;
+  const skyFocus = focusOf(skyZone.id, side);
+  const skyImage = skyUrl ? `url("${skyUrl}")` : undefined;
 
   return (
     <MapOverviewContext.Provider value={{ openOverview }}>
@@ -287,8 +332,9 @@ export function RouteStage() {
           {
             ["--cols" as string]: String(GRID.cols),
             ["--rows" as string]: String(GRID.rows),
-            ["--col" as string]: String(skyZone.col),
-            ["--row" as string]: String(skyZone.row),
+            ["--fx" as string]: String(skyFocus.x),
+            ["--fy" as string]: String(skyFocus.y),
+            backgroundImage: skyImage,
           } as CSSProperties
         }
       />
@@ -301,6 +347,7 @@ export function RouteStage() {
                 ["--cols" as string]: String(GRID.cols),
                 ["--rows" as string]: String(GRID.rows),
                 transform: worldTransform,
+                backgroundImage: skyImage,
               } as CSSProperties)
             : undefined
         }
@@ -314,7 +361,7 @@ export function RouteStage() {
         {showMap &&
           Object.values(ZONES).map((zone) =>
             occupied.has(zone.id) ? null : (
-              <div key={zone.id} className={`map-stand-slot${overview?.phase === "hold" ? " is-live" : ""}`} style={cellStyle(zone)}>
+              <div key={zone.id} className={`map-stand-slot${overview?.phase === "hold" ? " is-live" : ""}`} style={cellStyle(zone, side)}>
                 <button
                   type="button"
                   className={`map-stand${zone.heavy ? " is-heavy" : ""}`}
@@ -339,7 +386,7 @@ export function RouteStage() {
                   ? `map-frame${flight ? " is-card" : ""}${incoming && travel?.same ? " is-incoming" : ""}`
                   : "route-page"
               }
-              style={placed ? { ...cellStyle(zone), animationDuration: `${travel?.ms ?? 0}ms` } : undefined}
+              style={placed ? { ...cellStyle(zone, side), animationDuration: `${travel?.ms ?? 0}ms` } : undefined}
             >
               <AppRoutes location={frame.loc} />
             </div>

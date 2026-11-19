@@ -1,0 +1,99 @@
+.plot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.sides,
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.side,
+.tool,
+.file {
+  appearance: none;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sideOn {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.file input {
+  display: none;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #07060f;
+  touch-action: none;
+}
+
+.board img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(7, 6, 15, 0.78);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: grab;
+  touch-action: none;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+.search { box-shadow: 0 0 0 2px rgba(120, 170, 255, 0.85); }
+.home { box-shadow: 0 0 0 2px rgba(255, 220, 140, 0.9); }
+.library { box-shadow: 0 0 0 2px rgba(90, 200, 130, 0.9); }
+.table { box-shadow: 0 0 0 2px rgba(255, 90, 70, 0.9); }

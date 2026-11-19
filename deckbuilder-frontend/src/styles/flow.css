@@ -330,8 +330,8 @@ html[data-skynav="off"] .map-sky {
   background-repeat: no-repeat;
   background-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
   background-position:
-    calc(var(--col) * 100% / (var(--cols) - 1))
-    calc(var(--row) * 100% / (var(--rows) - 1));
+    calc((0.5 - var(--fx) * var(--cols)) / (1 - var(--cols)) * 100%)
+    calc((0.5 - var(--fy) * var(--rows)) / (1 - var(--rows)) * 100%);
 }
 
 @media (orientation: portrait) {
