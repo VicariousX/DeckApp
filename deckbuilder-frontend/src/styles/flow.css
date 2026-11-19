@@ -62,127 +62,122 @@ select:focus {
 .route-stage.is-traveling {
   min-height: calc(100dvh - 4.25rem);
   overflow: hidden;
-}
-
-.route-stage.is-traveling .route-page {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  overflow: hidden;
-  transform-origin: center center;
-  pointer-events: none;
-  background: var(--color-bg);
-  border-radius: 22px;
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.45),
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
-}
-
-.atlas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
-  --map-spread: 1;
+  perspective: 880px;
+  perspective-origin: 50% 40%;
   background:
-    radial-gradient(520px 320px at 50% 46%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 70%),
-    radial-gradient(280px 220px at 18% 72%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 70%),
-    radial-gradient(260px 200px at 82% 24%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 72%),
+    radial-gradient(520px 280px at 50% 18%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 70%),
     var(--color-bg);
-  animation: atlasLife 1.6s linear both;
 }
 
-.atlas-sky {
+.route-stage.is-fading .route-page {
+  animation: routeFade 280ms ease;
+}
+
+.flight-rig,
+.flight-board {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.flight-rig {
+  transform-origin: 50% 58%;
+}
+
+.flight-ground {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 150%;
+  height: 100%;
+  translate: -50% -50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 68%);
+  transform: translateZ(-40px);
+}
+
+.flight-sky {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
-.atlas-constellation {
+.flight-line {
   fill: none;
-  stroke: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  stroke: color-mix(in srgb, var(--color-accent) 32%, transparent);
   stroke-width: 0.35;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
-.atlas-route {
+.flight-route {
   fill: none;
   stroke: var(--color-accent);
-  stroke-width: 0.55;
-  stroke-dasharray: 2 1.4;
-  opacity: 0.85;
+  stroke-width: 0.6;
+  stroke-dasharray: 1.6 1.2;
 }
 
-.atlas-node {
+.flight-plinth {
   position: absolute;
-  left: calc(50% + var(--x) * var(--map-spread) * 1%);
-  top: calc(50% + var(--y) * var(--map-spread) * 1%);
-  translate: -50% -50%;
+  left: calc(50% + var(--x) * 1%);
+  top: calc(50% + var(--y) * 1%);
+  width: 6.4rem;
+  min-height: 3.3rem;
+  padding: 0.4rem 0.35rem 0.35rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.28rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 26%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 90%, black);
   color: var(--color-text-muted);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: center;
+  transform: translate(-50%, -50%) translateZ(var(--lift));
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
 }
 
-.atlas-node i {
-  width: 0.55rem;
-  height: 0.55rem;
+.flight-plinth i {
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 35%, transparent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-text) 6%, transparent);
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
 }
 
-.atlas-node.is-home i {
-  width: 0.72rem;
-  height: 0.72rem;
-}
-
-.atlas-node.is-from {
+.flight-plinth.is-from {
   color: var(--color-text);
+  border-color: var(--color-accent);
 }
 
-.atlas-node.is-from i,
-.atlas-node.is-to i {
+.flight-plinth.is-from i {
   background: var(--color-accent);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 24%, transparent);
 }
 
-.atlas-node.is-to {
-  color: var(--color-text);
-}
-
-.atlas-mote {
+.flight-card {
   position: absolute;
-  inset: 0;
+  left: calc(50% + var(--x) * 1%);
+  top: calc(50% + var(--y) * 1%);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   transform-origin: center center;
-}
-
-.atlas-mote i {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0.7rem;
-  height: 0.7rem;
-  margin: -0.35rem 0 0 -0.35rem;
-  border-radius: 999px;
-  background: var(--color-on-accent, #fff);
+  pointer-events: none;
+  background: var(--color-bg);
+  border-radius: 18px;
   box-shadow:
-    0 0 0 3px var(--color-accent),
-    0 0 18px var(--color-accent);
+    0 24px 50px rgba(0, 0, 0, 0.42),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 32%, transparent);
 }
 
-@keyframes atlasLife {
-  0% { opacity: 0; }
-  16% { opacity: 1; }
-  78% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes routeFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .flow-panel {
@@ -280,7 +275,8 @@ select:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .route-stage,
-  .atlas,
+  .flight-rig,
+  .flight-card,
   .flow-tab-next,
   .flow-tab-prev,
   .flow-sub-next,

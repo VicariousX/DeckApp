@@ -66,6 +66,13 @@ export function zoneFor(key: string): Zone {
   return ZONES.home;
 }
 
+export function zoneLift(id: string) {
+  if (["simple", "standard", "advanced", "results", "card"].includes(id)) return 46;
+  if (["social", "formats", "public", "proxy"].includes(id)) return 24;
+  if (id === "home" || id === "login") return 12;
+  return 0;
+}
+
 export function mapSpread() {
   if (typeof window === "undefined") return 1;
   return window.matchMedia("(max-width: 720px)").matches ? 0.62 : 1;

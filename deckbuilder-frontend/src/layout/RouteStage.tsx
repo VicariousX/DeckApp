@@ -1,103 +1,156 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { arc, CONSTELLATIONS, mapSpread, placeKey, ZONES, zoneFor, type Zone } from "./siteMap";
+import { arc, CONSTELLATIONS, mapSpread, placeKey, ZONES, zoneFor, zoneLift, type Zone } from "./siteMap";
 
-type Travel = { from: Zone; to: Zone; same: boolean; spread: number };
+type Travel = {
+  from: Zone;
+  to: Zone;
+  same: boolean;
+  spread: number;
+  tilt: number;
+  range: number;
+  ms: number;
+};
 
-function pageFrames(from: Zone, to: Zone, same: boolean, spread: number): Keyframe[] {
-  const { fx, fy, mx, my, tx, ty } = arc(from, to, spread);
-  const at = (x: number, y: number, scale: number, opacity: number, blur: number): Keyframe => ({
-    opacity,
-    transform: `translate(${x}%, ${y}%) scale(${scale})`,
-    filter: `blur(${blur}px)`,
-  });
+function profile(): Pick<Travel, "spread" | "tilt" | "range" | "ms"> {
+  const mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
+  return mobile
+    ? { spread: mapSpread(), tilt: 32, range: 980, ms: 1250 }
+    : { spread: 1, tilt: 52, range: 1500, ms: 1700 };
+}
+
+function pose(x: number, y: number, tilt: number, range: number, heading = 0) {
+  return `translateZ(${-range}px) rotateX(${tilt}deg) rotateZ(${heading}deg) translate(${-x}%, ${-y}%)`;
+}
+
+function rigFrames(travel: Travel): Keyframe[] {
+  const { fx, fy, mx, my, tx, ty } = arc(travel.from, travel.to, travel.spread);
+  const { tilt, range, same } = travel;
   if (same) {
     return [
-      { offset: 0, ...at(fx, fy, 1, 1, 0) },
-      { offset: 0.45, ...at(fx, fy, 0.62, 1, 0) },
-      { offset: 1, ...at(0, 0, 1, 1, 0) },
+      { offset: 0, transform: pose(fx, fy, tilt * 0.45, range * 0.45) },
+      { offset: 0.48, transform: pose(fx, fy, tilt * 0.7, range * 0.72) },
+      { offset: 1, transform: pose(tx, ty, 0, 0) },
     ];
   }
+  const heading = Math.max(-8, Math.min(8, (tx - fx) * -0.18));
   return [
-    { offset: 0, ...at(fx, fy, 0.16, 0, 10) },
-    { offset: 0.2, ...at(fx, fy, 0.2, 1, 0) },
-    { offset: 0.56, ...at(mx, my, 0.2, 1, 0) },
-    { offset: 0.72, ...at(tx, ty, 0.22, 1, 0) },
-    { offset: 1, ...at(0, 0, 1, 1, 0) },
+    { offset: 0, transform: pose(fx, fy, tilt, range) },
+    { offset: 0.2, transform: pose(fx, fy, tilt, range * 1.04) },
+    { offset: 0.6, transform: pose(mx, my, tilt * 0.9, range * 1.06, heading) },
+    { offset: 0.78, transform: pose(tx, ty, tilt * 0.55, range * 0.55) },
+    { offset: 1, transform: pose(tx, ty, 0, 0) },
   ];
 }
 
-function Atlas({ travel }: { travel: Travel }) {
-  const { from, to, same, spread } = travel;
-  const path = arc(from, to, spread);
-  const mote = useRef<HTMLDivElement>(null);
+function cardFrames(same: boolean): Keyframe[] {
+  const at = (scale: number, radius: string): Keyframe => ({
+    transform: `translate(-50%, -50%) scale(${scale})`,
+    borderRadius: radius,
+  });
+  if (same) {
+    return [
+      { offset: 0, ...at(1, "0px") },
+      { offset: 0.48, ...at(0.62, "18px") },
+      { offset: 1, ...at(1, "0px") },
+    ];
+  }
+  return [
+    { offset: 0, ...at(0.15, "18px") },
+    { offset: 0.72, ...at(0.18, "18px") },
+    { offset: 1, ...at(1, "0px") },
+  ];
+}
+
+function Flight({ travel, children }: { travel: Travel; children: ReactNode }) {
+  const rigRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const path = arc(travel.from, travel.to, travel.spread);
+  const rigStart = rigFrames(travel)[0]?.transform;
+  const cardStart = cardFrames(travel.same)[0]?.transform;
 
   useEffect(() => {
-    const el = mote.current;
-    if (!el || same) return;
-    const anim = el.animate(
-      [
-        { offset: 0, opacity: 0, transform: `translate(${path.fx}%, ${path.fy}%)` },
-        { offset: 0.2, opacity: 1, transform: `translate(${path.fx}%, ${path.fy}%)` },
-        { offset: 0.56, opacity: 1, transform: `translate(${path.mx}%, ${path.my}%)` },
-        { offset: 0.72, opacity: 1, transform: `translate(${path.tx}%, ${path.ty}%)` },
-        { offset: 1, opacity: 0, transform: `translate(${path.tx}%, ${path.ty}%)` },
-      ],
-      { duration: 1600, easing: "linear", fill: "both" }
-    );
-    return () => anim.cancel();
-  }, [path.fx, path.fy, path.mx, path.my, path.tx, path.ty, same]);
-
-  const d = `M ${50 + path.fx} ${50 + path.fy} Q ${50 + path.mx} ${50 + path.my} ${50 + path.tx} ${50 + path.ty}`;
+    const rig = rigRef.current;
+    const card = cardRef.current;
+    if (!rig || !card) return;
+    const opts: KeyframeAnimationOptions = {
+      duration: travel.same ? 1000 : travel.ms,
+      easing: "linear",
+      fill: "both",
+    };
+    const rigAnim = rig.animate(rigFrames(travel), opts);
+    const cardAnim = card.animate(cardFrames(travel.same), opts);
+    return () => {
+      rigAnim.cancel();
+      cardAnim.cancel();
+    };
+  }, [travel]);
 
   return (
-    <div
-      className="atlas"
-      style={{ ["--map-spread" as string]: String(spread), animationDuration: same ? "900ms" : "1600ms" }}
-      aria-hidden
-    >
-      <svg className="atlas-sky" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {CONSTELLATIONS.map((group) => (
-          <polyline
-            key={group[0].id}
-            className="atlas-constellation"
-            points={group.map((z) => `${50 + z.x * spread},${50 + z.y * spread}`).join(" ")}
-          />
-        ))}
-        {!same && <path className="atlas-route" d={d} />}
-      </svg>
-      {Object.values(ZONES).map((zone) => (
+    <div className="flight-rig" ref={rigRef} style={{ transform: String(rigStart ?? "none") }}>
+      <div className="flight-board">
+        <div className="flight-ground" />
+        <svg className="flight-sky" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {CONSTELLATIONS.map((group) => (
+            <polyline
+              key={group[0].id}
+              className="flight-line"
+              points={group.map((z) => `${50 + z.x * travel.spread},${50 + z.y * travel.spread}`).join(" ")}
+            />
+          ))}
+          {!travel.same && (
+            <path
+              className="flight-route"
+              d={`M ${50 + path.fx} ${50 + path.fy} Q ${50 + path.mx} ${50 + path.my} ${50 + path.tx} ${50 + path.ty}`}
+            />
+          )}
+        </svg>
+        {Object.values(ZONES).map((zone) =>
+          zone.id === travel.to.id ? null : (
+            <div
+              key={zone.id}
+              className={`flight-plinth${zone.id === travel.from.id ? " is-from" : ""}`}
+              style={
+                {
+                  ["--x" as string]: String(zone.x * travel.spread),
+                  ["--y" as string]: String(zone.y * travel.spread),
+                  ["--lift" as string]: `${zoneLift(zone.id) * travel.spread}px`,
+                } as CSSProperties
+              }
+            >
+              <i />
+              <span>{zone.label}</span>
+            </div>
+          )
+        )}
         <div
-          key={zone.id}
-          className={`atlas-node${zone.id === from.id ? " is-from" : ""}${zone.id === to.id ? " is-to" : ""}${zone.id === "home" ? " is-home" : ""}`}
-          style={{
-            ["--x" as string]: String(zone.x),
-            ["--y" as string]: String(zone.y),
-          }}
+          ref={cardRef}
+          className="flight-card"
+          style={
+            {
+              ["--x" as string]: String(travel.to.x * travel.spread),
+              ["--y" as string]: String(travel.to.y * travel.spread),
+              transform: String(cardStart ?? "none"),
+            } as CSSProperties
+          }
         >
-          <i />
-          <span>{zone.label}</span>
+          {children}
         </div>
-      ))}
-      {!same && (
-        <div ref={mote} className="atlas-mote">
-          <i />
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 /**
- * Moves between pages by zooming out onto a map of the site,
- * panning along an arc, and zooming into the destination.
+ * Page changes fly a camera over a tilted map of the site,
+ * then level out on the destination.
  */
 export function RouteStage({ children }: { children: ReactNode }) {
   const location = useLocation();
   const locKey = placeKey(location.pathname, location.search);
   const prevKey = useRef(locKey);
-  const pageRef = useRef<HTMLDivElement>(null);
   const [travel, setTravel] = useState<Travel | null>(null);
+  const [fade, setFade] = useState(false);
 
   if (locKey !== prevKey.current) {
     const from = zoneFor(prevKey.current);
@@ -106,50 +159,33 @@ export function RouteStage({ children }: { children: ReactNode }) {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduce) {
-      setTravel({ from, to, same: from.id === to.id, spread: mapSpread() });
+    if (reduce) {
+      setFade(true);
+    } else {
+      setTravel({ from, to, same: from.id === to.id, ...profile() });
     }
   }
 
   useEffect(() => {
     if (!travel) return;
-    const el = pageRef.current;
-    if (!el) return;
-    const anim = el.animate(pageFrames(travel.from, travel.to, travel.same, travel.spread), {
-      duration: travel.same ? 900 : 1600,
-      easing: "linear",
-      fill: "both",
-    });
-    let closed = false;
-    const finish = () => {
-      if (closed) return;
-      closed = true;
-      setTravel(null);
-    };
-    anim.onfinish = finish;
-    return () => {
-      closed = true;
-      anim.cancel();
-    };
+    const ms = travel.same ? 1000 : travel.ms;
+    const timer = window.setTimeout(() => setTravel(null), ms + 40);
+    return () => window.clearTimeout(timer);
   }, [travel]);
 
-  const parked: CSSProperties | undefined = travel
-    ? (() => {
-        const frame = pageFrames(travel.from, travel.to, travel.same, travel.spread)[0];
-        return {
-          opacity: Number(frame.opacity ?? 1),
-          transform: String(frame.transform ?? "none"),
-          filter: String(frame.filter ?? "none"),
-        };
-      })()
-    : undefined;
+  useEffect(() => {
+    if (!fade) return;
+    const timer = window.setTimeout(() => setFade(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [fade]);
 
   return (
-    <div className={`route-stage${travel ? " is-traveling" : ""}`}>
-      {travel && <Atlas travel={travel} />}
-      <div ref={pageRef} className="route-page" style={parked}>
-        {children}
-      </div>
+    <div className={`route-stage${travel ? " is-traveling" : ""}${fade ? " is-fading" : ""}`}>
+      {travel ? (
+        <Flight travel={travel}>{children}</Flight>
+      ) : (
+        <div className="route-page">{children}</div>
+      )}
     </div>
   );
 }
