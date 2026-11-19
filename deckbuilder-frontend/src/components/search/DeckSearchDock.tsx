@@ -6,6 +6,7 @@ import { SearchResultsPanel } from "./SearchResultsPanel";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { BottomSheet } from "../BottomSheet";
+import { FlowPanel } from "../../layout/FlowPanel";
 import styles from "./DeckSearchDock.module.css";
 
 export type SearchKind = "simple" | "standard" | "advanced";
@@ -187,6 +188,7 @@ export function DeckSearchDock({
 
   const searchBody = (
     <>
+      <FlowPanel id={active.mode} order={["simple", "standard", "advanced"]} kind="mode">
       {active.mode === "advanced" ? (
         <AdvancedSearch
           compact
@@ -210,6 +212,7 @@ export function DeckSearchDock({
           onSearch={(q) => runQuery(q, "simple")}
         />
       )}
+      </FlowPanel>
       {active.query && (
         <div ref={resultsRef}>
           <SearchResultsPanel

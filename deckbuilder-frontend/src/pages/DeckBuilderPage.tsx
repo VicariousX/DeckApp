@@ -105,6 +105,7 @@ import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
 import { LegalityDropdown } from "../components/LegalityDropdown";
 import { PanelTabs, type PanelTab } from "../components/PanelTabs";
+import { FlowPanel } from "../layout/FlowPanel";
 import { BoardCycle } from "../components/BoardCycle";
 import { DeckToolbar } from "../components/DeckToolbar";
 import { AddCardRow } from "../components/AddCardRow";
@@ -1731,6 +1732,7 @@ export function DeckBuilderPage() {
             />
           </header>
 
+          <FlowPanel id={panel} order={["deck", "stats", "tokens", "tags"]} kind="tab">
           {(panel === "deck" || panel === "tokens") && (
             <>
               <div className={styles.composer}>
@@ -1836,7 +1838,9 @@ export function DeckBuilderPage() {
             />
           )}
 
-          {(panel === "deck" || panel === "tokens") && viewMode === "image" && (
+          {(panel === "deck" || panel === "tokens") && (
+            <FlowPanel id={`${viewMode}:${groupMode}`} kind="mode">
+            {viewMode === "image" && (
             <DeckImageView
               panel={panel}
               isOwner={isOwner}
@@ -1865,9 +1869,8 @@ export function DeckBuilderPage() {
               onAddColumn={addListColumn}
               onRemoveColumn={removeListColumn}
             />
-          )}
-
-          {(panel === "deck" || panel === "tokens") && viewMode === "text" && wrapTextList(
+            )}
+            {viewMode === "text" && wrapTextList(
             <DeckTextView
               displaySections={
                 groupMode === "none" && detail
@@ -1905,6 +1908,9 @@ export function DeckBuilderPage() {
               onRemoveColumn={removeListColumn}
             />
           )}
+            </FlowPanel>
+          )}
+          </FlowPanel>
         </>
       )}
 

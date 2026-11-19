@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { CardSearch } from "../components/CardSearch";
 import { AdvancedSearch } from "../components/search/AdvancedSearch";
+import { FlowPanel } from "../layout/FlowPanel";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./SearchPage.module.css";
 
@@ -21,11 +22,13 @@ export function SearchPage() {
           <Link to="/search?mode=advanced" className={mode === "advanced" ? styles.modeOn : styles.mode}>Advanced</Link>
         </div>
       </header>
+      <FlowPanel id={mode} order={["standard", "advanced"]} kind="mode">
       {mode === "advanced" ? (
         <AdvancedSearch initialQuery={params.get("q") ?? ""} />
       ) : (
         <CardSearch mode="standard" />
       )}
+      </FlowPanel>
     </div>
   );
 }

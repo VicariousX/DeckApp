@@ -107,9 +107,8 @@ export function CardInspectorModal({
   const [rulingsError, setRulingsError] = useState<string | null>(null);
   const [rulingsLoading, setRulingsLoading] = useState(false);
   const [usefulInTags, setUsefulInTags] = useState<string[]>([]);
-
-
-  const [contentKey, setContentKey] = useState(0);
+  const panelMotion = useRef<HTMLDivElement>(null);
+  const panelMotionSeen = useRef<string | null>(null);
   const DEFAULT_MODAL_SIZE = { w: 860, h: 700 };
   /** Fixed until the user drags the resize handle. */
   const [modalSize, setModalSize] = useState(DEFAULT_MODAL_SIZE);
@@ -241,6 +240,40 @@ export function CardInspectorModal({
     tabs.findIndex((t) => t.id === active)
   );
   const activeTab = tabs[activeIndex];
+  const activeSub = activeTab?.subTabs
+    ? subByTab[activeTab.id] ?? activeTab.subTabs[0]?.id ?? ""
+    : "";
+
+  useEffect(() => {
+    const el = panelMotion.current;
+    const next = `${active}:${activeSub}`;
+    const prev = panelMotionSeen.current;
+    panelMotionSeen.current = next;
+    if (!el || prev == null || prev === next) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const [prevTab, prevSub] = prev.split(":");
+    const tabIds = tabs.map((t) => t.id);
+    const tabChange = prevTab !== active;
+    const dir = tabChange
+      ? tabIds.indexOf(active) < tabIds.indexOf(prevTab) ? -1 : 1
+      : (activeTab?.subTabs?.map((s) => s.id).indexOf(activeSub) ?? 0) <
+          (activeTab?.subTabs?.map((s) => s.id).indexOf(prevSub) ?? 0)
+        ? -1
+        : 1;
+    const frames: Keyframe[] = tabChange
+      ? [
+          { opacity: 0, transform: `translateX(${dir * 12}%)` },
+          { opacity: 1, transform: "translateX(0)" },
+        ]
+      : [
+          { opacity: 0, transform: `translateY(${dir * 42}px)` },
+          { opacity: 1, transform: "translateY(0)" },
+        ];
+    el.animate(frames, {
+      duration: tabChange ? 820 : 700,
+      easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+    });
+  }, [active, activeSub, activeTab, tabs]);
 
   useEffect(() => {
     if (!tabs.some((t) => t.id === active)) setActive("info");
@@ -434,7 +467,6 @@ export function CardInspectorModal({
   function selectTab(id: TabId) {
     if (id === active) return;
     setActive(id);
-    setContentKey((k) => k + 1);
   }
 
   function onResizePointerDown(e: ReactPointerEvent) {
@@ -715,7 +747,6 @@ export function CardInspectorModal({
             </div>
 
             <div
-              key={contentKey}
               className={styles.tabPanel}
               role="tabpanel"
             >
@@ -740,6 +771,7 @@ export function CardInspectorModal({
                 return (
                   <div
                     key={tab.id}
+                    ref={tab.id === active ? panelMotion : undefined}
                     className={styles.panelScroll}
                     data-panel-scroll=""
                     hidden={hidden || undefined}

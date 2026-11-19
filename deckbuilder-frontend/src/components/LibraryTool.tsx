@@ -20,6 +20,7 @@ import type { DeckCard } from "../types/deck";
 import type { DeckToken } from "../lib/deck/deckTokens";
 import type { DrawerCardView } from "../types/drawer";
 import type { ExportSection } from "../lib/cards/exportCardList";
+import { FlowPanel } from "../layout/FlowPanel";
 import styles from "./LibraryTool.module.css";
 
 type Tab = "import" | "export" | "drawers";
@@ -68,6 +69,7 @@ export function LibraryTool(props: Props) {
         ))}
       </div>
       <div className={styles.pane}>
+        <FlowPanel id={tab} order={tabs.map(([id]) => id)} kind="tab">
         {tab === "import" && <ImportPane onImport={props.onBulkImport} />}
         {tab === "export" && (
           <ExportPane
@@ -88,6 +90,7 @@ export function LibraryTool(props: Props) {
             deckQtyByOracle={props.deckQtyByOracle}
           />
         )}
+        </FlowPanel>
       </div>
     </div>
   );

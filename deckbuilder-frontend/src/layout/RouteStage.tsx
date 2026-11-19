@@ -2,16 +2,23 @@ import { useRef, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 
 /**
- * Remounts on pathname so each screen eases in.
- * Deeper paths arrive from the right; shorter paths return from the left.
+ * Remounts on pathname. Forward travel comes in from the right.
+ * Returning to a page already in the stack comes in from the left.
  */
 export function RouteStage({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const prev = useRef(pathname);
+  const stack = useRef<string[]>([pathname]);
   const dir = useRef<"forward" | "back">("forward");
-  if (pathname !== prev.current) {
-    dir.current = pathname.length >= prev.current.length ? "forward" : "back";
-    prev.current = pathname;
+  const top = stack.current[stack.current.length - 1];
+  if (pathname !== top) {
+    const prior = stack.current[stack.current.length - 2];
+    if (prior === pathname) {
+      dir.current = "back";
+      stack.current.pop();
+    } else {
+      dir.current = "forward";
+      stack.current.push(pathname);
+    }
   }
 
   return (
