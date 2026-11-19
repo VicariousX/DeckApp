@@ -143,7 +143,15 @@ select:focus {
   transform-origin: 0 0;
   background:
     linear-gradient(rgba(7, 6, 15, 0.04), rgba(7, 6, 15, 0.04)),
-    url("/map-sky.jpg?v=network") center / 100% 100% no-repeat;
+    url("/map-sky-desktop.jpg?v=pair") center / 100% 100% no-repeat;
+}
+
+@media (orientation: portrait) {
+  .map-world {
+    background:
+      linear-gradient(rgba(7, 6, 15, 0.04), rgba(7, 6, 15, 0.04)),
+      url("/map-sky-mobile.jpg?v=pair") center / 100% 100% no-repeat;
+  }
 }
 
 .route-stage.is-traveling .map-sky {
@@ -308,12 +316,18 @@ select:focus {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: url("/map-sky.jpg?v=network");
+  background-image: url("/map-sky-desktop.jpg?v=pair");
   background-repeat: no-repeat;
   background-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
   background-position:
     calc(var(--col) * 100% / (var(--cols) - 1))
     calc(var(--row) * 100% / (var(--rows) - 1));
+}
+
+@media (orientation: portrait) {
+  .map-sky {
+    background-image: url("/map-sky-mobile.jpg?v=pair");
+  }
 }
 
 @keyframes routeFade {
