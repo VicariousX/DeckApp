@@ -142,8 +142,8 @@ select:focus {
   height: calc(var(--rows) * 100%);
   transform-origin: 0 0;
   background:
-    linear-gradient(rgba(7, 6, 15, 0.12), rgba(7, 6, 15, 0.12)),
-    url("/map-sky.jpg") center / 100% 100% no-repeat;
+    linear-gradient(rgba(7, 6, 15, 0.04), rgba(7, 6, 15, 0.04)),
+    url("/map-sky.jpg?v=network") center / 100% 100% no-repeat;
 }
 
 .route-stage.is-traveling .map-sky {
@@ -154,7 +154,7 @@ select:focus {
   position: absolute;
   z-index: 0;
   border-radius: 4vw;
-  background: rgba(7, 6, 15, 0.16);
+  background: rgba(7, 6, 15, 0.08);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
@@ -172,7 +172,7 @@ select:focus {
 
 .map-plate-library,
 .map-plate-table {
-  background: rgba(7, 6, 15, 0.12);
+  background: rgba(7, 6, 15, 0.06);
 }
 
 .map-stand-slot {
@@ -308,7 +308,7 @@ select:focus {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: url("/map-sky.jpg");
+  background-image: url("/map-sky.jpg?v=network");
   background-repeat: no-repeat;
   background-size: calc(var(--cols) * 100%) calc(var(--rows) * 100%);
   background-position:
