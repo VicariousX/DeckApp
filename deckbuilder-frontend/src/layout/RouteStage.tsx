@@ -4,7 +4,15 @@ import { AppRoutes } from "./AppRoutes";
 import { GRID, placeKey, zoneFor, ZONES, type Zone } from "./siteMap";
 
 type Frame = { id: number; loc: Location };
-type Travel = { from: Zone; to: Zone; fromId: number; toId: number; same: boolean; ms: number };
+type Travel = {
+  from: Zone;
+  to: Zone;
+  fromId: number;
+  toId: number;
+  same: boolean;
+  motion: "pan" | "flight";
+  ms: number;
+};
 
 const FIT = 0.9 / Math.max(GRID.cols, GRID.rows);
 
@@ -15,7 +23,13 @@ function camera(col: number, row: number, scale: number) {
 }
 
 function framesOf(travel: Travel): Keyframe[] {
-  const { from, to, same } = travel;
+  const { from, to, same, motion } = travel;
+  if (motion === "pan") {
+    return [
+      { offset: 0, transform: camera(from.col, from.row, 1) },
+      { offset: 1, transform: camera(to.col, to.row, 1) },
+    ];
+  }
   if (same) {
     const mid = Math.min(0.42, FIT * 2.6);
     return [
@@ -30,6 +44,18 @@ function framesOf(travel: Travel): Keyframe[] {
     { offset: 0.68, transform: camera(to.col, to.row, FIT) },
     { offset: 1, transform: camera(to.col, to.row, 1) },
   ];
+}
+
+function travelPlan(from: Zone, to: Zone, mobile: boolean): Pick<Travel, "motion" | "ms" | "same"> {
+  const same = from.id === to.id;
+  const motion = to.heavy ? "flight" : "pan";
+  if (motion === "pan") {
+    const dist = Math.hypot(to.col - from.col, to.row - from.row);
+    const near = from.cluster === to.cluster;
+    const ms = Math.round(Math.min(mobile ? 380 : 460, (near ? 240 : 300) + dist * (near ? 36 : 55)));
+    return { motion, ms, same };
+  }
+  return { motion, same, ms: same ? (mobile ? 700 : 860) : mobile ? 1100 : 1400 };
 }
 
 function cellStyle(zone: Zone): CSSProperties {
@@ -70,15 +96,14 @@ export function RouteStage() {
       setFade(true);
     } else {
       const mobile = window.matchMedia("(max-width: 720px)").matches;
-      const same = from.id === to.id;
+      const plan = travelPlan(from, to, mobile);
       setFrames((current) => [...current, { id: nextId, loc: live }]);
       setTravel({
         from,
         to,
         fromId: top.id,
         toId: nextId,
-        same,
-        ms: same ? (mobile ? 800 : 980) : mobile ? 1200 : 1560,
+        ...plan,
       });
     }
   }
@@ -88,7 +113,7 @@ export function RouteStage() {
     const world = worldRef.current;
     const anim = world?.animate(framesOf(travel), {
       duration: travel.ms,
-      easing: "linear",
+      easing: travel.motion === "pan" ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "linear",
       fill: "both",
     });
     const timer = window.setTimeout(() => {
@@ -117,15 +142,15 @@ export function RouteStage() {
         className={travel ? "map-world" : "route-hold"}
         style={
           travel
-            ? {
+            ? ({
                 ["--cols" as string]: String(GRID.cols),
                 ["--rows" as string]: String(GRID.rows),
-                transform: framesOf(travel)[0]?.transform,
-              }
+                transform: String(framesOf(travel)[0]?.transform ?? "none"),
+              } as CSSProperties)
             : undefined
         }
       >
-        {travel &&
+        {travel?.motion === "flight" &&
           Object.values(ZONES).map((zone) =>
             occupied.has(zone.id) ? null : (
               <div key={zone.id} className="map-cell" style={cellStyle(zone)}>
