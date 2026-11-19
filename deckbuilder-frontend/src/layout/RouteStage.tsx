@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useLocation } from "react-router-dom";
-import { GRID, placeKey, zoneAt, zoneFor, type Zone } from "./siteMap";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useLocation, type Location } from "react-router-dom";
+import { AppRoutes } from "./AppRoutes";
+import { GRID, placeKey, zoneFor, ZONES, type Zone } from "./siteMap";
 
-type Travel = { from: Zone; to: Zone; same: boolean; ms: number };
+type Frame = { id: number; loc: Location };
+type Travel = { from: Zone; to: Zone; fromId: number; toId: number; same: boolean; ms: number };
 
 const FIT = 0.9 / Math.max(GRID.cols, GRID.rows);
 
@@ -12,7 +14,7 @@ function camera(col: number, row: number, scale: number) {
   return `translate(${x}%, ${y}%) scale(${scale})`;
 }
 
-function frames(travel: Travel): Keyframe[] {
+function framesOf(travel: Travel): Keyframe[] {
   const { from, to, same } = travel;
   if (same) {
     const mid = Math.min(0.42, FIT * 2.6);
@@ -30,89 +32,74 @@ function frames(travel: Travel): Keyframe[] {
   ];
 }
 
-function GridFlight({ travel, children }: { travel: Travel; children: ReactNode }) {
-  const worldRef = useRef<HTMLDivElement>(null);
-  const cells = [];
-  for (let row = 0; row < GRID.rows; row += 1) {
-    for (let col = 0; col < GRID.cols; col += 1) {
-      const zone = zoneAt(col, row);
-      const here = zone?.id === travel.to.id;
-      cells.push(
-        <div
-          key={`${col}-${row}`}
-          className={`map-cell${zone ? "" : " is-empty"}${zone?.id === travel.from.id ? " is-from" : ""}${here ? " is-to" : ""}`}
-        >
-          {here ? (
-            <div className="map-page">{children}</div>
-          ) : (
-            zone && <span className="map-label">{zone.label}</span>
-          )}
-        </div>
-      );
-    }
-  }
-
-  useEffect(() => {
-    const world = worldRef.current;
-    if (!world) return;
-    const anim = world.animate(frames(travel), {
-      duration: travel.ms,
-      easing: "linear",
-      fill: "both",
-    });
-    return () => anim.cancel();
-  }, [travel]);
-
-  return (
-    <div className="map-view">
-      <div
-        ref={worldRef}
-        className="map-world"
-        style={{
-          ["--cols" as string]: String(GRID.cols),
-          ["--rows" as string]: String(GRID.rows),
-          transform: String(frames(travel)[0]?.transform ?? "none"),
-        }}
-      >
-        {cells}
-      </div>
-    </div>
-  );
+function cellStyle(zone: Zone): CSSProperties {
+  return {
+    position: "absolute",
+    left: `${(zone.col / GRID.cols) * 100}%`,
+    top: `${(zone.row / GRID.rows) * 100}%`,
+    width: `${100 / GRID.cols}%`,
+    height: `${100 / GRID.rows}%`,
+    overflow: "hidden",
+  };
 }
 
-/** Zoom out to the site grid, pan to the next cell, then zoom in. */
-export function RouteStage({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const locKey = placeKey(location.pathname, location.search);
-  const prevKey = useRef(locKey);
+/**
+ * One stage for the whole site, including the landing page.
+ * The page you are leaving stays mounted and zooms out.
+ * The page you are opening mounts at once, in its own cell, and renders while the camera pans.
+ */
+export function RouteStage() {
+  const live = useLocation();
+  const liveKey = placeKey(live.pathname, live.search);
+  const [frames, setFrames] = useState<Frame[]>(() => [{ id: 1, loc: live }]);
   const [travel, setTravel] = useState<Travel | null>(null);
   const [fade, setFade] = useState(false);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const top = frames[frames.length - 1];
+  const topKey = placeKey(top.loc.pathname, top.loc.search);
 
-  if (locKey !== prevKey.current) {
-    const from = zoneFor(prevKey.current);
-    const to = zoneFor(locKey);
-    prevKey.current = locKey;
+  if (liveKey !== topKey && !travel) {
+    const from = zoneFor(topKey);
+    const to = zoneFor(liveKey);
+    const nextId = top.id + 1;
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
+      setFrames([{ id: nextId, loc: live }]);
       setFade(true);
     } else {
       const mobile = window.matchMedia("(max-width: 720px)").matches;
       const same = from.id === to.id;
+      setFrames((current) => [...current, { id: nextId, loc: live }]);
       setTravel({
         from,
         to,
+        fromId: top.id,
+        toId: nextId,
         same,
-        ms: same ? (mobile ? 800 : 980) : mobile ? 1150 : 1500,
+        ms: same ? (mobile ? 800 : 980) : mobile ? 1200 : 1560,
       });
     }
   }
 
   useEffect(() => {
     if (!travel) return;
-    const timer = window.setTimeout(() => setTravel(null), travel.ms + 30);
-    return () => window.clearTimeout(timer);
+    const world = worldRef.current;
+    const anim = world?.animate(framesOf(travel), {
+      duration: travel.ms,
+      easing: "linear",
+      fill: "both",
+    });
+    const timer = window.setTimeout(() => {
+      anim?.cancel();
+      setFrames((current) => current.filter((frame) => frame.id === travel.toId));
+      setTravel(null);
+    }, travel.ms + 40);
+    return () => {
+      window.clearTimeout(timer);
+      anim?.cancel();
+    };
   }, [travel]);
 
   useEffect(() => {
@@ -121,9 +108,49 @@ export function RouteStage({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [fade]);
 
+  const occupied = new Set(frames.map((frame) => zoneFor(placeKey(frame.loc.pathname, frame.loc.search)).id));
+
   return (
     <div className={`route-stage${travel ? " is-traveling" : ""}${fade ? " is-fading" : ""}`}>
-      {travel ? <GridFlight travel={travel}>{children}</GridFlight> : <div className="route-page">{children}</div>}
+      <div
+        ref={worldRef}
+        className={travel ? "map-world" : "route-hold"}
+        style={
+          travel
+            ? {
+                ["--cols" as string]: String(GRID.cols),
+                ["--rows" as string]: String(GRID.rows),
+                transform: framesOf(travel)[0]?.transform,
+              }
+            : undefined
+        }
+      >
+        {travel &&
+          Object.values(ZONES).map((zone) =>
+            occupied.has(zone.id) ? null : (
+              <div key={zone.id} className="map-cell" style={cellStyle(zone)}>
+                <span className="map-label">{zone.label}</span>
+              </div>
+            )
+          )}
+        {frames.map((frame) => {
+          const zone = zoneFor(placeKey(frame.loc.pathname, frame.loc.search));
+          const incoming = travel?.toId === frame.id;
+          return (
+            <div
+              key={frame.id}
+              className={
+                travel
+                  ? `map-frame${incoming && travel.same ? " is-incoming" : ""}`
+                  : "route-page"
+              }
+              style={travel ? { ...cellStyle(zone), animationDuration: `${travel.ms}ms` } : undefined}
+            >
+              <AppRoutes location={frame.loc} />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

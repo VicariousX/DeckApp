@@ -55,12 +55,40 @@ select:focus {
   min-height: 100%;
 }
 
+.route-hold,
 .route-page {
   min-height: 100%;
 }
 
+.map-frame {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  pointer-events: none;
+}
+
+.map-frame > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.map-frame.is-incoming {
+  z-index: 2;
+  animation: frameReveal linear both;
+}
+
+@keyframes frameReveal {
+  0%,
+  42% { opacity: 0; }
+  56%,
+  100% { opacity: 1; }
+}
+
 .route-stage.is-traveling {
-  min-height: calc(100dvh - 4.25rem);
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   background: var(--color-bg);
 }

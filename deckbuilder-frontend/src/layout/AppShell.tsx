@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AmbientBackdrop } from "../components/AmbientBackdrop";
 import { SettingsButton, SettingsDrawer } from "../components/SettingsDrawer";
-import { RouteStage } from "./RouteStage";
 import { useAuth } from "../auth/AuthProvider";
 import { getDisplayName } from "../auth/userDisplay";
 import { getLastViewedDeck } from "../lib/deckPreferences";
@@ -274,9 +273,7 @@ export function AppShell() {
       </div>
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <main className={styles.main}>
-        <RouteStage>
-          <Outlet />
-        </RouteStage>
+        <Outlet />
       </main>
       {!isPlay && (
         <div className={styles.mobileNav} ref={sheetRef}>
