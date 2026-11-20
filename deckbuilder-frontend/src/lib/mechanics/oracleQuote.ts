@@ -2,7 +2,10 @@ export type OracleLine =
   | { kind: "face"; text: string }
   | {
       kind: "rule";
+      /** Rules text with reminder text removed, used for matching. */
       text: string;
+      /** The original Scryfall line, unchanged. */
+      source: string;
       index: number;
       reminders: { text: string; index: number }[];
     };
@@ -119,6 +122,7 @@ export function oracleLines(text: string): OracleLine[] {
     lines.push({
       kind: "rule",
       text: split.rule,
+      source: line,
       index: split.next - split.reminders.length - 1,
       reminders: split.reminders,
     });

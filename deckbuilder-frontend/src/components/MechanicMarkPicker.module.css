@@ -20,47 +20,29 @@
   color: var(--color-text-muted);
 }
 
-.ability {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-}
-
 .oracleLine,
-.oracleHit,
-.reminder,
-.reminderHit {
+.oracleHit {
   margin: 0;
   white-space: pre-wrap;
   border-radius: 4px;
-}
-
-.oracleLine,
-.oracleHit {
   font-size: 0.86rem;
-  line-height: 1.4;
-  padding: 0.02rem 0.2rem;
+  line-height: 1.45;
+  padding: 0.04rem 0.2rem;
 }
 
-.reminder,
-.reminderHit {
-  padding: 0.02rem 0.2rem 0.02rem 0.7rem;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: var(--color-text-muted);
-}
-
-.oracleHit,
-.reminderHit {
+.oracleHit {
   background: color-mix(in srgb, var(--color-accent) 16%, transparent);
   box-shadow: inset 2px 0 0 var(--color-accent);
-  color: var(--color-text);
 }
 
 .oracle :global(.inline-symbol) {
-  vertical-align: -0.15em;
-  height: 1em;
-  width: auto;
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  max-width: none;
+  margin: 0 0.05em;
+  vertical-align: -0.2em;
+  user-select: none;
 }
 
 .sectionHead {
@@ -113,10 +95,10 @@
 .mark,
 .markOn {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  align-items: baseline;
+  gap: 0.4rem;
   min-height: 1.85rem;
-  padding: 0.12rem 0.35rem;
+  padding: 0.12rem 0.2rem 0.12rem 0.35rem;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -129,10 +111,21 @@
 
 .mark strong,
 .markOn strong {
+  flex-shrink: 0;
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-right: auto;
+}
+
+.def {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--color-text-muted);
 }
 
 .role {
@@ -140,6 +133,86 @@
   font-size: 0.68rem;
   font-weight: 650;
   color: var(--color-text-muted);
+}
+
+.more {
+  appearance: none;
+  flex-shrink: 0;
+  align-self: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-left: 0.05rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.more:hover,
+.more[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  color: var(--color-text);
+}
+
+.moreMenu {
+  position: fixed;
+  z-index: 8000;
+  width: 10.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: var(--color-surface);
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 48%, transparent);
+}
+
+.moreStatus {
+  margin: 0;
+  padding: 0.28rem 0.45rem 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.moreStatus[data-status="accepted"],
+.moreStatus[data-status="locked"] {
+  color: var(--color-accent);
+}
+
+.moreStatus[data-status="flagged"] {
+  color: var(--color-error, #c45);
+}
+
+.moreMenu button {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0.38rem 0.45rem;
+  cursor: pointer;
+}
+
+.moreMenu button:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.moreMenu button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .status {

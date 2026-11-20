@@ -178,6 +178,113 @@ function ThemeSelect({
   );
 }
 
+function MarkMenu({
+  mark,
+  admin,
+  canVote,
+  busy,
+  onVote,
+  onLock,
+}: {
+  mark: MechanicMark;
+  admin: boolean;
+  canVote: boolean;
+  busy: boolean;
+  onVote: (kind: "endorse" | "flag") => void;
+  onLock: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [box, setBox] = useState<{ top: number; left: number } | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  function place() {
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = 168;
+    setBox({
+      top: rect.bottom + 4,
+      left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+    });
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: PointerEvent) {
+      const target = e.target as Node;
+      if (button.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDoc);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={button}
+        type="button"
+        className={styles.more}
+        aria-label="Mark actions"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          place();
+          setOpen(true);
+        }}
+      >
+        <span aria-hidden="true">⋮</span>
+      </button>
+      {open && box
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className={styles.moreMenu}
+              role="menu"
+              style={{ top: box.top, left: box.left }}
+            >
+              <p className={styles.moreStatus} data-status={mark.status}>
+                {STATUS_LABEL[mark.status]}
+              </p>
+              {canVote ? (
+                <>
+                  <button type="button" role="menuitem" disabled={busy} onClick={() => { setOpen(false); onVote("endorse"); }}>
+                    Endorse {mark.endorse_count}
+                  </button>
+                  <button type="button" role="menuitem" disabled={busy} onClick={() => { setOpen(false); onVote("flag"); }}>
+                    Flag {mark.flag_count}
+                  </button>
+                </>
+              ) : null}
+              {admin ? (
+                <button type="button" role="menuitem" onClick={() => { setOpen(false); onLock(); }}>
+                  {mark.status === "locked" ? "Unlock" : "Lock"}
+                </button>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
   const { user } = useAuth();
   const [marks, setMarks] = useState<MechanicMark[]>([]);
@@ -189,7 +296,7 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
   const [busy, setBusy] = useState(false);
   const [voting, setVoting] = useState<string | null>(null);
   const [focusLine, setFocusLine] = useState<number | null>(null);
-  const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
+  const lineRefs = useRef<Array<HTMLElement | null>>([]);
 
   async function reload() {
     const { marks: list, error } = await listMarksForOracle(oracleId);
@@ -264,29 +371,20 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
                 {line.text}
               </p>
             ) : (
-              <div key={line.index} className={styles.ability}>
-                {line.text ? (
-                  <p
-                    ref={(node) => {
-                      lineRefs.current[line.index] = node;
-                    }}
-                    className={line.index === focusLine ? styles.oracleHit : styles.oracleLine}
-                  >
-                    {renderTextWithSymbols(line.text, 14)}
-                  </p>
-                ) : null}
-                {line.reminders.map((rem) => (
-                  <p
-                    key={rem.index}
-                    ref={(node) => {
-                      lineRefs.current[rem.index] = node;
-                    }}
-                    className={rem.index === focusLine ? styles.reminderHit : styles.reminder}
-                  >
-                    {renderTextWithSymbols(rem.text, 13)}
-                  </p>
-                ))}
-              </div>
+              <p
+                key={line.index}
+                ref={(node) => {
+                  lineRefs.current[line.index] = node;
+                  for (const rem of line.reminders) lineRefs.current[rem.index] = node;
+                }}
+                className={
+                  line.index === focusLine || line.reminders.some((rem) => rem.index === focusLine)
+                    ? styles.oracleHit
+                    : styles.oracleLine
+                }
+              >
+                {renderTextWithSymbols(line.source, 15)}
+              </p>
             )
           )}
         </div>
@@ -314,43 +412,24 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
                   onBlur={() => setFocusLine(null)}
                 >
                   <strong>{def?.name ?? m.mechanic_id}</strong>
-                  <span className={styles.role}>{AGENCY_LABEL[m.relation]}</span>
-                  <span className={styles.status} data-status={m.status}>
-                    {STATUS_LABEL[m.status]}
-                  </span>
-                  {(user && m.status !== "locked") || admin ? (
-                    <span className={styles.markActions}>
-                      {user && m.status !== "locked" ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={voting === m.id}
-                            onClick={() => void vote(m.id, "endorse")}
-                          >
-                            Endorse {m.endorse_count}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={voting === m.id}
-                            onClick={() => void vote(m.id, "flag")}
-                          >
-                            Flag {m.flag_count}
-                          </button>
-                        </>
-                      ) : null}
-                      {admin ? (
-                        <button
-                          type="button"
-                          className={styles.lock}
-                          onClick={() =>
-                            void lockMark(user!.id, m.id, m.status !== "locked").then(() => reload())
-                          }
-                        >
-                          {m.status === "locked" ? "Unlock" : "Lock"}
-                        </button>
-                      ) : null}
+                  {def?.hint ? (
+                    <span className={styles.def} title={def.hint}>
+                      {def.hint}
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className={styles.def} />
+                  )}
+                  <span className={styles.role}>{AGENCY_LABEL[m.relation]}</span>
+                  <MarkMenu
+                    mark={m}
+                    admin={admin}
+                    canVote={Boolean(user) && m.status !== "locked"}
+                    busy={voting === m.id}
+                    onVote={(kind) => void vote(m.id, kind)}
+                    onLock={() =>
+                      void lockMark(user!.id, m.id, m.status !== "locked").then(() => reload())
+                    }
+                  />
                 </li>
               );
             })}
