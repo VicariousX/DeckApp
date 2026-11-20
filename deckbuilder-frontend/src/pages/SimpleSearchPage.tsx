@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { renderManaSymbol } from "../utils/symbols";
 import { SearchModeSwitch } from "../components/SearchModeSwitch";
 import { buildSimpleQuery, decodeSimpleState, encodeSimpleState, type Color, type IdLogic, type Logic, type SimpleState, type StatChip, type StatField, type StatOp } from "../lib/search/simpleQuery";
+import transitions from "../styles/pageTransitions.module.css";
+import pageStyles from "./SearchPage.module.css";
 import styles from "./LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
@@ -148,21 +150,21 @@ export function SimpleSearchPage() {
   }
 
   return (
-    <div className={styles.accountContent} style={{ maxWidth: 720, margin: "1.5rem auto", padding: "0 1rem" }}>
+    <div className={`${transitions.page} ${pageStyles.page}`}>
       <style>{`
         .no-spin::-webkit-outer-spin-button,
         .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-spin { -moz-appearance: textfield; }
       `}</style>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+      <header className={pageStyles.header}>
         <div>
-          <h1 className={styles.title}>Simple search</h1>
-          <p className={styles.subtitle}>Build a query. Submit to see results.</p>
+          <h1>Search</h1>
+          <p>Build a query. Submit to see results.</p>
         </div>
         <SearchModeSwitch mode="simple" />
-      </div>
+      </header>
 
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem", marginTop: 16 }}>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem", maxWidth: 720, margin: "0 auto" }}>
         <section>
           <label className={styles.label}>Name</label>
           <input
