@@ -83,7 +83,7 @@ begin
     end if;
     insert into public.bot_set_jobs (set_code, status)
     values (code, 'queued')
-    on conflict (set_code) do update
+    on conflict on constraint bot_set_jobs_pkey do update
       set status = 'queued',
           cursor = null,
           note = '',
@@ -114,8 +114,9 @@ language plpgsql
 security definer
 set search_path = public, extensions
 as $$
+#variable_conflict use_column
 declare
-  code text := lower(btrim(coalesce(set_code, '')));
+  code text := lower(btrim(coalesce(bot_touch_set.set_code, '')));
 begin
   if not public.bot_token_ok(token) then
     raise exception 'unauthorized' using errcode = '42501';
@@ -126,7 +127,8 @@ begin
   if job_status not in ('queued', 'running', 'done', 'error') then
     raise exception 'bad status';
   end if;
-  if cards_seen < 0 or cards_seen > 1000000 or marks_applied < 0 or marks_applied > 10000000 then
+  if bot_touch_set.cards_seen < 0 or bot_touch_set.cards_seen > 1000000
+     or bot_touch_set.marks_applied < 0 or bot_touch_set.marks_applied > 10000000 then
     raise exception 'bad counts';
   end if;
   insert into public.bot_set_jobs as j (set_code, status, cursor, cards_seen, marks_applied, note)
@@ -134,11 +136,11 @@ begin
     code,
     job_status,
     nullif(btrim(coalesce(job_cursor, '')), ''),
-    cards_seen,
-    marks_applied,
-    left(coalesce(note, ''), 500)
+    bot_touch_set.cards_seen,
+    bot_touch_set.marks_applied,
+    left(coalesce(bot_touch_set.note, ''), 500)
   )
-  on conflict (set_code) do update
+  on conflict on constraint bot_set_jobs_pkey do update
     set status = excluded.status,
         cursor = excluded.cursor,
         cards_seen = excluded.cards_seen,
