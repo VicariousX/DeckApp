@@ -19,9 +19,11 @@ import {
   type MarkStatus,
   type MechanicMark,
 } from "../services/mechanicMarkService";
+import { oracleLines, quoteForMechanic } from "../lib/mechanics/oracleQuote";
+import { renderTextWithSymbols } from "../utils/symbols";
 import styles from "./MechanicMarkPicker.module.css";
 
-type Props = { oracleId: string };
+type Props = { oracleId: string; oracleText?: string };
 
 const STATUS_LABEL: Record<MarkStatus, string> = {
   proposed: "Proposed",
@@ -176,7 +178,7 @@ function ThemeSelect({
   );
 }
 
-export function MechanicMarkPicker({ oracleId }: Props) {
+export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
   const { user } = useAuth();
   const [marks, setMarks] = useState<MechanicMark[]>([]);
   const [admin, setAdmin] = useState(false);
@@ -186,6 +188,8 @@ export function MechanicMarkPicker({ oracleId }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [voting, setVoting] = useState<string | null>(null);
+  const [focusLine, setFocusLine] = useState<number | null>(null);
+  const lineRefs = useRef<Array<HTMLParagraphElement | null>>([]);
 
   async function reload() {
     const { marks: list, error } = await listMarksForOracle(oracleId);
@@ -207,6 +211,23 @@ export function MechanicMarkPicker({ oracleId }: Props) {
     [family]
   );
   const selected = mechanicId ? mechanicById(mechanicId) : undefined;
+  const lines = useMemo(() => oracleLines(oracleText), [oracleText]);
+  const quotes = useMemo(() => {
+    const map = new Map<string, { text: string; index: number } | null>();
+    for (const mark of marks) {
+      const def = mechanicById(mark.mechanic_id);
+      map.set(
+        mark.id,
+        def ? quoteForMechanic(oracleText, def) : null
+      );
+    }
+    return map;
+  }, [marks, oracleText]);
+
+  useEffect(() => {
+    if (focusLine == null) return;
+    lineRefs.current[focusLine]?.scrollIntoView({ block: "nearest" });
+  }, [focusLine]);
 
   async function submit() {
     if (!user || !selected) {
@@ -235,6 +256,29 @@ export function MechanicMarkPicker({ oracleId }: Props) {
 
   return (
     <div className={styles.wrap}>
+      {lines.length > 0 ? (
+        <section className={styles.oracle} aria-label="Oracle text">
+          <span className={styles.oracleLabel}>Oracle text</span>
+          {lines.map((line, i) =>
+            line.kind === "face" ? (
+              <p key={`face-${i}`} className={styles.faceLabel}>
+                {line.text}
+              </p>
+            ) : (
+              <p
+                key={line.index}
+                ref={(node) => {
+                  lineRefs.current[line.index] = node;
+                }}
+                className={line.index === focusLine ? styles.oracleHit : styles.oracleLine}
+              >
+                {renderTextWithSymbols(line.text, 13)}
+              </p>
+            )
+          )}
+        </section>
+      ) : null}
+
       <section className={styles.marks}>
         <div className={styles.sectionHead}>
           <h3>On this card</h3>
@@ -246,16 +290,32 @@ export function MechanicMarkPicker({ oracleId }: Props) {
           <ul className={styles.markList}>
             {marks.map((m) => {
               const def = mechanicById(m.mechanic_id);
+              const quote = quotes.get(m.id) ?? null;
               return (
-                <li key={m.id} className={styles.mark}>
+                <li
+                  key={m.id}
+                  className={styles.mark}
+                  onMouseEnter={() => setFocusLine(quote?.index ?? null)}
+                  onMouseLeave={() => setFocusLine(null)}
+                  onFocus={() => setFocusLine(quote?.index ?? null)}
+                  onBlur={() => setFocusLine(null)}
+                >
                   <div className={styles.markTop}>
                     <strong>{def?.name ?? m.mechanic_id}</strong>
-                    <span className={styles.status} data-status={m.status}>
-                      {STATUS_LABEL[m.status]}
+                    <span className={styles.meta}>
+                      <span className={styles.role}>{AGENCY_LABEL[m.relation]}</span>
+                      <span className={styles.status} data-status={m.status}>
+                        {STATUS_LABEL[m.status]}
+                      </span>
                     </span>
                   </div>
-                  <p className={styles.role}>{AGENCY_LABEL[m.relation]}</p>
-                  {def?.hint ? <p className={styles.markHint}>{def.hint}</p> : null}
+                  {quote ? (
+                    <p className={styles.quote} title={quote.text}>
+                      {renderTextWithSymbols(quote.text, 12)}
+                    </p>
+                  ) : def?.hint ? (
+                    <p className={styles.markHint}>{def.hint}</p>
+                  ) : null}
                   {(user && m.status !== "locked") || admin ? (
                     <div className={styles.markActions}>
                       {user && m.status !== "locked" ? (
