@@ -3,10 +3,40 @@ import { useScryfallSearch } from "./useScryfallSearch";
 import { useScrollWindow } from "./useScrollWindow";
 import { extractMechanicTerms } from "../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../services/mechanicMarkService";
-import { fetchCollectionByIds } from "../lib/scryfallApi";
+import { fetchCardsByOracleIds } from "../lib/scryfallApi";
+import { fetchProxiedScryfall } from "../lib/scryfallProxy";
 import type { ScryfallCard } from "../types/scryfallCard";
 
 type PageChunk = { page: number; cards: ScryfallCard[] };
+
+/** Keep oracle ids that also match the non-mechanic part of the query. */
+async function retainByScryfall(oracleIds: string[], q: string): Promise<Set<string>> {
+  const kept = new Set<string>();
+  const pending = [...oracleIds];
+  while (pending.length) {
+    const chunk: string[] = [];
+    let size = q.length + 3;
+    while (pending.length) {
+      const piece = `oracleid:${pending[0]}`;
+      const extra = (chunk.length ? 4 : 0) + piece.length;
+      if (chunk.length && size + extra > 900) break;
+      chunk.push(pending.shift()!);
+      size += extra;
+    }
+    const joined = chunk.map((id) => `oracleid:${id}`).join(" OR ");
+    const query = chunk.length > 1 ? `(${joined}) ${q}` : `${joined} ${q}`;
+    const response = await fetchProxiedScryfall(
+      `/api/scryfall?${new URLSearchParams({ q: query, unique: "cards" }).toString()}`
+    );
+    if (!response.ok) throw new Error("Could not apply the other search filters.");
+    const json = (await response.json()) as { data?: ScryfallCard[] };
+    for (const card of json.data ?? []) {
+      if (card.oracle_id) kept.add(card.oracle_id.toLowerCase());
+    }
+    if (pending.length) await new Promise((r) => setTimeout(r, 120));
+  }
+  return kept;
+}
 
 /**
  * Owns the accumulated Scryfall page stream, mechanic filtering, and the
@@ -18,6 +48,8 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
   const scryfallQ = mechParsed.rest || (mechParsed.terms.length ? "" : query);
   const [mechCards, setMechCards] = useState<ScryfallCard[]>([]);
   const [mechIds, setMechIds] = useState<Set<string> | null>(null);
+  const [mechLoading, setMechLoading] = useState(false);
+  const [mechError, setMechError] = useState<string | null>(null);
   const [stream, setStream] = useState<PageChunk[]>([]);
 
   const { cards, total, hasMoreApi, apiPage, isLoading, isError, errorMessage, run, goApiPage } =
@@ -25,8 +57,8 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
 
   useEffect(() => {
     setStream([]);
-    if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
-  }, [scryfallQ, apiOrder, sortDir, run]);
+    if (scryfallQ && mechParsed.terms.length === 0) void run(scryfallQ, apiOrder, sortDir);
+  }, [scryfallQ, apiOrder, sortDir, run, mechParsed.terms.length]);
 
   useEffect(() => {
     if (!cards.length) return;
@@ -42,27 +74,46 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     if (!mechParsed.terms.length) {
       setMechIds(null);
       setMechCards([]);
+      setMechLoading(false);
+      setMechError(null);
       return;
     }
     let cancel = false;
+    setMechLoading(true);
+    setMechError(null);
     void (async () => {
-      const sets: string[][] = [];
-      for (const t of mechParsed.terms) {
-        const { ids } = await oracleIdsForMechanic(t.id, t.relation);
-        sets.push(ids);
+      try {
+        const sets: string[][] = [];
+        for (const t of mechParsed.terms) {
+          const { ids, error } = await oracleIdsForMechanic(t.id, t.relation);
+          if (error) throw new Error(error);
+          sets.push(ids);
+        }
+        if (cancel) return;
+        let acc = new Set(sets[0] ?? []);
+        mechParsed.terms.forEach((t, i) => {
+          const s = new Set(sets[i] ?? []);
+          if (t.negate) acc = new Set([...acc].filter((id) => !s.has(id)));
+          else if (i > 0) acc = new Set([...acc].filter((id) => s.has(id)));
+        });
+        let ids = [...acc];
+        if (scryfallQ && ids.length) ids = [...(await retainByScryfall(ids, scryfallQ))];
+        if (cancel) return;
+        setMechIds(new Set(ids));
+        const { cards: found, error } = ids.length
+          ? await fetchCardsByOracleIds(ids)
+          : { cards: [], error: null };
+        if (cancel) return;
+        if (error) throw new Error(error);
+        setMechCards(found);
+      } catch (err) {
+        if (cancel) return;
+        setMechIds(new Set());
+        setMechCards([]);
+        setMechError(err instanceof Error ? err.message : "Mechanic search failed");
+      } finally {
+        if (!cancel) setMechLoading(false);
       }
-      if (cancel) return;
-      let acc = new Set(sets[0] ?? []);
-      mechParsed.terms.forEach((t, i) => {
-        const s = new Set(sets[i] ?? []);
-        if (t.negate) acc = new Set([...acc].filter((id) => !s.has(id)));
-        else if (i > 0) acc = new Set([...acc].filter((id) => s.has(id)));
-      });
-      setMechIds(acc);
-      if (!scryfallQ && acc.size) {
-        const { cards: found } = await fetchCollectionByIds([...acc]);
-        if (!cancel) setMechCards(found);
-      } else setMechCards([]);
     })();
     return () => {
       cancel = true;
@@ -84,6 +135,8 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     mechParsed,
     mechCards,
     mechIds,
+    mechLoading,
+    mechError,
     stream,
     cards,
     total,

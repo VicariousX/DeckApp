@@ -68,9 +68,10 @@ export function SearchResultsPanel({
   const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
-    scryfallQ,
+    mechParsed,
     mechCards,
-    mechIds,
+    mechLoading,
+    mechError,
     stream,
     cards,
     total,
@@ -85,19 +86,11 @@ export function SearchResultsPanel({
 
   useEffect(() => {
     setViewPage(1);
-  }, [scryfallQ, apiOrder, sortDir]);
+  }, [query, apiOrder, sortDir]);
 
   const sorted = useMemo(() => {
-    const source = scryfallQ ? cards : mechCards.length ? mechCards : cards;
-    const filtered =
-      mechIds && scryfallQ
-        ? source.filter(
-            (c) =>
-              mechIds.has((c.oracle_id || c.id).toLowerCase()) ||
-              mechIds.has(c.oracle_id || c.id)
-          )
-        : source;
-    const copy = [...filtered];
+    const source = mechParsed.terms.length ? mechCards : cards;
+    const copy = [...source];
     copy.sort((a, b) => {
       const av = attr(a, sortKey);
       const bv = attr(b, sortKey);
@@ -109,18 +102,23 @@ export function SearchResultsPanel({
       return sortDir === "desc" ? -cmp : cmp;
     });
     return copy;
-  }, [cards, mechCards, mechIds, scryfallQ, sortDir, sortKey]);
+  }, [cards, mechCards, mechParsed.terms.length, sortDir, sortKey]);
 
+  const searching = isLoading || mechLoading;
+  const failed = isError || Boolean(mechError);
   const pagesHere = Math.max(1, Math.ceil(sorted.length / pageSize) || 1);
   const safePage = Math.min(viewPage, pagesHere);
   const visible = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
   const start = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, sorted.length);
-  const canPrev = safePage > 1 || apiPage > 1;
-  const canNext = safePage < pagesHere || hasMoreApi;
+  const canPrev = mechParsed.terms.length ? safePage > 1 : safePage > 1 || apiPage > 1;
+  const canNext = mechParsed.terms.length ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
 
-  const resultCards =
-    browseMode === "scroll" && scrollCards.length
+  const resultCards = mechParsed.terms.length
+    ? browseMode === "scroll"
+      ? sorted
+      : visible
+    : browseMode === "scroll" && scrollCards.length
       ? scrollCards
       : stream.length
         ? stream.flatMap((p) => p.cards)
@@ -137,11 +135,11 @@ export function SearchResultsPanel({
     <div>
       <div className={resultStyles.meta}>
         <p className={resultStyles.count}>
-          {isLoading
+          {searching
             ? "Searching…"
-            : isError
+            : failed
               ? "Search failed."
-              : `${start}–${end} of ${total || sorted.length}`}
+              : `${start}–${end} of ${mechParsed.terms.length ? sorted.length : total || sorted.length}`}
         </p>
         <div className={resultStyles.toggles}>
           <button
@@ -216,12 +214,12 @@ export function SearchResultsPanel({
         cards={resultCards}
         scrollStartIndex={scrollStartIndex}
         onReachEnd={
-          hasMoreApi && !isLoading
+          !mechParsed.terms.length && hasMoreApi && !searching
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
             : undefined
         }
         onReachStart={
-          (stream[0]?.page ?? apiPage) > 1 && !isLoading
+          !mechParsed.terms.length && (stream[0]?.page ?? apiPage) > 1 && !searching
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
@@ -236,7 +234,7 @@ export function SearchResultsPanel({
         <button
           type="button"
           className={resultStyles.moreBtn}
-          disabled={!canPrev || isLoading}
+          disabled={!canPrev || searching}
           onClick={() => {
             if (safePage > 1) setViewPage(safePage - 1);
             else if (apiPage > 1) void goApiPage(apiPage - 1);
@@ -248,13 +246,13 @@ export function SearchResultsPanel({
         <button
           type="button"
           className={resultStyles.moreBtn}
-          disabled={!canNext || isLoading}
+          disabled={!canNext || searching}
           onClick={() => {
             if (safePage < pagesHere) setViewPage(safePage + 1);
             else if (hasMoreApi) void goApiPage(apiPage + 1);
           }}
         >
-          {isLoading ? "Loading…" : "Next"}
+          {searching ? "Loading…" : "Next"}
         </button>
       </div>
     </div>

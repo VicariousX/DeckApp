@@ -88,7 +88,9 @@ export function SimpleSearchPage() {
   const [statOp, setStatOp] = useState<StatOp>("=");
   const [statValue, setStatValue] = useState("");
   const [stats, setStats] = useState<StatChip[]>(restored?.stats ?? []);
-  const [mechanic, setMechanic] = useState(restored?.mechanic ?? "");
+  const [mechanics, setMechanics] = useState<string[]>(
+    restored?.mechanics?.length ? restored.mechanics : restored?.mechanic ? [restored.mechanic] : []
+  );
 
   useEffect(() => {
     if (!restored) return;
@@ -103,7 +105,7 @@ export function SimpleSearchPage() {
     setOracle(restored.oracle);
     setOracleLogic(restored.oracleLogic);
     setStats(restored.stats ?? []);
-    setMechanic(restored.mechanic ?? "");
+    setMechanics(restored.mechanics?.length ? restored.mechanics : restored.mechanic ? [restored.mechanic] : []);
   }, [restored]);
 
   const typeMatches = useMemo(() => {
@@ -131,7 +133,7 @@ export function SimpleSearchPage() {
   function buildQuery(): string {
     return buildSimpleQuery({
       name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
-      isCommander, oracle, oracleLogic, stats, mechanic,
+      isCommander, oracle, oracleLogic, stats, mechanic: mechanics[0] ?? "", mechanics,
     });
   }
 
@@ -146,7 +148,10 @@ export function SimpleSearchPage() {
     e.preventDefault();
     const q = buildQuery();
     if (!q) return;
-    const state: SimpleState = { name, idColors, idLogic, cardColors, cardLogic, types, typeLogic, isCommander, oracle, oracleLogic, stats, mechanic };
+    const state: SimpleState = {
+      name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
+      isCommander, oracle, oracleLogic, stats, mechanic: mechanics[0] ?? "", mechanics,
+    };
     navigate(`/search/results?q=${encodeURIComponent(q)}&mode=simple&ss=${encodeSimpleState(state)}`);
   }
 
@@ -369,7 +374,7 @@ export function SimpleSearchPage() {
 
         <section>
           <label className={styles.label}>Mechanic</label>
-          <MechanicPicker value={mechanic} onChange={setMechanic} />
+          <MechanicPicker value={mechanics} onChange={setMechanics} />
         </section>
 
         <button type="submit" className={styles.primaryBtn}>

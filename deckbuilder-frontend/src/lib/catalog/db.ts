@@ -136,6 +136,35 @@ export async function getPrintsByOracle(
   }
 }
 
+/** One printable card per oracle id, from the local catalog. */
+export async function getPreferredPrintsByOracle(
+  oracleIds: string[]
+): Promise<Map<string, ScryfallCard>> {
+  const out = new Map<string, ScryfallCard>();
+  const keys = [...new Set(oracleIds.map((id) => id.toLowerCase()).filter(Boolean))];
+  if (!keys.length) return out;
+  const db = await openCatalogDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const idx = db.transaction("cards").objectStore("cards").index("oracle_id");
+      let left = keys.length;
+      for (const key of keys) {
+        const req = idx.getAll(key);
+        req.onsuccess = () => {
+          const prints = (req.result as ScryfallCard[]) ?? [];
+          const pick = prints.find((c) => c.image_uris?.normal || c.card_faces?.[0]?.image_uris?.normal) ?? prints[0];
+          if (pick) out.set(key, pick);
+          if (--left === 0) resolve();
+        };
+        req.onerror = () => reject(req.error);
+      }
+    });
+  } finally {
+    db.close();
+  }
+  return out;
+}
+
 export async function autocompleteLocal(
   q: string,
   limit = 20

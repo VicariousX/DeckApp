@@ -17,7 +17,10 @@ export type SimpleState = {
   oracle: string[];
   oracleLogic: Logic;
   stats: StatChip[];
+  /** One mechanic, kept so older saved searches still open. */
   mechanic: string;
+  /** Every selected mechanic, as `id` or `id:cause`. All of them must match. */
+  mechanics?: string[];
 };
 
 export function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
@@ -60,7 +63,10 @@ export function buildSimpleQuery(s: SimpleState): string {
     const key = chip.field === "mv" ? "mv" : "edhrec";
     parts.push(`${key}${chip.op}${chip.value}`);
   }
-  if (s.mechanic.trim()) parts.push(`mech:${s.mechanic.trim()}`);
+  const mechanics = (s.mechanics?.length ? s.mechanics : s.mechanic ? [s.mechanic] : [])
+    .map((m) => m.trim())
+    .filter(Boolean);
+  for (const mechanic of mechanics) parts.push(`mech:${mechanic}`);
   return parts.join(" ");
 }
 

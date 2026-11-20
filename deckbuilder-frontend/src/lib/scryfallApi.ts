@@ -8,6 +8,7 @@ import {
   catalogReady,
   getCardById as catalogCardById,
   getCardByName as catalogCardByName,
+  getPreferredPrintsByOracle,
   getPrintsByOracle,
   getRulingsByOracle,
 } from "./catalog/db";
@@ -322,6 +323,51 @@ export async function fetchCollectionByIds(
       for (const c of cards) {
         if (c.id) cardCache.set(c.id.toLowerCase(), c);
         out.push(c);
+      }
+    } catch {
+      return { cards: out, error: "Network error" };
+    }
+  }
+  return { cards: out, error: null };
+}
+
+/** Resolve marks-table oracle ids to one card each. */
+export async function fetchCardsByOracleIds(
+  ids: string[]
+): Promise<{ cards: ScryfallCard[]; error: string | null }> {
+  const unique = [...new Set(ids.map((id) => id.toLowerCase()).filter(Boolean))];
+  if (!unique.length) return { cards: [], error: null };
+  const out: ScryfallCard[] = [];
+  const have = new Set<string>();
+  if (await catalogReady()) {
+    try {
+      const local = await getPreferredPrintsByOracle(unique);
+      for (const [key, card] of local) {
+        have.add(key);
+        out.push(card);
+      }
+    } catch {
+      /* catalog miss falls through to Scryfall */
+    }
+  }
+  const missing = unique.filter((id) => !have.has(id));
+  for (let i = 0; i < missing.length; i += 75) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 200));
+    const chunk = missing.slice(i, i + 75);
+    try {
+      const res = await fetchProxiedScryfall("/api/scryfall/collection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers: chunk.map((oracle_id) => ({ oracle_id })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { cards: out, error: data?.details ?? data?.error ?? "Collection lookup failed" };
+      }
+      for (const card of (data.data as ScryfallCard[]) ?? []) {
+        const key = card.oracle_id?.toLowerCase();
+        if (key) have.add(key);
+        out.push(card);
       }
     } catch {
       return { cards: out, error: "Network error" };

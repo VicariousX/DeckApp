@@ -20,24 +20,24 @@ function split(value: string): { id: string; relation: "" | Agency } {
   return { id: value, relation: "" };
 }
 
-/** Searchable catalog mechanic, stored as `id` or `id:cause`. */
+/** One or more catalog mechanics. Each value is `id` or `id:cause`. */
 export function MechanicPicker({
   value,
   onChange,
 }: {
-  value: string;
-  onChange: (next: string) => void;
+  value: string[];
+  onChange: (next: string[]) => void;
 }) {
-  const { id, relation } = split(value);
-  const picked = id ? mechanicById(id) : undefined;
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const pickedIds = new Set(value.map((v) => split(v).id));
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return MECHANICS.filter((m) => {
+      if (pickedIds.has(m.id)) return false;
       const family = FAMILY[m.family] ?? "";
       return (
         m.name.toLowerCase().includes(q) ||
@@ -46,7 +46,7 @@ export function MechanicPicker({
         family.toLowerCase().includes(q)
       );
     }).slice(0, 12);
-  }, [query]);
+  }, [query, value]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,15 +57,15 @@ export function MechanicPicker({
     return () => document.removeEventListener("pointerdown", onDoc);
   }, [open]);
 
-  function choose(nextId: string) {
-    onChange(relation ? `${nextId}:${relation}` : nextId);
+  function add(id: string) {
+    if (pickedIds.has(id)) return;
+    onChange([...value, id]);
     setQuery("");
     setOpen(false);
   }
 
-  function setRelation(next: "" | Agency) {
-    if (!id) return;
-    onChange(next ? `${id}:${next}` : id);
+  function setRelation(id: string, relation: "" | Agency) {
+    onChange(value.map((v) => (split(v).id === id ? (relation ? `${id}:${relation}` : id) : v)));
   }
 
   return (
@@ -73,7 +73,7 @@ export function MechanicPicker({
       <input
         className={form.input}
         value={query}
-        placeholder={picked ? "Change mechanic…" : "Search mechanics…"}
+        placeholder={value.length ? "Add another mechanic…" : "Search mechanics…"}
         autoComplete="off"
         onChange={(e) => {
           setQuery(e.target.value);
@@ -83,7 +83,7 @@ export function MechanicPicker({
         onKeyDown={(e) => {
           if (e.key === "Enter" && matches[0]) {
             e.preventDefault();
-            choose(matches[0].id);
+            add(matches[0].id);
           } else if (e.key === "Escape") {
             setOpen(false);
           }
@@ -92,36 +92,40 @@ export function MechanicPicker({
       {open && matches.length > 0 ? (
         <div className={styles.menu} role="listbox">
           {matches.map((m) => (
-            <button key={m.id} type="button" className={styles.option} onClick={() => choose(m.id)}>
+            <button key={m.id} type="button" className={styles.option} onClick={() => add(m.id)}>
               <span>{m.name}</span>
               <span className={styles.family}>{FAMILY[m.family]}</span>
             </button>
           ))}
         </div>
       ) : null}
-      {id ? (
-        <div className={styles.picked}>
-          <span className={styles.chip}>
-            {picked?.name ?? id}
-            <button type="button" aria-label="Remove mechanic" onClick={() => onChange("")}>
-              ×
-            </button>
-          </span>
-          <span className={styles.rels} role="group" aria-label="Relationship">
-            {RELATIONS.map((r) => (
-              <button
-                key={r.id || "any"}
-                type="button"
-                aria-pressed={relation === r.id}
-                className={relation === r.id ? styles.relOn : styles.rel}
-                onClick={() => setRelation(r.id)}
-              >
-                {r.label}
+      {value.map((entry) => {
+        const { id, relation } = split(entry);
+        const def = mechanicById(id);
+        return (
+          <div key={id} className={styles.picked}>
+            <span className={styles.chip}>
+              {def?.name ?? id}
+              <button type="button" aria-label={`Remove ${def?.name ?? id}`} onClick={() => onChange(value.filter((v) => split(v).id !== id))}>
+                ×
               </button>
-            ))}
-          </span>
-        </div>
-      ) : null}
+            </span>
+            <span className={styles.rels} role="group" aria-label={`${def?.name ?? id} relationship`}>
+              {RELATIONS.map((r) => (
+                <button
+                  key={r.id || "any"}
+                  type="button"
+                  aria-pressed={relation === r.id}
+                  className={relation === r.id ? styles.relOn : styles.rel}
+                  onClick={() => setRelation(id, r.id)}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

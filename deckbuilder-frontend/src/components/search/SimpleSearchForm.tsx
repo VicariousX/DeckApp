@@ -84,7 +84,7 @@ export function SimpleSearchForm({
   const [statOp, setStatOp] = useState<StatOp>("=");
   const [statValue, setStatValue] = useState("");
   const [stats, setStats] = useState<StatChip[]>([]);
-  const [mechanic, setMechanic] = useState("");
+  const [mechanics, setMechanics] = useState<string[]>([]);
 
   const typeMatches = useMemo(() => {
     const q = typeQuery.trim().toLowerCase();
@@ -118,7 +118,7 @@ export function SimpleSearchForm({
   function buildQuery(): string {
     const q = buildSimpleQuery({
       name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
-      isCommander, oracle, oracleLogic, stats, mechanic,
+      isCommander, oracle, oracleLogic, stats, mechanic: mechanics[0] ?? "", mechanics,
     });
     const identity = applyIdentity && commanderIdentity ? commanderIdentity : "";
     return [q, identity].filter(Boolean).join(" ");
@@ -209,7 +209,7 @@ export function SimpleSearchForm({
       <ChipRow items={stats.map((s) => `${s.field === "mv" ? "MV" : "EDH"} ${s.op} ${s.value}`)} onRemove={(label) => { const idx = stats.findIndex((s) => `${s.field === "mv" ? "MV" : "EDH"} ${s.op} ${s.value}` === label); if (idx >= 0) setStats(stats.filter((_, i) => i !== idx)); }} />
       <div>
         <span className={styles.label}>Mechanic</span>
-        <MechanicPicker value={mechanic} onChange={setMechanic} />
+        <MechanicPicker value={mechanics} onChange={setMechanics} />
       </div>
       <button type="submit" className={styles.primaryBtn}>Search</button>
     </form>

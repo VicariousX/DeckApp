@@ -56,20 +56,21 @@ export async function oracleIdsForMechanic(
   mechanicId: string,
   relation?: Agency
 ): Promise<{ ids: string[]; error: string | null }> {
-  let q = supabase
-    .from("card_mechanic_marks")
-    .select("oracle_id")
-    .eq("mechanic_id", mechanicId)
-    .in("status", ["accepted", "locked"])
-    .limit(5000);
-  if (relation === "both") q = q.eq("relation", "both");
-  else if (relation) q = q.in("relation", [relation, "both"]);
-  const { data, error } = await q;
-  if (error) return { ids: [], error: error.message };
-  return {
-    ids: [...new Set((data ?? []).map((r: { oracle_id: string }) => r.oracle_id))],
-    error: null,
-  };
+  const ids: string[] = [];
+  for (let from = 0; ; from += 1000) {
+    let q = supabase
+      .from("card_mechanic_marks")
+      .select("oracle_id")
+      .eq("mechanic_id", mechanicId)
+      .in("status", VISIBLE);
+    if (relation === "both") q = q.eq("relation", "both");
+    else if (relation) q = q.in("relation", [relation, "both"]);
+    const { data, error } = await q.range(from, from + 999);
+    if (error) return { ids: [], error: error.message };
+    for (const row of data ?? []) ids.push(String((row as { oracle_id: string }).oracle_id).toLowerCase());
+    if (!data || data.length < 1000) break;
+  }
+  return { ids: [...new Set(ids)], error: null };
 }
 
 export async function proposeMark(

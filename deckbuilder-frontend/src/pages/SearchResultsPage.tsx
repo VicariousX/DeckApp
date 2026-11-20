@@ -239,9 +239,10 @@ export function SearchResultsPage() {
   }, [columns]);
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
-    scryfallQ,
+    mechParsed,
     mechCards,
-    mechIds,
+    mechLoading,
+    mechError,
     stream,
     cards,
     total,
@@ -256,12 +257,8 @@ export function SearchResultsPage() {
   } = useSearchStream(q, apiOrder, sortDir);
 
   const sorted = useMemo(() => {
-    const source = scryfallQ ? cards : mechCards.length ? mechCards : cards;
-    const filtered =
-      mechIds && scryfallQ
-        ? source.filter((c) => mechIds.has((c.oracle_id || c.id).toLowerCase()) || mechIds.has(c.oracle_id || c.id))
-        : source;
-    const copy = [...filtered];
+    const source = mechParsed.terms.length ? mechCards : cards;
+    const copy = [...source];
     copy.sort((a, b) => {
       const av = attr(a, sortKey);
       const bv = attr(b, sortKey);
@@ -273,8 +270,10 @@ export function SearchResultsPage() {
       return sortDir === "desc" ? -cmp : cmp;
     });
     return copy;
-  }, [cards, mechCards, mechIds, scryfallQ, sortDir, sortKey]);
+  }, [cards, mechCards, mechParsed.terms.length, sortDir, sortKey]);
 
+  const searching = isLoading || mechLoading;
+  const failed = isError || Boolean(mechError);
   const pagesHere = Math.max(1, Math.ceil(sorted.length / pageSize) || 1);
   const safePage = Math.min(viewPage, pagesHere);
   const visible = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -316,10 +315,16 @@ export function SearchResultsPage() {
         ? `/search/simple?ss=${params.get("ss") || ""}`
         : `/search?mode=standard`;
 
-  const canPrev = safePage > 1 || apiPage > 1;
-  const canNext = safePage < pagesHere || hasMoreApi;
+  const canPrev = mechParsed.terms.length ? safePage > 1 : safePage > 1 || apiPage > 1;
+  const canNext = mechParsed.terms.length ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
 
-  const resultCards = browseMode === "scroll" && scrollCards.length ? scrollCards : visible;
+  const resultCards = mechParsed.terms.length
+    ? browseMode === "scroll"
+      ? sorted
+      : visible
+    : browseMode === "scroll" && scrollCards.length
+      ? scrollCards
+      : visible;
 
   const scrollStartIndex = useMemo(
     () => (browseMode === "scroll" ? scrollStartIndexFor(visible) : 0),
@@ -345,11 +350,11 @@ export function SearchResultsPage() {
             ← Edit {mode} search
           </Link>
           <p className={resultStyles.count}>
-            {isLoading
+            {searching
               ? "Searching…"
-              : isError
+              : failed
                 ? "Search failed."
-                : `${start}–${end} of ${total || sorted.length}`}
+                : `${start}–${end} of ${mechParsed.terms.length ? sorted.length : total || sorted.length}`}
           </p>
           {showTargetChip && (
             <span className={resultStyles.targetChip}>
@@ -439,10 +444,10 @@ export function SearchResultsPage() {
           </button>
         </p>
       )}
-      {isError && (
-        <ErrorNotice message={errorMessage || "Search failed. Edit the query and try again."} />
+      {(isError || mechError) && (
+        <ErrorNotice message={mechError || errorMessage || "Search failed. Edit the query and try again."} />
       )}
-      {!isLoading && !isError && sorted.length === 0 && (
+      {!searching && !failed && sorted.length === 0 && (
         <p className={resultStyles.query}>No cards matched. <Link to={editTo}>Edit search</Link></p>
       )}
       <CardResult
@@ -455,12 +460,12 @@ export function SearchResultsPage() {
         onEnterScroll={() => setBrowseMode("scroll")}
         onExitScroll={() => setBrowseMode(lastMode.current)}
         onReachEnd={
-          browseMode === "scroll" && hasMoreApi && !isLoading
+          !mechParsed.terms.length && browseMode === "scroll" && hasMoreApi && !searching
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
             : undefined
         }
         onReachStart={
-          browseMode === "scroll" && (stream[0]?.page ?? apiPage) > 1 && !isLoading
+          !mechParsed.terms.length && browseMode === "scroll" && (stream[0]?.page ?? apiPage) > 1 && !searching
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
@@ -602,7 +607,7 @@ export function SearchResultsPage() {
         <button
           type="button"
           className={resultStyles.moreBtn}
-          disabled={!canPrev || isLoading}
+          disabled={!canPrev || searching}
           onClick={() => void prevPage()}
         >
           Previous
@@ -611,10 +616,10 @@ export function SearchResultsPage() {
         <button
           type="button"
           className={resultStyles.moreBtn}
-          disabled={!canNext || isLoading}
+          disabled={!canNext || searching}
           onClick={() => void nextPage()}
         >
-          {isLoading ? "Loading…" : "Next"}
+          {searching ? "Loading…" : "Next"}
         </button>
       </div>
     </div>
