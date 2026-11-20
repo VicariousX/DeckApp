@@ -1,6 +1,11 @@
 export type OracleLine =
   | { kind: "face"; text: string }
-  | { kind: "rule"; text: string; index: number };
+  | {
+      kind: "rule";
+      text: string;
+      index: number;
+      reminders: { text: string; index: number }[];
+    };
 
 export type OracleQuote = { text: string; index: number };
 
@@ -80,6 +85,25 @@ const ALIASES: Record<string, string[]> = {
   "lifelink-matter": ["life total"],
 };
 
+function splitReminders(line: string, start: number): {
+  rule: string;
+  reminders: { text: string; index: number }[];
+  next: number;
+} {
+  const reminders: { text: string; index: number }[] = [];
+  let next = start + 1;
+  const rule = line
+    .replace(/\(([^()]*)\)/g, (_, inner: string) => {
+      const text = inner.trim();
+      if (text) reminders.push({ text, index: next++ });
+      return " ";
+    })
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim();
+  return { rule, reminders, next };
+}
+
 export function oracleLines(text: string): OracleLine[] {
   const lines: OracleLine[] = [];
   let index = 0;
@@ -90,7 +114,14 @@ export function oracleLines(text: string): OracleLine[] {
       lines.push({ kind: "face", text: line.replace(/^\/\/\s*/, "") });
       continue;
     }
-    lines.push({ kind: "rule", text: line, index: index++ });
+    const split = splitReminders(line, index);
+    index = split.next;
+    lines.push({
+      kind: "rule",
+      text: split.rule,
+      index: split.next - split.reminders.length - 1,
+      reminders: split.reminders,
+    });
   }
   return lines;
 }
@@ -115,29 +146,39 @@ function matches(haystack: string, needle: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${body}s?(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
+function searchable(text: string): { text: string; index: number }[] {
+  const out: { text: string; index: number }[] = [];
+  for (const line of oracleLines(text)) {
+    if (line.kind !== "rule") continue;
+    if (line.text) out.push({ text: line.text, index: line.index });
+    out.push(...line.reminders);
+  }
+  return out;
+}
+
 export function quoteForMechanic(
   text: string,
   mechanic: { id: string; name: string }
 ): OracleQuote | null {
-  const rules = oracleLines(text).filter((line): line is Extract<OracleLine, { kind: "rule" }> => line.kind === "rule");
-  if (rules.length === 0) return null;
+  const parts = searchable(text);
+  if (parts.length === 0) return null;
   const needles = [...new Set([...nameNeedles(mechanic.name), ...(ALIASES[mechanic.id] ?? [])])];
   if (needles.length === 0) return null;
 
   let best: OracleQuote | null = null;
   let bestScore = 0;
-  for (const line of rules) {
+  for (const part of parts) {
     let score = 0;
     for (const needle of needles) {
-      if (matches(line.text, needle)) score += Math.min(12, Math.max(4, needle.length));
+      if (matches(part.text, needle)) score += Math.min(12, Math.max(4, needle.length));
     }
     if (score === 0) continue;
     if (
       score > bestScore ||
-      (score === bestScore && best != null && line.text.length < best.text.length)
+      (score === bestScore && best != null && part.text.length < best.text.length)
     ) {
       bestScore = score;
-      best = { text: line.text, index: line.index };
+      best = part;
     }
   }
   return best;

@@ -257,26 +257,39 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
   return (
     <div className={styles.wrap}>
       {lines.length > 0 ? (
-        <section className={styles.oracle} aria-label="Oracle text">
-          <span className={styles.oracleLabel}>Oracle text</span>
+        <div className={styles.oracle}>
           {lines.map((line, i) =>
             line.kind === "face" ? (
               <p key={`face-${i}`} className={styles.faceLabel}>
                 {line.text}
               </p>
             ) : (
-              <p
-                key={line.index}
-                ref={(node) => {
-                  lineRefs.current[line.index] = node;
-                }}
-                className={line.index === focusLine ? styles.oracleHit : styles.oracleLine}
-              >
-                {renderTextWithSymbols(line.text, 13)}
-              </p>
+              <div key={line.index} className={styles.ability}>
+                {line.text ? (
+                  <p
+                    ref={(node) => {
+                      lineRefs.current[line.index] = node;
+                    }}
+                    className={line.index === focusLine ? styles.oracleHit : styles.oracleLine}
+                  >
+                    {renderTextWithSymbols(line.text, 14)}
+                  </p>
+                ) : null}
+                {line.reminders.map((rem) => (
+                  <p
+                    key={rem.index}
+                    ref={(node) => {
+                      lineRefs.current[rem.index] = node;
+                    }}
+                    className={rem.index === focusLine ? styles.reminderHit : styles.reminder}
+                  >
+                    {renderTextWithSymbols(rem.text, 13)}
+                  </p>
+                ))}
+              </div>
             )
           )}
-        </section>
+        </div>
       ) : null}
 
       <section className={styles.marks}>
@@ -294,30 +307,19 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
               return (
                 <li
                   key={m.id}
-                  className={styles.mark}
+                  className={quote?.index === focusLine && focusLine != null ? styles.markOn : styles.mark}
                   onMouseEnter={() => setFocusLine(quote?.index ?? null)}
                   onMouseLeave={() => setFocusLine(null)}
                   onFocus={() => setFocusLine(quote?.index ?? null)}
                   onBlur={() => setFocusLine(null)}
                 >
-                  <div className={styles.markTop}>
-                    <strong>{def?.name ?? m.mechanic_id}</strong>
-                    <span className={styles.meta}>
-                      <span className={styles.role}>{AGENCY_LABEL[m.relation]}</span>
-                      <span className={styles.status} data-status={m.status}>
-                        {STATUS_LABEL[m.status]}
-                      </span>
-                    </span>
-                  </div>
-                  {quote ? (
-                    <p className={styles.quote} title={quote.text}>
-                      {renderTextWithSymbols(quote.text, 12)}
-                    </p>
-                  ) : def?.hint ? (
-                    <p className={styles.markHint}>{def.hint}</p>
-                  ) : null}
+                  <strong>{def?.name ?? m.mechanic_id}</strong>
+                  <span className={styles.role}>{AGENCY_LABEL[m.relation]}</span>
+                  <span className={styles.status} data-status={m.status}>
+                    {STATUS_LABEL[m.status]}
+                  </span>
                   {(user && m.status !== "locked") || admin ? (
-                    <div className={styles.markActions}>
+                    <span className={styles.markActions}>
                       {user && m.status !== "locked" ? (
                         <>
                           <button
@@ -347,7 +349,7 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
                           {m.status === "locked" ? "Unlock" : "Lock"}
                         </button>
                       ) : null}
-                    </div>
+                    </span>
                   ) : null}
                 </li>
               );
