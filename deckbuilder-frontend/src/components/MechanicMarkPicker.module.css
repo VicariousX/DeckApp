@@ -227,6 +227,7 @@
 .menuList {
   overflow-y: auto;
   overscroll-behavior: contain;
+  min-height: 0;
 }
 
 .option,

@@ -28,9 +28,8 @@ export function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic 
     const parts = withC.map((c) => `${prefix}:${c}`);
     return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
   }
-  if (logic === "and") return `${prefix}:${selected.join("")}`;
-  const parts = selected.map((c) => `${prefix}:${c}`);
-  return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
+  if (logic === "and") return `${prefix}=${selected.join("")}`;
+  return `${prefix}:${selected.join("")}`;
 }
 
 export function typeClause(types: string[], logic: Logic): string {

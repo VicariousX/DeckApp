@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   AGENCY,
@@ -47,14 +48,17 @@ function ThemeSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  const [box, setBox] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
+  const [box, setBox] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onDoc(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (root.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("pointerdown", onDoc);
     return () => document.removeEventListener("pointerdown", onDoc);
@@ -70,24 +74,42 @@ function ThemeSelect({
 
   const current = options.find((o) => o.id === value);
 
+  function place() {
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+    const below = window.innerHeight - rect.bottom;
+    const above = rect.top;
+    const up = below < 180 && above > below;
+    const maxHeight = Math.max(120, Math.min(256, (up ? above : below) - 12));
+    setBox({
+      top: up ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      maxHeight,
+    });
+  }
+
   function toggle() {
     if (disabled) return;
     if (open) {
       setOpen(false);
       return;
     }
-    const rect = button.current?.getBoundingClientRect();
-    if (!rect) return;
-    const below = window.innerHeight - rect.bottom;
-    setBox({
-      top: below < 220 ? rect.top - 4 : rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-      up: below < 220,
-    });
+    place();
     setFilter("");
     setOpen(true);
   }
+
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => place();
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+  }, [open]);
 
   return (
     <div className={styles.field} ref={root}>
@@ -106,17 +128,14 @@ function ThemeSelect({
         </span>
         <i className={styles.caret} />
       </button>
-      {open && box ? (
-        <div
-          className={styles.menu}
-          role="listbox"
-          style={{
-            top: box.up ? undefined : box.top,
-            bottom: box.up ? window.innerHeight - box.top : undefined,
-            left: box.left,
-            width: box.width,
-          }}
-        >
+      {open && box
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className={styles.menu}
+              role="listbox"
+              style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight, zIndex: 8000 }}
+            >
           {options.length > 8 ? (
             <input
               className={styles.menuSearch}
@@ -149,8 +168,10 @@ function ThemeSelect({
               ))
             )}
           </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
