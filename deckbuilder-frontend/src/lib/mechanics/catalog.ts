@@ -454,7 +454,7 @@ export const MECHANICS: MechanicDef[] = [
   { id: "teamwork", name: "Teamwork", family: "keywords", hint: "A bonus for attacking with more than one creature" },
   { id: "fear", name: "Fear", family: "combat", hint: "Can't be blocked except by artifact creatures and black creatures" },
   { id: "storied", name: "Storied", family: "keywords", hint: "A Saga or legend that cares about chapters or stories" },
-  { id: "beam-me-up", name: "Beam me up", family: "keywords", hint: "Exile a creature and return it later" },
+  { id: "beam-me-up", name: "Beam me up", family: "keywords", hint: "Cast it from the graveyard by returning a creature you control to hand, then exile it" },
   { id: "firebending", name: "Firebending", family: "mana", hint: "Add red mana when this creature attacks" },
   { id: "power-up", name: "Power-up", family: "keywords", hint: "A bonus that builds as the creature deals damage or attacks" },
   { id: "heal", name: "Heal", family: "life", hint: "Prevent damage or remove -1/-1 counters" },
@@ -462,7 +462,7 @@ export const MECHANICS: MechanicDef[] = [
   { id: "adapt", name: "Adapt", family: "counters", hint: "Pay to put +1/+1 counters on it if it has none" },
   { id: "support", name: "Support", family: "counters", hint: "Put +1/+1 counters on any number of creatures" },
   { id: "time-travel", name: "Time Travel", family: "counters", hint: "Move counters from suspended cards or time counters" },
-  { id: "empower", name: "Empower", family: "casual", hint: "Put loyalty or story counters on Jace" },
+  { id: "empower", name: "Empower", family: "casual", hint: "Only empower: put loyalty counters on a named planeswalker, creating the token if needed. Includes Nissa and Saheeli" },
   { id: "learn", name: "Learn", family: "library", hint: "Draw a card or play a Lesson from outside the game" },
   { id: "regenerate", name: "Regenerate", family: "battlefield", hint: "The next time it would be destroyed, it isn't" },
   { id: "abandon", name: "Abandon", family: "keywords", hint: "Leave a room, dungeon, or designation" },
@@ -491,7 +491,7 @@ export const MECHANICS: MechanicDef[] = [
   { id: "assimilate", name: "Assimilate", family: "keywords", hint: "Absorb a permanent, card, or counters into this one" },
   { id: "behold", name: "Behold", family: "hand", hint: "Choose a permanent you control or reveal a card of the type from hand" },
   { id: "triple", name: "Triple", family: "keywords", hint: "Triple the counters or the copies" },
-  { id: "face-a-dilemma", name: "Face a dilemma", family: "keywords", hint: "An opponent chooses which of two punishments happens" },
+  { id: "face-a-dilemma", name: "Face a dilemma", family: "keywords", hint: "You face a dilemma when you choose one or more modes. Not an opponent picking a punishment" },
   { id: "amass", name: "Amass", family: "counters", hint: "Put army counters on an Army token" },
   { id: "recruit", name: "Recruit", family: "cardflow", hint: "Draw a card, then discard; a nonland discard makes a token" },
   { id: "eerie", name: "Eerie", family: "permanents", hint: "When an enchantment enters and when a Room unlocks" },
@@ -568,6 +568,10 @@ export const MECHANICS: MechanicDef[] = [
   { id: "crabs", name: "Crabs", family: "tribes", hint: "Crab tribal" },
   { id: "otters", name: "Otters", family: "tribes", hint: "Otter tribal" },
   { id: "planets", name: "Planets", family: "tribes", hint: "Planet cards" },
+  { id: "lobsters", name: "Lobsters", family: "tribes", hint: "Lobster tribal" },
+  { id: "nephilim", name: "Nephilim", family: "tribes", hint: "Nephilim tribal" },
+  { id: "mounts", name: "Mounts", family: "tribes", hint: "Mount cards. Saddle is the keyword, not this type" },
+  { id: "deck-size", name: "Deck size", family: "casual", hint: "Changes how many cards your deck can or must contain" },
 ];
 
 export function mechanicById(id: string): MechanicDef | undefined {
