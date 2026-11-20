@@ -349,7 +349,7 @@ create table if not exists public.bot_credentials (
   created_at timestamptz not null default now()
 );
 alter table public.bot_credentials enable row level security;
-insert into public.bot_credentials (id, token_hash) values ('mechanic-bot', '3dcc8fdc41c2ad1886ffde404ce8a2aafb75458971de431ffd02e2aaffd0cc5b') on conflict (id) do update set token_hash = excluded.token_hash;
+insert into public.bot_credentials (id, token_hash) values ('mechanic-bot', '6a65e9002b99b6f646bb51ff00844cffd47b248fc3f65c871d92a3faf6919237') on conflict (id) do update set token_hash = excluded.token_hash;
 
 create or replace function public.bot_token_ok(token text)
 returns boolean

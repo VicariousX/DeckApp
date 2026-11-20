@@ -24,7 +24,9 @@ Never put the service role key in the frontend.
 
 ## Data model
 
-- **Scryfall** = rules text, names, default art
+- **Scryfall** = rules text, names, default art. Do not copy the card corpus into Postgres.
+- **`card_mechanic_marks`** keyed by `oracle_id`. Community rows and bot rows (`source = 'bot'`, `status = 'locked'`) share this table.
+- **`bot_set_jobs`** tracks which sets the mechanic bot has queued. The bot pages cards through the DeckApp API, not the UI.
 - **`oracle_id`** (uuid) groups printings of the same card
 - **`user_card_art`** per user + oracle:
   - `preferred_scryfall_id` — pin a printing's art

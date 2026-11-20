@@ -20,11 +20,30 @@ PORT=10000
 HOST=0.0.0.0
 CORS_ORIGINS=https://YOUR-PAGES-DOMAIN.pages.dev
 BULK_ENABLED=false
+SUPABASE_URL=https://azwbntxmgriswgucqwji.supabase.co
+SUPABASE_ANON_KEY=<anon key>
 ```
 
 Render sets `PORT`. Bind `0.0.0.0`. Health check: `/health`.
 
 `BULK_ENABLED=false` keeps the process small. The API is a polite, rate-limited Scryfall router. Do not enable bulk on a 512MB instance — `default_cards` is ~100k objects and will OOM.
+
+The anon key is enough for the mechanic bot RPCs. Do not put the service role key in the frontend. On this API it is optional (`SUPABASE_SERVICE_ROLE_KEY`).
+
+## Mechanic bot
+
+Grok Bot should call the API, not the UI. Send `Authorization: Bearer <mechanic-bot token>`.
+
+| Call | Purpose |
+| --- | --- |
+| `GET /api/bot/catalog` | Mechanic ids, families, relations (`cause`, `benefit`, `both`) |
+| `POST /api/bot/sets` | `{ "sets": ["dsk"] }` queues set codes |
+| `GET /api/bot/sets` | Queue and progress |
+| `GET /api/bot/sets/:code/cards?page=1` | One Scryfall page (unique cards, no tokens) plus marks already stored |
+| `POST /api/bot/marks` | `{ "marks": [{ "oracle_id", "mechanic_id", "relation" }], "remove": [] }` up to 200 |
+| `POST /api/bot/sets/:code` | `{ "status", "cursor", "cards_seen", "marks_applied", "note" }` |
+
+Marks go to Supabase `card_mechanic_marks` (`source = 'bot'`, `status = 'locked'`). Card text stays on Scryfall. Set progress is `bot_set_jobs`. Apply `supabase/migrations/20261120_mechanic_bot.sql` and `20261121_mechanic_bot_jobs.sql` first. The raw token is not in the repo, only its hash in `bot_credentials`.
 
 ## Frontend (Cloudflare Pages)
 

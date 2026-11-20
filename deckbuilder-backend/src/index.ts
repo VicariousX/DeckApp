@@ -20,6 +20,7 @@ import { BULK_ENABLED, CORS_ORIGINS, HOST, PORT } from "./config.js";
 import { appendAction, getRoom, putRoom } from "./tableRooms.js";
 import { GENERATED_SKINS } from "./ttsSkins.js";
 import { importDeckFromUrl } from "./importDeck.js";
+import { mountMechanicBot } from "./mechanicBot.js";
 import type { TableState, TableWire } from "./wire.js";
 
 const app = express();
@@ -697,6 +698,8 @@ app.get("/api/scryfall/prints", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Scryfall request failed" });
   }
 });
+
+mountMechanicBot(app);
 
 const server = http.createServer(app);
 const sockets = new WebSocketServer({ server, path: "/api/tables/socket" });
