@@ -1,6 +1,7 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { CardSearch } from "../components/CardSearch";
 import { AdvancedSearch } from "../components/search/AdvancedSearch";
+import { SearchModeSwitch } from "../components/SearchModeSwitch";
 import { FlowPanel } from "../layout/FlowPanel";
 import transitions from "../styles/pageTransitions.module.css";
 import styles from "./SearchPage.module.css";
@@ -16,11 +17,7 @@ export function SearchPage() {
           <h1>Search</h1>
           <p>{mode === "advanced" ? "Build a Scryfall query with tokens." : "Look up a card by name."}</p>
         </div>
-        <div className={styles.modes} role="tablist" aria-label="Search mode">
-          <Link to="/search/simple" className={styles.mode}>Simple</Link>
-          <Link to="/search?mode=standard" className={mode === "standard" ? styles.modeOn : styles.mode}>Standard</Link>
-          <Link to="/search?mode=advanced" className={mode === "advanced" ? styles.modeOn : styles.mode}>Advanced</Link>
-        </div>
+        <SearchModeSwitch mode={mode} />
       </header>
       <FlowPanel id={mode} order={["standard", "advanced"]} kind="mode">
       {mode === "advanced" ? (

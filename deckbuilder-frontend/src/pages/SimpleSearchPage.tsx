@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { renderManaSymbol } from "../utils/symbols";
+import { SearchModeSwitch } from "../components/SearchModeSwitch";
 import { buildSimpleQuery, decodeSimpleState, encodeSimpleState, type Color, type IdLogic, type Logic, type SimpleState, type StatChip, type StatField, type StatOp } from "../lib/search/simpleQuery";
 import styles from "./LoginPage.module.css";
 
@@ -153,8 +154,13 @@ export function SimpleSearchPage() {
         .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-spin { -moz-appearance: textfield; }
       `}</style>
-      <h1 className={styles.title}>Simple search</h1>
-      <p className={styles.subtitle}>Build a query. Submit to see results.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 className={styles.title}>Simple search</h1>
+          <p className={styles.subtitle}>Build a query. Submit to see results.</p>
+        </div>
+        <SearchModeSwitch mode="simple" />
+      </div>
 
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem", marginTop: 16 }}>
         <section>

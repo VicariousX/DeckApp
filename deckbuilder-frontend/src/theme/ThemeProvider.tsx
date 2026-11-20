@@ -10,7 +10,7 @@ import {
 import { isAppTheme, type AppThemeId, THEME_IDS } from "./themes";
 
 const STORAGE_KEY = "deckapp-theme";
-const SKY_KEY = "deckapp-skynav";
+const SKY_KEY = "deckapp-skynav.v2";
 
 type ThemeContextValue = {
   theme: AppThemeId;
@@ -39,9 +39,9 @@ function applySky(on: boolean) {
 
 function readSky(): boolean {
   try {
-    return localStorage.getItem(SKY_KEY) !== "off";
+    return localStorage.getItem(SKY_KEY) === "on";
   } catch {
-    return true;
+    return false;
   }
 }
 
