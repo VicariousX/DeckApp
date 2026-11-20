@@ -347,7 +347,6 @@ export const MECHANICS: MechanicDef[] = [
   { id: "stickers", name: "Stickers", family: "casual", hint: "Stickers and attractions" },
   { id: "attractions", name: "Attractions", family: "casual", hint: "Open an Attraction and visit it" },
   { id: "start-your-engines", name: "Start your engines", family: "casual", hint: "Speed in a multiplayer game" },
-,
   { id: "jump-start", name: "Jump-start", family: "graveyard", hint: "Cast it from the graveyard by discarding a card" },
   { id: "haunt", name: "Haunt", family: "graveyard", hint: "Exile it haunting a creature, then the effect happens again" },
   { id: "forecast", name: "Forecast", family: "keywords", hint: "Activate it from your hand during upkeep" },
