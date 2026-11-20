@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { renderManaSymbol } from "../../utils/symbols";
 import { buildSimpleQuery, type Color, type IdLogic, type Logic, type StatChip, type StatField, type StatOp } from "../../lib/search/simpleQuery";
+import { MechanicPicker } from "./MechanicPicker";
 import styles from "../../pages/LoginPage.module.css";
 
 const COLORS = ["W", "U", "B", "R", "G", "C"] as const;
@@ -83,6 +84,7 @@ export function SimpleSearchForm({
   const [statOp, setStatOp] = useState<StatOp>("=");
   const [statValue, setStatValue] = useState("");
   const [stats, setStats] = useState<StatChip[]>([]);
+  const [mechanic, setMechanic] = useState("");
 
   const typeMatches = useMemo(() => {
     const q = typeQuery.trim().toLowerCase();
@@ -116,7 +118,7 @@ export function SimpleSearchForm({
   function buildQuery(): string {
     const q = buildSimpleQuery({
       name, idColors, idLogic, cardColors, cardLogic, types, typeLogic,
-      isCommander, oracle, oracleLogic, stats, mechanic: "",
+      isCommander, oracle, oracleLogic, stats, mechanic,
     });
     const identity = applyIdentity && commanderIdentity ? commanderIdentity : "";
     return [q, identity].filter(Boolean).join(" ");
@@ -205,6 +207,10 @@ export function SimpleSearchForm({
         </div>
       </div>
       <ChipRow items={stats.map((s) => `${s.field === "mv" ? "MV" : "EDH"} ${s.op} ${s.value}`)} onRemove={(label) => { const idx = stats.findIndex((s) => `${s.field === "mv" ? "MV" : "EDH"} ${s.op} ${s.value}` === label); if (idx >= 0) setStats(stats.filter((_, i) => i !== idx)); }} />
+      <div>
+        <span className={styles.label}>Mechanic</span>
+        <MechanicPicker value={mechanic} onChange={setMechanic} />
+      </div>
       <button type="submit" className={styles.primaryBtn}>Search</button>
     </form>
   );

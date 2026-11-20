@@ -15,7 +15,6 @@ import {
 } from "../services/drawerService";
 import { ensureUserCardFromScryfall } from "../services/userCardService";
 import { loadSearchTargets, loadLastTarget, saveLastTarget, loadPinnedTargets, togglePinnedTarget, type SearchTargetRef } from "../services/searchTargetService";
-import { listMarksForOracles, type MechanicMark } from "../services/mechanicMarkService";
 import { readMeta } from "../lib/catalog/db";
 import { applyCatalogTier, getCatalogProgress, subscribeCatalog } from "../lib/catalog/manager";
 import { readCatalogTier } from "../lib/catalog/preference";
@@ -118,7 +117,6 @@ export function SearchResultsPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [presenceOnly, setPresenceOnly] = useState(false);
   const [showTargetChip, setShowTargetChip] = useState(true);
-  const [mechCounts, setMechCounts] = useState<Record<string, number>>({});
   const target = targets.find((t) => `${t.kind}:${t.id}` === targetKey) ?? null;
 
   useEffect(() => {
@@ -282,24 +280,6 @@ export function SearchResultsPage() {
   const visible = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
   const start = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, sorted.length);
-
-  useEffect(() => {
-    const ids = visible.map((c) => c.oracle_id || c.id).filter(Boolean);
-    if (!ids.length) {
-      setMechCounts({});
-      return;
-    }
-    let cancel = false;
-    void listMarksForOracles(ids).then(({ marks }) => {
-      if (cancel) return;
-      const next: Record<string, number> = {};
-      for (const m of marks) next[m.oracle_id] = (next[m.oracle_id] ?? 0) + 1;
-      setMechCounts(next);
-    });
-    return () => {
-      cancel = true;
-    };
-  }, [visible.map((c) => c.oracle_id || c.id).join(",")]);
 
   function patch(next: Record<string, string>) {
     const p = new URLSearchParams(params);
@@ -530,11 +510,8 @@ export function SearchResultsPage() {
           const key = card.oracle_id || card.id;
           const n = counts[key] ?? counts[card.id] ?? 0;
           const present = n > 0;
-          const mech = mechCounts[key] ?? 0;
           const ear = !present
-            ? mech > 0
-              ? `⚙${mech}`
-              : undefined
+            ? undefined
             : target?.kind === "drawer"
               ? n
               : presenceOnly

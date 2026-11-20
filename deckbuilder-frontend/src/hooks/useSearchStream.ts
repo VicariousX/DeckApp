@@ -60,7 +60,7 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
       });
       setMechIds(acc);
       if (!scryfallQ && acc.size) {
-        const { cards: found } = await fetchCollectionByIds([...acc].slice(0, 75));
+        const { cards: found } = await fetchCollectionByIds([...acc]);
         if (!cancel) setMechCards(found);
       } else setMechCards([]);
     })();

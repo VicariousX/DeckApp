@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { renderManaSymbol } from "../utils/symbols";
 import { SearchModeSwitch } from "../components/SearchModeSwitch";
+import { MechanicPicker } from "../components/search/MechanicPicker";
 import { buildSimpleQuery, decodeSimpleState, encodeSimpleState, type Color, type IdLogic, type Logic, type SimpleState, type StatChip, type StatField, type StatOp } from "../lib/search/simpleQuery";
 import transitions from "../styles/pageTransitions.module.css";
 import pageStyles from "./SearchPage.module.css";
@@ -368,16 +369,7 @@ export function SimpleSearchPage() {
 
         <section>
           <label className={styles.label}>Mechanic</label>
-          <input
-            className={styles.input}
-            value={mechanic}
-            onChange={(e) => setMechanic(e.target.value)}
-            placeholder="Mechanic selector (coming soon)"
-            disabled
-          />
-          <p className={styles.subtitle} style={{ marginTop: 4, fontSize: "0.75rem" }}>
-            Mechanic tracking is still in development.
-          </p>
+          <MechanicPicker value={mechanic} onChange={setMechanic} />
         </section>
 
         <button type="submit" className={styles.primaryBtn}>

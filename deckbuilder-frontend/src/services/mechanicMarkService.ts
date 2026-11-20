@@ -60,8 +60,10 @@ export async function oracleIdsForMechanic(
     .from("card_mechanic_marks")
     .select("oracle_id")
     .eq("mechanic_id", mechanicId)
-    .in("status", ["accepted", "locked"]);
-  if (relation && relation !== "both") q = q.in("relation", [relation, "both"]);
+    .in("status", ["accepted", "locked"])
+    .limit(5000);
+  if (relation === "both") q = q.eq("relation", "both");
+  else if (relation) q = q.in("relation", [relation, "both"]);
   const { data, error } = await q;
   if (error) return { ids: [], error: error.message };
   return {
