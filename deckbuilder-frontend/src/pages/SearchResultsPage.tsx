@@ -22,8 +22,10 @@ import type { CatalogMeta, CatalogProgress } from "../lib/catalog/types";
 import { fetchDeckDetail } from "../services/deckService";
 import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
-import { ToolsMenu } from "../components/ToolsMenu";
 import { ErrorNotice } from "../components/ErrorNotice";
+import { registerSettings } from "../components/SettingsDrawer";
+import { SearchPageSettings } from "../components/SearchPageSettings";
+import { publishSearchPageControls } from "../lib/searchPageControls";
 import { useSearchStream } from "../hooks/useSearchStream";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
@@ -31,6 +33,7 @@ import styles from "./SearchPage.module.css";
 import resultStyles from "./SearchResultsPage.module.css";
 
 const PAGE_SIZES = [15, 30, 50];
+let searchSettingsReady = false;
 
 const SCRYFALL_ORDER = new Set([
   "name",
@@ -305,33 +308,49 @@ export function SearchResultsPage() {
     [browseMode, scrollCards, visible]
   );
 
+  useEffect(() => {
+    publishSearchPageControls({
+      browseMode,
+      setBrowseMode: (mode) => {
+        if (mode !== "scroll") lastMode.current = mode;
+        setBrowseMode(mode);
+      },
+      sortKey,
+      sortOptions: SORT_OPTIONS,
+      setSort: (key) => patch({ sort: key, page: "1" }),
+      sortDir,
+      toggleDir: () => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" }),
+      pageSize,
+      pageSizes: PAGE_SIZES,
+      setPageSize: (n) => patch({ n: String(n), page: "1" }),
+      columns,
+      setColumns: (n) => {
+        setColumns(n);
+        try { localStorage.setItem("deckapp.searchColumns", String(n)); } catch { /* ignore */ }
+      },
+      targets,
+      targetKey,
+      setTarget: onTargetChange,
+      pinned,
+      togglePin: onTogglePin,
+      showTargetChip,
+      setShowTargetChip,
+    });
+  });
+
+  useEffect(() => {
+    if (!searchSettingsReady) {
+      searchSettingsReady = true;
+      registerSettings((pathname) => {
+        if (!pathname.startsWith("/search/results")) return null;
+        return { title: "Search", content: <SearchPageSettings /> };
+      });
+    }
+    return () => publishSearchPageControls(null);
+  }, []);
+
   return (
     <div className={`${transitions.page} ${styles.page}`}>
-      <ToolsMenu
-        menuLabel="Search settings"
-        targets={targets}
-        targetKey={targetKey}
-        onTargetChange={onTargetChange}
-        pinned={pinned}
-        onTogglePin={onTogglePin}
-        showTargetChip={showTargetChip}
-        onShowTargetChipChange={setShowTargetChip}
-        columns={columns}
-        onColumnsChange={setColumns}
-        browseMode={browseMode === "scroll" ? "scroll" : browseMode}
-        onBrowseMode={(mode) => {
-          if (mode !== "scroll") lastMode.current = mode;
-          setBrowseMode(mode);
-        }}
-        sortKey={sortKey}
-        sortOptions={SORT_OPTIONS}
-        onSort={(key) => patch({ sort: key, page: "1" })}
-        sortDir={sortDir}
-        onSortDir={() => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" })}
-        pageSize={pageSize}
-        pageSizes={PAGE_SIZES}
-        onPageSize={(n) => patch({ n: String(n), page: "1" })}
-      />
       <div className={resultStyles.meta}>
         <div className={resultStyles.metaGroup}>
           <Link to={editTo} className={resultStyles.back}>

@@ -23,7 +23,11 @@ export function registerSettings(fn: SettingsContributor) {
 export function SettingsButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className={styles.trigger} onClick={onClick} aria-label="Settings">
-      ⋯
+      <span className={styles.dots} aria-hidden>
+        <span />
+        <span />
+        <span />
+      </span>
     </button>
   );
 }
