@@ -19,7 +19,6 @@ import {
   type RandomHistoryEntry,
 } from "../../lib/randomCardHistory";
 import { CardInspectorModal } from "../../components/CardInspectorModal";
-import { CardSkinsPanel } from "../../components/CardSkinsPanel";
 import { isProxyAdmin } from "../../lib/proxyAdmin";
 import {
   isScryfallPaused,
@@ -27,14 +26,13 @@ import {
   resetScryfallPause,
 } from "../../lib/scryfallPause";
 
-type AccountSection = "profile" | "skins" | "themes" | "data" | "random" | "password" | "scryfall";
+type AccountSection = "profile" | "themes" | "data" | "random" | "password" | "scryfall";
 
 function sectionFromSearch(raw: string | null): AccountSection {
   if (
     raw === "themes" ||
     raw === "password" ||
     raw === "profile" ||
-    raw === "skins" ||
     raw === "data" ||
     raw === "random" ||
     raw === "scryfall"
@@ -168,15 +166,9 @@ export function AccountPanel() {
           >
             Profile
           </button>
-          <button
-            type="button"
-            className={`${styles.accountNavBtn} ${
-              section === "skins" ? styles.accountNavBtnActive : ""
-            }`}
-            onClick={() => goSection("skins")}
-          >
-            Card skins
-          </button>
+          <Link to="/social?tab=sleeves" className={styles.accountNavBtn}>
+            Sleeves
+          </Link>
           <button
             type="button"
             className={`${styles.accountNavBtn} ${
@@ -300,8 +292,6 @@ export function AccountPanel() {
             <SkyPlotter />
           </>
         )}
-
-        {section === "skins" && <CardSkinsPanel />}
 
         {section === "themes" && (
           <>

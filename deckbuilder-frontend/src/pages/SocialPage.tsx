@@ -36,11 +36,12 @@ import {
   type Vote,
 } from "../services/socialService";
 import { HouseFormatEditor } from "../components/HouseFormatEditor";
+import { CardSleevesPanel } from "../components/CardSleevesPanel";
 import { blankHouseFormat, listGroupFormats, loadHouseFormats, saveGroupFormat, saveHouseFormats, saveRemoteHouseFormat } from "../services/houseFormatService";
 import type { HouseFormat } from "../lib/formats/rules";
 import styles from "./SocialPage.module.css";
 
-type Tab = "friends" | "groups" | "messages";
+type Tab = "friends" | "groups" | "messages" | "sleeves";
 type GroupTab = "formats" | "rules" | "submissions" | "members";
 
 export function SocialPage() {
@@ -158,14 +159,16 @@ export function SocialPage() {
           <p>Friends, play groups, and messages.</p>
         </div>
         <div className={styles.tabs}>
-          {(["friends", "groups", "messages"] as Tab[]).map((item) => (
+          {(["friends", "groups", "messages", "sleeves"] as Tab[]).map((item) => (
             <button key={item} type="button" className={tab === item ? styles.tabOn : styles.tab} onClick={() => setParams({ tab: item })}>
-              {item === "groups" ? "Play Group" : item[0].toUpperCase() + item.slice(1)}
+              {item === "groups" ? "Play Group" : item === "sleeves" ? "Sleeves" : item[0].toUpperCase() + item.slice(1)}
             </button>
           ))}
         </div>
       </header>
       {error && <p className={styles.error}>{error}</p>}
+
+      {tab === "sleeves" && <CardSleevesPanel />}
 
       {tab === "friends" && (
         <section className={styles.panel}>

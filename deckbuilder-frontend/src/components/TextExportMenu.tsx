@@ -167,7 +167,7 @@ export function TextExportMenu({
               </button>
             ) : null}
             <p className={styles.hint}>
-              Mark the deck public, then in Tabletop Simulator paste /tts/deckapp-importer.lua onto an object and click DeckApp. The list uses the owner's preferred art.
+              Mark the deck public, then in Tabletop Simulator paste the DeckApp importer onto an object. Sleeves and the public deck list are in that object's menu.
             </p>
           </div>
           {status && <p className={styles.status}>{status}</p>}
