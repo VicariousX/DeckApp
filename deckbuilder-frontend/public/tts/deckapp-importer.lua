@@ -1,23 +1,27 @@
 -- DeckApp importer for Tabletop Simulator.
--- Paste onto an object. The selected sleeve is saved on the object.
--- Library and sideboard spawn face down. Commanders and tokens spawn face up.
--- Public decks page through the catalog. Import URL loads a DeckApp link
--- or a deck from Archidekt, Moxfield, MTGGoldfish, or Deckstats.
--- Hover text is the card's mana cost, type, and oracle text.
+-- Paste onto one object. Click DeckApp to open the panel.
+-- The selected sleeve is saved on the object.
+-- Decks land on the table in front of the player who spawned them.
+-- Library and sideboard are face down. Commanders are face up.
+-- Tokens spawn in a floating tray only that player can see.
+-- Dragging a token off the tray leaves the original and takes a copy.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
+local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Grey","Black"}
+local VISIBLE = 5
+
 local decks = {}
 local deckTotal = 0
 local deckQuery = ""
-local shown = {}
 local sleeves = {}
 local selected = { id = "none", name = "None", url = "" }
 local mode = "home"
-local page = 1
 local importUrl = ""
-local PAGE_SIZE = 8
-local CHUNK = 40
+local uiColor = "White"
+local previewSerial = 0
 local seq = 2000
+local trays = {}
+local anchors = {}
 
 function urlEncode(s)
   s = tostring(s or "")
@@ -26,17 +30,39 @@ function urlEncode(s)
   end))
 end
 
-function withCache(url)
-  if not url or url == "" then return "" end
-  if url:find("?", 1, true) then return url .. "&v=5" end
-  return url .. "?v=5"
+function xmlEscape(s)
+  s = tostring(s or ""):gsub("[%c]", " ")
+  return (s:gsub("&", "&"):gsub("<", "<"):gsub(">", ">"):gsub('"', """))
 end
 
-function sleeveUrl()
-  if selected.url and selected.url ~= "" then
-    return withCache(selected.url)
-  end
+function withCache(url)
+  if not url or url == "" then return "" end
+  if url:find("?", 1, true) then return url .. "&v=6" end
+  return url .. "?v=6"
+end
+
+function sleeveImage()
+  if selected.url and selected.url ~= "" then return withCache(selected.url) end
   return API .. "back.jpg"
+end
+
+function hiddenFrom(owner)
+  local list = {}
+  for _, color in ipairs(COLORS) do
+    if color ~= owner then table.insert(list, color) end
+  end
+  return list
+end
+
+function vadd(a, b, scale)
+  scale = scale or 1
+  return { x = a.x + b.x * scale, y = a.y + b.y * scale, z = a.z + b.z * scale }
+end
+
+function truncate(s, max)
+  s = tostring(s or "")
+  if #s <= max then return s end
+  return s:sub(1, max - 1) .. "…"
 end
 
 function onSave()
@@ -49,57 +75,130 @@ function onLoad(saved)
     local savedSleeve = data and (data.sleeve or data.skin)
     if savedSleeve and savedSleeve.id then selected = savedSleeve end
   end
-  if selected.id == "classic" or selected.id == "arcane" or selected.id == "night"
-    or selected.id == "parchment" or selected.id == "ember" or selected.id == "tide" then
-    selected = { id = "none", name = "None", url = "" }
-  end
-  drawHome()
+  local old = { classic = true, arcane = true, night = true, parchment = true, ember = true, tide = true }
+  if old[selected.id] then selected = { id = "none", name = "None", url = "" } end
+  drawLauncher()
 end
 
-function truncate(s, max)
-  s = s or ""
-  if #s <= max then return s end
-  return s:sub(1, max - 1) .. "…"
-end
-
-function drawHome()
-  mode = "home"
-  page = 1
+function drawLauncher()
   self.clearButtons()
   self.clearInputs()
   self.createButton({
-    click_function = "openDecks",
+    click_function = "openPanel",
     function_owner = self,
     label = "DeckApp",
-    position = {0, 0.35, 0.55},
-    rotation = {0, 0, 0},
-    width = 1400, height = 280, font_size = 140,
-    color = {0.16, 0.12, 0.24}, font_color = {0.93, 0.9, 1},
-  })
-  self.createButton({
-    click_function = "openSleeves",
-    function_owner = self,
-    label = "Sleeve: " .. truncate(selected.name or "None", 16),
     position = {0, 0.35, 0},
-    rotation = {0, 0, 0},
-    width = 1400, height = 240, font_size = 100,
-    color = {0.22, 0.16, 0.3}, font_color = {0.93, 0.9, 1},
-  })
-  self.createButton({
-    click_function = "openUrl",
-    function_owner = self,
-    label = "Import URL",
-    position = {0, 0.35, -0.5},
-    rotation = {0, 0, 0},
-    width = 1400, height = 240, font_size = 110,
-    color = {0.18, 0.14, 0.28}, font_color = {0.93, 0.9, 1},
+    width = 1400, height = 360, font_size = 160,
+    color = {0.12, 0.09, 0.18},
+    font_color = {0.94, 0.91, 1},
   })
 end
 
-function openSleeves()
+function openPanel(_, color)
+  uiColor = color or "White"
+  if mode == "home" or mode == "" then mode = "home" end
+  renderUI()
+end
+
+function uiClose()
+  UI.setXml("")
+end
+
+function click(name)
+  return self.getGUID() .. "/" .. name
+end
+
+function renderUI()
+  previewSerial = previewSerial + 1
+  local asset = "sleeve" .. previewSerial
+  local body = ""
+  if mode == "sleeves" then
+    body = sleeveList()
+  elseif mode == "decks" then
+    body = deckList()
+  elseif mode == "url" then
+    body = urlForm()
+  else
+    body = homeCopy()
+  end
+  local xml = [[
+<Defaults>
+  <Button class="btn" color="#2c2544" textColor="#f4f0ff" fontSize="18" />
+  <Text class="label" color="#f4f0ff" fontSize="18" />
+</Defaults>
+<Panel id="deckapp" width="900" height="620" color="#14111cf2" rectAlignment="MiddleCenter" allowDragging="true" returnToOriginalPositionWhenReleased="false" visibility="]] .. uiColor .. [[">
+  <Text class="label" fontSize="26" rectAlignment="UpperLeft" offsetXY="28 -18" width="420" height="36">DeckApp</Text>
+  <Text class="label" fontSize="16" color="#b7aec9" rectAlignment="UpperLeft" offsetXY="28 -48" width="420" height="24">Sleeve · ]] .. xmlEscape(selected.name or "None") .. [[</Text>
+  <Button class="btn" onClick="]] .. click("uiClose") .. [[" rectAlignment="UpperRight" offsetXY="-16 -16" width="40" height="40" fontSize="20">✕</Button>
+  <Image id="sleevePic" image="]] .. asset .. [[" width="168" height="234" rectAlignment="UpperLeft" offsetXY="28 -88" />
+  <Button class="btn" onClick="]] .. click("uiModeSleeves") .. [[" color="]] .. (mode == "sleeves" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -336" width="168" height="40">Sleeves</Button>
+  <Button class="btn" onClick="]] .. click("uiModeDecks") .. [[" color="]] .. (mode == "decks" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -384" width="168" height="40">Decks</Button>
+  <Button class="btn" onClick="]] .. click("uiModeUrl") .. [[" color="]] .. (mode == "url" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -432" width="168" height="40">Import URL</Button>
+  <Text class="label" fontSize="14" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="28 -484" width="168" height="90">The preview is the back of every card spawned from here.</Text>
+  ]] .. body .. [[
+</Panel>]]
+  UI.setXml(xml, {{ name = asset, url = sleeveImage() }})
+end
+
+function homeCopy()
+  return [[
+<Text class="label" fontSize="20" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="220">Public decks are under Decks. Search is at the top of that list.
+
+Import URL accepts a DeckApp link, or a deck from Archidekt, Moxfield, MTGGoldfish, or Deckstats. The sleeve on the left is applied either way.
+
+Tokens come out in a tray only you can see. Drag one onto the table and the tray keeps its copy.</Text>]]
+end
+
+function sleeveList()
+  if #sleeves == 0 then
+    return [[<Text class="label" fontSize="18" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="40">Loading sleeves…</Text>]]
+  end
+  local rows = {}
+  for i, sleeve in ipairs(sleeves) do
+    local mark = sleeve.id == selected.id and "  ·  selected" or ""
+    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiPickSleeve") .. '" id="s' .. i .. '" preferredHeight="42">' .. xmlEscape(truncate(sleeve.name or "Sleeve", 42) .. mark) .. "</Button>"
+  end
+  local height = math.max(80, #rows * 48)
+  return [[
+<VerticalScrollView rectAlignment="UpperLeft" offsetXY="230 -88" width="640" height="490" color="#00000055" scrollSensitivity="30">
+  <VerticalLayout spacing="6" padding="8" childForceExpandWidth="true" childForceExpandHeight="false" childControlHeight="true" preferredHeight="]] .. height .. [[">
+    ]] .. table.concat(rows) .. [[
+  </VerticalLayout>
+</VerticalScrollView>]]
+end
+
+function deckList()
+  local rows = {}
+  for i, deck in ipairs(decks) do
+    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiPickDeck") .. '" id="d' .. i .. '" preferredHeight="42">' .. xmlEscape(truncate((deck.name or "Deck") .. "  ·  " .. (deck.format or ""), 52)) .. "</Button>"
+  end
+  if deckTotal == 0 and #decks == 0 then
+    rows[#rows + 1] = '<Text class="label" preferredHeight="36">No public decks.</Text>'
+  elseif #decks < deckTotal then
+    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiMoreDecks") .. '" preferredHeight="42">Load more (' .. #decks .. " / " .. deckTotal .. ")</Button>"
+  end
+  local height = math.max(80, #rows * 48 + 8)
+  return [[
+<InputField id="deckSearch" onEndEdit="]] .. click("uiSearch") .. [[" placeholder="Search public decks" text="]] .. xmlEscape(deckQuery) .. [[" rectAlignment="UpperLeft" offsetXY="230 -88" width="640" height="40" fontSize="18" color="#221c33" textColor="#f4f0ff" />
+<VerticalScrollView rectAlignment="UpperLeft" offsetXY="230 -138" width="640" height="440" color="#00000055" scrollSensitivity="30">
+  <VerticalLayout spacing="6" padding="8" childForceExpandWidth="true" childForceExpandHeight="false" childControlHeight="true" preferredHeight="]] .. height .. [[">
+    ]] .. table.concat(rows) .. [[
+  </VerticalLayout>
+</VerticalScrollView>]]
+end
+
+function urlForm()
+  return [[
+<Text class="label" fontSize="18" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="28">Paste a deck link</Text>
+<InputField id="deckUrl" onValueChanged="]] .. click("uiUrl") .. [[" onEndEdit="]] .. click("uiUrl") .. [[" placeholder="https://" text="]] .. xmlEscape(importUrl) .. [[" rectAlignment="UpperLeft" offsetXY="230 -140" width="640" height="44" fontSize="16" color="#221c33" textColor="#f4f0ff" />
+<Button class="btn" onClick="]] .. click("uiImport") .. [[" rectAlignment="UpperLeft" offsetXY="230 -200" width="220" height="44">Import</Button>
+<Text class="label" fontSize="16" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -260" width="620" height="120">DeckApp, Archidekt, Moxfield, MTGGoldfish, and Deckstats. A DeckApp link can be a deck that is not in the public list. Chat also works: !deckapp and the link.</Text>]]
+end
+
+function uiModeSleeves()
   mode = "sleeves"
-  page = 1
-  broadcastToAll("Loading sleeves…", {0.8, 0.8, 1})
+  renderUI()
+  if #sleeves > 0 then return end
   WebRequest.get(API .. "sleeves", function(req)
     sleeves = { { id = "none", name = "None", url = "" } }
     if not req.is_error and req.response_code == 200 then
@@ -108,37 +207,84 @@ function openSleeves()
         table.insert(sleeves, sleeve)
       end
     else
-      broadcastToAll("Sleeve list failed (" .. tostring(req.response_code) .. ").", {1, 0.5, 0.4})
+      broadcastToAll("Sleeve list failed.", {1, 0.45, 0.4})
     end
-    if #sleeves == 1 then
-      broadcastToAll("No public sleeves yet. Upload some from Social → Sleeves.", {1, 0.7, 0.4})
-    end
-    drawSleeves()
+    if mode == "sleeves" then renderUI() end
   end)
 end
 
-function drawSleeves()
-  shown = sleeves
-  drawPaged("Back", function(item)
-    local mark = item.id == selected.id and " *" or ""
-    return truncate((item.name or item.id) .. mark, 28)
-  end)
-end
-
-function openDecks()
+function uiModeDecks()
   mode = "decks"
-  page = 1
+  if #decks == 0 then
+    decks = {}
+    deckTotal = 0
+    renderUI()
+    fetchDeckChunk(function() if mode == "decks" then renderUI() end end)
+    return
+  end
+  renderUI()
+end
+
+function uiModeUrl()
+  mode = "url"
+  renderUI()
+end
+
+function uiSearch(_, value)
+  value = value or ""
+  if value == deckQuery then return end
+  deckQuery = value
   decks = {}
   deckTotal = 0
-  broadcastToAll("Loading public decks…", {0.8, 0.8, 1})
-  fetchDeckChunk(function()
-    if #decks == 0 then
-      broadcastToAll("No public decks.", {1, 0.7, 0.4})
-      drawHome()
+  fetchDeckChunk(function() if mode == "decks" then renderUI() end end)
+end
+
+function uiMoreDecks()
+  fetchDeckChunk(function() if mode == "decks" then renderUI() end end)
+end
+
+function uiUrl(_, value)
+  importUrl = value or ""
+end
+
+function uiPickSleeve(_, _, id)
+  local index = tonumber((id or ""):match("%d+"))
+  local sleeve = index and sleeves[index]
+  if not sleeve then return end
+  selected = { id = sleeve.id, name = sleeve.name, url = sleeve.url or "" }
+  self.script_state = JSON.encode({ sleeve = selected })
+  renderUI()
+end
+
+function uiPickDeck(player, _, id)
+  local index = tonumber((id or ""):match("%d+"))
+  local deck = index and decks[index]
+  if not deck then return end
+  local color = player and player.color or uiColor
+  broadcastToAll("Loading " .. (deck.name or "deck") .. "…", {0.8, 0.8, 1})
+  loadDeck(deck.id, seatSpot(color))
+end
+
+function uiImport(player)
+  local typed = (importUrl or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if typed == "" then
+    broadcastToAll("Paste a deck URL first.", {1, 0.6, 0.4})
+    return
+  end
+  local color = player and player.color or uiColor
+  broadcastToAll("Importing with the " .. (selected.name or "None") .. " sleeve…", {0.8, 0.8, 1})
+  local spot = seatSpot(color)
+  WebRequest.get(API .. "import?url=" .. urlEncode(typed), function(req)
+    if req.is_error or req.response_code ~= 200 then
+      local data = JSON.decode(req.text or "")
+      broadcastToAll("Import failed: " .. tostring((data and data.error) or req.error or req.text), {1, 0.4, 0.4})
       return
     end
-    broadcastToAll("Sleeve: " .. (selected.name or "None") .. ". " .. deckTotal .. " public decks.", {0.6, 1, 0.6})
-    showDecks()
+    local data = JSON.decode(req.text)
+    if data.missing and #data.missing > 0 then
+      broadcastToAll("Skipped " .. #data.missing .. " unrecognized cards.", {1, 0.7, 0.4})
+    end
+    spawnDeck(data, spot)
   end)
 end
 
@@ -147,10 +293,10 @@ function fetchDeckChunk(done)
     if done then done() end
     return
   end
-  local url = API .. "decks?limit=" .. CHUNK .. "&offset=" .. #decks .. "&q=" .. urlEncode(deckQuery)
+  local url = API .. "decks?limit=40&offset=" .. #decks .. "&q=" .. urlEncode(deckQuery)
   WebRequest.get(url, function(req)
     if req.is_error or req.response_code ~= 200 then
-      broadcastToAll("Deck list failed (" .. tostring(req.response_code) .. "): " .. tostring(req.error or req.text), {1, 0.4, 0.4})
+      broadcastToAll("Deck list failed.", {1, 0.4, 0.4})
       if done then done() end
       return
     end
@@ -163,222 +309,28 @@ function fetchDeckChunk(done)
   end)
 end
 
-function showDecks()
-  local need = page * PAGE_SIZE
-  if #decks < need and #decks < deckTotal then
-    fetchDeckChunk(function() drawGui(decks) end)
-    return
+function seatSpot(color)
+  local fallback = self.getPosition()
+  local spot = {
+    origin = { x = fallback.x + 4, y = fallback.y + 2, z = fallback.z },
+    forward = { x = 0, y = 0, z = 1 },
+    right = { x = 1, y = 0, z = 0 },
+    yaw = 0,
+    color = color,
+  }
+  if not (color and Player[color]) then return spot end
+  local ok, hand = pcall(function() return Player[color].getHandTransform() end)
+  if not ok or not hand or not hand.position or not hand.forward or not hand.right then return spot end
+  local depth = 12
+  if hand.scale and hand.scale.z and hand.scale.z > 2 then
+    depth = hand.scale.z * 0.5 + 6
   end
-  drawGui(decks)
-end
-
-function drawGui(list)
-  shown = list
-  drawPaged("Close", function(item)
-    return truncate((item.name or "Deck") .. " · " .. (item.format or ""), 30)
-  end)
-end
-
-function drawPaged(closeLabel, labelFn)
-  self.clearButtons()
-  self.clearInputs()
-  local total = #shown
-  local pages = math.max(1, math.ceil((mode == "decks" and deckTotal or total) / PAGE_SIZE))
-  if page > pages then page = pages end
-  if page < 1 then page = 1 end
-  local startIdx = (page - 1) * PAGE_SIZE + 1
-  local endIdx = math.min(startIdx + PAGE_SIZE - 1, total)
-
-  if mode == "decks" then
-    self.createInput({
-      input_function = "onDeckQuery",
-      function_owner = self,
-      label = "Search public decks",
-      alignment = 3,
-      position = {0, 0.36, 1.85},
-      width = 1600, height = 170, font_size = 78,
-      value = deckQuery,
-    })
-  end
-
-  self.createButton({
-    click_function = "closeGui",
-    function_owner = self,
-    label = closeLabel,
-    position = {0, 0.35, 1.35},
-    width = 1600, height = 220, font_size = 110,
-    color = {0.28, 0.18, 0.32}, font_color = {0.93, 0.9, 1},
-  })
-
-  if pages > 1 then
-    self.createButton({
-      click_function = "prevPage", function_owner = self, label = "◀ Prev",
-      position = {-0.7, 0.35, 0.9}, width = 700, height = 180, font_size = 90,
-      color = {0.2, 0.15, 0.28}, font_color = {0.93, 0.9, 1},
-    })
-    self.createButton({
-      click_function = "nextPage", function_owner = self, label = "Next ▶",
-      position = {0.7, 0.35, 0.9}, width = 700, height = 180, font_size = 90,
-      color = {0.2, 0.15, 0.28}, font_color = {0.93, 0.9, 1},
-    })
-    self.createButton({
-      click_function = "noop", function_owner = self,
-      label = page .. " / " .. pages,
-      position = {0, 0.35, 0.9}, width = 500, height = 180, font_size = 90,
-      color = {0.14, 0.1, 0.2}, font_color = {0.85, 0.82, 0.95},
-    })
-  end
-
-  local names = {"pick1","pick2","pick3","pick4","pick5","pick6","pick7","pick8"}
-  local slot = 1
-  for i = startIdx, endIdx do
-    if not names[slot] then break end
-    self.createButton({
-      click_function = names[slot],
-      function_owner = self,
-      label = labelFn(shown[i]),
-      position = {0, 0.35, 0.4 - (slot - 1) * 0.46},
-      width = 1800, height = 200, font_size = 90,
-      color = {0.16, 0.12, 0.24}, font_color = {0.93, 0.9, 1},
-    })
-    slot = slot + 1
-  end
-end
-
-function onDeckQuery(_, _, value, stillEditing)
-  if stillEditing then return end
-  value = value or ""
-  if value == deckQuery then return end
-  deckQuery = value
-  page = 1
-  decks = {}
-  deckTotal = 0
-  fetchDeckChunk(function() showDecks() end)
-end
-
-function prevPage()
-  if page > 1 then
-    page = page - 1
-    if mode == "sleeves" then drawSleeves() else showDecks() end
-  end
-end
-
-function nextPage()
-  local total = mode == "decks" and deckTotal or #shown
-  local pages = math.max(1, math.ceil(total / PAGE_SIZE))
-  if page < pages then
-    page = page + 1
-    if mode == "sleeves" then drawSleeves() else showDecks() end
-  end
-end
-
-function noop() end
-
-function openUrl()
-  mode = "url"
-  self.clearButtons()
-  self.clearInputs()
-  self.createButton({
-    click_function = "closeGui", function_owner = self, label = "Back",
-    position = {0, 0.35, 1.15}, width = 1400, height = 220, font_size = 110,
-    color = {0.28, 0.18, 0.32}, font_color = {0.93, 0.9, 1},
-  })
-  self.createInput({
-    input_function = "onImportUrl",
-    function_owner = self,
-    label = "Paste a deck URL",
-    alignment = 3,
-    position = {0, 0.36, 0.45},
-    width = 1800, height = 200, font_size = 70,
-    value = importUrl,
-  })
-  self.createButton({
-    click_function = "runImport", function_owner = self, label = "Import",
-    position = {0, 0.35, -0.15}, width = 1400, height = 240, font_size = 120,
-    color = {0.16, 0.12, 0.24}, font_color = {0.93, 0.9, 1},
-  })
-  self.createButton({
-    click_function = "noop", function_owner = self,
-    label = "Sleeve: " .. truncate(selected.name or "None", 22),
-    position = {0, 0.35, -0.7}, width = 1400, height = 180, font_size = 80,
-    color = {0.14, 0.1, 0.2}, font_color = {0.85, 0.82, 0.95},
-  })
-end
-
-function onImportUrl(_, _, value, stillEditing)
-  if stillEditing then return end
-  importUrl = value or ""
-end
-
-function runImport(_, color)
-  local inputs = self.getInputs()
-  local typed = (inputs[1] and inputs[1].value) or importUrl
-  typed = (typed or ""):gsub("^%s+", ""):gsub("%s+$", "")
-  if typed == "" then
-    broadcastToAll("Paste a deck URL first.", {1, 0.6, 0.4})
-    return
-  end
-  importUrl = typed
-  broadcastToAll("Importing with the " .. (selected.name or "None") .. " sleeve…", {0.8, 0.8, 1})
-  local pos = playerPos(color)
-  drawHome()
-  WebRequest.get(API .. "import?url=" .. urlEncode(typed), function(req)
-    if req.is_error or req.response_code ~= 200 then
-      local data = JSON.decode(req.text or "")
-      broadcastToAll("Import failed: " .. tostring((data and data.error) or req.error or req.text), {1, 0.4, 0.4})
-      return
-    end
-    local data = JSON.decode(req.text)
-    if data.missing and #data.missing > 0 then
-      broadcastToAll("Skipped " .. #data.missing .. " unrecognized cards.", {1, 0.7, 0.4})
-    end
-    spawnDeck(data, pos)
-  end)
-end
-
-function playerPos(color)
-  if color and Player[color] then
-    local ok, t = pcall(function() return Player[color].getHandTransform() end)
-    if ok and t and t.position then
-      local p = t.position
-      return { x = p.x, y = p.y + 1.5, z = p.z - 1.5 }
-    end
-  end
-  local p = self.getPosition()
-  return { x = p.x + 2, y = p.y + 2, z = p.z }
-end
-
-function loadShown(index, color)
-  local real = (page - 1) * PAGE_SIZE + index
-  local chosen = shown[real]
-  if not chosen then
-    broadcastToAll("Nothing on that button.", {1, 0.5, 0.4})
-    return
-  end
-  if mode == "sleeves" then
-    selected = { id = chosen.id, name = chosen.name, url = chosen.url or "" }
-    self.script_state = JSON.encode({ sleeve = selected })
-    broadcastToAll("Sleeve set to " .. (selected.name or "None"), {0.6, 1, 0.6})
-    drawHome()
-    return
-  end
-  broadcastToAll("Loading " .. (chosen.name or "deck") .. "…", {0.8, 0.8, 1})
-  local pos = playerPos(color)
-  drawHome()
-  loadDeck(chosen.id, pos)
-end
-
-function pick1(_, color) loadShown(1, color) end
-function pick2(_, color) loadShown(2, color) end
-function pick3(_, color) loadShown(3, color) end
-function pick4(_, color) loadShown(4, color) end
-function pick5(_, color) loadShown(5, color) end
-function pick6(_, color) loadShown(6, color) end
-function pick7(_, color) loadShown(7, color) end
-function pick8(_, color) loadShown(8, color) end
-
-function closeGui()
-  drawHome()
+  spot.forward = hand.forward
+  spot.right = hand.right
+  spot.yaw = hand.rotation and hand.rotation.y or 0
+  spot.origin = vadd(hand.position, hand.forward, depth)
+  spot.origin.y = hand.position.y + 2
+  return spot
 end
 
 function onChat(message, player)
@@ -387,23 +339,22 @@ function onChat(message, player)
   local color = player and player.color
   if raw:find("^https?://") then
     importUrl = raw
-    runImport(nil, color)
+    uiImport(player)
     return false
   end
   local id = raw:match("([0-9a-fA-F%-]+)%s*$")
   if not id then return end
-  loadDeck(id, playerPos(color))
+  loadDeck(id, seatSpot(color))
   return false
 end
 
-function loadDeck(id, pos)
-  broadcastToAll("Loading deck with the " .. (selected.name or "None") .. " sleeve…", {0.8, 0.8, 1})
+function loadDeck(id, spot)
   WebRequest.get(API .. "deck/" .. id, function(req)
     if req.is_error or req.response_code ~= 200 then
       broadcastToAll("Deck load failed: " .. tostring(req.error or req.text), {1, 0.4, 0.4})
       return
     end
-    spawnDeck(JSON.decode(req.text), pos)
+    spawnDeck(JSON.decode(req.text), spot)
   end)
 end
 
@@ -413,31 +364,30 @@ function allocId()
   return seq
 end
 
-function cardJson(name, face, position, faceDown, tip)
+function cardJson(name, face, position, rotation, tip, floating)
   local id = allocId()
-  local key = tostring(id)
   return {
     Name = "Card",
     Transform = {
       posX = position.x, posY = position.y, posZ = position.z,
-      rotX = 0, rotY = 0, rotZ = faceDown and 180 or 0,
+      rotX = rotation.x, rotY = rotation.y, rotZ = rotation.z,
       scaleX = 1, scaleY = 1, scaleZ = 1,
     },
     Nickname = name or "Card",
     Description = tip or "",
     Locked = false,
-    Grid = true,
-    Snap = true,
-    Sticky = true,
+    Grid = not floating,
+    Snap = not floating,
+    Sticky = not floating,
     Tooltip = true,
-    Hands = true,
+    Hands = not floating,
     HideWhenFaceDown = true,
     CardID = id * 100,
     SidewaysCard = false,
     CustomDeck = {
-      [key] = {
+      [tostring(id)] = {
         FaceURL = withCache(face),
-        BackURL = sleeveUrl(),
+        BackURL = sleeveImage(),
         NumWidth = 1,
         NumHeight = 1,
         BackIsHidden = true,
@@ -453,11 +403,10 @@ function encodeCard(payload)
   payload.States = nil
   local raw = JSON.encode(payload)
   if not states or not states["2"] then return raw end
-  local state2 = JSON.encode(states["2"])
-  return raw:sub(1, -2) .. ',"States":{"2":' .. state2 .. "}}"
+  return raw:sub(1, -2) .. ',"States":{"2":' .. JSON.encode(states["2"]) .. "}}"
 end
 
-function cardPayload(card, position, faceDown)
+function cardPayload(card, position, rotation, floating)
   local frontName = card.name
   local frontFace = card.face
   local frontTip = card.tip or ""
@@ -466,21 +415,23 @@ function cardPayload(card, position, faceDown)
     frontFace = card.faces[1].face or frontFace
     frontTip = card.faces[1].tip or frontTip
   end
-  local payload = cardJson(frontName, frontFace, position, faceDown, frontTip)
+  local payload = cardJson(frontName, frontFace, position, rotation, frontTip, floating)
   if card.faces and card.faces[2] and card.faces[2].face then
-    local back = cardJson(
-      card.faces[2].name or (frontName .. " back"),
-      card.faces[2].face,
-      position,
-      faceDown,
-      card.faces[2].tip or ""
-    )
-    payload.States = { ["2"] = back }
+    payload.States = {
+      ["2"] = cardJson(
+        card.faces[2].name or (frontName .. " back"),
+        card.faces[2].face,
+        position,
+        rotation,
+        card.faces[2].tip or "",
+        floating
+      ),
+    }
   end
   return encodeCard(payload)
 end
 
-function stackIntoDeck(objs, name, position)
+function stackIntoDeck(objs, name, position, rotation)
   if #objs == 0 then return nil end
   local deck = objs[1]
   for i = 2, #objs do
@@ -492,34 +443,34 @@ function stackIntoDeck(objs, name, position)
   if deck and not (deck.isDestroyed and deck.isDestroyed()) then
     deck.setName(name)
     deck.setPosition(position)
-    deck.setRotation({0, 0, 0})
+    deck.setRotation(rotation)
   end
   return deck
 end
 
-function spawnPile(cards, name, position, faceDown)
+function spawnPile(cards, name, position, rotation)
   if not cards or #cards == 0 then return end
   local objs = {}
   for _, card in ipairs(cards) do
     local qty = math.max(1, card.quantity or 1)
     for _ = 1, qty do
       local obj = spawnObjectJSON({
-        json = cardPayload(card, position, faceDown),
+        json = cardPayload(card, position, rotation),
         position = position,
-        rotation = {0, 0, faceDown and 180 or 0},
+        rotation = rotation,
         sound = false,
       })
       if obj then table.insert(objs, obj) end
     end
   end
   Wait.time(function()
-    stackIntoDeck(objs, name, position)
-    broadcastToAll("Spawned " .. name .. " (" .. #objs .. " cards)", {0.6, 1, 0.6})
-  end, 1.2)
+    stackIntoDeck(objs, name, position, rotation)
+    broadcastToAll(name .. " (" .. #objs .. ")", {0.75, 0.9, 0.75})
+  end, 1.1)
 end
 
-function spawnDeck(data, pos)
-  pos = pos or {x = 0, y = 3, z = 0}
+function spawnDeck(data, spot)
+  spot = spot or seatSpot(nil)
   local piles = { main = {}, side = {}, commander = {} }
   for _, card in ipairs(data.cards or {}) do
     local board = card.board or "main"
@@ -529,8 +480,264 @@ function spawnDeck(data, pos)
     end
   end
   local name = data.name or "DeckApp deck"
-  spawnPile(piles.main, name .. " · Library", {x = pos.x, y = pos.y, z = pos.z}, true)
-  spawnPile(piles.commander, name .. " · Commander", {x = pos.x + 4.5, y = pos.y, z = pos.z}, false)
-  spawnPile(piles.side, name .. " · Sideboard", {x = pos.x - 4.5, y = pos.y, z = pos.z}, true)
-  spawnPile(data.tokens, name .. " · Tokens", {x = pos.x, y = pos.y, z = pos.z + 4.5}, false)
+  local yaw = spot.yaw or 0
+  local faceDown = { x = 0, y = yaw, z = 180 }
+  local faceUp = { x = 0, y = yaw, z = 0 }
+  local library = spot.origin
+  local commander = vadd(spot.origin, spot.right, 5)
+  local side = vadd(spot.origin, spot.right, -5)
+  commander.y = library.y
+  side.y = library.y
+  spawnPile(piles.main, name .. " · Library", library, faceDown)
+  spawnPile(piles.commander, name .. " · Commander", commander, faceUp)
+  spawnPile(piles.side, name .. " · Sideboard", side, faceDown)
+  spawnTokenTray(data.tokens or {}, name, spot)
+end
+
+local TRAY_CARD_LUA = [[
+function onPickUp(color)
+  local data = JSON.decode(self.script_state or "")
+  if not data or data.spent or color ~= data.owner then return end
+  data.spent = true
+  self.script_state = JSON.encode(data)
+  local host = getObjectFromGUID(data.host)
+  if host then host.call("releaseToken", data) end
+  self.setInvisibleTo({})
+  self.setLuaScript("")
+end
+]]
+
+function chip(position, yaw, label, click, owner, trayGuid, dir)
+  local obj = spawnObject({
+    type = "Custom_Tile",
+    position = position,
+    rotation = { x = 0, y = yaw, z = 0 },
+    scale = { 0.7, 0.7, 0.7 },
+    sound = false,
+  })
+  if not obj then return nil end
+  obj.setCustomObject({
+    type = 2,
+    image = sleeveImage(),
+    image_bottom = sleeveImage(),
+    thickness = 0.1,
+    stackable = false,
+  })
+  obj.setLock(true)
+  obj.setInvisibleTo(hiddenFrom(owner))
+  obj.createButton({
+    click_function = click,
+    function_owner = self,
+    label = label,
+    position = {0, 0.25, 0},
+    width = 700, height = 700, font_size = 280,
+    color = {0.12, 0.09, 0.18},
+    font_color = {0.94, 0.91, 1},
+  })
+  anchors[obj.getGUID()] = { tray = trayGuid, dir = dir, owner = owner }
+  return obj
+end
+
+function trayNudge(object, color)
+  local info = anchors[object.getGUID()]
+  if not info or color ~= info.owner then return end
+  scrollTray({ tray = info.tray, dir = info.dir })
+end
+
+function trayClose(object, color)
+  local info = anchors[object.getGUID()]
+  if not info or color ~= info.owner then return end
+  dismissTray(info.tray)
+end
+
+function spawnTokenTray(tokens, name, spot)
+  if not tokens or #tokens == 0 then return end
+  local owner = spot.color or uiColor
+  local anchor = vadd(spot.origin, spot.right, 13)
+  anchor.y = (spot.origin.y or 2) + 1.8
+  local trayGuid = self.getGUID() .. "-" .. tostring(os.time()) .. "-" .. tostring(math.random(1000, 9999))
+  local tray = {
+    guid = trayGuid,
+    owner = owner,
+    name = name,
+    tokens = tokens,
+    scroll = 0,
+    anchor = anchor,
+    forward = spot.forward,
+    right = spot.right,
+    yaw = spot.yaw or 0,
+    slots = {},
+    chips = {},
+  }
+  trays[trayGuid] = tray
+  layTray(tray)
+  broadcastToColor("Token tray is floating in front of you. Drag a token out to copy it.", owner, {0.75, 0.85, 1})
+end
+
+function visibleCount(tray)
+  return math.min(VISIBLE, #tray.tokens)
+end
+
+function slotTransform(tray, index)
+  local count = visibleCount(tray)
+  local visual = index - tray.scroll
+  local span = math.max(0, count - 1) * 2.45
+  local along = -span / 2 + (visual - 1) * 2.45
+  local p = vadd(tray.anchor, tray.right, along)
+  p.y = tray.anchor.y
+  return p, { x = 0, y = tray.yaw, z = 0 }
+end
+
+function layTray(tray)
+  for guid in pairs(tray.slots) do
+    local obj = getObjectFromGUID(guid)
+    if obj then destroyObject(obj) end
+  end
+  tray.slots = {}
+  for _, guid in ipairs(tray.chips) do
+    local obj = getObjectFromGUID(guid)
+    if obj then destroyObject(obj) end
+    anchors[guid] = nil
+  end
+  tray.chips = {}
+  local count = visibleCount(tray)
+  for index = tray.scroll + 1, tray.scroll + count do
+    spawnTrayCard(tray, index)
+  end
+  local span = math.max(0, count - 1) * 2.45
+  local left = vadd(tray.anchor, tray.right, -span / 2 - 2.3)
+  local rightPos = vadd(tray.anchor, tray.right, span / 2 + 2.3)
+  left.y = tray.anchor.y
+  rightPos.y = tray.anchor.y
+  if #tray.tokens > VISIBLE then
+    local prev = chip(left, tray.yaw, "◀", "trayNudge", tray.owner, tray.guid, -1)
+    local nxt = chip(rightPos, tray.yaw, "▶", "trayNudge", tray.owner, tray.guid, 1)
+    if prev then table.insert(tray.chips, prev.getGUID()) end
+    if nxt then table.insert(tray.chips, nxt.getGUID()) end
+  end
+  local closePos = vadd(tray.anchor, tray.forward, -2.2)
+  closePos.y = tray.anchor.y
+  local closer = chip(closePos, tray.yaw, "✕", "trayClose", tray.owner, tray.guid, 0)
+  if closer then table.insert(tray.chips, closer.getGUID()) end
+end
+
+function spawnTrayCard(tray, index)
+  local card = tray.tokens[index]
+  if not card then return end
+  local position, rotation = slotTransform(tray, index)
+  local obj = spawnObjectJSON({
+    json = cardPayload(card, position, rotation, true),
+    position = position,
+    rotation = rotation,
+    sound = false,
+  })
+  if not obj then return end
+  local guid = obj.getGUID()
+  tray.slots[guid] = index
+  obj.setInvisibleTo(hiddenFrom(tray.owner))
+  obj.setLuaScript(TRAY_CARD_LUA)
+  obj.script_state = JSON.encode({
+    host = self.getGUID(),
+    tray = tray.guid,
+    index = index,
+    guid = guid,
+    owner = tray.owner,
+  })
+  Wait.time(function()
+    local live = getObjectFromGUID(guid)
+    if live then live.setInvisibleTo(hiddenFrom(tray.owner)) end
+  end, 0.4)
+end
+
+local freeing = {}
+
+function releaseToken(args)
+  if not args or freeing[args.guid] then return end
+  freeing[args.guid] = true
+  local tray = trays[args.tray]
+  if not tray then return end
+  tray.slots[args.guid] = nil
+  spawnTrayCard(tray, args.index)
+end
+
+function scrollTray(args)
+  local tray = trays[args.tray]
+  if not tray then return end
+  local nextScroll = tray.scroll + (args.dir or 0) * VISIBLE
+  local maxScroll = math.max(0, #tray.tokens - VISIBLE)
+  if nextScroll < 0 then nextScroll = 0 end
+  if nextScroll > maxScroll then nextScroll = maxScroll end
+  if nextScroll == tray.scroll then return end
+  tray.scroll = nextScroll
+  layTray(tray)
+end
+
+function dismissTray(trayGuid)
+  local tray = trays[trayGuid]
+  if not tray then return end
+  for guid in pairs(tray.slots) do
+    local obj = getObjectFromGUID(guid)
+    if obj then destroyObject(obj) end
+  end
+  for _, guid in ipairs(tray.chips) do
+    local obj = getObjectFromGUID(guid)
+    if obj then destroyObject(obj) end
+    anchors[guid] = nil
+  end
+  trays[trayGuid] = nil
+end
+
+function isHeld(obj)
+  if obj.held_by_color and obj.held_by_color ~= "" then return true end
+  local guid = obj.getGUID()
+  for _, color in ipairs(COLORS) do
+    local player = Player[color]
+    if player and player.getHoldingObjects then
+      local ok, held = pcall(function() return player.getHoldingObjects() end)
+      if ok and held then
+        for _, item in ipairs(held) do
+          if item and item.getGUID() == guid then return true end
+        end
+      end
+    end
+  end
+  return false
+end
+
+function onUpdate()
+  local pulled = {}
+  for _, tray in pairs(trays) do
+    for guid, index in pairs(tray.slots) do
+      local obj = getObjectFromGUID(guid)
+      if obj and not (obj.isDestroyed and obj.isDestroyed()) then
+        local position, rotation = slotTransform(tray, index)
+        if isHeld(obj) then
+          table.insert(pulled, { obj = obj, tray = tray.guid, guid = guid, index = index })
+        else
+          local p = obj.getPosition()
+          local dx = p.x - position.x
+          local dy = p.y - position.y
+          local dz = p.z - position.z
+          if dx * dx + dy * dy + dz * dz > 2.5 then
+            table.insert(pulled, { obj = obj, tray = tray.guid, guid = guid, index = index })
+          else
+            obj.setPosition(position)
+            obj.setRotation(rotation)
+            pcall(function()
+              obj.setVelocity({0, 0, 0})
+              obj.setAngularVelocity({0, 0, 0})
+            end)
+          end
+        end
+      end
+    end
+  end
+  for _, item in ipairs(pulled) do
+    releaseToken({ tray = item.tray, guid = item.guid, index = item.index })
+    pcall(function()
+      item.obj.setInvisibleTo({})
+      item.obj.setLuaScript("")
+      item.obj.script_state = ""
+    end)
+  end
 end
