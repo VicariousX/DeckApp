@@ -1,8 +1,9 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste this onto the importer object. Click DeckApp to open the panel.
--- The token viewer is a second object with its own script.
+-- Refresh downloads the latest copy of this script from the server.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
+local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-importer.lua"
 local PLAIN_BACK = "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 
 local decks = {}
@@ -84,11 +85,39 @@ function drawLauncher()
     click_function = "openPanel",
     function_owner = self,
     label = "DeckApp",
-    position = {0, 0.35, 0},
-    width = 1400, height = 360, font_size = 160,
+    position = {0, 0.4, 0.42},
+    width = 1400, height = 320, font_size = 150,
     color = {0.12, 0.09, 0.18},
     font_color = {0.94, 0.91, 1},
   })
+  self.createButton({
+    click_function = "refreshScript",
+    function_owner = self,
+    label = "Refresh",
+    position = {0, 0.4, -0.42},
+    width = 1400, height = 260, font_size = 120,
+    color = {0.18, 0.14, 0.28},
+    font_color = {0.94, 0.91, 1},
+  })
+end
+
+function refreshScript()
+  broadcastToAll("Checking for a new importer...", {0.8, 0.8, 1})
+  WebRequest.get(SCRIPT_URL .. "?t=" .. tostring(os.time()), function(req)
+    if req.is_error or req.response_code ~= 200 then
+      broadcastToAll("Refresh failed.", {1, 0.45, 0.4})
+      return
+    end
+    local body = req.text or ""
+    if not body:find("DeckApp importer for Tabletop Simulator", 1, true) then
+      broadcastToAll("Refresh did not return the importer. Nothing was changed.", {1, 0.55, 0.35})
+      return
+    end
+    self.script_state = JSON.encode({ sleeve = selected })
+    self.setLuaScript(body)
+    broadcastToAll("Importer updated.", {0.7, 0.9, 0.7})
+    self.reload()
+  end)
 end
 
 function openPanel(_, color)

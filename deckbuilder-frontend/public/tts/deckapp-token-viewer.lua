@@ -1,10 +1,11 @@
 -- DeckApp token viewer for Tabletop Simulator.
--- Paste this onto its own object. It does not use the importer script.
--- Drop a token pile on it, or click Take pile. Dragging a card off leaves a copy.
--- The first player to use it is the only one who can see the stored faces.
+-- Paste this onto its own object. Select a pile, then click Add.
+-- Cards line up A to Z, three at a time. Dragging one off leaves a copy.
+-- Refresh downloads the latest copy of this script.
 
+local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
-local VISIBLE = 5
+local VISIBLE = 3
 local owner = ""
 local order = {}
 local known = {}
@@ -42,6 +43,23 @@ function claim(color)
   if color and color ~= "" and color ~= "Grey" then owner = color end
 end
 
+function cardName(guid)
+  local obj = getObjectFromGUID(guid)
+  if not obj then return "" end
+  local name = ""
+  pcall(function() name = obj.getName() or "" end)
+  return name:lower()
+end
+
+function sortOrder()
+  table.sort(order, function(a, b)
+    local left = cardName(a)
+    local right = cardName(b)
+    if left == right then return a < b end
+    return left < right
+  end)
+end
+
 function onSave()
   return JSON.encode({ owner = owner })
 end
@@ -55,23 +73,48 @@ function onLoad(saved)
   end
   self.setName("Token Viewer")
   self.setLock(true)
-  self.setDescription("Drop a token pile on this object.")
+  self.setDescription("Select a pile, then click Add.")
   self.clearButtons()
   self.createButton({
     click_function = "viewPrev", function_owner = self, label = "<",
-    position = {-0.7, 0.3, 0}, width = 240, height = 180, font_size = 100,
+    position = {-0.85, 0.3, 0}, width = 220, height = 180, font_size = 100,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
   self.createButton({
     click_function = "viewNext", function_owner = self, label = ">",
-    position = {0.7, 0.3, 0}, width = 240, height = 180, font_size = 100,
+    position = {0.85, 0.3, 0}, width = 220, height = 180, font_size = 100,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
   self.createButton({
-    click_function = "takeNearest", function_owner = self, label = "Take pile",
-    position = {0, 0.3, 0.45}, width = 640, height = 180, font_size = 90,
+    click_function = "addSelected", function_owner = self, label = "Add",
+    position = {0, 0.3, 0.42}, width = 520, height = 180, font_size = 100,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
+  self.createButton({
+    click_function = "refreshScript", function_owner = self, label = "Refresh",
+    position = {0, 0.3, -0.42}, width = 520, height = 160, font_size = 80,
+    color = {0.18, 0.14, 0.28}, font_color = {0.94, 0.91, 1},
+  })
+end
+
+function refreshScript()
+  local who = owner ~= "" and owner or "White"
+  broadcastToColor("Checking for a new token viewer...", who, {0.8, 0.8, 1})
+  WebRequest.get(SCRIPT_URL .. "?t=" .. tostring(os.time()), function(req)
+    if req.is_error or req.response_code ~= 200 then
+      broadcastToColor("Refresh failed.", who, {1, 0.45, 0.4})
+      return
+    end
+    local body = req.text or ""
+    if not body:find("DeckApp token viewer for Tabletop Simulator", 1, true) then
+      broadcastToColor("Refresh did not return the viewer. Nothing was changed.", who, {1, 0.55, 0.35})
+      return
+    end
+    self.script_state = JSON.encode({ owner = owner })
+    self.setLuaScript(body)
+    broadcastToColor("Token viewer updated.", who, {0.7, 0.9, 0.7})
+    self.reload()
+  end)
 end
 
 function safeTag(obj)
@@ -91,71 +134,65 @@ function heldBy(obj)
   return held
 end
 
-function onCollisionEnter(info)
-  if busy or not info then return end
-  local hit = info.collision_object
-  if not hit or hit == self then return end
-  local tag = safeTag(hit)
-  if tag ~= "Card" and tag ~= "Deck" then return end
-  Wait.time(function()
-    if busy or heldBy(hit) then return end
-    local liveTag = safeTag(hit)
-    if liveTag == "Card" or liveTag == "Deck" then intake(hit) end
-  end, 0.3)
+function selectedObjects(color)
+  local list = nil
+  local okPlayer, player = pcall(function() return Player[color] end)
+  if not okPlayer or not player or not player.getSelectedObjects then return {} end
+  local ok, found = pcall(function() return player.getSelectedObjects() end)
+  if ok and found then list = found end
+  return list or {}
 end
 
-function takeNearest(_, color)
+function addSelected(_, color)
   claim(color)
-  local origin = self.getPosition()
-  local best = nil
-  local bestD = 400
-  for _, obj in ipairs(getAllObjects()) do
-    local tag = safeTag(obj)
-    if tag == "Deck" and obj ~= self then
-      local name = ""
-      pcall(function() name = obj.getName() or "" end)
-      if name:find("Token", 1, true) then
-        local pos = nil
-        local ok = pcall(function() pos = obj.getPosition() end)
-        if ok and pos then
-          local dx = pos.x - origin.x
-          local dz = pos.z - origin.z
-          local dist = dx * dx + dz * dz
-          if dist < bestD then
-            best = obj
-            bestD = dist
-          end
-        end
-      end
+  if busy then return end
+  local queue = {}
+  for _, obj in ipairs(selectedObjects(color)) do
+    if obj ~= self then
+      local tag = safeTag(obj)
+      if tag == "Card" or tag == "Deck" then table.insert(queue, obj) end
     end
   end
-  if not best then
-    local who = owner ~= "" and owner or color
-    if who and who ~= "" then
-      broadcastToColor("Move the token pile closer, then click Take pile.", who, {1, 0.7, 0.4})
-    end
+  if #queue == 0 then
+    broadcastToColor("Select a pile or some cards, then click Add.", color, {1, 0.7, 0.4})
     return
   end
-  intake(best)
+  busy = true
+  local index = 1
+  local function nextItem()
+    if index > #queue then
+      sortOrder()
+      scroll = 0
+      busy = false
+      layout()
+      return
+    end
+    local obj = queue[index]
+    index = index + 1
+    if safeTag(obj) == "Deck" then
+      drain(obj, 0, nextItem)
+    else
+      adopt(obj)
+      nextItem()
+    end
+  end
+  nextItem()
 end
 
-function drain(obj, depth)
+function drain(obj, depth, done)
   depth = (depth or 0) + 1
-  if depth > 80 then
-    busy = false
-    layout()
+  if depth > 80 or not obj then
+    if done then done() end
     return
   end
   local tag = safeTag(obj)
   if tag == "Card" then
     adopt(obj)
-    busy = false
-    layout()
+    if done then done() end
     return
   end
   if tag ~= "Deck" then
-    busy = false
-    layout()
+    if done then done() end
     return
   end
   local guid = ""
@@ -171,23 +208,19 @@ function drain(obj, depth)
         Wait.time(function()
           local live = guid ~= "" and getObjectFromGUID(guid) or nil
           if live and safeTag(live) == "Deck" then
-            drain(live, depth)
+            drain(live, depth, done)
             return
           end
-          if live and safeTag(live) == "Card" then
-            adopt(live)
-          end
+          if live and safeTag(live) == "Card" then adopt(live) end
           sweepNear(anchor)
-          busy = false
-          layout()
+          if done then done() end
         end, 0.08)
       end,
     })
   end)
   if not ok then
     sweepNear(anchor)
-    busy = false
-    layout()
+    if done then done() end
   end
 end
 
@@ -201,29 +234,10 @@ function sweepNear(anchor)
         local dx = pos.x - anchor.x
         local dz = pos.z - anchor.z
         local dy = pos.y - anchor.y
-        if dx * dx + dz * dz < 4 and dy * dy < 4 then
-          adopt(obj)
-        end
+        if dx * dx + dz * dz < 4 and dy * dy < 4 then adopt(obj) end
       end
     end
   end
-end
-
-function intake(obj)
-  if not obj or busy then return end
-  local guid = ""
-  pcall(function() guid = obj.getGUID() end)
-  if guid == "" or guid == self.getGUID() then return end
-  if known[guid] or released[guid] then return end
-  busy = true
-  local tag = safeTag(obj)
-  if tag == "Deck" then
-    drain(obj)
-    return
-  end
-  if tag == "Card" then adopt(obj) end
-  busy = false
-  layout()
 end
 
 function adopt(obj)
@@ -269,7 +283,9 @@ function layout()
       end
     end
   end
-  pcall(function() self.setName("Token Viewer (" .. #order .. ")") end)
+  local page = math.floor(scroll / VISIBLE) + 1
+  local pages = math.max(1, math.ceil(#order / VISIBLE))
+  pcall(function() self.setName("Token Viewer (" .. #order .. ")  " .. page .. "/" .. pages) end)
 end
 
 function releaseHeld(guid, index)
