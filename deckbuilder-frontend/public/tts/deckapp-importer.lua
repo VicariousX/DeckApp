@@ -1,14 +1,10 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste onto one object. Click DeckApp to open the panel.
--- The selected sleeve is saved on the object.
--- Decks land on the table in front of the player who spawned them.
--- Library and sideboard are face down. Commanders are face up.
--- Tokens spawn in a floating tray only that player can see.
--- Dragging a token off the tray leaves the original and takes a copy.
+-- Token viewer is a separate object. Spawn it from the panel, then drop token cards onto it.
+-- Decks land on the table in front of the player. Library and sideboard are face down.
+-- Commanders and the token pile are face up.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
-local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Grey","Black"}
-local VISIBLE = 5
 
 local decks = {}
 local deckTotal = 0
@@ -20,8 +16,6 @@ local importUrl = ""
 local uiColor = "White"
 local previewSerial = 0
 local seq = 2000
-local trays = {}
-local anchors = {}
 
 function urlEncode(s)
   s = tostring(s or "")
@@ -41,21 +35,17 @@ end
 
 function withCache(url)
   if not url or url == "" then return "" end
-  if url:find("?", 1, true) then return url .. "&v=6" end
-  return url .. "?v=6"
+  if url:find("?", 1, true) then return url .. "&v=4" end
+  return url .. "?v=4"
 end
 
-function sleeveImage()
-  if selected.url and selected.url ~= "" then return withCache(selected.url) end
+function sleeveRaw()
+  if selected.url and selected.url ~= "" then return selected.url end
   return API .. "back.jpg"
 end
 
-function hiddenFrom(owner)
-  local list = {}
-  for _, color in ipairs(COLORS) do
-    if color ~= owner then table.insert(list, color) end
-  end
-  return list
+function sleeveImage()
+  return withCache(sleeveRaw())
 end
 
 function vadd(a, b, scale)
@@ -100,7 +90,7 @@ end
 
 function openPanel(_, color)
   uiColor = color or "White"
-  if mode == "home" or mode == "" then mode = "home" end
+  if mode == "" then mode = "home" end
   renderUI()
 end
 
@@ -133,24 +123,26 @@ function renderUI()
 <Panel id="deckapp" width="900" height="620" color="#14111cf2" rectAlignment="MiddleCenter" allowDragging="true" returnToOriginalPositionWhenReleased="false" visibility="]] .. uiColor .. [[">
   <Text class="label" fontSize="26" rectAlignment="UpperLeft" offsetXY="28 -18" width="420" height="36">DeckApp</Text>
   <Text class="label" fontSize="16" color="#b7aec9" rectAlignment="UpperLeft" offsetXY="28 -48" width="420" height="24">Sleeve · ]] .. xmlEscape(selected.name or "None") .. [[</Text>
-  <Button class="btn" onClick="]] .. click("uiClose") .. [[" rectAlignment="UpperRight" offsetXY="-16 -16" width="40" height="40" fontSize="20">✕</Button>
+  <Button class="btn" onClick="]] .. click("uiClose") .. [[" rectAlignment="UpperRight" offsetXY="-16 -16" width="40" height="40" fontSize="20">X</Button>
   <Image id="sleevePic" image="]] .. asset .. [[" width="168" height="234" rectAlignment="UpperLeft" offsetXY="28 -88" />
   <Button class="btn" onClick="]] .. click("uiModeSleeves") .. [[" color="]] .. (mode == "sleeves" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -336" width="168" height="40">Sleeves</Button>
   <Button class="btn" onClick="]] .. click("uiModeDecks") .. [[" color="]] .. (mode == "decks" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -384" width="168" height="40">Decks</Button>
   <Button class="btn" onClick="]] .. click("uiModeUrl") .. [[" color="]] .. (mode == "url" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -432" width="168" height="40">Import URL</Button>
-  <Text class="label" fontSize="14" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="28 -484" width="168" height="90">The preview is the back of every card spawned from here.</Text>
+  <Button class="btn" onClick="]] .. click("spawnViewer") .. [[" rectAlignment="UpperLeft" offsetXY="28 -480" width="168" height="40">Token viewer</Button>
   ]] .. body .. [[
 </Panel>]]
-  UI.setXml(xml, {{ name = asset, url = sleeveImage() }})
+  local preview = sleeveRaw()
+  pcall(function()
+    UI.setCustomAssets({{ name = asset, url = preview }})
+  end)
+  UI.setXml(xml)
 end
 
 function homeCopy()
   return [[
-<Text class="label" fontSize="20" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="220">Public decks are under Decks. Search is at the top of that list.
+<Text class="label" fontSize="20" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="280">Decks has the public list. Import URL takes a DeckApp, Archidekt, Moxfield, MTGGoldfish, or Deckstats link. The sleeve on the left is the card back.
 
-Import URL accepts a DeckApp link, or a deck from Archidekt, Moxfield, MTGGoldfish, or Deckstats. The sleeve on the left is applied either way.
-
-Tokens come out in a tray only you can see. Drag one onto the table and the tray keeps its copy.</Text>]]
+Tokens spawn in their own pile, face up. Token viewer spawns a separate object. Drop token cards or that pile onto it. Dragging one back off copies it, so the viewer keeps the original. Only you can see the faces stored in the viewer.</Text>]]
 end
 
 function sleeveList()
@@ -196,7 +188,7 @@ function urlForm()
 <Text class="label" fontSize="18" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="28">Paste a deck link</Text>
 <InputField id="deckUrl" onValueChanged="]] .. click("uiUrl") .. [[" onEndEdit="]] .. click("uiUrl") .. [[" placeholder="https://" text="]] .. xmlEscape(importUrl) .. [[" rectAlignment="UpperLeft" offsetXY="230 -140" width="640" height="44" fontSize="16" color="#221c33" textColor="#f4f0ff" />
 <Button class="btn" onClick="]] .. click("uiImport") .. [[" rectAlignment="UpperLeft" offsetXY="230 -200" width="220" height="44">Import</Button>
-<Text class="label" fontSize="16" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -260" width="620" height="120">DeckApp, Archidekt, Moxfield, MTGGoldfish, and Deckstats. A DeckApp link can be a deck that is not in the public list. Chat also works: !deckapp and the link.</Text>]]
+<Text class="label" fontSize="16" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -260" width="620" height="80">DeckApp, Archidekt, Moxfield, MTGGoldfish, and Deckstats. Chat: !deckapp and the link.</Text>]]
 end
 
 function uiModeSleeves()
@@ -368,7 +360,7 @@ function allocId()
   return seq
 end
 
-function cardJson(name, face, position, rotation, tip, floating)
+function cardJson(name, face, position, rotation, tip)
   local id = allocId()
   return {
     Name = "Card",
@@ -380,11 +372,11 @@ function cardJson(name, face, position, rotation, tip, floating)
     Nickname = name or "Card",
     Description = tip or "",
     Locked = false,
-    Grid = not floating,
-    Snap = not floating,
-    Sticky = not floating,
+    Grid = true,
+    Snap = true,
+    Sticky = true,
     Tooltip = true,
-    Hands = not floating,
+    Hands = true,
     HideWhenFaceDown = true,
     CardID = id * 100,
     SidewaysCard = false,
@@ -395,7 +387,7 @@ function cardJson(name, face, position, rotation, tip, floating)
         NumWidth = 1,
         NumHeight = 1,
         BackIsHidden = true,
-        UniqueBack = true,
+        UniqueBack = false,
         Type = 0,
       },
     },
@@ -410,7 +402,7 @@ function encodeCard(payload)
   return raw:sub(1, -2) .. ',"States":{"2":' .. JSON.encode(states["2"]) .. "}}"
 end
 
-function cardPayload(card, position, rotation, floating)
+function cardPayload(card, position, rotation)
   local frontName = card.name
   local frontFace = card.face
   local frontTip = card.tip or ""
@@ -419,7 +411,7 @@ function cardPayload(card, position, rotation, floating)
     frontFace = card.faces[1].face or frontFace
     frontTip = card.faces[1].tip or frontTip
   end
-  local payload = cardJson(frontName, frontFace, position, rotation, frontTip, floating)
+  local payload = cardJson(frontName, frontFace, position, rotation, frontTip)
   if card.faces and card.faces[2] and card.faces[2].face then
     payload.States = {
       ["2"] = cardJson(
@@ -427,8 +419,7 @@ function cardPayload(card, position, rotation, floating)
         card.faces[2].face,
         position,
         rotation,
-        card.faces[2].tip or "",
-        floating
+        card.faces[2].tip or ""
       ),
     }
   end
@@ -490,208 +481,83 @@ function spawnDeck(data, spot)
   local library = spot.origin
   local commander = vadd(spot.origin, spot.right, 5)
   local side = vadd(spot.origin, spot.right, -5)
+  local tokens = vadd(spot.origin, spot.forward, 5.5)
   commander.y = library.y
   side.y = library.y
+  tokens.y = library.y
   spawnPile(piles.main, name .. " · Library", library, faceDown)
   spawnPile(piles.commander, name .. " · Commander", commander, faceUp)
   spawnPile(piles.side, name .. " · Sideboard", side, faceDown)
-  spawnTokenTray(data.tokens or {}, name, spot)
+  spawnPile(data.tokens or {}, name .. " · Tokens", tokens, faceUp)
 end
 
-local TRAY_CARD_LUA = [[
-function onPickUp(color)
-  local data = JSON.decode(self.script_state or "")
-  if not data or data.spent or color ~= data.owner then return end
-  data.spent = true
-  self.script_state = JSON.encode(data)
-  local host = getObjectFromGUID(data.host)
-  if host then host.call("releaseToken", data) end
-  self.setInvisibleTo({})
-  self.setLuaScript("")
-end
-]]
+local VIEWER_LUA = [=[
+local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Grey","Black"}
+local VISIBLE = 5
+local owner = "__OWNER__"
+local right = {x = __RX__, y = 0, z = __RZ__}
+local yaw = __YAW__
+local order = {}
+local known = {}
+local released = {}
+local scroll = 0
+local busy = false
 
-function chip(position, yaw, label, click, owner, trayGuid, dir)
-  local obj = spawnObject({
-    type = "Custom_Tile",
-    position = position,
-    rotation = { x = 0, y = yaw, z = 0 },
-    scale = { 0.7, 0.7, 0.7 },
-    sound = false,
+function hiddenFrom(color)
+  local list = {}
+  for _, name in ipairs(COLORS) do
+    if name ~= color then table.insert(list, name) end
+  end
+  return list
+end
+
+function allColors()
+  local list = {}
+  for _, name in ipairs(COLORS) do table.insert(list, name) end
+  return list
+end
+
+function vadd(a, b, scale)
+  scale = scale or 1
+  return { x = a.x + b.x * scale, y = a.y + b.y * scale, z = a.z + b.z * scale }
+end
+
+function onLoad(saved)
+  local raw = saved
+  if not raw or raw == "" then raw = self.script_state end
+  local data = {}
+  if raw and raw ~= "" then data = JSON.decode(raw) or {} end
+  owner = data.owner or owner
+  if data.right then right = data.right end
+  yaw = data.yaw or 0
+  self.setName("Token Viewer")
+  self.setLock(true)
+  self.setDescription("Drop token cards here. Drag one off to copy it.")
+  self.createButton({
+    click_function = "viewPrev", function_owner = self, label = "<",
+    position = {-1.6, 0.3, 0}, width = 500, height = 500, font_size = 250,
+    color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
-  if not obj then return nil end
-  obj.setCustomObject({
-    type = 2,
-    image = sleeveImage(),
-    image_bottom = sleeveImage(),
-    thickness = 0.1,
-    stackable = false,
+  self.createButton({
+    click_function = "viewNext", function_owner = self, label = ">",
+    position = {1.6, 0.3, 0}, width = 500, height = 500, font_size = 250,
+    color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
-  obj.setLock(true)
-  obj.setInvisibleTo(hiddenFrom(owner))
-  obj.createButton({
-    click_function = click,
-    function_owner = self,
-    label = label,
-    position = {0, 0.25, 0},
-    width = 700, height = 700, font_size = 280,
-    color = {0.12, 0.09, 0.18},
-    font_color = {0.94, 0.91, 1},
+  self.createButton({
+    click_function = "noop", function_owner = self, label = "Drop tokens",
+    position = {0, 0.3, 1.15}, width = 1400, height = 360, font_size = 160,
+    color = {0.16, 0.12, 0.24}, font_color = {0.94, 0.91, 1},
   })
-  anchors[obj.getGUID()] = { tray = trayGuid, dir = dir, owner = owner }
-  return obj
 end
 
-function trayNudge(object, color)
-  local info = anchors[object.getGUID()]
-  if not info or color ~= info.owner then return end
-  scrollTray({ tray = info.tray, dir = info.dir })
-end
+function noop() end
 
-function trayClose(object, color)
-  local info = anchors[object.getGUID()]
-  if not info or color ~= info.owner then return end
-  dismissTray(info.tray)
-end
-
-function spawnTokenTray(tokens, name, spot)
-  if not tokens or #tokens == 0 then return end
-  local owner = spot.color or uiColor
-  local anchor = vadd(spot.origin, spot.right, 13)
-  anchor.y = (spot.origin.y or 2) + 1.8
-  local trayGuid = self.getGUID() .. "-" .. tostring(os.time()) .. "-" .. tostring(math.random(1000, 9999))
-  local tray = {
-    guid = trayGuid,
-    owner = owner,
-    name = name,
-    tokens = tokens,
-    scroll = 0,
-    anchor = anchor,
-    forward = spot.forward,
-    right = spot.right,
-    yaw = spot.yaw or 0,
-    slots = {},
-    chips = {},
-  }
-  trays[trayGuid] = tray
-  layTray(tray)
-  broadcastToColor("Token tray is floating in front of you. Drag a token out to copy it.", owner, {0.75, 0.85, 1})
-end
-
-function visibleCount(tray)
-  return math.min(VISIBLE, #tray.tokens)
-end
-
-function slotTransform(tray, index)
-  local count = visibleCount(tray)
-  local visual = index - tray.scroll
-  local span = math.max(0, count - 1) * 2.45
-  local along = -span / 2 + (visual - 1) * 2.45
-  local p = vadd(tray.anchor, tray.right, along)
-  p.y = tray.anchor.y
-  return p, { x = 0, y = tray.yaw, z = 0 }
-end
-
-function layTray(tray)
-  for guid in pairs(tray.slots) do
-    local obj = getObjectFromGUID(guid)
-    if obj then destroyObject(obj) end
-  end
-  tray.slots = {}
-  for _, guid in ipairs(tray.chips) do
-    local obj = getObjectFromGUID(guid)
-    if obj then destroyObject(obj) end
-    anchors[guid] = nil
-  end
-  tray.chips = {}
-  local count = visibleCount(tray)
-  for index = tray.scroll + 1, tray.scroll + count do
-    spawnTrayCard(tray, index)
-  end
-  local span = math.max(0, count - 1) * 2.45
-  local left = vadd(tray.anchor, tray.right, -span / 2 - 2.3)
-  local rightPos = vadd(tray.anchor, tray.right, span / 2 + 2.3)
-  left.y = tray.anchor.y
-  rightPos.y = tray.anchor.y
-  if #tray.tokens > VISIBLE then
-    local prev = chip(left, tray.yaw, "◀", "trayNudge", tray.owner, tray.guid, -1)
-    local nxt = chip(rightPos, tray.yaw, "▶", "trayNudge", tray.owner, tray.guid, 1)
-    if prev then table.insert(tray.chips, prev.getGUID()) end
-    if nxt then table.insert(tray.chips, nxt.getGUID()) end
-  end
-  local closePos = vadd(tray.anchor, tray.forward, -2.2)
-  closePos.y = tray.anchor.y
-  local closer = chip(closePos, tray.yaw, "✕", "trayClose", tray.owner, tray.guid, 0)
-  if closer then table.insert(tray.chips, closer.getGUID()) end
-end
-
-function spawnTrayCard(tray, index)
-  local card = tray.tokens[index]
-  if not card then return end
-  local position, rotation = slotTransform(tray, index)
-  local obj = spawnObjectJSON({
-    json = cardPayload(card, position, rotation, true),
-    position = position,
-    rotation = rotation,
-    sound = false,
-  })
-  if not obj then return end
-  local guid = obj.getGUID()
-  tray.slots[guid] = index
-  obj.setInvisibleTo(hiddenFrom(tray.owner))
-  obj.setLuaScript(TRAY_CARD_LUA)
-  obj.script_state = JSON.encode({
-    host = self.getGUID(),
-    tray = tray.guid,
-    index = index,
-    guid = guid,
-    owner = tray.owner,
-  })
-  Wait.time(function()
-    local live = getObjectFromGUID(guid)
-    if live then live.setInvisibleTo(hiddenFrom(tray.owner)) end
-  end, 0.4)
-end
-
-local freeing = {}
-
-function releaseToken(args)
-  if not args or freeing[args.guid] then return end
-  freeing[args.guid] = true
-  local tray = trays[args.tray]
-  if not tray then return end
-  tray.slots[args.guid] = nil
-  spawnTrayCard(tray, args.index)
-end
-
-function scrollTray(args)
-  local tray = trays[args.tray]
-  if not tray then return end
-  local nextScroll = tray.scroll + (args.dir or 0) * VISIBLE
-  local maxScroll = math.max(0, #tray.tokens - VISIBLE)
-  if nextScroll < 0 then nextScroll = 0 end
-  if nextScroll > maxScroll then nextScroll = maxScroll end
-  if nextScroll == tray.scroll then return end
-  tray.scroll = nextScroll
-  layTray(tray)
-end
-
-function dismissTray(trayGuid)
-  local tray = trays[trayGuid]
-  if not tray then return end
-  for guid in pairs(tray.slots) do
-    local obj = getObjectFromGUID(guid)
-    if obj then destroyObject(obj) end
-  end
-  for _, guid in ipairs(tray.chips) do
-    local obj = getObjectFromGUID(guid)
-    if obj then destroyObject(obj) end
-    anchors[guid] = nil
-  end
-  trays[trayGuid] = nil
+function onSave()
+  return JSON.encode({ owner = owner, right = right, yaw = yaw })
 end
 
 function isHeld(obj)
+  if not obj then return false end
   if obj.held_by_color and obj.held_by_color ~= "" then return true end
   local guid = obj.getGUID()
   for _, color in ipairs(COLORS) do
@@ -708,40 +574,163 @@ function isHeld(obj)
   return false
 end
 
-function onUpdate()
-  local pulled = {}
-  for _, tray in pairs(trays) do
-    for guid, index in pairs(tray.slots) do
-      local obj = getObjectFromGUID(guid)
-      if obj and not (obj.isDestroyed and obj.isDestroyed()) then
-        local position, rotation = slotTransform(tray, index)
-        if isHeld(obj) then
-          table.insert(pulled, { obj = obj, tray = tray.guid, guid = guid, index = index })
-        else
-          local p = obj.getPosition()
-          local dx = p.x - position.x
-          local dy = p.y - position.y
-          local dz = p.z - position.z
-          if dx * dx + dy * dy + dz * dz > 2.5 then
-            table.insert(pulled, { obj = obj, tray = tray.guid, guid = guid, index = index })
-          else
-            obj.setPosition(position)
-            obj.setRotation(rotation)
-            pcall(function()
-              obj.setVelocity({0, 0, 0})
-              obj.setAngularVelocity({0, 0, 0})
-            end)
-          end
+function onCollisionEnter(info)
+  local obj = info and info.collision_object
+  if not obj or busy then return end
+  if obj.getGUID() == self.getGUID() then return end
+  if known[obj.getGUID()] or released[obj.getGUID()] then return end
+  local hit = obj
+  Wait.time(function()
+    if not hit or (hit.isDestroyed and hit.isDestroyed()) then return end
+    if isHeld(hit) or known[hit.getGUID()] then return end
+    intake(hit)
+  end, 0.35)
+end
+
+function intake(obj)
+  if not obj or busy then return end
+  if obj.getGUID() == self.getGUID() then return end
+  if known[obj.getGUID()] or released[obj.getGUID()] then return end
+  busy = true
+  if obj.tag == "Deck" then
+    local guard = 0
+    while obj and not (obj.isDestroyed and obj.isDestroyed()) and obj.tag == "Deck" and guard < 80 do
+      guard = guard + 1
+      local card = obj.takeObject({ smooth = false, flip = false })
+      if not card then break end
+      adopt(card)
+    end
+    if obj and not (obj.isDestroyed and obj.isDestroyed()) and obj.tag == "Card" then
+      adopt(obj)
+    end
+  elseif obj.tag == "Card" then
+    adopt(obj)
+  end
+  busy = false
+  layout()
+end
+
+function adopt(obj)
+  if not obj or known[obj.getGUID()] or released[obj.getGUID()] then return end
+  if obj.getGUID() == self.getGUID() then return end
+  known[obj.getGUID()] = true
+  table.insert(order, obj.getGUID())
+  pcall(function() obj.setLock(false) end)
+  obj.setInvisibleTo(hiddenFrom(owner))
+end
+
+function layout()
+  local origin = self.getPosition()
+  local shown = 0
+  for i = scroll + 1, math.min(#order, scroll + VISIBLE) do
+    if getObjectFromGUID(order[i]) then shown = shown + 1 end
+  end
+  local span = math.max(0, shown - 1) * 2.5
+  local visual = 0
+  for i, guid in ipairs(order) do
+    local obj = getObjectFromGUID(guid)
+    if obj and not (obj.isDestroyed and obj.isDestroyed()) then
+      if i > scroll and i <= scroll + VISIBLE then
+        visual = visual + 1
+        local pos = vadd(origin, right, -span / 2 + (visual - 1) * 2.5)
+        pos.y = origin.y + 0.7
+        if not isHeld(obj) then
+          obj.setLock(false)
+          obj.setPosition(pos)
+          obj.setRotation({ x = 0, y = yaw, z = 0 })
+          obj.setInvisibleTo(hiddenFrom(owner))
+          pcall(function()
+            obj.setVelocity({0, 0, 0})
+            obj.setAngularVelocity({0, 0, 0})
+          end)
         end
+      else
+        obj.setLock(true)
+        obj.setPosition({ x = origin.x, y = origin.y - 15, z = origin.z })
+        obj.setInvisibleTo(allColors())
       end
     end
   end
-  for _, item in ipairs(pulled) do
-    releaseToken({ tray = item.tray, guid = item.guid, index = item.index })
-    pcall(function()
-      item.obj.setInvisibleTo({})
-      item.obj.setLuaScript("")
-      item.obj.script_state = ""
-    end)
+  local label = "Tokens " .. #order
+  if #order > VISIBLE then
+    local page = math.floor(scroll / VISIBLE) + 1
+    local pages = math.max(1, math.ceil(#order / VISIBLE))
+    label = label .. "  " .. page .. "/" .. pages
   end
+  pcall(function() self.editButton({ index = 2, label = label }) end)
+end
+
+function releaseHeld(guid, index)
+  local obj = getObjectFromGUID(guid)
+  if not obj then return end
+  local pos = obj.getPosition()
+  local rot = obj.getRotation()
+  local copy = obj.clone({ position = { x = pos.x, y = pos.y + 0.2, z = pos.z } })
+  released[guid] = true
+  known[guid] = nil
+  obj.setInvisibleTo({})
+  if copy then
+    known[copy.getGUID()] = true
+    order[index] = copy.getGUID()
+    copy.setRotation(rot)
+    copy.setInvisibleTo(hiddenFrom(owner))
+  else
+    table.remove(order, index)
+  end
+end
+
+function onUpdate()
+  local pulled = {}
+  for i, guid in ipairs(order) do
+    local obj = getObjectFromGUID(guid)
+    if obj and isHeld(obj) then
+      table.insert(pulled, { guid = guid, index = i })
+    end
+  end
+  for _, item in ipairs(pulled) do
+    releaseHeld(item.guid, item.index)
+  end
+  if #pulled == 0 then layout() end
+end
+
+function viewPrev()
+  scroll = math.max(0, scroll - VISIBLE)
+  layout()
+end
+
+function viewNext()
+  local maxScroll = math.max(0, #order - VISIBLE)
+  scroll = math.min(maxScroll, scroll + VISIBLE)
+  layout()
+end
+]=]
+
+function spawnViewer(player)
+  local color = (player and player.color) or uiColor or "White"
+  local spot = seatSpot(color)
+  local pos = vadd(spot.origin, spot.right, -11)
+  pos.y = (spot.origin.y or 2) + 0.15
+  local yaw = spot.yaw or 0
+  local rotation = { x = 0, y = yaw, z = 0 }
+  local obj = spawnObjectJSON({
+    json = cardPayload({ name = "Token Viewer", face = sleeveRaw(), tip = "Drop token cards here." }, pos, rotation),
+    position = pos,
+    rotation = rotation,
+    sound = false,
+  })
+  if not obj then
+    broadcastToAll("Token viewer failed to spawn.", {1, 0.4, 0.4})
+    return
+  end
+  obj.setLock(true)
+  obj.setScale({ x = 6, y = 1, z = 2.4 })
+  obj.setName("Token Viewer")
+  local lua = VIEWER_LUA
+  lua = lua:gsub("__OWNER__", color)
+  lua = lua:gsub("__RX__", tostring(spot.right.x or 1))
+  lua = lua:gsub("__RZ__", tostring(spot.right.z or 0))
+  lua = lua:gsub("__YAW__", tostring(yaw))
+  obj.script_state = JSON.encode({ owner = color, right = spot.right, yaw = yaw })
+  obj.setLuaScript(lua)
+  broadcastToColor("Token viewer is to your left. Drop the token pile onto it.", color, {0.75, 0.85, 1})
 end
