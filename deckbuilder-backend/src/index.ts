@@ -261,7 +261,7 @@ async function sendSleeveFile(req: Request, res: Response) {
   const file = Array.isArray(raw) ? raw[0] : raw;
   const id = String(file || "").replace(/\.jpe?g$/i, "").replace(/\.png$/i, "").toLowerCase();
   if (id === "none" || id === "classic") {
-    return res.redirect(302, "https://cards.scryfall.io/large/back.jpg");
+    return res.redirect(302, "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg");
   }
   if (DECK_ID.test(id)) {
     try {
@@ -277,9 +277,9 @@ app.get("/api/tts/sleeve/:file", sendSleeveFile);
 app.get("/api/tts/skin/:file", sendSleeveFile);
 
 app.get("/api/tts/back.jpg", async (_req: Request, res: Response) => {
-  const source = "https://cards.scryfall.io/large/back.jpg";
+  const CARD_BACK = "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
   try {
-    const image = await fetch(source, { headers: { Accept: "image/jpeg", "User-Agent": "DeckApp/1.0" } });
+    const image = await fetch(CARD_BACK, { headers: { Accept: "image/jpeg", "User-Agent": "DeckApp/1.0" } });
     if (!image.ok) return res.status(502).json({ error: "Card back could not be fetched" });
     const bytes = Buffer.from(await image.arrayBuffer());
     res.setHeader("Content-Type", "image/jpeg");

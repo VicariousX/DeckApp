@@ -1,10 +1,10 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste onto one object. Click DeckApp to open the panel.
--- The viewer stays quiet until a pile is dropped on it or Take pile is clicked.
+-- Opening the panel only loads the selected sleeve. Drop a whole pile on the pad.
 -- Token viewer is a separate low pad. Drop the token pile on it.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
-local PLAIN_BACK = API .. "back.jpg"
+local PLAIN_BACK = "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 
 local decks = {}
 local deckTotal = 0
@@ -139,17 +139,17 @@ end
 
 function refreshArt()
   local url = sleeveRaw()
-  if artReady and assetUrls[shownAsset] == url then return end
-  local nxt = shownAsset == "sleeveA" and "sleeveB" or "sleeveA"
-  assetUrls[nxt] = url
+  if artReady and assetUrls.sleeveA == url and assetUrls.sleeveB == url then return end
+  assetUrls.sleeveA = url
+  assetUrls.sleeveB = url
   pcall(function()
     UI.setCustomAssets({
-      { name = "sleeveA", url = assetUrls.sleeveA },
-      { name = "sleeveB", url = assetUrls.sleeveB },
+      { name = "sleeveA", url = url },
+      { name = "sleeveB", url = url },
     })
   end)
   Wait.time(function()
-    shownAsset = nxt
+    shownAsset = "sleeveA"
     artReady = true
     renderUI()
   end, 0.45)
@@ -630,6 +630,76 @@ function takeNearest()
   intake(best)
 end
 
+function drain(obj, depth)
+  depth = (depth or 0) + 1
+  if depth > 80 then
+    busy = false
+    layout()
+    return
+  end
+  local tag = safeTag(obj)
+  if tag == "Card" then
+    adopt(obj)
+    busy = false
+    layout()
+    return
+  end
+  if tag ~= "Deck" then
+    busy = false
+    layout()
+    return
+  end
+  local guid = ""
+  local anchor = self.getPosition()
+  pcall(function() guid = obj.getGUID() end)
+  pcall(function() anchor = obj.getPosition() end)
+  local ok = pcall(function()
+    obj.takeObject({
+      smooth = false,
+      flip = false,
+      callback_function = function(card)
+        adopt(card)
+        Wait.time(function()
+          local live = guid ~= "" and getObjectFromGUID(guid) or nil
+          if live and safeTag(live) == "Deck" then
+            drain(live, depth)
+            return
+          end
+          if live and safeTag(live) == "Card" then
+            adopt(live)
+          end
+          sweepNear(anchor)
+          busy = false
+          layout()
+        end, 0.08)
+      end,
+    })
+  end)
+  if not ok then
+    sweepNear(anchor)
+    busy = false
+    layout()
+  end
+end
+
+function sweepNear(anchor)
+  if not anchor then return end
+  for _, obj in ipairs(getAllObjects()) do
+    if safeTag(obj) == "Card" and obj ~= self then
+      local pos = nil
+      local ok = pcall(function() pos = obj.getPosition() end)
+      if ok and pos then
+        local dx = pos.x - anchor.x
+        local dz = pos.z - anchor.z
+        local dy = pos.y - anchor.y
+        if dx * dx + dz * dz < 4 and dy * dy < 4 then
+          adopt(obj)
+        end
+      end
+    end
+  end
+end
+
 function intake(obj)
   if not obj or busy then return end
   local guid = ""
@@ -639,18 +709,10 @@ function intake(obj)
   busy = true
   local tag = safeTag(obj)
   if tag == "Deck" then
-    local guard = 0
-    while guard < 80 and safeTag(obj) == "Deck" do
-      guard = guard + 1
-      local card = nil
-      local ok = pcall(function() card = obj.takeObject({ smooth = false, flip = false }) end)
-      if not ok or not card then break end
-      adopt(card)
-    end
-    if safeTag(obj) == "Card" then adopt(obj) end
-  elseif tag == "Card" then
-    adopt(obj)
+    drain(obj)
+    return
   end
+  if tag == "Card" then adopt(obj) end
   busy = false
   layout()
 end
