@@ -18,6 +18,7 @@ import { DrawerTileField } from "../components/DrawerCardTile";
 import { CardTile } from "../components/CardTile";
 import { PillSwitch } from "../components/PillSwitch";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { ToolsMenu } from "../components/ToolsMenu";
 import {
   GroupPageShell,
   GroupSidebar,
@@ -140,19 +141,9 @@ export function CollectionsPage() {
       subtitle="Owned cards, liked cards, and inventory."
       error={status}
       headerTools={
-        <>
-          <ViewModeToggle
-            mode={viewMode}
-            onChange={(m) => {
-              setViewMode(m);
-              setCollectionViewMode(m);
-            }}
-            label="Collection view mode"
-          />
-          <button type="button" className={styles.primaryBtn} onClick={() => { setCreating(true); setDraft(EMPTY); }}>
-            New collection
-          </button>
-        </>
+        <button type="button" className={styles.primaryBtn} onClick={() => { setCreating(true); setDraft(EMPTY); }}>
+          New collection
+        </button>
       }
       sidebar={
         <GroupSidebar heading="Your collections">
@@ -178,25 +169,36 @@ export function CollectionsPage() {
       )}
       {selected && (
         <>
-          <h2 className={styles.drawerTitle}>{selected.name}</h2>
-              <label className={styles.createForm}>
-                <span>Name</span>
+          <div className={styles.mainHeader}>
+            <h2 className={styles.drawerTitle}>{selected.name}</h2>
+            <ToolsMenu placement="inline" menuLabel="Collection settings">
+              <div className={styles.menuBlock}>
+                <span className={styles.menuLabel}>View</span>
+                <ViewModeToggle
+                  mode={viewMode}
+                  onChange={(m) => {
+                    setViewMode(m);
+                    setCollectionViewMode(m);
+                  }}
+                  label="Collection view mode"
+                />
+              </div>
+              <label className={styles.menuBlock}>
+                <span className={styles.menuLabel}>Name</span>
                 <input className={styles.input} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
               </label>
-              <label className={styles.createForm}>
-                <span>Ownership</span>
+              <label className={styles.menuBlock}>
+                <span className={styles.menuLabel}>Ownership</span>
                 <select className={styles.input} value={draft.ownership} onChange={(e) => setDraft((d) => ({ ...d, ownership: e.target.value as CollectionOwnership }))}>
                   <option value="physical">Physical</option>
                   <option value="digital">Digital</option>
                   <option value="na">N/A</option>
                 </select>
               </label>
-              <div className={styles.mainActions}>
+              <div className={styles.menuBlock}>
                 <PillSwitch checked={draft.print_specific} onChange={(on) => setDraft((d) => ({ ...d, print_specific: on }))} label="Print specific" />
                 <PillSwitch checked={draft.quantity_counters} onChange={(on) => setDraft((d) => ({ ...d, quantity_counters: on }))} label="Quantity counters" />
                 <PillSwitch checked={draft.is_public} onChange={(on) => setDraft((d) => ({ ...d, is_public: on }))} label="Public" />
-              </div>
-              <div className={styles.mainActions}>
                 <PillSwitch
                   checked={targetable}
                   onChange={(on) => {
@@ -206,9 +208,11 @@ export function CollectionsPage() {
                   }}
                   label="Search target"
                 />
-                <button type="button" className={styles.primaryBtn} onClick={() => void saveSettings()}>Save settings</button>
+                <button type="button" className={styles.primaryBtn} onClick={() => void saveSettings()}>Save</button>
                 <button type="button" className={styles.ghostBtn} onClick={() => void remove()}>Delete</button>
               </div>
+            </ToolsMenu>
+          </div>
               <p className={styles.muted}>{cards.length} cards</p>
               {viewMode === "image" ? (
                 <DrawerTileField>

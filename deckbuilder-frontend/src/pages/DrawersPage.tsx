@@ -38,6 +38,7 @@ import {
 } from "../lib/deckPreferences";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { ToolsMenu } from "../components/ToolsMenu";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
   CardContextMenu,
@@ -400,26 +401,6 @@ export function DrawersPage() {
           for (const h of hints) await addByName(h.name);
         })();
       }}
-      headerTools={
-        <>
-          <ViewModeToggle mode={viewMode} onChange={onViewMode} label="Drawer view mode" />
-          {viewMode === "image" && (
-            <button
-              type="button"
-              className={`${styles.viewBtn}${showTiers ? ` ${styles.viewBtnActive}` : ""}`}
-              aria-pressed={showTiers}
-              onClick={() => {
-                setShowTiers((v) => {
-                  setDrawerShowTiers(!v);
-                  return !v;
-                });
-              }}
-            >
-              Tiers
-            </button>
-          )}
-        </>
-      }
       sidebar={
         <GroupSidebar heading="Your drawers">
           <form className={styles.createForm} onSubmit={(e) => void onCreate(e)}>
@@ -488,34 +469,72 @@ export function DrawersPage() {
                 ) : (
                   <>
                     <h2 className={styles.drawerTitle}>{selected.name}</h2>
-                    <div className={styles.mainActions}>
-                      <button
-                        type="button"
-                        className={styles.ghostBtn}
-                        onClick={() => {
-                          setRenamingId(selected.id);
-                          setRenameValue(selected.name);
-                        }}
-                      >
-                        Rename
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.dangerBtn}
-                        onClick={() => setDeleteTarget(selected)}
-                      >
-                        Delete
-                      </button>
-                      <PillSwitch
-                        checked={targetable}
-                        onChange={(on) => {
-                          if (!user) return;
-                          setTargetableOn(on);
-                          void setTargetable(user.id, { kind: "drawer", id: selected.id, name: selected.name }, on);
-                        }}
-                        label="Search target"
-                      />
-                    </div>
+                    <ToolsMenu placement="inline" menuLabel="Drawer settings">
+                      <div className={styles.menuBlock}>
+                        <span className={styles.menuLabel}>View</span>
+                        <ViewModeToggle mode={viewMode} onChange={onViewMode} label="Drawer view mode" />
+                        {viewMode === "image" && (
+                          <button
+                            type="button"
+                            className={`${styles.viewBtn}${showTiers ? ` ${styles.viewBtnActive}` : ""}`}
+                            aria-pressed={showTiers}
+                            onClick={() => {
+                              setShowTiers((v) => {
+                                setDrawerShowTiers(!v);
+                                return !v;
+                              });
+                            }}
+                          >
+                            {showTiers ? "Tiers on" : "Tiers off"}
+                          </button>
+                        )}
+                      </div>
+                      <div className={styles.menuBlock}>
+                        <span className={styles.menuLabel}>Sort</span>
+                        <label className={styles.sortLabel}>
+                          <select
+                            className={styles.toolSelect}
+                            value={sortKey}
+                            onChange={(e) => onSortKey(e.target.value as CardSortKey)}
+                          >
+                            {CARD_SORT_OPTIONS.map((o) => (
+                              <option key={o.id} value={o.id}>{o.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className={styles.toolBtn}
+                            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                          >
+                            {sortDir === "asc" ? "A → Z" : "Z → A"}
+                          </button>
+                        </label>
+                      </div>
+                      <div className={styles.menuBlock}>
+                        <button
+                          type="button"
+                          className={styles.ghostBtn}
+                          onClick={() => {
+                            setRenamingId(selected.id);
+                            setRenameValue(selected.name);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button type="button" className={styles.dangerBtn} onClick={() => setDeleteTarget(selected)}>
+                          Delete
+                        </button>
+                        <PillSwitch
+                          checked={targetable}
+                          onChange={(on) => {
+                            if (!user) return;
+                            setTargetableOn(on);
+                            void setTargetable(user.id, { kind: "drawer", id: selected.id, name: selected.name }, on);
+                          }}
+                          label="Search target"
+                        />
+                      </div>
+                    </ToolsMenu>
                   </>
                 )}
               </div>
@@ -618,41 +637,6 @@ export function DrawersPage() {
                   >
                     {filterOpen ? "Close Filter" : "Filter"}
                   </button>
-                  <label className={styles.sortLabel}>
-                    Sort
-                    <select
-                      className={styles.toolSelect}
-                      value={sortKey}
-                      onChange={(e) => onSortKey(e.target.value as CardSortKey)}
-                    >
-                      {CARD_SORT_OPTIONS.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={`${styles.toolBtn} ${styles.sortDirBtn}`}
-                      onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                      title={sortDir === "asc" ? "Ascending" : "Descending"}
-                      aria-label="Reverse sort order"
-                    >
-                      {sortDir === "asc" ? (
-                        <>
-                          <span className={styles.sortDot}>•</span>
-                          <span className={styles.sortArrow}>➔</span>
-                          <span className={styles.sortTri}>∴</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.sortTri}>∴</span>
-                          <span className={styles.sortArrow}>➔</span>
-                          <span className={styles.sortDot}>•</span>
-                        </>
-                      )}
-                    </button>
-                  </label>
                 </div>
                 {filterOpen && (
                   <div className={styles.filterPanel}>

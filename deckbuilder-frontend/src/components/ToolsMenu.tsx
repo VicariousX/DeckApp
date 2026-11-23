@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./ToolsMenu.module.css";
 import type { SearchTargetRef } from "../services/searchTargetService";
 import { PillSwitch } from "./PillSwitch";
@@ -15,6 +15,19 @@ export type ToolsMenuProps = {
   onColumnsChange?: (columns: number) => void;
   columnsMin?: number;
   columnsMax?: number;
+  placement?: "page" | "inline";
+  menuLabel?: string;
+  browseMode?: "text" | "catalog" | "scroll";
+  onBrowseMode?: (mode: "text" | "catalog" | "scroll") => void;
+  sortKey?: string;
+  sortOptions?: { key: string; label: string }[];
+  onSort?: (key: string) => void;
+  sortDir?: "asc" | "desc";
+  onSortDir?: () => void;
+  pageSize?: number;
+  pageSizes?: number[];
+  onPageSize?: (size: number) => void;
+  children?: ReactNode;
 };
 
 /**
@@ -33,6 +46,19 @@ export function ToolsMenu({
   onColumnsChange,
   columnsMin = 1,
   columnsMax = 8,
+  placement = "page",
+  menuLabel = "Page settings",
+  browseMode,
+  onBrowseMode,
+  sortKey,
+  sortOptions,
+  onSort,
+  sortDir,
+  onSortDir,
+  pageSize,
+  pageSizes,
+  onPageSize,
+  children,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -59,11 +85,11 @@ export function ToolsMenu({
   }, [open]);
 
   return (
-    <div className={styles.anchor} ref={rootRef}>
+    <div className={`${styles.anchor}${placement === "inline" ? ` ${styles.inline}` : ""}`} ref={rootRef}>
       <button
         type="button"
         className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
-        aria-label="Search settings"
+        aria-label={menuLabel}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -77,6 +103,58 @@ export function ToolsMenu({
 
       {open && (
         <div className={styles.menu} role="menu">
+          {onBrowseMode && browseMode && (
+            <div className={styles.menuSection}>
+              <div className={styles.menuHeading}>View</div>
+              <div className={styles.seg} role="group" aria-label="Result view">
+                {(["text", "catalog", "scroll"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={browseMode === mode ? styles.segOn : undefined}
+                    aria-pressed={browseMode === mode}
+                    onClick={() => onBrowseMode(mode)}
+                  >
+                    {mode === "text" ? "Text" : mode === "catalog" ? "Catalog" : "Scroll"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {onSort && sortOptions && sortKey != null && (
+            <div className={styles.menuSection}>
+              <div className={styles.menuHeading}>Sort</div>
+              <select
+                className={styles.select}
+                value={sortKey}
+                aria-label="Sort"
+                onChange={(e) => onSort(e.target.value)}
+              >
+                {sortOptions.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+              <div className={styles.seg}>
+                {onSortDir && (
+                  <button type="button" onClick={onSortDir}>
+                    {sortDir === "desc" ? "Z → A" : "A → Z"}
+                  </button>
+                )}
+                {onPageSize && pageSizes && pageSize != null && pageSizes.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={pageSize === n ? styles.segOn : undefined}
+                    aria-pressed={pageSize === n}
+                    onClick={() => onPageSize(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {onTargetChange && (
           <div className={styles.menuSection}>
             <div className={styles.menuHeading}>Target group</div>
             {targets.length === 0 ? (
@@ -121,6 +199,7 @@ export function ToolsMenu({
               </>
             )}
           </div>
+          )}
           {onShowTargetChipChange && (
             <div className={styles.menuSection}>
               <PillSwitch
@@ -151,6 +230,7 @@ export function ToolsMenu({
               </label>
             </div>
           )}
+          {children}
         </div>
       )}
     </div>

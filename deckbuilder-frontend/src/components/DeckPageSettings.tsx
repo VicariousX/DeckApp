@@ -63,6 +63,7 @@ export function DeckPageSettings() {
             </div>
           </div>
           )}
+          {narrow && (
           <div className={styles.row}>
             <span>Sort</span>
             <span className={styles.pills}>
@@ -85,6 +86,7 @@ export function DeckPageSettings() {
               </button>
             </span>
           </div>
+          )}
           {controls.isOwner && controls.formats.length > 0 && (
             <div className={styles.row}>
               <span>Format</span>

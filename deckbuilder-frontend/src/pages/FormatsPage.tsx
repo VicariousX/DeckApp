@@ -59,16 +59,9 @@ export function FormatsPage() {
         </div>
       </header>
 
-      {formats.length > 0 && (
-        <div className={styles.toggles}>
-          {formats.map((f) => (
-            <button key={f.id} type="button" className={styles.deleteBtn} onClick={() => setDraft(f)}>
-              {f.name}
-            </button>
-          ))}
-          <button type="button" className={styles.deleteBtn} onClick={() => setDraft(blankHouseFormat())}>New</button>
-        </div>
-      )}
+      <button type="button" className={styles.deleteBtn} onClick={() => setDraft(blankHouseFormat())}>
+        New format
+      </button>
 
       <HouseFormatEditor draft={draft} setDraft={setDraft} onSave={saveDraft} saveLabel={editing ? "Update format" : "Save format"} />
 

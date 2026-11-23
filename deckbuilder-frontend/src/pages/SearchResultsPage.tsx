@@ -24,7 +24,6 @@ import { CardTile } from "../components/CardTile";
 import { CardResult } from "../components/CardResult";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { ErrorNotice } from "../components/ErrorNotice";
-import { registerSettings } from "../components/SettingsDrawer";
 import { useSearchStream } from "../hooks/useSearchStream";
 import type { ScryfallCard } from "../types/scryfallCard";
 import transitions from "../styles/pageTransitions.module.css";
@@ -212,31 +211,6 @@ export function SearchResultsPage() {
     return typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5;
   });
 
-  useEffect(() => {
-    registerSettings((pathname) => {
-      if (!pathname.startsWith("/search/results")) return null;
-      return {
-        title: "Catalog",
-        content: (
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            Columns
-            <input
-              type="number"
-              min={1}
-              max={8}
-              value={columns}
-              onChange={(e) => {
-                const n = Number(e.target.value) || 5;
-                setColumns(n);
-                try { localStorage.setItem("deckapp.searchColumns", String(n)); } catch { /* ignore */ }
-              }}
-              style={{ width: 60 }}
-            />
-          </label>
-        ),
-      };
-    });
-  }, [columns]);
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     mechParsed,
@@ -334,6 +308,7 @@ export function SearchResultsPage() {
   return (
     <div className={`${transitions.page} ${styles.page}`}>
       <ToolsMenu
+        menuLabel="Search settings"
         targets={targets}
         targetKey={targetKey}
         onTargetChange={onTargetChange}
@@ -343,6 +318,19 @@ export function SearchResultsPage() {
         onShowTargetChipChange={setShowTargetChip}
         columns={columns}
         onColumnsChange={setColumns}
+        browseMode={browseMode === "scroll" ? "scroll" : browseMode}
+        onBrowseMode={(mode) => {
+          if (mode !== "scroll") lastMode.current = mode;
+          setBrowseMode(mode);
+        }}
+        sortKey={sortKey}
+        sortOptions={SORT_OPTIONS}
+        onSort={(key) => patch({ sort: key, page: "1" })}
+        sortDir={sortDir}
+        onSortDir={() => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" })}
+        pageSize={pageSize}
+        pageSizes={PAGE_SIZES}
+        onPageSize={(n) => patch({ n: String(n), page: "1" })}
       />
       <div className={resultStyles.meta}>
         <div className={resultStyles.metaGroup}>
@@ -364,70 +352,6 @@ export function SearchResultsPage() {
               </button>
             </span>
           )}
-        </div>
-        <div className={resultStyles.metaGroup}>
-          <div className={resultStyles.toggles}>
-            <button
-              type="button"
-              className={`${resultStyles.viewBtn}${browseMode === "text" ? ` ${resultStyles.viewOn}` : ""}`}
-              onClick={() => {
-                lastMode.current = "text";
-                setBrowseMode("text");
-              }}
-            >
-              Text
-            </button>
-            <button
-              type="button"
-              className={`${resultStyles.viewBtn}${browseMode === "catalog" ? ` ${resultStyles.viewOn}` : ""}`}
-              onClick={() => {
-                lastMode.current = "catalog";
-                setBrowseMode("catalog");
-              }}
-            >
-              Catalog
-            </button>
-            <button
-              type="button"
-              className={`${resultStyles.viewBtn}${browseMode === "scroll" ? ` ${resultStyles.viewOn}` : ""}`}
-              onClick={() => setBrowseMode("scroll")}
-            >
-              Scroll
-            </button>
-          </div>
-          <label className={resultStyles.size}>
-            Sort
-            <select
-              value={sortKey}
-              onChange={(e) => patch({ sort: e.target.value, page: "1" })}
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className={resultStyles.dirBtn}
-            onClick={() => patch({ dir: sortDir === "asc" ? "desc" : "asc", page: "1" })}
-          >
-            {sortDir === "asc" ? "A → Z" : "Z → A"}
-          </button>
-          <label className={resultStyles.size}>
-            Per page
-            <select
-              value={pageSize}
-              onChange={(e) => patch({ n: e.target.value, page: "1" })}
-            >
-              {PAGE_SIZES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
       </div>
       <p className={resultStyles.query}>
