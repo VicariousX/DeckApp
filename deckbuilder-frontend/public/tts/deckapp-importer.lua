@@ -32,7 +32,11 @@ end
 
 function xmlEscape(s)
   s = tostring(s or ""):gsub("[%c]", " ")
-  return (s:gsub("&", "&"):gsub("<", "<"):gsub(">", ">"):gsub('"', """))
+  s = s:gsub("&", "&" .. "amp;")
+  s = s:gsub("<", "&" .. "lt;")
+  s = s:gsub(">", "&" .. "gt;")
+  s = s:gsub('"', "&" .. "quot;")
+  return s
 end
 
 function withCache(url)
