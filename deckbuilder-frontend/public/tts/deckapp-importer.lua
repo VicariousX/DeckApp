@@ -1,10 +1,10 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste onto one object. Click DeckApp to open the panel.
--- Deck names are full-height rows. None uses the plain Magic back.
+-- The viewer stays quiet until a pile is dropped on it or Take pile is clicked.
 -- Token viewer is a separate low pad. Drop the token pile on it.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
-local PLAIN_BACK = "https://cards.scryfall.io/large/back.jpg"
+local PLAIN_BACK = API .. "back.jpg"
 
 local decks = {}
 local deckTotal = 0
@@ -526,7 +526,6 @@ local known = {}
 local released = {}
 local scroll = 0
 local busy = false
-local scan = 0
 
 function hiddenFrom(color)
   local list = {}
@@ -564,82 +563,92 @@ function onLoad(saved)
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
   self.createButton({
-    click_function = "noop", function_owner = self, label = "Drop tokens",
-    position = {0, 0.22, 0.28}, width = 520, height = 140, font_size = 70,
+    click_function = "takeNearest", function_owner = self, label = "Take pile",
+    position = {0, 0.35, 0}, width = 700, height = 220, font_size = 110,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
 end
 
-function noop() end
-
-function onSave()
-  return JSON.encode({ owner = owner, right = right, forward = forward, yaw = yaw })
+function safeTag(obj)
+  if not obj then return "" end
+  local tag = ""
+  local ok = pcall(function() tag = obj.tag end)
+  if not ok then return "" end
+  return tag or ""
 end
 
-function isHeld(obj)
-  if not obj then return false end
-  local okColor, heldColor = pcall(function() return obj.held_by_color end)
-  if okColor and heldColor and heldColor ~= "" then return true end
-  local guid = obj.getGUID()
-  for _, color in ipairs(COLORS) do
-    local okPlayer, player = pcall(function() return Player[color] end)
-    if okPlayer and player and player.getHoldingObjects then
-      local ok, held = pcall(function() return player.getHoldingObjects() end)
-      if ok and held then
-        for _, item in ipairs(held) do
-          if item and item.getGUID() == guid then return true end
-        end
-      end
-    end
-  end
-  return false
-end
-
-function inHand(obj)
-  local guid = obj.getGUID()
-  for _, color in ipairs(COLORS) do
-    local okPlayer, player = pcall(function() return Player[color] end)
-    if okPlayer and player and player.getHandObjects then
-      local ok, hand = pcall(function() return player.getHandObjects() end)
-      if ok and hand then
-        for _, card in ipairs(hand) do
-          if card and card.getGUID() == guid then return true end
-        end
-      end
-    end
-  end
-  return false
+function heldBy(obj)
+  local held = false
+  pcall(function()
+    local color = obj.held_by_color
+    held = color ~= nil and color ~= ""
+  end)
+  return held
 end
 
 function onCollisionEnter(info)
-  local obj = info and info.collision_object
-  if not obj or busy then return end
-  if obj.getGUID() == self.getGUID() then return end
-  local hit = obj
+  if busy or not info then return end
+  local hit = info.collision_object
+  if not hit or hit == self then return end
+  local tag = safeTag(hit)
+  if tag ~= "Card" and tag ~= "Deck" then return end
   Wait.time(function()
-    if not hit or (hit.isDestroyed and hit.isDestroyed()) then return end
-    if isHeld(hit) or inHand(hit) then return end
-    intake(hit)
+    if busy or heldBy(hit) then return end
+    local liveTag = safeTag(hit)
+    if liveTag == "Card" or liveTag == "Deck" then intake(hit) end
   end, 0.3)
+end
+
+function takeNearest()
+  local origin = self.getPosition()
+  local best = nil
+  local bestD = 400
+  for _, obj in ipairs(getAllObjects()) do
+    local tag = safeTag(obj)
+    if tag == "Deck" and obj ~= self then
+      local name = ""
+      pcall(function() name = obj.getName() or "" end)
+      if name:find("Token", 1, true) then
+        local pos = nil
+        local ok = pcall(function() pos = obj.getPosition() end)
+        if ok and pos then
+          local dx = pos.x - origin.x
+          local dz = pos.z - origin.z
+          local dist = dx * dx + dz * dz
+          if dist < bestD then
+            best = obj
+            bestD = dist
+          end
+        end
+      end
+    end
+  end
+  if not best then
+    broadcastToColor("Move the token pile closer, then click Take pile.", owner, {1, 0.7, 0.4})
+    return
+  end
+  intake(best)
 end
 
 function intake(obj)
   if not obj or busy then return end
-  if obj.getGUID() == self.getGUID() then return end
-  if known[obj.getGUID()] or released[obj.getGUID()] then return end
+  local guid = ""
+  pcall(function() guid = obj.getGUID() end)
+  if guid == "" or guid == self.getGUID() then return end
+  if known[guid] or released[guid] then return end
   busy = true
-  if obj.tag == "Deck" then
+  local tag = safeTag(obj)
+  if tag == "Deck" then
     local guard = 0
-    while obj and not (obj.isDestroyed and obj.isDestroyed()) and obj.tag == "Deck" and guard < 80 do
+    while guard < 80 and safeTag(obj) == "Deck" do
       guard = guard + 1
-      local card = obj.takeObject({ smooth = false, flip = false })
-      if not card then break end
+      local card = nil
+      local ok = pcall(function() card = obj.takeObject({ smooth = false, flip = false }) end)
+      if not ok or not card then break end
       adopt(card)
     end
-    if obj and not (obj.isDestroyed and obj.isDestroyed()) and obj.tag == "Card" then
-      adopt(obj)
-    end
-  elseif obj.tag == "Card" then
+    if safeTag(obj) == "Card" then adopt(obj) end
+  elseif tag == "Card" then
     adopt(obj)
   end
   busy = false
@@ -647,10 +656,12 @@ function intake(obj)
 end
 
 function adopt(obj)
-  if not obj or known[obj.getGUID()] or released[obj.getGUID()] then return end
-  if obj.getGUID() == self.getGUID() or obj.tag ~= "Card" then return end
-  known[obj.getGUID()] = true
-  table.insert(order, obj.getGUID())
+  local guid = ""
+  pcall(function() guid = obj.getGUID() end)
+  if guid == "" or known[guid] or released[guid] or guid == self.getGUID() then return end
+  if safeTag(obj) ~= "Card" then return end
+  known[guid] = true
+  table.insert(order, guid)
   pcall(function() obj.setLock(false) end)
   pcall(function() obj.setInvisibleTo(hiddenFrom(owner)) end)
 end
@@ -665,92 +676,70 @@ function layout()
   local visual = 0
   for i, guid in ipairs(order) do
     local obj = getObjectFromGUID(guid)
-    if obj and not (obj.isDestroyed and obj.isDestroyed()) then
+    if obj and not heldBy(obj) then
       if i > scroll and i <= scroll + VISIBLE then
         visual = visual + 1
         local pos = vadd(origin, forward, 1.7)
         pos = vadd(pos, right, -span / 2 + (visual - 1) * 2.15)
         pos.y = origin.y + 0.35
-        if not isHeld(obj) then
+        pcall(function()
           obj.setLock(false)
           obj.setPosition(pos)
           obj.setRotation({ x = 0, y = yaw, z = 0 })
-          pcall(function() obj.setInvisibleTo(hiddenFrom(owner)) end)
-          pcall(function()
-            obj.setVelocity({0, 0, 0})
-            obj.setAngularVelocity({0, 0, 0})
-          end)
-        end
+          obj.setInvisibleTo(hiddenFrom(owner))
+        end)
       else
-        obj.setLock(true)
-        obj.setPosition({ x = origin.x, y = origin.y - 12, z = origin.z })
-        pcall(function() obj.setInvisibleTo(COLORS) end)
+        pcall(function()
+          obj.setLock(true)
+          obj.setPosition({ x = origin.x, y = origin.y - 12, z = origin.z })
+          obj.setInvisibleTo(COLORS)
+        end)
       end
     end
   end
-  local label = "Tokens " .. #order
-  if #order > VISIBLE then
-    local page = math.floor(scroll / VISIBLE) + 1
-    local pages = math.max(1, math.ceil(#order / VISIBLE))
-    label = label .. "  " .. page .. "/" .. pages
-  end
-  pcall(function() self.editButton({ index = 2, label = label }) end)
+  pcall(function() self.setName("Token Viewer (" .. #order .. ")") end)
 end
 
 function releaseHeld(guid, index)
   local obj = getObjectFromGUID(guid)
   if not obj then return end
-  local pos = obj.getPosition()
-  local copy = obj.clone({ position = { x = pos.x, y = pos.y + 0.3, z = pos.z } })
+  local pos = { x = 0, y = 2, z = 0 }
+  pcall(function() pos = obj.getPosition() end)
+  local copy = nil
+  pcall(function()
+    copy = obj.clone({ position = { x = pos.x, y = pos.y + 0.3, z = pos.z } })
+  end)
   released[guid] = true
   known[guid] = nil
   pcall(function() obj.setInvisibleTo({}) end)
   if copy then
-    known[copy.getGUID()] = true
-    order[index] = copy.getGUID()
-    copy.setRotation({ x = 0, y = yaw, z = 0 })
-    pcall(function() copy.setInvisibleTo(hiddenFrom(owner)) end)
+    local copyGuid = ""
+    pcall(function() copyGuid = copy.getGUID() end)
+    if copyGuid ~= "" then
+      known[copyGuid] = true
+      order[index] = copyGuid
+      pcall(function()
+        copy.setRotation({ x = 0, y = yaw, z = 0 })
+        copy.setInvisibleTo(hiddenFrom(owner))
+      end)
+    end
   else
     table.remove(order, index)
   end
-end
-
-function considerNearby()
-  if busy then return end
-  local origin = self.getPosition()
-  for _, obj in ipairs(getAllObjects()) do
-    if obj and obj.getGUID() ~= self.getGUID() and (obj.tag == "Card" or obj.tag == "Deck") then
-      local guid = obj.getGUID()
-      if not known[guid] and not released[guid] and not isHeld(obj) and not inHand(obj) then
-        local p = obj.getPosition()
-        local dx = p.x - origin.x
-        local dz = p.z - origin.z
-        local dy = p.y - origin.y
-        if dx * dx + dz * dz < 6 and dy > -0.4 and dy < 1.6 then
-          intake(obj)
-          return
-        end
-      end
-    end
-  end
+  layout()
 end
 
 function onUpdate()
-  local pulled = {}
-  for i, guid in ipairs(order) do
+  if #order == 0 then return end
+  for i = #order, 1, -1 do
+    local guid = order[i]
     local obj = getObjectFromGUID(guid)
-    if obj and isHeld(obj) then
-      table.insert(pulled, { guid = guid, index = i })
+    if not obj then
+      table.remove(order, i)
+      known[guid] = nil
+    elseif heldBy(obj) then
+      releaseHeld(guid, i)
     end
-  end
-  for _, item in ipairs(pulled) do
-    releaseHeld(item.guid, item.index)
-  end
-  if #pulled == 0 then layout() end
-  scan = scan + 1
-  if scan > 20 then
-    scan = 0
-    considerNearby()
   end
 end
 
