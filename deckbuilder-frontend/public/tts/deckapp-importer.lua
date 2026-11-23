@@ -1,10 +1,10 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste onto one object. Click DeckApp to open the panel.
--- Token viewer is a separate object. Spawn it from the panel, then drop token cards onto it.
--- Decks land on the table in front of the player. Library and sideboard are face down.
--- Commanders and the token pile are face up.
+-- Deck names are full-height rows. None uses the plain Magic back.
+-- Token viewer is a separate low pad. Drop the token pile on it.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
+local PLAIN_BACK = "https://cards.scryfall.io/large/back.jpg"
 
 local decks = {}
 local deckTotal = 0
@@ -14,8 +14,10 @@ local selected = { id = "none", name = "None", url = "" }
 local mode = "home"
 local importUrl = ""
 local uiColor = "White"
-local previewSerial = 0
 local seq = 2000
+local shownAsset = "sleeveA"
+local assetUrls = { sleeveA = PLAIN_BACK, sleeveB = PLAIN_BACK }
+local artReady = false
 
 function urlEncode(s)
   s = tostring(s or "")
@@ -41,11 +43,13 @@ end
 
 function sleeveRaw()
   if selected.url and selected.url ~= "" then return selected.url end
-  return API .. "back.jpg"
+  return PLAIN_BACK
 end
 
 function sleeveImage()
-  return withCache(sleeveRaw())
+  local url = sleeveRaw()
+  if url == PLAIN_BACK then return url end
+  return withCache(url)
 end
 
 function vadd(a, b, scale)
@@ -92,6 +96,7 @@ function openPanel(_, color)
   uiColor = color or "White"
   if mode == "" then mode = "home" end
   renderUI()
+  refreshArt()
 end
 
 function uiClose()
@@ -103,8 +108,6 @@ function click(name)
 end
 
 function renderUI()
-  previewSerial = previewSerial + 1
-  local asset = "sleeve" .. previewSerial
   local body = ""
   if mode == "sleeves" then
     body = sleeveList()
@@ -117,25 +120,53 @@ function renderUI()
   end
   local xml = [[
 <Defaults>
-  <Button class="btn" color="#2c2544" textColor="#f4f0ff" fontSize="18" />
-  <Text class="label" color="#f4f0ff" fontSize="18" />
+  <Button class="btn" color="#2c2544" textColor="#f4f0ff" fontSize="20" minHeight="52" preferredHeight="52" flexibleHeight="0" />
+  <Text class="label" color="#f4f0ff" fontSize="20" />
 </Defaults>
-<Panel id="deckapp" width="900" height="620" color="#14111cf2" rectAlignment="MiddleCenter" allowDragging="true" returnToOriginalPositionWhenReleased="false" visibility="]] .. uiColor .. [[">
+<Panel id="deckapp" width="960" height="680" color="#14111cf2" rectAlignment="MiddleCenter" allowDragging="true" returnToOriginalPositionWhenReleased="false" visibility="]] .. uiColor .. [[">
   <Text class="label" fontSize="26" rectAlignment="UpperLeft" offsetXY="28 -18" width="420" height="36">DeckApp</Text>
   <Text class="label" fontSize="16" color="#b7aec9" rectAlignment="UpperLeft" offsetXY="28 -48" width="420" height="24">Sleeve · ]] .. xmlEscape(selected.name or "None") .. [[</Text>
-  <Button class="btn" onClick="]] .. click("uiClose") .. [[" rectAlignment="UpperRight" offsetXY="-16 -16" width="40" height="40" fontSize="20">X</Button>
-  <Image id="sleevePic" image="]] .. asset .. [[" width="168" height="234" rectAlignment="UpperLeft" offsetXY="28 -88" />
-  <Button class="btn" onClick="]] .. click("uiModeSleeves") .. [[" color="]] .. (mode == "sleeves" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -336" width="168" height="40">Sleeves</Button>
-  <Button class="btn" onClick="]] .. click("uiModeDecks") .. [[" color="]] .. (mode == "decks" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -384" width="168" height="40">Decks</Button>
-  <Button class="btn" onClick="]] .. click("uiModeUrl") .. [[" color="]] .. (mode == "url" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -432" width="168" height="40">Import URL</Button>
-  <Button class="btn" onClick="]] .. click("spawnViewer") .. [[" rectAlignment="UpperLeft" offsetXY="28 -480" width="168" height="40">Token viewer</Button>
+  <Button class="btn" onClick="]] .. click("uiClose") .. [[" rectAlignment="UpperRight" offsetXY="-16 -16" width="40" height="40" fontSize="20" minHeight="40" preferredHeight="40">X</Button>
+  <Image id="sleevePic" image="]] .. shownAsset .. [[" width="168" height="234" rectAlignment="UpperLeft" offsetXY="28 -88" />
+  <Button class="btn" onClick="]] .. click("uiModeSleeves") .. [[" color="]] .. (mode == "sleeves" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -336" width="168" height="40" minHeight="40" preferredHeight="40">Sleeves</Button>
+  <Button class="btn" onClick="]] .. click("uiModeDecks") .. [[" color="]] .. (mode == "decks" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -384" width="168" height="40" minHeight="40" preferredHeight="40">Decks</Button>
+  <Button class="btn" onClick="]] .. click("uiModeUrl") .. [[" color="]] .. (mode == "url" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -432" width="168" height="40" minHeight="40" preferredHeight="40">Import URL</Button>
+  <Button class="btn" onClick="]] .. click("spawnViewer") .. [[" rectAlignment="UpperLeft" offsetXY="28 -480" width="168" height="40" minHeight="40" preferredHeight="40">Token viewer</Button>
   ]] .. body .. [[
 </Panel>]]
-  local preview = sleeveRaw()
-  pcall(function()
-    UI.setCustomAssets({{ name = asset, url = preview }})
-  end)
   UI.setXml(xml)
+end
+
+function refreshArt()
+  local url = sleeveRaw()
+  if artReady and assetUrls[shownAsset] == url then return end
+  local nxt = shownAsset == "sleeveA" and "sleeveB" or "sleeveA"
+  assetUrls[nxt] = url
+  pcall(function()
+    UI.setCustomAssets({
+      { name = "sleeveA", url = assetUrls.sleeveA },
+      { name = "sleeveB", url = assetUrls.sleeveB },
+    })
+  end)
+  Wait.time(function()
+    shownAsset = nxt
+    artReady = true
+    renderUI()
+  end, 0.45)
+end
+
+function rowButton(attrs, label)
+  return '<Button class="btn" fontSize="20" minHeight="52" preferredHeight="52" flexibleHeight="0" height="52" ' .. attrs .. ">" .. xmlEscape(label) .. "</Button>"
+end
+
+function scrollRows(rows, top, viewHeight)
+  local height = math.max(viewHeight, #rows * 60)
+  return [[
+<VerticalScrollView rectAlignment="UpperLeft" offsetXY="230 ]] .. top .. [[" width="690" height="]] .. viewHeight .. [[" color="#00000055" scrollSensitivity="40">
+  <VerticalLayout spacing="8" padding="8" childAlignment="UpperCenter" childForceExpandWidth="true" childForceExpandHeight="false" childControlWidth="true" childControlHeight="true" height="]] .. height .. [[" preferredHeight="]] .. height .. [[">
+    ]] .. table.concat(rows) .. [[
+  </VerticalLayout>
+</VerticalScrollView>]]
 end
 
 function homeCopy()
@@ -147,40 +178,31 @@ end
 
 function sleeveList()
   if #sleeves == 0 then
-    return [[<Text class="label" fontSize="18" rectAlignment="UpperLeft" offsetXY="240 -100" width="620" height="40">Loading sleeves…</Text>]]
+    return [[<Text class="label" fontSize="20" rectAlignment="UpperLeft" offsetXY="240 -100" width="640" height="40">Loading sleeves…</Text>]]
   end
   local rows = {}
   for i, sleeve in ipairs(sleeves) do
-    local mark = sleeve.id == selected.id and "  ·  selected" or ""
-    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiPickSleeve") .. '" id="s' .. i .. '" preferredHeight="42">' .. xmlEscape(truncate(sleeve.name or "Sleeve", 42) .. mark) .. "</Button>"
+    local mark = sleeve.id == selected.id and "   selected" or ""
+    rows[#rows + 1] = rowButton('onClick="' .. click("uiPickSleeve") .. '" id="s' .. i .. '"', truncate(sleeve.name or "Sleeve", 48) .. mark)
   end
-  local height = math.max(80, #rows * 48)
-  return [[
-<VerticalScrollView rectAlignment="UpperLeft" offsetXY="230 -88" width="640" height="490" color="#00000055" scrollSensitivity="30">
-  <VerticalLayout spacing="6" padding="8" childForceExpandWidth="true" childForceExpandHeight="false" childControlHeight="true" preferredHeight="]] .. height .. [[">
-    ]] .. table.concat(rows) .. [[
-  </VerticalLayout>
-</VerticalScrollView>]]
+  return scrollRows(rows, "-88", 500)
 end
 
 function deckList()
   local rows = {}
   for i, deck in ipairs(decks) do
-    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiPickDeck") .. '" id="d' .. i .. '" preferredHeight="42">' .. xmlEscape(truncate((deck.name or "Deck") .. "  ·  " .. (deck.format or ""), 52)) .. "</Button>"
+    local title = (deck.name or "Deck") .. "   " .. (deck.format or "")
+    rows[#rows + 1] = rowButton('onClick="' .. click("uiPickDeck") .. '" id="d' .. i .. '"', truncate(title, 56))
   end
   if deckTotal == 0 and #decks == 0 then
-    rows[#rows + 1] = '<Text class="label" preferredHeight="36">No public decks.</Text>'
+    rows[#rows + 1] = '<Text class="label" minHeight="52" preferredHeight="52" height="52">No public decks.</Text>'
   elseif #decks < deckTotal then
-    rows[#rows + 1] = '<Button class="btn" onClick="' .. click("uiMoreDecks") .. '" preferredHeight="42">Load more (' .. #decks .. " / " .. deckTotal .. ")</Button>"
+    rows[#rows + 1] = rowButton('onClick="' .. click("uiMoreDecks") .. '"', "Load more (" .. #decks .. " / " .. deckTotal .. ")")
   end
-  local height = math.max(80, #rows * 48 + 8)
+  local list = scrollRows(rows, "-138", 450)
   return [[
-<InputField id="deckSearch" onEndEdit="]] .. click("uiSearch") .. [[" placeholder="Search public decks" text="]] .. xmlEscape(deckQuery) .. [[" rectAlignment="UpperLeft" offsetXY="230 -88" width="640" height="40" fontSize="18" color="#221c33" textColor="#f4f0ff" />
-<VerticalScrollView rectAlignment="UpperLeft" offsetXY="230 -138" width="640" height="440" color="#00000055" scrollSensitivity="30">
-  <VerticalLayout spacing="6" padding="8" childForceExpandWidth="true" childForceExpandHeight="false" childControlHeight="true" preferredHeight="]] .. height .. [[">
-    ]] .. table.concat(rows) .. [[
-  </VerticalLayout>
-</VerticalScrollView>]]
+<InputField id="deckSearch" onEndEdit="]] .. click("uiSearch") .. [[" placeholder="Search public decks" text="]] .. xmlEscape(deckQuery) .. [[" rectAlignment="UpperLeft" offsetXY="230 -88" width="690" height="44" fontSize="20" color="#221c33" textColor="#f4f0ff" />
+]] .. list
 end
 
 function urlForm()
@@ -250,6 +272,7 @@ function uiPickSleeve(_, _, id)
   selected = { id = sleeve.id, name = sleeve.name, url = sleeve.url or "" }
   self.script_state = JSON.encode({ sleeve = selected })
   renderUI()
+  refreshArt()
 end
 
 function uiPickDeck(player, _, id)
@@ -492,28 +515,24 @@ function spawnDeck(data, spot)
 end
 
 local VIEWER_LUA = [=[
-local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Grey","Black"}
+local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
 local VISIBLE = 5
 local owner = "__OWNER__"
 local right = {x = __RX__, y = 0, z = __RZ__}
+local forward = {x = __FX__, y = 0, z = __FZ__}
 local yaw = __YAW__
 local order = {}
 local known = {}
 local released = {}
 local scroll = 0
 local busy = false
+local scan = 0
 
 function hiddenFrom(color)
   local list = {}
   for _, name in ipairs(COLORS) do
     if name ~= color then table.insert(list, name) end
   end
-  return list
-end
-
-function allColors()
-  local list = {}
-  for _, name in ipairs(COLORS) do table.insert(list, name) end
   return list
 end
 
@@ -529,40 +548,42 @@ function onLoad(saved)
   if raw and raw ~= "" then data = JSON.decode(raw) or {} end
   owner = data.owner or owner
   if data.right then right = data.right end
-  yaw = data.yaw or 0
+  if data.forward then forward = data.forward end
+  yaw = data.yaw or yaw
   self.setName("Token Viewer")
   self.setLock(true)
-  self.setDescription("Drop token cards here. Drag one off to copy it.")
+  self.setDescription("Drop the token pile on this pad.")
   self.createButton({
     click_function = "viewPrev", function_owner = self, label = "<",
-    position = {-1.6, 0.3, 0}, width = 500, height = 500, font_size = 250,
+    position = {-0.62, 0.22, 0}, width = 220, height = 160, font_size = 90,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
   self.createButton({
     click_function = "viewNext", function_owner = self, label = ">",
-    position = {1.6, 0.3, 0}, width = 500, height = 500, font_size = 250,
+    position = {0.62, 0.22, 0}, width = 220, height = 160, font_size = 90,
     color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
   self.createButton({
     click_function = "noop", function_owner = self, label = "Drop tokens",
-    position = {0, 0.3, 1.15}, width = 1400, height = 360, font_size = 160,
-    color = {0.16, 0.12, 0.24}, font_color = {0.94, 0.91, 1},
+    position = {0, 0.22, 0.28}, width = 520, height = 140, font_size = 70,
+    color = {0.12, 0.09, 0.18}, font_color = {0.94, 0.91, 1},
   })
 end
 
 function noop() end
 
 function onSave()
-  return JSON.encode({ owner = owner, right = right, yaw = yaw })
+  return JSON.encode({ owner = owner, right = right, forward = forward, yaw = yaw })
 end
 
 function isHeld(obj)
   if not obj then return false end
-  if obj.held_by_color and obj.held_by_color ~= "" then return true end
+  local okColor, heldColor = pcall(function() return obj.held_by_color end)
+  if okColor and heldColor and heldColor ~= "" then return true end
   local guid = obj.getGUID()
   for _, color in ipairs(COLORS) do
-    local player = Player[color]
-    if player and player.getHoldingObjects then
+    local okPlayer, player = pcall(function() return Player[color] end)
+    if okPlayer and player and player.getHoldingObjects then
       local ok, held = pcall(function() return player.getHoldingObjects() end)
       if ok and held then
         for _, item in ipairs(held) do
@@ -574,17 +595,32 @@ function isHeld(obj)
   return false
 end
 
+function inHand(obj)
+  local guid = obj.getGUID()
+  for _, color in ipairs(COLORS) do
+    local okPlayer, player = pcall(function() return Player[color] end)
+    if okPlayer and player and player.getHandObjects then
+      local ok, hand = pcall(function() return player.getHandObjects() end)
+      if ok and hand then
+        for _, card in ipairs(hand) do
+          if card and card.getGUID() == guid then return true end
+        end
+      end
+    end
+  end
+  return false
+end
+
 function onCollisionEnter(info)
   local obj = info and info.collision_object
   if not obj or busy then return end
   if obj.getGUID() == self.getGUID() then return end
-  if known[obj.getGUID()] or released[obj.getGUID()] then return end
   local hit = obj
   Wait.time(function()
     if not hit or (hit.isDestroyed and hit.isDestroyed()) then return end
-    if isHeld(hit) or known[hit.getGUID()] then return end
+    if isHeld(hit) or inHand(hit) then return end
     intake(hit)
-  end, 0.35)
+  end, 0.3)
 end
 
 function intake(obj)
@@ -612,11 +648,11 @@ end
 
 function adopt(obj)
   if not obj or known[obj.getGUID()] or released[obj.getGUID()] then return end
-  if obj.getGUID() == self.getGUID() then return end
+  if obj.getGUID() == self.getGUID() or obj.tag ~= "Card" then return end
   known[obj.getGUID()] = true
   table.insert(order, obj.getGUID())
   pcall(function() obj.setLock(false) end)
-  obj.setInvisibleTo(hiddenFrom(owner))
+  pcall(function() obj.setInvisibleTo(hiddenFrom(owner)) end)
 end
 
 function layout()
@@ -625,20 +661,21 @@ function layout()
   for i = scroll + 1, math.min(#order, scroll + VISIBLE) do
     if getObjectFromGUID(order[i]) then shown = shown + 1 end
   end
-  local span = math.max(0, shown - 1) * 2.5
+  local span = math.max(0, shown - 1) * 2.15
   local visual = 0
   for i, guid in ipairs(order) do
     local obj = getObjectFromGUID(guid)
     if obj and not (obj.isDestroyed and obj.isDestroyed()) then
       if i > scroll and i <= scroll + VISIBLE then
         visual = visual + 1
-        local pos = vadd(origin, right, -span / 2 + (visual - 1) * 2.5)
-        pos.y = origin.y + 0.7
+        local pos = vadd(origin, forward, 1.7)
+        pos = vadd(pos, right, -span / 2 + (visual - 1) * 2.15)
+        pos.y = origin.y + 0.35
         if not isHeld(obj) then
           obj.setLock(false)
           obj.setPosition(pos)
           obj.setRotation({ x = 0, y = yaw, z = 0 })
-          obj.setInvisibleTo(hiddenFrom(owner))
+          pcall(function() obj.setInvisibleTo(hiddenFrom(owner)) end)
           pcall(function()
             obj.setVelocity({0, 0, 0})
             obj.setAngularVelocity({0, 0, 0})
@@ -646,8 +683,8 @@ function layout()
         end
       else
         obj.setLock(true)
-        obj.setPosition({ x = origin.x, y = origin.y - 15, z = origin.z })
-        obj.setInvisibleTo(allColors())
+        obj.setPosition({ x = origin.x, y = origin.y - 12, z = origin.z })
+        pcall(function() obj.setInvisibleTo(COLORS) end)
       end
     end
   end
@@ -664,18 +701,37 @@ function releaseHeld(guid, index)
   local obj = getObjectFromGUID(guid)
   if not obj then return end
   local pos = obj.getPosition()
-  local rot = obj.getRotation()
-  local copy = obj.clone({ position = { x = pos.x, y = pos.y + 0.2, z = pos.z } })
+  local copy = obj.clone({ position = { x = pos.x, y = pos.y + 0.3, z = pos.z } })
   released[guid] = true
   known[guid] = nil
-  obj.setInvisibleTo({})
+  pcall(function() obj.setInvisibleTo({}) end)
   if copy then
     known[copy.getGUID()] = true
     order[index] = copy.getGUID()
-    copy.setRotation(rot)
-    copy.setInvisibleTo(hiddenFrom(owner))
+    copy.setRotation({ x = 0, y = yaw, z = 0 })
+    pcall(function() copy.setInvisibleTo(hiddenFrom(owner)) end)
   else
     table.remove(order, index)
+  end
+end
+
+function considerNearby()
+  if busy then return end
+  local origin = self.getPosition()
+  for _, obj in ipairs(getAllObjects()) do
+    if obj and obj.getGUID() ~= self.getGUID() and (obj.tag == "Card" or obj.tag == "Deck") then
+      local guid = obj.getGUID()
+      if not known[guid] and not released[guid] and not isHeld(obj) and not inHand(obj) then
+        local p = obj.getPosition()
+        local dx = p.x - origin.x
+        local dz = p.z - origin.z
+        local dy = p.y - origin.y
+        if dx * dx + dz * dz < 6 and dy > -0.4 and dy < 1.6 then
+          intake(obj)
+          return
+        end
+      end
+    end
   end
 end
 
@@ -691,6 +747,11 @@ function onUpdate()
     releaseHeld(item.guid, item.index)
   end
   if #pulled == 0 then layout() end
+  scan = scan + 1
+  if scan > 20 then
+    scan = 0
+    considerNearby()
+  end
 end
 
 function viewPrev()
@@ -708,12 +769,12 @@ end
 function spawnViewer(player)
   local color = (player and player.color) or uiColor or "White"
   local spot = seatSpot(color)
-  local pos = vadd(spot.origin, spot.right, -11)
-  pos.y = (spot.origin.y or 2) + 0.15
+  local pos = vadd(spot.origin, spot.right, -8)
+  pos.y = (spot.origin.y or 2) + 0.1
   local yaw = spot.yaw or 0
   local rotation = { x = 0, y = yaw, z = 0 }
   local obj = spawnObjectJSON({
-    json = cardPayload({ name = "Token Viewer", face = sleeveRaw(), tip = "Drop token cards here." }, pos, rotation),
+    json = cardPayload({ name = "Token Viewer", face = sleeveRaw(), tip = "Drop the token pile on this pad." }, pos, rotation),
     position = pos,
     rotation = rotation,
     sound = false,
@@ -723,14 +784,21 @@ function spawnViewer(player)
     return
   end
   obj.setLock(true)
-  obj.setScale({ x = 6, y = 1, z = 2.4 })
+  obj.setScale({ x = 2.2, y = 1, z = 0.72 })
   obj.setName("Token Viewer")
   local lua = VIEWER_LUA
   lua = lua:gsub("__OWNER__", color)
   lua = lua:gsub("__RX__", tostring(spot.right.x or 1))
   lua = lua:gsub("__RZ__", tostring(spot.right.z or 0))
+  lua = lua:gsub("__FX__", tostring(spot.forward.x or 0))
+  lua = lua:gsub("__FZ__", tostring(spot.forward.z or 1))
   lua = lua:gsub("__YAW__", tostring(yaw))
-  obj.script_state = JSON.encode({ owner = color, right = spot.right, yaw = yaw })
+  obj.script_state = JSON.encode({
+    owner = color,
+    right = spot.right,
+    forward = spot.forward,
+    yaw = yaw,
+  })
   obj.setLuaScript(lua)
-  broadcastToColor("Token viewer is to your left. Drop the token pile onto it.", color, {0.75, 0.85, 1})
+  broadcastToColor("Token viewer is to your left. Drop the token pile onto the pad.", color, {0.75, 0.85, 1})
 end
