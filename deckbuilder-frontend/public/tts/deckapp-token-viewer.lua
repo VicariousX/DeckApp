@@ -1,8 +1,8 @@
 -- DeckApp token viewer for Tabletop Simulator.
--- Select a pile, then click Add. Three cards sit on the top of the tile.
--- Arrows, Add, and the bar along the bottom move through the lineup.
--- Hover the tile and tap rotate to slide the row sideways.
+-- Select a pile, then click Add. Three cards float over the top of the tile.
+-- Clear empties the lineup. Right-click Clear to refresh this script.
 
+local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
 local VISIBLE = 3
 local owner = ""
@@ -12,7 +12,8 @@ local released = {}
 local scroll = 0
 local busy = false
 local pipCount = 0
-local lastX, lastY, lastZ = nil, nil, nil
+local tileW, tileD, tileT = nil, nil, nil
+local lastX, lastY, lastZ, lastYaw = nil, nil, nil, nil
 
 function hiddenFrom(color)
   if not color or color == "" then return {} end
@@ -41,6 +42,7 @@ function basis()
 end
 
 function worldExtents()
+  if tileW and tileD and tileT then return tileW, tileD, tileT end
   local size = { x = 6, y = 0.2, z = 4 }
   pcall(function()
     local bounds = self.getBounds()
@@ -61,7 +63,8 @@ function worldExtents()
   end
   if width < 1 then width = math.max(size.x, size.z) end
   if depth < 0.6 then depth = math.min(size.x, size.z) end
-  return width, depth, size.y or 0.2
+  tileW, tileD, tileT = width, depth, size.y or 0.2
+  return tileW, tileD, tileT
 end
 
 function localHalf()
@@ -99,7 +102,18 @@ function sortOrder()
 end
 
 function onSave()
-  return JSON.encode({ owner = owner })
+  return JSON.encode({
+    owner = owner,
+    order = order,
+    scroll = scroll,
+    width = tileW,
+    depth = tileD,
+    thick = tileT,
+  })
+end
+
+function remember()
+  self.script_state = onSave()
 end
 
 function onLoad(saved)
@@ -108,12 +122,41 @@ function onLoad(saved)
   if raw and raw ~= "" then
     local data = JSON.decode(raw) or {}
     if data.owner then owner = data.owner end
+    if data.width and data.depth then
+      tileW, tileD, tileT = data.width, data.depth, data.thick or 0.2
+    end
+    if type(data.order) == "table" then
+      order = {}
+      known = {}
+      for _, guid in ipairs(data.order) do
+        if type(guid) == "string" and guid ~= "" then
+          table.insert(order, guid)
+          known[guid] = true
+        end
+      end
+      scroll = tonumber(data.scroll) or 0
+    end
   end
   self.setLock(false)
   self.sticky = false
   self.setName("Token Viewer")
-  self.setDescription("Select a pile, then click Add.")
+  self.setDescription("Add keeps the lineup. Clear empties it. Right-click Clear to refresh.")
   buildChrome()
+  Wait.time(function()
+    local live = {}
+    known = {}
+    for _, guid in ipairs(order) do
+      if getObjectFromGUID(guid) then
+        table.insert(live, guid)
+        known[guid] = true
+      end
+    end
+    order = live
+    local limit = maxScroll()
+    if scroll > limit then scroll = limit end
+    layout()
+    remember()
+  end, 0.4)
 end
 
 function buildChrome()
@@ -139,6 +182,12 @@ function buildChrome()
     position = {hx * 0.62, buttonY, zRow}, width = 240, height = 200, font_size = 110,
     color = ink, font_color = font,
   })
+  self.createButton({
+    click_function = "clearOrRefresh", function_owner = self, label = "Clear",
+    position = {hx * 0.9, buttonY, hz * 0.15}, width = 150, height = 80, font_size = 48,
+    color = {0.18, 0.14, 0.28}, font_color = font,
+    tooltip = "Clears the lineup. Right-click to refresh the script.",
+  })
   pipCount = math.max(1, math.min(12, maxScroll() + 1))
   local span = hx * 1.5
   for i = 0, pipCount - 1 do
@@ -161,7 +210,7 @@ function paintPips()
   end
   for i = 0, pipCount - 1 do
     local color = i == active and {0.58, 0.48, 0.82} or {0.22, 0.18, 0.32}
-    pcall(function() self.editButton({ index = 3 + i, color = color }) end)
+    pcall(function() self.editButton({ index = 4 + i, color = color }) end)
   end
 end
 
@@ -190,6 +239,60 @@ function scrollBy(step)
   local limit = maxScroll()
   scroll = math.max(0, math.min(limit, scroll + step))
   layout()
+  remember()
+end
+
+function refreshScript()
+  remember()
+  local who = owner ~= "" and owner or "White"
+  broadcastToColor("Checking for a new token viewer...", who, {0.8, 0.8, 1})
+  WebRequest.get(SCRIPT_URL .. "?t=" .. tostring(os.time()), function(req)
+    if req.is_error or req.response_code ~= 200 then
+      broadcastToColor("Refresh failed.", who, {1, 0.45, 0.4})
+      return
+    end
+    local body = req.text or ""
+    if not body:find("DeckApp token viewer for Tabletop Simulator", 1, true) then
+      broadcastToColor("Refresh did not return the viewer. Nothing was changed.", who, {1, 0.55, 0.35})
+      return
+    end
+    remember()
+    self.setLuaScript(body)
+    broadcastToColor("Token viewer updated.", who, {0.7, 0.9, 0.7})
+    self.reload()
+  end)
+end
+
+function clearOrRefresh(_, color, alt)
+  claim(color)
+  if alt then
+    refreshScript()
+    return
+  end
+  local origin = self.getPosition()
+  local _, right = basis()
+  local width = worldExtents()
+  local drop = vadd(origin, right, width * 0.5 + 1.4)
+  drop.y = origin.y + 0.4
+  for i, guid in ipairs(order) do
+    local obj = getObjectFromGUID(guid)
+    if obj then
+      local stack = { x = drop.x, y = drop.y + (i - 1) * 0.08, z = drop.z }
+      pcall(function()
+        obj.setLock(false)
+        obj.use_gravity = true
+        obj.sticky = false
+        obj.setInvisibleTo({})
+        obj.setPosition(stack)
+      end)
+    end
+  end
+  order = {}
+  known = {}
+  released = {}
+  scroll = 0
+  remember()
+  buildChrome()
 end
 
 function tryRotate(spin, flip, player_color, old_spin, old_flip)
@@ -251,6 +354,7 @@ function addSelected(_, color)
       sortOrder()
       scroll = 0
       busy = false
+      remember()
       buildChrome()
       layout()
       return
@@ -346,9 +450,13 @@ end
 function layout()
   local origin = self.getPosition()
   local forward, right, yaw = basis()
+  local up = { x = 0, y = 1, z = 0 }
+  local okUp, lifted = pcall(function() return self.getTransformUp() end)
+  if okUp and lifted then up = lifted end
   local width, depth, thick = worldExtents()
-  local spacing = math.max(1.2, math.min(2.05, width * 0.28))
-  local lift = math.max(0.35, (thick or 0.2) * 0.5 + 0.28)
+  local spacing = math.max(1.2, math.min(2.05, width * 0.26))
+  local lift = math.max(1.15, (thick or 0.2) * 0.5 + 1.05)
+  local along = -depth * 0.34
   local shown = 0
   for i = scroll + 1, math.min(#order, scroll + VISIBLE) do
     if getObjectFromGUID(order[i]) then shown = shown + 1 end
@@ -360,9 +468,9 @@ function layout()
     if obj and not heldBy(obj) then
       if i > scroll and i <= scroll + VISIBLE then
         visual = visual + 1
-        local pos = vadd(origin, forward, -depth / 6)
+        local pos = vadd(origin, forward, along)
         pos = vadd(pos, right, -span / 2 + (visual - 1) * spacing)
-        pos.y = origin.y + lift
+        pos = vadd(pos, up, lift)
         pcall(function()
           obj.setLock(false)
           obj.use_gravity = false
@@ -418,13 +526,18 @@ function releaseHeld(guid, index)
     table.remove(order, index)
   end
   layout()
+  remember()
 end
 
 function onUpdate()
   local moved = false
   local p = self.getPosition()
-  if not lastX or math.abs(p.x - lastX) + math.abs(p.y - lastY) + math.abs(p.z - lastZ) > 0.08 then
-    lastX, lastY, lastZ = p.x, p.y, p.z
+  local yaw = 0
+  pcall(function() yaw = self.getRotation().y end)
+  if not lastX
+    or math.abs(p.x - lastX) + math.abs(p.y - lastY) + math.abs(p.z - lastZ) > 0.02
+    or math.abs((yaw or 0) - (lastYaw or 0)) > 0.5 then
+    lastX, lastY, lastZ, lastYaw = p.x, p.y, p.z, yaw
     moved = true
   end
   if #order == 0 then return end
@@ -434,6 +547,7 @@ function onUpdate()
     if not obj then
       table.remove(order, i)
       known[guid] = nil
+      remember()
     elseif heldBy(obj) then
       releaseHeld(guid, i)
     end
