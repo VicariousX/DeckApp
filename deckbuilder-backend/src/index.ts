@@ -422,6 +422,56 @@ app.get("/api/tts/deck/:id", async (req: Request, res: Response) => {
   }
 });
 
+type PrintedCard = FaceText & {
+  id?: string;
+  name?: string;
+  layout?: string;
+  card_faces?: (FaceText & { name?: string; image_uris?: unknown })[];
+  all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[];
+};
+
+function normCardName(name: string): string {
+  return name
+    .normalize("NFKC")
+    .replace(/[\u2019\u2018\u02BC]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\s*\/\/\s*/g, " // ")
+    .replace(/\s+\([^)]*\)\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function nameKeys(name: string | undefined): string[] {
+  if (!name) return [];
+  const full = normCardName(name);
+  if (!full) return [];
+  const keys = new Set<string>([full]);
+  for (const part of full.split(" // ")) {
+    const piece = part.trim();
+    if (piece) keys.add(piece);
+  }
+  return [...keys];
+}
+
+function rememberPrinted(byName: Map<string, PrintedCard>, card: PrintedCard) {
+  const keys = new Set<string>(nameKeys(card.name));
+  for (const face of card.card_faces || []) {
+    for (const key of nameKeys(face.name)) keys.add(key);
+  }
+  for (const key of keys) {
+    if (!byName.has(key)) byName.set(key, card);
+  }
+}
+
+function findPrinted(byName: Map<string, PrintedCard>, name: string) {
+  for (const key of nameKeys(name)) {
+    const found = byName.get(key);
+    if (found?.id) return found;
+  }
+  return undefined;
+}
+
 app.get("/api/tts/import", async (req: Request, res: Response) => {
   const raw = String(req.query.url || "").trim();
   if (!raw) return res.status(400).json({ error: "Missing url" });
@@ -438,29 +488,33 @@ app.get("/api/tts/import", async (req: Request, res: Response) => {
   }
   try {
     const imported = await importDeckFromUrl(raw);
-    const names = [...new Set(imported.cards.map((c) => c.name))];
-    type PrintedCard = FaceText & {
-      id?: string;
-      name?: string;
-      layout?: string;
-      card_faces?: (FaceText & { name?: string; image_uris?: unknown })[];
-      all_parts?: { id?: string; component?: string; name?: string; type_line?: string }[];
-    };
+    const names = [
+      ...new Set(
+        imported.cards.map((c) => c.name.replace(/\s+\([^)]*\)\s*$/g, "").trim() || c.name)
+      ),
+    ];
     const byName = new Map<string, PrintedCard>();
     for (let i = 0; i < names.length; i += 75) {
       const identifiers = names.slice(i, i + 75).map((name) => ({ name }));
       const { data } = await scryfallPost("/cards/collection", { identifiers });
       const found = (data as { data?: PrintedCard[] })?.data || [];
-      for (const card of found) {
-        if (card.name) byName.set(card.name.toLowerCase(), card);
-      }
+      for (const card of found) rememberPrinted(byName, card);
+    }
+    let fuzzyLeft = 15;
+    for (const row of imported.cards) {
+      if (findPrinted(byName, row.name) || fuzzyLeft <= 0) continue;
+      fuzzyLeft -= 1;
+      const query = nameKeys(row.name)[0] || row.name;
+      const { status, data } = await scryfallGet(`/cards/named?fuzzy=${encodeURIComponent(query)}`);
+      const card = data as PrintedCard;
+      if (status === 200 && card?.id) rememberPrinted(byName, card);
     }
     const api = process.env.PUBLIC_API_URL || "https://deckapp-1.onrender.com";
     const base = api.replace(/\/$/, "");
     const missing: string[] = [];
     const cards = [];
     for (const row of imported.cards) {
-      const printed = byName.get(row.name.toLowerCase());
+      const printed = findPrinted(byName, row.name);
       if (!printed?.id) {
         missing.push(row.name);
         continue;

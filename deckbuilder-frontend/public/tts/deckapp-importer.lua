@@ -324,7 +324,9 @@ function uiImport(player)
     end
     local data = JSON.decode(req.text)
     if data.missing and #data.missing > 0 then
-      broadcastToAll("Skipped " .. #data.missing .. " unrecognized cards.", {1, 0.7, 0.4})
+      local names = table.concat(data.missing, ", ")
+      if #names > 180 then names = names:sub(1, 177) .. "..." end
+      broadcastToAll("Skipped " .. #data.missing .. " unrecognized cards: " .. names, {1, 0.7, 0.4})
     end
     spawnDeck(data, spot)
   end)
@@ -472,21 +474,45 @@ function cardPayload(card, position, rotation)
   return encodeCard(payload)
 end
 
-function stackIntoDeck(objs, name, position, rotation)
-  if #objs == 0 then return nil end
-  local deck = objs[1]
-  for i = 2, #objs do
-    if objs[i] and objs[i].isDestroyed and not objs[i].isDestroyed() then
-      local stacked = deck.putObject(objs[i])
-      if stacked then deck = stacked end
+function alive(obj)
+  if obj == nil then return false end
+  local ok, dead = pcall(function() return obj.isDestroyed() end)
+  return ok and not dead
+end
+
+function stackChunk(state)
+  local deck = state.deck
+  local last = math.min(#state.objs, state.i + 15)
+  while state.i <= last do
+    local obj = state.objs[state.i]
+    state.i = state.i + 1
+    if alive(obj) and obj ~= deck then
+      if not alive(deck) then
+        deck = obj
+      else
+        local ok, stacked = pcall(function() return deck.putObject(obj) end)
+        if ok and alive(stacked) then deck = stacked end
+      end
     end
   end
-  if deck and not (deck.isDestroyed and deck.isDestroyed()) then
-    deck.setName(name)
-    deck.setPosition(position)
-    deck.setRotation(rotation)
+  state.deck = deck
+  if state.i <= #state.objs then
+    Wait.time(function() stackChunk(state) end, 0.2)
+    return
   end
-  return deck
+  if alive(deck) then
+    pcall(function()
+      deck.setName(state.name)
+      deck.setPosition(state.position)
+      deck.setRotation(state.rotation)
+    end)
+  end
+  broadcastToAll(state.name .. " (" .. #state.objs .. ")", {0.75, 0.9, 0.75})
+end
+
+function stackIntoDeck(objs, name, position, rotation)
+  if #objs == 0 then return end
+  stackChunk({ objs = objs, name = name, position = position, rotation = rotation, i = 1, deck = nil })
 end
 
 function spawnPile(cards, name, position, rotation)
@@ -495,18 +521,20 @@ function spawnPile(cards, name, position, rotation)
   for _, card in ipairs(cards) do
     local qty = math.max(1, card.quantity or 1)
     for _ = 1, qty do
-      local obj = spawnObjectJSON({
-        json = cardPayload(card, position, rotation),
-        position = position,
-        rotation = rotation,
-        sound = false,
-      })
-      if obj then table.insert(objs, obj) end
+      local obj = nil
+      local ok = pcall(function()
+        obj = spawnObjectJSON({
+          json = cardPayload(card, position, rotation),
+          position = position,
+          rotation = rotation,
+          sound = false,
+        })
+      end)
+      if ok and obj then table.insert(objs, obj) end
     end
   end
   Wait.time(function()
     stackIntoDeck(objs, name, position, rotation)
-    broadcastToAll(name .. " (" .. #objs .. ")", {0.75, 0.9, 0.75})
   end, 1.1)
 end
 
