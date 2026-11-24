@@ -1,6 +1,6 @@
 -- DeckApp token viewer for Tabletop Simulator.
 -- The lineup is alphabetical, and the arrows move a page at a time.
--- The cog opens Clear and how many cards show on a page. Right-click the cog to reset.
+-- The cog opens Clear and how many cards show on a page. Right-click the cog to reset and update.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
@@ -160,7 +160,7 @@ function onLoad(saved)
   self.setLock(false)
   self.sticky = false
   self.setName("Token Viewer")
-  self.setDescription("Add keeps the lineup. The cog opens Clear and cards per page. Right-click the cog to reset.")
+  self.setDescription("Add keeps the lineup. The cog opens Clear and cards per page. Right-click the cog to reset and update.")
   buildChrome()
   Wait.time(function()
     local live = {}
@@ -215,7 +215,7 @@ function buildChrome()
     click_function = "toggleSettings", label = "⚙",
     position = {hx * 0.28, buttonY, zRow}, width = 180, height = 210, font_size = 64,
     color = settingsOpen and accent or ink,
-    tooltip = "Settings. Right-click to reset the page.",
+    tooltip = "Settings. Right-click to reset and update the script.",
   })
   pipCount = math.max(1, math.min(12, pageCount()))
   local span = hx * 1.05
@@ -324,6 +324,7 @@ function toggleSettings(_, color, alt)
   claim(color)
   if alt then
     doReset(nil, color)
+    refreshScript()
     return
   end
   settingsOpen = not settingsOpen
