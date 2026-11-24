@@ -186,37 +186,45 @@ function buildChrome()
   local zRow = hz * 0.62
   local zSettings = hz * 0.16
   local zBar = hz * 0.92
-  local ink = {0.12, 0.09, 0.18}
-  local font = {0.94, 0.91, 1}
-  self.createButton({
-    click_function = "viewPrev", function_owner = self, label = "<",
-    position = {-hx * 0.78, buttonY, zRow}, width = 380, height = 300, font_size = 160,
-    color = ink, font_color = font,
+  local ink = {0.20, 0.16, 0.32}
+  local hover = {0.36, 0.30, 0.56}
+  local press = {0.12, 0.10, 0.20}
+  local accent = {0.50, 0.40, 0.78}
+  local font = {0.98, 0.96, 1}
+  local function button(data)
+    data.function_owner = self
+    data.font_color = font
+    data.hover_color = hover
+    data.press_color = press
+    data.color = data.color or ink
+    self.createButton(data)
+  end
+  button({
+    click_function = "viewPrev", label = "‹",
+    position = {-hx * 0.78, buttonY, zRow}, width = 280, height = 210, font_size = 130,
   })
-  self.createButton({
-    click_function = "addSelected", function_owner = self, label = "Add",
-    position = {-hx * 0.12, buttonY, zRow}, width = 300, height = 220, font_size = 90,
-    color = ink, font_color = font,
+  button({
+    click_function = "addSelected", label = "Add",
+    position = {-hx * 0.12, buttonY, zRow}, width = 280, height = 210, font_size = 78,
   })
-  self.createButton({
-    click_function = "viewNext", function_owner = self, label = ">",
-    position = {hx * 0.78, buttonY, zRow}, width = 380, height = 300, font_size = 160,
-    color = ink, font_color = font,
+  button({
+    click_function = "viewNext", label = "›",
+    position = {hx * 0.78, buttonY, zRow}, width = 280, height = 210, font_size = 130,
   })
-  self.createButton({
-    click_function = "toggleSettings", function_owner = self, label = "⚙",
-    position = {hx * 0.28, buttonY, zRow}, width = 150, height = 150, font_size = 72,
-    color = settingsOpen and {0.45, 0.36, 0.68} or {0.18, 0.14, 0.28}, font_color = font,
+  button({
+    click_function = "toggleSettings", label = "⚙",
+    position = {hx * 0.28, buttonY, zRow}, width = 180, height = 210, font_size = 64,
+    color = settingsOpen and accent or ink,
     tooltip = "Settings. Right-click to reset the page.",
   })
   pipCount = math.max(1, math.min(12, pageCount()))
   local span = hx * 1.05
   for i = 0, pipCount - 1 do
     local x = pipCount == 1 and 0 or (-span / 2 + span * (i / (pipCount - 1)))
-    self.createButton({
-      click_function = "pip" .. i, function_owner = self, label = "",
-      position = {x, buttonY, zBar}, width = 90, height = 70, font_size = 40,
-      color = {0.22, 0.18, 0.32}, font_color = font,
+    button({
+      click_function = "pip" .. i, label = "",
+      position = {x, buttonY, zBar}, width = 120, height = 36, font_size = 20,
+      color = {0.32, 0.26, 0.48},
     })
   end
   if settingsOpen then
@@ -230,10 +238,10 @@ function buildChrome()
     local count = #choices
     for i, choice in ipairs(choices) do
       local x = count == 1 and 0 or (-hx * 0.7 + (i - 1) * (hx * 1.4 / (count - 1)))
-      self.createButton({
-        click_function = choice[1], function_owner = self, label = choice[2],
-        position = {x, buttonY, zSettings}, width = choice[3] and 150 or 200, height = 120, font_size = 52,
-        color = choice[3] and {0.45, 0.36, 0.68} or ink, font_color = font,
+      button({
+        click_function = choice[1], label = choice[2],
+        position = {x, buttonY, zSettings}, width = choice[3] and 140 or 190, height = 130, font_size = 48,
+        color = choice[3] and accent or ink,
       })
     end
   end
@@ -251,7 +259,7 @@ function paintPips()
   if active > pipCount - 1 then active = pipCount - 1 end
   if active < 0 then active = 0 end
   for i = 0, pipCount - 1 do
-    local color = i == active and {0.58, 0.48, 0.82} or {0.22, 0.18, 0.32}
+    local color = i == active and {0.62, 0.52, 0.9} or {0.32, 0.26, 0.48}
     pcall(function() self.editButton({ index = 4 + i, color = color }) end)
   end
 end
