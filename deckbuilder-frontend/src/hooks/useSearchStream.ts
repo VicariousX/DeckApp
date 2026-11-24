@@ -4,39 +4,9 @@ import { useScrollWindow } from "./useScrollWindow";
 import { extractMechanicTerms } from "../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../services/mechanicMarkService";
 import { fetchCardsByOracleIds } from "../lib/scryfallApi";
-import { fetchProxiedScryfall } from "../lib/scryfallProxy";
 import type { ScryfallCard } from "../types/scryfallCard";
 
 type PageChunk = { page: number; cards: ScryfallCard[] };
-
-/** Keep oracle ids that also match the non-mechanic part of the query. */
-async function retainByScryfall(oracleIds: string[], q: string): Promise<Set<string>> {
-  const kept = new Set<string>();
-  const pending = [...oracleIds];
-  while (pending.length) {
-    const chunk: string[] = [];
-    let size = q.length + 3;
-    while (pending.length) {
-      const piece = `oracleid:${pending[0]}`;
-      const extra = (chunk.length ? 4 : 0) + piece.length;
-      if (chunk.length && size + extra > 900) break;
-      chunk.push(pending.shift()!);
-      size += extra;
-    }
-    const joined = chunk.map((id) => `oracleid:${id}`).join(" OR ");
-    const query = chunk.length > 1 ? `(${joined}) ${q}` : `${joined} ${q}`;
-    const response = await fetchProxiedScryfall(
-      `/api/scryfall?${new URLSearchParams({ q: query, unique: "cards" }).toString()}`
-    );
-    if (!response.ok) throw new Error("Could not apply the other search filters.");
-    const json = (await response.json()) as { data?: ScryfallCard[] };
-    for (const card of json.data ?? []) {
-      if (card.oracle_id) kept.add(card.oracle_id.toLowerCase());
-    }
-    if (pending.length) await new Promise((r) => setTimeout(r, 120));
-  }
-  return kept;
-}
 
 /**
  * Owns the accumulated Scryfall page stream, mechanic filtering, and the
@@ -57,8 +27,9 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
 
   useEffect(() => {
     setStream([]);
-    if (scryfallQ && mechParsed.terms.length === 0) void run(scryfallQ, apiOrder, sortDir);
-  }, [scryfallQ, apiOrder, sortDir, run, mechParsed.terms.length]);
+    setMechCards([]);
+    if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
+  }, [scryfallQ, apiOrder, sortDir, run]);
 
   useEffect(() => {
     if (!cards.length) return;
@@ -97,9 +68,14 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
           else if (i > 0) acc = new Set([...acc].filter((id) => s.has(id)));
         });
         let ids = [...acc];
-        if (scryfallQ && ids.length) ids = [...(await retainByScryfall(ids, scryfallQ))];
         if (cancel) return;
-        setMechIds(new Set(ids));
+        const idSet = new Set(ids);
+        setMechIds(idSet);
+        if (scryfallQ) {
+          setMechCards([]);
+          setMechLoading(false);
+          return;
+        }
         const { cards: found, error } = ids.length
           ? await fetchCardsByOracleIds(ids)
           : { cards: [], error: null };
@@ -120,6 +96,28 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     };
   }, [mechParsed, scryfallQ]);
 
+  useEffect(() => {
+    if (!mechParsed.terms.length || !scryfallQ || !mechIds) return;
+    const flat = stream.flatMap((page) => page.cards);
+    const matched = flat.filter(
+      (card) => card.oracle_id && mechIds.has(card.oracle_id.toLowerCase())
+    );
+    setMechCards(matched);
+    const loaded = stream.length;
+    if (matched.length === 0 && hasMoreApi && !isLoading && !isError && loaded > 0 && loaded < 6) {
+      void goApiPage((stream.at(-1)?.page ?? 1) + 1);
+    }
+  }, [
+    stream,
+    mechIds,
+    scryfallQ,
+    mechParsed.terms.length,
+    hasMoreApi,
+    isLoading,
+    isError,
+    goApiPage,
+  ]);
+
   const { scrollCards } = useScrollWindow(stream);
 
   /** Index of the first card of the current catalog page inside the scroll list. */
@@ -130,9 +128,12 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     return idx >= 0 ? idx : 0;
   }
 
+  const mechanicOnly = mechParsed.terms.length > 0 && !scryfallQ;
+
   return {
     scryfallQ,
     mechParsed,
+    mechanicOnly,
     mechCards,
     mechIds,
     mechLoading,

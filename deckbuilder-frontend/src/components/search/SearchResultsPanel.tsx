@@ -69,6 +69,7 @@ export function SearchResultsPanel({
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     mechParsed,
+    mechanicOnly,
     mechCards,
     mechLoading,
     mechError,
@@ -111,8 +112,8 @@ export function SearchResultsPanel({
   const visible = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
   const start = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, sorted.length);
-  const canPrev = mechParsed.terms.length ? safePage > 1 : safePage > 1 || apiPage > 1;
-  const canNext = mechParsed.terms.length ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
+  const canPrev = mechanicOnly ? safePage > 1 : safePage > 1 || apiPage > 1;
+  const canNext = mechanicOnly ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
 
   const resultCards = mechParsed.terms.length
     ? browseMode === "scroll"
@@ -214,12 +215,12 @@ export function SearchResultsPanel({
         cards={resultCards}
         scrollStartIndex={scrollStartIndex}
         onReachEnd={
-          !mechParsed.terms.length && hasMoreApi && !searching
+          !mechanicOnly && hasMoreApi && !searching
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
             : undefined
         }
         onReachStart={
-          !mechParsed.terms.length && (stream[0]?.page ?? apiPage) > 1 && !searching
+          !mechanicOnly && (stream[0]?.page ?? apiPage) > 1 && !searching
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
