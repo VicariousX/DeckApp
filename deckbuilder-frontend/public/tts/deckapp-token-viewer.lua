@@ -1,6 +1,6 @@
 -- DeckApp token viewer for Tabletop Simulator.
 -- The lineup is alphabetical, and the arrows move a page at a time.
--- The cog opens Clear, Reset, and how many cards show on a page.
+-- The cog opens Clear and how many cards show on a page. Right-click the cog to reset.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
@@ -160,7 +160,7 @@ function onLoad(saved)
   self.setLock(false)
   self.sticky = false
   self.setName("Token Viewer")
-  self.setDescription("Add keeps the lineup. The cog opens Clear, Reset, and cards per page.")
+  self.setDescription("Add keeps the lineup. The cog opens Clear and cards per page. Right-click the cog to reset.")
   buildChrome()
   Wait.time(function()
     local live = {}
@@ -184,7 +184,7 @@ function buildChrome()
   local hx, hz = localHalf()
   local buttonY = 0.22
   local zRow = hz * 0.62
-  local zSettings = -hz * 0.32
+  local zSettings = hz * 0.16
   local zBar = hz * 0.92
   local ink = {0.12, 0.09, 0.18}
   local font = {0.94, 0.91, 1}
@@ -207,7 +207,7 @@ function buildChrome()
     click_function = "toggleSettings", function_owner = self, label = "⚙",
     position = {hx * 0.28, buttonY, zRow}, width = 150, height = 150, font_size = 72,
     color = settingsOpen and {0.45, 0.36, 0.68} or {0.18, 0.14, 0.28}, font_color = font,
-    tooltip = "Settings. Right-click to refresh the script.",
+    tooltip = "Settings. Right-click to reset the page.",
   })
   pipCount = math.max(1, math.min(12, pageCount()))
   local span = hx * 1.05
@@ -222,7 +222,6 @@ function buildChrome()
   if settingsOpen then
     local choices = {
       {"doClear", "Clear", false},
-      {"doReset", "Reset", false},
       {"setPage2", "2", VISIBLE == 2},
       {"setPage3", "3", VISIBLE == 3},
       {"setPage4", "4", VISIBLE == 4},
@@ -316,7 +315,7 @@ end
 function toggleSettings(_, color, alt)
   claim(color)
   if alt then
-    refreshScript()
+    doReset(nil, color)
     return
   end
   settingsOpen = not settingsOpen
