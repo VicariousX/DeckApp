@@ -4,9 +4,59 @@ import { useScrollWindow } from "./useScrollWindow";
 import { extractMechanicTerms } from "../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../services/mechanicMarkService";
 import { fetchCardsByOracleIds } from "../lib/scryfallApi";
+import { fetchProxiedScryfall } from "../lib/scryfallProxy";
 import type { ScryfallCard } from "../types/scryfallCard";
 
 type PageChunk = { page: number; cards: ScryfallCard[] };
+
+/** Cards in the mark set that also satisfy the Scryfall query. */
+async function cardsMatchingQuery(
+  oracleIds: string[],
+  q: string,
+  onBatch: (cards: ScryfallCard[]) => void,
+  cancelled: () => boolean
+): Promise<void> {
+  const pending = [...oracleIds];
+  const allowed = new Set(oracleIds);
+  const seen = new Set<string>();
+  const found: ScryfallCard[] = [];
+  while (pending.length) {
+    if (cancelled()) return;
+    const chunk: string[] = [];
+    let size = q.length + 8;
+    while (pending.length) {
+      const piece = `oracleid:${pending[0]}`;
+      const extra = (chunk.length ? 4 : 0) + piece.length;
+      if (chunk.length && size + extra > 1400) break;
+      chunk.push(pending.shift()!);
+      size += extra;
+    }
+    const query = `(${chunk.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
+    let page = 1;
+    for (;;) {
+      if (cancelled()) return;
+      const response = await fetchProxiedScryfall(
+        `/api/scryfall?${new URLSearchParams({ q: query, page: String(page) }).toString()}`
+      );
+      if (response.status === 404) break;
+      if (!response.ok) throw new Error("Could not apply the other search filters.");
+      const json = (await response.json()) as { data?: ScryfallCard[]; has_more?: boolean };
+      let added = false;
+      for (const card of json.data ?? []) {
+        const key = (card.oracle_id || card.id || "").toLowerCase();
+        if (!key || seen.has(key)) continue;
+        if (!card.oracle_id || !allowed.has(card.oracle_id.toLowerCase())) continue;
+        seen.add(key);
+        found.push(card);
+        added = true;
+      }
+      if (added) onBatch([...found]);
+      if (!json.has_more || page >= 4) break;
+      page += 1;
+    }
+  }
+  onBatch([...found]);
+}
 
 /**
  * Owns the accumulated Scryfall page stream, mechanic filtering, and the
@@ -28,8 +78,8 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
   useEffect(() => {
     setStream([]);
     setMechCards([]);
-    if (scryfallQ) void run(scryfallQ, apiOrder, sortDir);
-  }, [scryfallQ, apiOrder, sortDir, run]);
+    if (scryfallQ && mechParsed.terms.length === 0) void run(scryfallQ, apiOrder, sortDir);
+  }, [scryfallQ, apiOrder, sortDir, run, mechParsed.terms.length]);
 
   useEffect(() => {
     if (!cards.length) return;
@@ -71,17 +121,24 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
         if (cancel) return;
         const idSet = new Set(ids);
         setMechIds(idSet);
-        if (scryfallQ) {
-          setMechCards([]);
-          setMechLoading(false);
+        if (!scryfallQ) {
+          const { cards: found, error } = ids.length
+            ? await fetchCardsByOracleIds(ids)
+            : { cards: [], error: null };
+          if (cancel) return;
+          if (error) throw new Error(error);
+          setMechCards(found);
           return;
         }
-        const { cards: found, error } = ids.length
-          ? await fetchCardsByOracleIds(ids)
-          : { cards: [], error: null };
-        if (cancel) return;
-        if (error) throw new Error(error);
-        setMechCards(found);
+        const allowed = new Set(ids);
+        await cardsMatchingQuery(
+          ids,
+          scryfallQ,
+          (batch) => {
+            if (!cancel) setMechCards(batch.filter((card) => card.oracle_id && allowed.has(card.oracle_id.toLowerCase())));
+          },
+          () => cancel
+        );
       } catch (err) {
         if (cancel) return;
         setMechIds(new Set());
@@ -96,28 +153,6 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     };
   }, [mechParsed, scryfallQ]);
 
-  useEffect(() => {
-    if (!mechParsed.terms.length || !scryfallQ || !mechIds) return;
-    const flat = stream.flatMap((page) => page.cards);
-    const matched = flat.filter(
-      (card) => card.oracle_id && mechIds.has(card.oracle_id.toLowerCase())
-    );
-    setMechCards(matched);
-    const loaded = stream.length;
-    if (matched.length === 0 && hasMoreApi && !isLoading && !isError && loaded > 0 && loaded < 6) {
-      void goApiPage((stream.at(-1)?.page ?? 1) + 1);
-    }
-  }, [
-    stream,
-    mechIds,
-    scryfallQ,
-    mechParsed.terms.length,
-    hasMoreApi,
-    isLoading,
-    isError,
-    goApiPage,
-  ]);
-
   const { scrollCards } = useScrollWindow(stream);
 
   /** Index of the first card of the current catalog page inside the scroll list. */
@@ -128,12 +163,9 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
     return idx >= 0 ? idx : 0;
   }
 
-  const mechanicOnly = mechParsed.terms.length > 0 && !scryfallQ;
-
   return {
     scryfallQ,
     mechParsed,
-    mechanicOnly,
     mechCards,
     mechIds,
     mechLoading,

@@ -217,7 +217,6 @@ export function SearchResultsPage() {
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     mechParsed,
-    mechanicOnly,
     mechCards,
     mechLoading,
     mechError,
@@ -293,8 +292,8 @@ export function SearchResultsPage() {
         ? `/search/simple?ss=${params.get("ss") || ""}`
         : `/search?mode=standard`;
 
-  const canPrev = mechanicOnly ? safePage > 1 : safePage > 1 || apiPage > 1;
-  const canNext = mechanicOnly ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
+  const canPrev = mechParsed.terms.length ? safePage > 1 : safePage > 1 || apiPage > 1;
+  const canNext = mechParsed.terms.length ? safePage < pagesHere : safePage < pagesHere || hasMoreApi;
 
   const resultCards = mechParsed.terms.length
     ? browseMode === "scroll"
@@ -404,12 +403,12 @@ export function SearchResultsPage() {
         onEnterScroll={() => setBrowseMode("scroll")}
         onExitScroll={() => setBrowseMode(lastMode.current)}
         onReachEnd={
-          !mechanicOnly && browseMode === "scroll" && hasMoreApi && !searching
+          !mechParsed.terms.length && browseMode === "scroll" && hasMoreApi && !searching
             ? () => void goApiPage((stream.at(-1)?.page ?? apiPage) + 1)
             : undefined
         }
         onReachStart={
-          !mechanicOnly && browseMode === "scroll" && (stream[0]?.page ?? apiPage) > 1 && !searching
+          !mechParsed.terms.length && browseMode === "scroll" && (stream[0]?.page ?? apiPage) > 1 && !searching
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }

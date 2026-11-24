@@ -26,13 +26,21 @@ export type SimpleState = {
 export function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
   if (!selected.length && logic !== "commander") return "";
   if (logic === "commander") {
-    const withC = selected.includes("C") ? selected : [...selected, "C" as Color];
-    if (!withC.length) return "id:C";
-    const parts = withC.map((c) => `${prefix}:${c}`);
-    return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
+    const colors = selected.filter((c) => c !== "C");
+    if (!colors.length) return `${prefix}:C`;
+    return `${prefix}:${colors.join("")}`;
   }
-  if (logic === "and") return `${prefix}=${selected.join("")}`;
-  return `${prefix}:${selected.join("")}`;
+  const colors = selected.filter((c) => c !== "C");
+  const colorless = selected.includes("C");
+  if (logic === "and") {
+    if (!colors.length) return colorless ? `${prefix}:C` : "";
+    const all = `${prefix}>=${colors.join("")}`;
+    return colorless ? `(${all} ${prefix}:C)` : all;
+  }
+  const parts = colors.map((c) => `${prefix}>=${c}`);
+  if (colorless) parts.push(`${prefix}:C`);
+  if (!parts.length) return "";
+  return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
 }
 
 export function typeClause(types: string[], logic: Logic): string {
