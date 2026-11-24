@@ -1,5 +1,5 @@
 -- DeckApp token viewer for Tabletop Simulator.
--- Select a pile, then click Add. Three cards float over the top of the tile.
+-- Cards sit in a row with a gap, so selecting one leaves the others in place.
 -- Clear empties the lineup. Right-click Clear to refresh this script.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
@@ -447,6 +447,32 @@ function adopt(obj)
   end)
 end
 
+function selectedGuids()
+  local map = {}
+  for _, guid in ipairs(order) do
+    local obj = getObjectFromGUID(guid)
+    if obj and heldBy(obj) then map[guid] = true end
+  end
+  for _, color in ipairs(COLORS) do
+    local ok, player = pcall(function() return Player[color] end)
+    if ok and player and player.getSelectedObjects then
+      local okList, list = pcall(function() return player.getSelectedObjects() end)
+      if okList and list then
+        for _, obj in ipairs(list) do
+          local guid = ""
+          pcall(function() guid = obj.getGUID() end)
+          if guid ~= "" and known[guid] then map[guid] = true end
+        end
+      end
+    end
+  end
+  return map
+end
+
+function lineupTouched()
+  return next(selectedGuids()) ~= nil
+end
+
 function layout()
   local origin = self.getPosition()
   local forward, right, yaw = basis()
@@ -454,9 +480,10 @@ function layout()
   local okUp, lifted = pcall(function() return self.getTransformUp() end)
   if okUp and lifted then up = lifted end
   local width, depth, thick = worldExtents()
-  local spacing = math.max(1.2, math.min(2.05, width * 0.26))
+  local spacing = 2.6
   local lift = math.max(1.15, (thick or 0.2) * 0.5 + 1.05)
   local along = -depth * 0.34
+  local picked = selectedGuids()
   local shown = 0
   for i = scroll + 1, math.min(#order, scroll + VISIBLE) do
     if getObjectFromGUID(order[i]) then shown = shown + 1 end
@@ -472,11 +499,16 @@ function layout()
         pos = vadd(pos, right, -span / 2 + (visual - 1) * spacing)
         pos = vadd(pos, up, lift)
         pcall(function()
-          obj.setLock(false)
           obj.use_gravity = false
-          obj.setPosition(pos)
+          obj.sticky = false
           obj.setRotation({ x = 0, y = yaw, z = 0 })
           obj.setInvisibleTo(hiddenFrom(owner))
+          if picked[guid] then
+            obj.setLock(false)
+          else
+            obj.setLock(next(picked) ~= nil)
+            obj.setPosition(pos)
+          end
         end)
       else
         pcall(function()
@@ -529,6 +561,8 @@ function releaseHeld(guid, index)
   remember()
 end
 
+local wasTouched = false
+
 function onUpdate()
   local moved = false
   local p = self.getPosition()
@@ -540,7 +574,10 @@ function onUpdate()
     lastX, lastY, lastZ, lastYaw = p.x, p.y, p.z, yaw
     moved = true
   end
-  if #order == 0 then return end
+  if #order == 0 then
+    wasTouched = false
+    return
+  end
   for i = #order, 1, -1 do
     local guid = order[i]
     local obj = getObjectFromGUID(guid)
@@ -552,7 +589,9 @@ function onUpdate()
       releaseHeld(guid, i)
     end
   end
-  if moved then layout() end
+  local touched = lineupTouched()
+  if (moved or (wasTouched and not touched)) and not touched then layout() end
+  wasTouched = touched
 end
 
 function viewPrev(_, color)
