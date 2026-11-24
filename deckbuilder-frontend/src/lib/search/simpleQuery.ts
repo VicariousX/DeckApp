@@ -41,8 +41,8 @@ export function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic 
   if (!letters) return "id:c";
   if (logic === "commander") return `id:${letters}`;
   if (logic === "and") return `id=${letters}`;
-  const within = `(id:${letters} and -id:c)`;
-  return colorless ? `(${within} OR id:c)` : within;
+  if (colorless) return `id:${letters}`;
+  return `(id:${letters} and -id:c)`;
 }
 
 export function typeClause(types: string[], logic: Logic): string {

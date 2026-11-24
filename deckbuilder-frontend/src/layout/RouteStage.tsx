@@ -170,6 +170,12 @@ export function RouteStage() {
         ...plan,
       });
     }
+  } else if (liveKey === topKey && top.loc.search !== live.search && !travel) {
+    setFrames((current) => {
+      const last = current[current.length - 1];
+      if (!last || last.loc.search === live.search) return current;
+      return [...current.slice(0, -1), { ...last, loc: live }];
+    });
   }
 
   useEffect(() => {
