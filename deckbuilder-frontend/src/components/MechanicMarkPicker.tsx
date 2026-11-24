@@ -10,11 +10,13 @@ import {
   type Agency,
   type MechanicFamily,
 } from "../lib/mechanics/catalog";
+import { isProxyAdmin } from "../lib/proxyAdmin";
 import {
   isCurrentUserAdmin,
   listMarksForOracle,
   lockMark,
   proposeMark,
+  updateMark,
   voteMark,
   type MarkStatus,
   type MechanicMark,
@@ -181,17 +183,21 @@ function ThemeSelect({
 function MarkMenu({
   mark,
   admin,
+  canEdit,
   canVote,
   busy,
   onVote,
   onLock,
+  onEdit,
 }: {
   mark: MechanicMark;
   admin: boolean;
+  canEdit: boolean;
   canVote: boolean;
   busy: boolean;
   onVote: (kind: "endorse" | "flag") => void;
   onLock: () => void;
+  onEdit: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<{ top: number; left: number } | null>(null);
@@ -272,6 +278,11 @@ function MarkMenu({
                   </button>
                 </>
               ) : null}
+              {canEdit ? (
+                <button type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }}>
+                  Edit
+                </button>
+              ) : null}
               {admin ? (
                 <button type="button" role="menuitem" onClick={() => { setOpen(false); onLock(); }}>
                   {mark.status === "locked" ? "Unlock" : "Lock"}
@@ -292,6 +303,7 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
   const [family, setFamily] = useState<MechanicFamily | "">("");
   const [mechanicId, setMechanicId] = useState("");
   const [relation, setRelation] = useState<Agency>("cause");
+  const [editing, setEditing] = useState<MechanicMark | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [voting, setVoting] = useState<string | null>(null);
@@ -336,12 +348,43 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
     lineRefs.current[focusLine]?.scrollIntoView({ block: "nearest" });
   }, [focusLine]);
 
+  const canEdit = isProxyAdmin(user);
+
+  function beginEdit(mark: MechanicMark) {
+    const def = mechanicById(mark.mechanic_id);
+    setEditing(mark);
+    setFamily(def?.family ?? "");
+    setMechanicId(mark.mechanic_id);
+    setRelation(mark.relation);
+    setStatus(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setFamily("");
+    setMechanicId("");
+    setRelation("cause");
+  }
+
   async function submit() {
     if (!user || !selected) {
       setStatus("Sign in to mark cards.");
       return;
     }
     setBusy(true);
+    if (editing) {
+      const { error } = await updateMark(editing.id, {
+        mechanic_id: selected.id,
+        relation,
+      });
+      setBusy(false);
+      setStatus(error ?? `Updated ${selected.name}.`);
+      if (!error) {
+        cancelEdit();
+        void reload();
+      }
+      return;
+    }
     const { error } = await proposeMark(user.id, {
       oracle_id: oracleId,
       mechanic_id: selected.id,
@@ -423,12 +466,14 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
                   <MarkMenu
                     mark={m}
                     admin={admin}
+                    canEdit={canEdit}
                     canVote={Boolean(user) && m.status !== "locked"}
                     busy={voting === m.id}
                     onVote={(kind) => void vote(m.id, kind)}
                     onLock={() =>
                       void lockMark(user!.id, m.id, m.status !== "locked").then(() => reload())
                     }
+                    onEdit={() => beginEdit(m)}
                   />
                 </li>
               );
@@ -439,9 +484,11 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
 
       <section className={styles.compose}>
         <div className={styles.sectionHead}>
-          <h3>Propose</h3>
+          <h3>{editing ? "Edit mark" : "Propose"}</h3>
         </div>
-        <p className={styles.lead}>Pick a category, then the mechanic.</p>
+        <p className={styles.lead}>
+          {editing ? "Change the mechanic or the relationship, then save." : "Pick a category, then the mechanic."}
+        </p>
         <ThemeSelect
           label="Category"
           placeholder="Choose a category"
@@ -487,14 +534,21 @@ export function MechanicMarkPicker({ oracleId, oracleText = "" }: Props) {
           </div>
         </div>
 
-        <button
-          type="button"
-          className={styles.submit}
-          disabled={busy || !user || !selected}
-          onClick={() => void submit()}
-        >
-          {busy ? "Proposing…" : selected ? `Propose ${selected.name}` : "Propose"}
-        </button>
+        <div className={styles.actions}>
+          {editing ? (
+            <button type="button" className={styles.cancel} onClick={cancelEdit} disabled={busy}>
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.submit}
+            disabled={busy || !user || !selected}
+            onClick={() => void submit()}
+          >
+            {busy ? "Saving…" : editing ? "Save mark" : selected ? `Propose ${selected.name}` : "Propose"}
+          </button>
+        </div>
         {!user ? <p className={styles.hint}>Sign in to propose or vote.</p> : null}
         {status ? <p className={styles.hint}>{status}</p> : null}
       </section>

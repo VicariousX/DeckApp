@@ -469,9 +469,29 @@
   color: var(--color-accent);
 }
 
+.actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.cancel {
+  appearance: none;
+  min-height: 2.4rem;
+  padding: 0 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .submit {
   appearance: none;
   align-self: stretch;
+  flex: 1;
   min-height: 2.4rem;
   border-radius: 10px;
   border: 1px solid var(--color-accent);

@@ -96,6 +96,21 @@ export async function proposeMark(
   return { mark: data as MechanicMark, error: null };
 }
 
+export async function updateMark(
+  markId: string,
+  input: { mechanic_id: string; relation: Agency }
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("card_mechanic_marks")
+    .update({
+      mechanic_id: input.mechanic_id,
+      relation: input.relation,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", markId);
+  return { error: error?.message ?? null };
+}
+
 export async function voteMark(
   userId: string,
   markId: string,
