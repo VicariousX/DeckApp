@@ -183,8 +183,9 @@ function buildChrome()
   self.clearButtons()
   local hx, hz = localHalf()
   local buttonY = 0.22
-  local zRow = hz * 0.48
-  local zBar = hz * 0.86
+  local zRow = hz * 0.62
+  local zSettings = -hz * 0.32
+  local zBar = hz * 0.92
   local ink = {0.12, 0.09, 0.18}
   local font = {0.94, 0.91, 1}
   self.createButton({
@@ -194,7 +195,7 @@ function buildChrome()
   })
   self.createButton({
     click_function = "addSelected", function_owner = self, label = "Add",
-    position = {0, buttonY, zRow}, width = 320, height = 220, font_size = 90,
+    position = {-hx * 0.12, buttonY, zRow}, width = 300, height = 220, font_size = 90,
     color = ink, font_color = font,
   })
   self.createButton({
@@ -204,7 +205,7 @@ function buildChrome()
   })
   self.createButton({
     click_function = "toggleSettings", function_owner = self, label = "⚙",
-    position = {-hx * 0.78, buttonY, zBar}, width = 160, height = 120, font_size = 70,
+    position = {hx * 0.28, buttonY, zRow}, width = 150, height = 150, font_size = 72,
     color = settingsOpen and {0.45, 0.36, 0.68} or {0.18, 0.14, 0.28}, font_color = font,
     tooltip = "Settings. Right-click to refresh the script.",
   })
@@ -232,7 +233,7 @@ function buildChrome()
       local x = count == 1 and 0 or (-hx * 0.7 + (i - 1) * (hx * 1.4 / (count - 1)))
       self.createButton({
         click_function = choice[1], function_owner = self, label = choice[2],
-        position = {x, buttonY, hz * 0.08}, width = choice[3] and 150 or 200, height = 120, font_size = 52,
+        position = {x, buttonY, zSettings}, width = choice[3] and 150 or 200, height = 120, font_size = 52,
         color = choice[3] and {0.45, 0.36, 0.68} or ink, font_color = font,
       })
     end
