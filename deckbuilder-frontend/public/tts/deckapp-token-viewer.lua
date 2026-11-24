@@ -1,6 +1,6 @@
 -- DeckApp token viewer for Tabletop Simulator.
 -- The lineup is alphabetical, and the arrows move a page at a time.
--- Clear empties the lineup. Right-click Clear to refresh this script.
+-- The cog opens Clear, Reset, and how many cards show on a page.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
@@ -13,6 +13,7 @@ local released = {}
 local scroll = 0
 local busy = false
 local pipCount = 0
+local settingsOpen = false
 local tileW, tileD, tileT = nil, nil, nil
 local lastX, lastY, lastZ, lastYaw = nil, nil, nil, nil
 
@@ -125,6 +126,7 @@ function onSave()
     width = tileW,
     depth = tileD,
     thick = tileT,
+    perPage = VISIBLE,
   })
 end
 
@@ -152,11 +154,13 @@ function onLoad(saved)
       end
       scroll = tonumber(data.scroll) or 0
     end
+    local perPage = tonumber(data.perPage)
+    if perPage and perPage >= 2 and perPage <= 5 then VISIBLE = perPage end
   end
   self.setLock(false)
   self.sticky = false
   self.setName("Token Viewer")
-  self.setDescription("Add keeps the lineup. Clear empties it. Right-click Clear to refresh.")
+  self.setDescription("Add keeps the lineup. The cog opens Clear, Reset, and cards per page.")
   buildChrome()
   Wait.time(function()
     local live = {}
@@ -199,13 +203,13 @@ function buildChrome()
     color = ink, font_color = font,
   })
   self.createButton({
-    click_function = "clearOrRefresh", function_owner = self, label = "Clear",
-    position = {hx * 0.78, buttonY, zBar}, width = 160, height = 80, font_size = 44,
-    color = {0.18, 0.14, 0.28}, font_color = font,
-    tooltip = "Clears the lineup. Right-click to refresh the script.",
+    click_function = "toggleSettings", function_owner = self, label = "⚙",
+    position = {-hx * 0.78, buttonY, zBar}, width = 160, height = 120, font_size = 70,
+    color = settingsOpen and {0.45, 0.36, 0.68} or {0.18, 0.14, 0.28}, font_color = font,
+    tooltip = "Settings. Right-click to refresh the script.",
   })
   pipCount = math.max(1, math.min(12, pageCount()))
-  local span = hx * 1.15
+  local span = hx * 1.05
   for i = 0, pipCount - 1 do
     local x = pipCount == 1 and 0 or (-span / 2 + span * (i / (pipCount - 1)))
     self.createButton({
@@ -213,6 +217,25 @@ function buildChrome()
       position = {x, buttonY, zBar}, width = 90, height = 70, font_size = 40,
       color = {0.22, 0.18, 0.32}, font_color = font,
     })
+  end
+  if settingsOpen then
+    local choices = {
+      {"doClear", "Clear", false},
+      {"doReset", "Reset", false},
+      {"setPage2", "2", VISIBLE == 2},
+      {"setPage3", "3", VISIBLE == 3},
+      {"setPage4", "4", VISIBLE == 4},
+      {"setPage5", "5", VISIBLE == 5},
+    }
+    local count = #choices
+    for i, choice in ipairs(choices) do
+      local x = count == 1 and 0 or (-hx * 0.7 + (i - 1) * (hx * 1.4 / (count - 1)))
+      self.createButton({
+        click_function = choice[1], function_owner = self, label = choice[2],
+        position = {x, buttonY, hz * 0.08}, width = choice[3] and 150 or 200, height = 120, font_size = 52,
+        color = choice[3] and {0.45, 0.36, 0.68} or ink, font_color = font,
+      })
+    end
   end
   paintPips()
 end
@@ -289,12 +312,49 @@ function refreshScript()
   end)
 end
 
-function clearOrRefresh(_, color, alt)
+function toggleSettings(_, color, alt)
   claim(color)
   if alt then
     refreshScript()
     return
   end
+  settingsOpen = not settingsOpen
+  buildChrome()
+end
+
+function applyPage(count, color)
+  claim(color)
+  count = tonumber(count) or 3
+  if count < 2 then count = 2 end
+  if count > 5 then count = 5 end
+  VISIBLE = count
+  local maxPage = pageCount() - 1
+  local page = math.floor(scroll / VISIBLE)
+  if page > maxPage then page = maxPage end
+  if page < 0 then page = 0 end
+  scroll = page * VISIBLE
+  remember()
+  buildChrome()
+  layout()
+end
+
+function setPage2(_, color) applyPage(2, color) end
+function setPage3(_, color) applyPage(3, color) end
+function setPage4(_, color) applyPage(4, color) end
+function setPage5(_, color) applyPage(5, color) end
+
+function doReset(_, color)
+  claim(color)
+  VISIBLE = 3
+  scroll = 0
+  sortOrder()
+  remember()
+  buildChrome()
+  layout()
+end
+
+function doClear(_, color)
+  claim(color)
   local origin = self.getPosition()
   local _, right = basis()
   local width = worldExtents()
@@ -318,6 +378,7 @@ function clearOrRefresh(_, color, alt)
   known = {}
   released = {}
   scroll = 0
+  settingsOpen = false
   remember()
   buildChrome()
 end
