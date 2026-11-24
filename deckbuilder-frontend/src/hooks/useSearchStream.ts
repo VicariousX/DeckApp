@@ -4,86 +4,37 @@ import { useScrollWindow } from "./useScrollWindow";
 import { extractMechanicTerms } from "../lib/mechanics/search";
 import { oracleIdsForMechanic } from "../services/mechanicMarkService";
 import { fetchCardsByOracleIds } from "../lib/scryfallApi";
+import { compileQuery } from "../lib/search/localQuery";
 import { fetchProxiedScryfall } from "../lib/scryfallProxy";
 import type { ScryfallCard } from "../types/scryfallCard";
 
 type PageChunk = { page: number; cards: ScryfallCard[] };
 
-/** Cards in the mark set that also satisfy the Scryfall query. */
-const ORACLE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-async function searchOracleChunk(
-  ids: string[],
+/** One live search, then keep only marked cards. Used when the query is not local. */
+async function pageAndIntersect(
   q: string,
-  found: ScryfallCard[],
-  seen: Set<string>,
   allowed: Set<string>,
-  onBatch: (cards: ScryfallCard[]) => void,
   cancelled: () => boolean
-): Promise<void> {
-  if (!ids.length || cancelled()) return;
-  const query = `(${ids.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
-  let page = 1;
-  for (;;) {
-    if (cancelled()) return;
+): Promise<ScryfallCard[]> {
+  const found: ScryfallCard[] = [];
+  const seen = new Set<string>();
+  for (let page = 1; page <= 8; page += 1) {
+    if (cancelled()) return found;
     const response = await fetchProxiedScryfall(
-      `/api/scryfall?${new URLSearchParams({ q: query, page: String(page) }).toString()}`
+      `/api/scryfall?${new URLSearchParams({ q, page: String(page) }).toString()}`
     );
-    if (response.status === 404) return;
-    if (response.status === 400 && ids.length > 1) {
-      const mid = Math.ceil(ids.length / 2);
-      await searchOracleChunk(ids.slice(0, mid), q, found, seen, allowed, onBatch, cancelled);
-      await searchOracleChunk(ids.slice(mid), q, found, seen, allowed, onBatch, cancelled);
-      return;
-    }
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      let message = "Could not apply the other search filters.";
-      try {
-        const parsed = JSON.parse(detail) as { details?: string; error?: string };
-        if (parsed.details || parsed.error) message = parsed.details || parsed.error || message;
-      } catch {
-        if (detail.trim()) message = detail.replace(/\s+/g, " ").slice(0, 180);
-      }
-      throw new Error(message);
-    }
+    if (response.status === 404) return found;
+    if (!response.ok) throw new Error("Could not apply the other search filters.");
     const json = (await response.json()) as { data?: ScryfallCard[]; has_more?: boolean };
-    let added = false;
     for (const card of json.data ?? []) {
-      const key = (card.oracle_id || "").toLowerCase();
-      if (!key || seen.has(key) || !allowed.has(key)) continue;
+      const key = card.oracle_id?.toLowerCase();
+      if (!key || !allowed.has(key) || seen.has(key)) continue;
       seen.add(key);
       found.push(card);
-      added = true;
     }
-    if (added) onBatch([...found]);
-    if (!json.has_more || page >= 4) return;
-    page += 1;
+    if (!json.has_more) break;
   }
-}
-
-async function cardsMatchingQuery(
-  oracleIds: string[],
-  q: string,
-  onBatch: (cards: ScryfallCard[]) => void,
-  cancelled: () => boolean
-): Promise<void> {
-  const pending = oracleIds.filter((id) => ORACLE_ID.test(id));
-  const allowed = new Set(pending);
-  const seen = new Set<string>();
-  const found: ScryfallCard[] = [];
-  while (pending.length) {
-    if (cancelled()) return;
-    const chunk: string[] = [];
-    while (pending.length) {
-      const next = [...chunk, pending[0]];
-      const query = `(${next.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
-      if (chunk.length && query.length > 980) break;
-      chunk.push(pending.shift()!);
-    }
-    await searchOracleChunk(chunk, q, found, seen, allowed, onBatch, cancelled);
-  }
-  onBatch([...found]);
+  return found;
 }
 
 /**
@@ -149,24 +100,21 @@ export function useSearchStream(query: string, apiOrder: string, sortDir: "asc" 
         if (cancel) return;
         const idSet = new Set(ids);
         setMechIds(idSet);
+        const { cards: found, error } = ids.length
+          ? await fetchCardsByOracleIds(ids)
+          : { cards: [], error: null };
+        if (cancel) return;
+        if (error) throw new Error(error);
         if (!scryfallQ) {
-          const { cards: found, error } = ids.length
-            ? await fetchCardsByOracleIds(ids)
-            : { cards: [], error: null };
-          if (cancel) return;
-          if (error) throw new Error(error);
           setMechCards(found);
           return;
         }
-        const allowed = new Set(ids);
-        await cardsMatchingQuery(
-          ids,
-          scryfallQ,
-          (batch) => {
-            if (!cancel) setMechCards(batch.filter((card) => card.oracle_id && allowed.has(card.oracle_id.toLowerCase())));
-          },
-          () => cancel
-        );
+        const match = compileQuery(scryfallQ);
+        if (match) {
+          setMechCards(found.filter(match));
+          return;
+        }
+        setMechCards(await pageAndIntersect(scryfallQ, idSet, () => cancel));
       } catch (err) {
         if (cancel) return;
         setMechIds(new Set());
