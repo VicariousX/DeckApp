@@ -1,5 +1,5 @@
 -- DeckApp token viewer for Tabletop Simulator.
--- Page arrows sit on the open lower third of the tile.
+-- The lineup is alphabetical, and the arrows move a page at a time.
 -- Clear empties the lineup. Right-click Clear to refresh this script.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
@@ -7,6 +7,7 @@ local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","P
 local VISIBLE = 3
 local owner = ""
 local order = {}
+local names = {}
 local known = {}
 local released = {}
 local scroll = 0
@@ -84,12 +85,27 @@ function maxScroll()
   return math.max(0, #order - VISIBLE)
 end
 
+function pageCount()
+  return math.max(1, math.ceil(#order / VISIBLE))
+end
+
 function cardName(guid)
+  if names[guid] and names[guid] ~= "" and names[guid] ~= "card" then
+    return names[guid]
+  end
   local obj = getObjectFromGUID(guid)
-  if not obj then return "" end
+  if not obj then return names[guid] or "" end
   local name = ""
   pcall(function() name = obj.getName() or "" end)
-  return name:lower()
+  if name == "" or name:lower() == "card" then
+    pcall(function()
+      local data = JSON.decode(obj.getJSON() or "")
+      if data and data.Nickname and data.Nickname ~= "" then name = data.Nickname end
+    end)
+  end
+  name = tostring(name or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+  if name ~= "" and name ~= "card" then names[guid] = name end
+  return name
 end
 
 function sortOrder()
@@ -152,8 +168,8 @@ function onLoad(saved)
       end
     end
     order = live
-    local limit = maxScroll()
-    if scroll > limit then scroll = limit end
+    scroll = math.max(0, math.floor(scroll / VISIBLE)) * VISIBLE
+    sortOrder()
     layout()
     remember()
   end, 0.4)
@@ -188,7 +204,7 @@ function buildChrome()
     color = {0.18, 0.14, 0.28}, font_color = font,
     tooltip = "Clears the lineup. Right-click to refresh the script.",
   })
-  pipCount = math.max(1, math.min(12, maxScroll() + 1))
+  pipCount = math.max(1, math.min(12, pageCount()))
   local span = hx * 1.15
   for i = 0, pipCount - 1 do
     local x = pipCount == 1 and 0 or (-span / 2 + span * (i / (pipCount - 1)))
@@ -203,11 +219,14 @@ end
 
 function paintPips()
   if pipCount <= 0 then return end
-  local active = 0
-  local limit = maxScroll()
-  if limit > 0 and pipCount > 1 then
-    active = math.floor((scroll / limit) * (pipCount - 1) + 0.5)
+  local pages = pageCount()
+  local page = math.floor(scroll / VISIBLE)
+  local active = page
+  if pipCount > 1 and pages > 1 and pipCount ~= pages then
+    active = math.floor((page / (pages - 1)) * (pipCount - 1) + 0.5)
   end
+  if active > pipCount - 1 then active = pipCount - 1 end
+  if active < 0 then active = 0 end
   for i = 0, pipCount - 1 do
     local color = i == active and {0.58, 0.48, 0.82} or {0.22, 0.18, 0.32}
     pcall(function() self.editButton({ index = 4 + i, color = color }) end)
@@ -215,11 +234,15 @@ function paintPips()
 end
 
 function jumpPip(i)
-  local limit = maxScroll()
+  local pages = pageCount()
   local n = math.max(1, pipCount)
-  local frac = n == 1 and 0 or i / (n - 1)
-  scroll = math.floor(frac * limit + 0.5)
+  local page = 0
+  if pages > 1 and n > 1 then
+    page = math.floor((i / (n - 1)) * (pages - 1) + 0.5)
+  end
+  scroll = page * VISIBLE
   layout()
+  remember()
 end
 
 function pip0() jumpPip(0) end
@@ -235,9 +258,12 @@ function pip9() jumpPip(9) end
 function pip10() jumpPip(10) end
 function pip11() jumpPip(11) end
 
-function scrollBy(step)
-  local limit = maxScroll()
-  scroll = math.max(0, math.min(limit, scroll + step))
+function scrollBy(pages)
+  local maxPage = pageCount() - 1
+  local page = math.floor(scroll / VISIBLE) + pages
+  if page < 0 then page = 0 end
+  if page > maxPage then page = maxPage end
+  scroll = page * VISIBLE
   layout()
   remember()
 end
@@ -288,6 +314,7 @@ function clearOrRefresh(_, color, alt)
     end
   end
   order = {}
+  names = {}
   known = {}
   released = {}
   scroll = 0
@@ -357,6 +384,12 @@ function addSelected(_, color)
       remember()
       buildChrome()
       layout()
+      Wait.time(function()
+        if busy then return end
+        sortOrder()
+        layout()
+        remember()
+      end, 0.4)
       return
     end
     local obj = queue[index]
@@ -474,6 +507,14 @@ function lineupTouched()
 end
 
 function layout()
+  if not lineupTouched() then
+    sortOrder()
+    local maxPage = pageCount() - 1
+    local page = math.floor(scroll / VISIBLE)
+    if page < 0 then page = 0 end
+    if page > maxPage then page = maxPage end
+    scroll = page * VISIBLE
+  end
   local origin = self.getPosition()
   local forward, right, yaw = basis()
   local up = { x = 0, y = 1, z = 0 }
@@ -520,10 +561,11 @@ function layout()
       end
     end
   end
-  local pages = math.max(1, maxScroll() + 1)
-  if pages ~= pipCount then buildChrome() else paintPips() end
-  local page = scroll + 1
-  pcall(function() self.setName("Token Viewer  " .. math.min(page, pages) .. "/" .. pages) end)
+  local pages = pageCount()
+  local want = math.max(1, math.min(12, pages))
+  if want ~= pipCount then buildChrome() else paintPips() end
+  local page = math.floor(scroll / VISIBLE) + 1
+  pcall(function() self.setName("Token Viewer  " .. page .. "/" .. pages) end)
 end
 
 function releaseHeld(guid, index)
@@ -584,6 +626,7 @@ function onUpdate()
     if not obj then
       table.remove(order, i)
       known[guid] = nil
+      names[guid] = nil
       remember()
     elseif heldBy(obj) then
       releaseHeld(guid, i)
