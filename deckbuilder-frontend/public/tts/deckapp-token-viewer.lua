@@ -1,5 +1,5 @@
 -- DeckApp token viewer for Tabletop Simulator.
--- Cards sit in a row with a gap, so selecting one leaves the others in place.
+-- Page arrows sit on the open lower third of the tile.
 -- Clear empties the lineup. Right-click Clear to refresh this script.
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
@@ -162,34 +162,34 @@ end
 function buildChrome()
   self.clearButtons()
   local hx, hz = localHalf()
-  local buttonY = 0.18
-  local zRow = hz * 0.58
-  local zBar = hz * 0.88
+  local buttonY = 0.22
+  local zRow = hz * 0.48
+  local zBar = hz * 0.86
   local ink = {0.12, 0.09, 0.18}
   local font = {0.94, 0.91, 1}
   self.createButton({
     click_function = "viewPrev", function_owner = self, label = "<",
-    position = {-hx * 0.62, buttonY, zRow}, width = 240, height = 200, font_size = 110,
+    position = {-hx * 0.78, buttonY, zRow}, width = 380, height = 300, font_size = 160,
     color = ink, font_color = font,
   })
   self.createButton({
     click_function = "addSelected", function_owner = self, label = "Add",
-    position = {0, buttonY, zRow}, width = math.floor(hx * 380), height = 200, font_size = 100,
+    position = {0, buttonY, zRow}, width = 320, height = 220, font_size = 90,
     color = ink, font_color = font,
   })
   self.createButton({
     click_function = "viewNext", function_owner = self, label = ">",
-    position = {hx * 0.62, buttonY, zRow}, width = 240, height = 200, font_size = 110,
+    position = {hx * 0.78, buttonY, zRow}, width = 380, height = 300, font_size = 160,
     color = ink, font_color = font,
   })
   self.createButton({
     click_function = "clearOrRefresh", function_owner = self, label = "Clear",
-    position = {hx * 0.9, buttonY, hz * 0.15}, width = 150, height = 80, font_size = 48,
+    position = {hx * 0.78, buttonY, zBar}, width = 160, height = 80, font_size = 44,
     color = {0.18, 0.14, 0.28}, font_color = font,
     tooltip = "Clears the lineup. Right-click to refresh the script.",
   })
   pipCount = math.max(1, math.min(12, maxScroll() + 1))
-  local span = hx * 1.5
+  local span = hx * 1.15
   for i = 0, pipCount - 1 do
     local x = pipCount == 1 and 0 or (-span / 2 + span * (i / (pipCount - 1)))
     self.createButton({
@@ -482,7 +482,7 @@ function layout()
   local width, depth, thick = worldExtents()
   local spacing = 2.6
   local lift = math.max(1.15, (thick or 0.2) * 0.5 + 1.05)
-  local along = -depth * 0.34
+  local along = (depth / 6) - 1.7
   local picked = selectedGuids()
   local shown = 0
   for i = scroll + 1, math.min(#order, scroll + VISIBLE) do
