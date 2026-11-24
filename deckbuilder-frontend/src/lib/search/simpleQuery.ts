@@ -23,24 +23,26 @@ export type SimpleState = {
   mechanics?: string[];
 };
 
+const COLOR_ORDER: Color[] = ["W", "U", "B", "R", "G"];
+
+function colorLetters(selected: Color[]): string {
+  return COLOR_ORDER.filter((c) => selected.includes(c)).join("");
+}
+
 export function colorClause(prefix: "id" | "c", selected: Color[], logic: Logic | IdLogic): string {
-  if (!selected.length && logic !== "commander") return "";
-  if (logic === "commander") {
-    const colors = selected.filter((c) => c !== "C");
-    if (!colors.length) return `${prefix}:C`;
-    return `${prefix}:${colors.join("")}`;
+  if (prefix === "c") {
+    if (!selected.length) return "";
+    if (logic === "and") return `c=${selected.join("")}`;
+    return `c:${selected.join("")}`;
   }
-  const colors = selected.filter((c) => c !== "C");
+  if (!selected.length) return "";
+  const letters = colorLetters(selected);
   const colorless = selected.includes("C");
-  if (logic === "and") {
-    if (!colors.length) return colorless ? `${prefix}:C` : "";
-    const all = `${prefix}>=${colors.join("")}`;
-    return colorless ? `(${all} ${prefix}:C)` : all;
-  }
-  const parts = colors.map((c) => `${prefix}>=${c}`);
-  if (colorless) parts.push(`${prefix}:C`);
-  if (!parts.length) return "";
-  return parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0];
+  if (!letters) return "id:c";
+  if (logic === "commander") return `id:${letters}`;
+  if (logic === "and") return `id=${letters}`;
+  const within = `(id:${letters} and -id:c)`;
+  return colorless ? `(${within} OR id:c)` : within;
 }
 
 export function typeClause(types: string[], logic: Logic): string {
