@@ -10,50 +10,78 @@ import type { ScryfallCard } from "../types/scryfallCard";
 type PageChunk = { page: number; cards: ScryfallCard[] };
 
 /** Cards in the mark set that also satisfy the Scryfall query. */
+const ORACLE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function searchOracleChunk(
+  ids: string[],
+  q: string,
+  found: ScryfallCard[],
+  seen: Set<string>,
+  allowed: Set<string>,
+  onBatch: (cards: ScryfallCard[]) => void,
+  cancelled: () => boolean
+): Promise<void> {
+  if (!ids.length || cancelled()) return;
+  const query = `(${ids.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
+  let page = 1;
+  for (;;) {
+    if (cancelled()) return;
+    const response = await fetchProxiedScryfall(
+      `/api/scryfall?${new URLSearchParams({ q: query, page: String(page) }).toString()}`
+    );
+    if (response.status === 404) return;
+    if (response.status === 400 && ids.length > 1) {
+      const mid = Math.ceil(ids.length / 2);
+      await searchOracleChunk(ids.slice(0, mid), q, found, seen, allowed, onBatch, cancelled);
+      await searchOracleChunk(ids.slice(mid), q, found, seen, allowed, onBatch, cancelled);
+      return;
+    }
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      let message = "Could not apply the other search filters.";
+      try {
+        const parsed = JSON.parse(detail) as { details?: string; error?: string };
+        if (parsed.details || parsed.error) message = parsed.details || parsed.error || message;
+      } catch {
+        if (detail.trim()) message = detail.replace(/\s+/g, " ").slice(0, 180);
+      }
+      throw new Error(message);
+    }
+    const json = (await response.json()) as { data?: ScryfallCard[]; has_more?: boolean };
+    let added = false;
+    for (const card of json.data ?? []) {
+      const key = (card.oracle_id || "").toLowerCase();
+      if (!key || seen.has(key) || !allowed.has(key)) continue;
+      seen.add(key);
+      found.push(card);
+      added = true;
+    }
+    if (added) onBatch([...found]);
+    if (!json.has_more || page >= 4) return;
+    page += 1;
+  }
+}
+
 async function cardsMatchingQuery(
   oracleIds: string[],
   q: string,
   onBatch: (cards: ScryfallCard[]) => void,
   cancelled: () => boolean
 ): Promise<void> {
-  const pending = [...oracleIds];
-  const allowed = new Set(oracleIds);
+  const pending = oracleIds.filter((id) => ORACLE_ID.test(id));
+  const allowed = new Set(pending);
   const seen = new Set<string>();
   const found: ScryfallCard[] = [];
   while (pending.length) {
     if (cancelled()) return;
     const chunk: string[] = [];
-    let size = q.length + 8;
     while (pending.length) {
-      const piece = `oracleid:${pending[0]}`;
-      const extra = (chunk.length ? 4 : 0) + piece.length;
-      if (chunk.length && size + extra > 1400) break;
+      const next = [...chunk, pending[0]];
+      const query = `(${next.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
+      if (chunk.length && query.length > 980) break;
       chunk.push(pending.shift()!);
-      size += extra;
     }
-    const query = `(${chunk.map((id) => `oracleid:${id}`).join(" OR ")}) ${q}`;
-    let page = 1;
-    for (;;) {
-      if (cancelled()) return;
-      const response = await fetchProxiedScryfall(
-        `/api/scryfall?${new URLSearchParams({ q: query, page: String(page) }).toString()}`
-      );
-      if (response.status === 404) break;
-      if (!response.ok) throw new Error("Could not apply the other search filters.");
-      const json = (await response.json()) as { data?: ScryfallCard[]; has_more?: boolean };
-      let added = false;
-      for (const card of json.data ?? []) {
-        const key = (card.oracle_id || card.id || "").toLowerCase();
-        if (!key || seen.has(key)) continue;
-        if (!card.oracle_id || !allowed.has(card.oracle_id.toLowerCase())) continue;
-        seen.add(key);
-        found.push(card);
-        added = true;
-      }
-      if (added) onBatch([...found]);
-      if (!json.has_more || page >= 4) break;
-      page += 1;
-    }
+    await searchOracleChunk(chunk, q, found, seen, allowed, onBatch, cancelled);
   }
   onBatch([...found]);
 }
