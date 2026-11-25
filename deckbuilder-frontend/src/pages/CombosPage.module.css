@@ -148,7 +148,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: 180px;
+  width: var(--combo-card, 180px);
   padding: 0.5rem;
   border-radius: 12px;
   border: 1px solid var(--color-border);
@@ -290,8 +290,8 @@
 }
 
 .meshCard {
-  width: 100px;
-  height: 140px;
+  width: calc(var(--combo-card, 180px) * 0.62);
+  height: calc(var(--combo-card, 180px) * 0.86);
   padding: 0;
   border-radius: 6px;
   border: 1px solid var(--color-border);

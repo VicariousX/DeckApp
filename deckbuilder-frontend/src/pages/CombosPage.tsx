@@ -23,6 +23,8 @@ import { loadRemoteCombos, saveRemoteCombos } from "../services/comboService";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import { CardInspectorModal } from "../components/CardInspectorModal";
 import { CardTile, CardTileField } from "../components/CardTile";
+import { CardSizeSlider, useCardSize } from "../components/CardSizeSlider";
+import { registerSettings } from "../components/SettingsDrawer";
 import {
   CardContextMenu,
   modalJumpFromState,
@@ -34,6 +36,8 @@ import transitions from "../styles/pageTransitions.module.css";
 import styles from "./CombosPage.module.css";
 
 type ViewMode = "lock" | "mesh" | "map" | "atlas";
+
+let combosSettingsReady = false;
 
 function cardFromNamed(card: {
   id: string;
@@ -300,6 +304,15 @@ export function CombosPage() {
   const [combos, setCombos] = useState<ComboLock[]>(() => loadCombos(userId));
   const [activeId, setActiveId] = useState<string | null>(() => loadCombos(userId)[0]?.id ?? null);
   const [view, setView] = useState<ViewMode>("lock");
+  const cardSize = useCardSize("combos");
+  useEffect(() => {
+    if (combosSettingsReady) return;
+    combosSettingsReady = true;
+    registerSettings((pathname) => {
+      if (pathname !== "/combos") return null;
+      return { title: "Combos", content: <CardSizeSlider sizeKey="combos" /> };
+    });
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -395,7 +408,7 @@ export function CombosPage() {
   }, [view, comboNames]);
 
   return (
-    <div className={`${styles.page} ${transitions.page}`}>
+    <div className={`${styles.page} ${transitions.page}`} style={{ ["--combo-card" as string]: `${cardSize}px` }}>
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Combos</h1>

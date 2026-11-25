@@ -25,6 +25,7 @@ import { CardResult } from "../components/CardResult";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { registerSettings } from "../components/SettingsDrawer";
 import { SearchPageSettings } from "../components/SearchPageSettings";
+import { useCardSize } from "../components/CardSizeSlider";
 import { publishSearchPageControls } from "../lib/searchPageControls";
 import { useSearchStream } from "../hooks/useSearchStream";
 import type { ScryfallCard } from "../types/scryfallCard";
@@ -206,13 +207,7 @@ export function SearchResultsPage() {
   const sortKey = params.get("sort") || "name";
   const sortDir = params.get("dir") === "desc" ? "desc" : "asc";
   const viewPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
-  const [columns, setColumns] = useState(() => {
-    try {
-      const raw = localStorage.getItem("deckapp.searchColumns");
-      if (raw) return Number(raw) || (typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5);
-    } catch { /* ignore */ }
-    return typeof window !== "undefined" && window.innerWidth <= 768 ? 2 : 5;
-  });
+  const cardSize = useCardSize("search");
 
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
@@ -323,11 +318,6 @@ export function SearchResultsPage() {
       pageSize,
       pageSizes: PAGE_SIZES,
       setPageSize: (n) => patch({ n: String(n), page: "1" }),
-      columns,
-      setColumns: (n) => {
-        setColumns(n);
-        try { localStorage.setItem("deckapp.searchColumns", String(n)); } catch { /* ignore */ }
-      },
       targets,
       targetKey,
       setTarget: onTargetChange,
@@ -395,8 +385,7 @@ export function SearchResultsPage() {
       )}
       <CardResult
         cards={resultCards}
-        cardSize={240}
-        columns={browseMode === "catalog" ? columns : undefined}
+        cardSize={cardSize}
         viewMode={browseMode === "text" ? "text" : "image"}
         browseMode={browseMode === "scroll" ? "scroll" : "catalog"}
         scrollStartIndex={scrollStartIndex}

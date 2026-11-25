@@ -1,0 +1,27 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.label {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  color: var(--color-text);
+}
+
+.range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.value {
+  min-width: 2.4rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--color-text);
+}

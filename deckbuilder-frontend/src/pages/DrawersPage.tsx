@@ -38,6 +38,7 @@ import {
 } from "../lib/deckPreferences";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardSizeSlider, useCardSize } from "../components/CardSizeSlider";
 import { ToolsMenu } from "../components/ToolsMenu";
 import { CardEnlargeOverlay } from "../components/CardImage";
 import {
@@ -74,6 +75,7 @@ export function DrawersPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [viewMode, setViewMode] = useState<DrawerViewMode>(() => getDrawerViewMode());
+  const cardSize = useCardSize("drawers");
   const [showTiers, setShowTiers] = useState(() => getDrawerShowTiers());
   const [inspectId, setInspectId] = useState<string | null>(null);
   const [modalJump, setModalJump] = useState<ModalJump>("info");
@@ -470,6 +472,7 @@ export function DrawersPage() {
                   <>
                     <h2 className={styles.drawerTitle}>{selected.name}</h2>
                     <ToolsMenu placement="inline" menuLabel="Drawer settings">
+                      <CardSizeSlider sizeKey="drawers" />
                       <div className={styles.menuBlock}>
                         <span className={styles.menuLabel}>View</span>
                         <ViewModeToggle mode={viewMode} onChange={onViewMode} label="Drawer view mode" />
@@ -780,7 +783,7 @@ export function DrawersPage() {
 
               {!cardsLoading && sortedCards.length > 0 && viewMode === "image" && (
                 <DrawerTileField>
-                <div className={styles.tileGrid}>
+                <div className={styles.tileGrid} style={{ ["--card-size" as string]: `${cardSize}px` }}>
                   {sortedCards.map((c) => (
                     <DrawerCardTile
                       key={c.id}

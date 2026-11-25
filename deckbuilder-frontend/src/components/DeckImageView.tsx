@@ -18,8 +18,9 @@ import { isBasicLand } from "../lib/deck/boardHelpers";
 import type { DeckCard, DeckBoard } from "../types/deck";
 import type { ModalJump } from "./CardContextMenu";
 import type { ListColumnLayout } from "../lib/deckPreferences";
-import { getListColumnLayout } from "../lib/deckPreferences";
+import { useCardSize } from "./CardSizeSlider";
 import styles from "../pages/DeckBuilderPage.module.css";
+import { getListColumnLayout } from "../lib/deckPreferences";
 
 type DisplaySection = {
   id: DeckBoard;
@@ -78,6 +79,7 @@ export function DeckImageView({
   onImageCardTap, openCardModal, onOpenScroll, onCardContext, onQty, onBoard, onRemove, toggleStackFace,
   handleImageDrop, faceView, onRenameColumn, onAddColumn, onRemoveColumn,
 }: Props) {
+  const cardSize = useCardSize("deck");
   const [peekCard, setPeekCard] = useState<DeckCard | null>(null);
   useEffect(() => {
     function clearPeek() {
@@ -307,7 +309,7 @@ export function DeckImageView({
         );
       }}
     >
-      <div className={styles.imageBoardLayout}>
+      <div className={styles.imageBoardLayout} style={{ ["--deck-card" as string]: `${cardSize}px` }}>
         {displaySections.map((board) => {
           const isCommander = panel === "deck" && board.id === "commander";
           const layout = listLayouts[board.id] ?? getListColumnLayout(deckId, board.id);

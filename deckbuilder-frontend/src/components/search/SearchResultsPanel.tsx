@@ -3,6 +3,7 @@ import { CardResult } from "../CardResult";
 import { CardTile } from "../CardTile";
 import { useSearchStream } from "../../hooks/useSearchStream";
 import { getFaceImage } from "../../utils/scryfall";
+import { useCardSize } from "../CardSizeSlider";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import resultStyles from "../../pages/SearchResultsPage.module.css";
 
@@ -68,6 +69,7 @@ export function SearchResultsPanel({
   const [viewPage, setViewPage] = useState(1);
   const [viewMode, setViewMode] = useState<"image" | "text">("image");
   const [browseMode, setBrowseMode] = useState<"catalog" | "scroll">("catalog");
+  const cardSize = useCardSize("deck");
   const apiOrder = SCRYFALL_ORDER.has(sortKey) ? sortKey : "";
   const {
     mechParsed,
@@ -225,7 +227,7 @@ export function SearchResultsPanel({
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
-        cardSize={browseMode === "catalog" ? 200 : 180}
+        cardSize={cardSize}
         viewMode={viewMode}
         browseMode={browseMode}
         onEnterScroll={() => setBrowseMode("scroll")}

@@ -9,6 +9,7 @@ import type { CardSortKey } from "../lib/deckPreferences";
 import { getDeckScrollText, onDeckScrollText, setDeckScrollText } from "../lib/deckScrollPreference";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useEffect, useState } from "react";
+import { CardSizeSlider } from "./CardSizeSlider";
 import styles from "./SettingsDrawer.module.css";
 
 const GROUPS: [DeckGroupMode, string][] = [
@@ -35,6 +36,7 @@ export function DeckPageSettings() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+      <CardSizeSlider sizeKey="deck" />
       <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.88rem" }}>
         <input
           type="checkbox"

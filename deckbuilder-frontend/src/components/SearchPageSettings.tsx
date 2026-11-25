@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { PillSwitch } from "./PillSwitch";
+import { CardSizeSlider } from "./CardSizeSlider";
 import { getSearchPageControls, subscribeSearchPageControls } from "../lib/searchPageControls";
 import styles from "./ToolsMenu.module.css";
 
@@ -99,20 +100,8 @@ export function SearchPageSettings() {
         />
       </div>
       <div className={styles.menuSection}>
-        <div className={styles.menuHeading}>Catalog size</div>
-        <label className={styles.sizeRow}>
-          <input
-            className={styles.sizeRange}
-            type="range"
-            min={1}
-            max={8}
-            step={1}
-            value={9 - controls.columns}
-            aria-label="Catalog columns"
-            onChange={(e) => controls.setColumns(9 - Number(e.target.value))}
-          />
-          <span className={styles.sizeValue}>{controls.columns} col</span>
-        </label>
+        <div className={styles.menuHeading}>Cards</div>
+        <CardSizeSlider sizeKey="search" />
       </div>
     </div>
   );

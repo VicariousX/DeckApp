@@ -651,7 +651,11 @@
   margin-left: calc(var(--card-w) * -0.42);
 }
 
-.hand .card,
+.hand .card {
+  width: calc(var(--card-w) * var(--hand-scale, 1));
+  height: calc(var(--card-h) * var(--hand-scale, 1));
+}
+
 .landRail .card {
   width: var(--card-w);
   height: var(--card-h);

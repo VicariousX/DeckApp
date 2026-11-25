@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -34,6 +35,8 @@ import { loadDeckTokens } from "../lib/deck/deckTokens";
 import { TiltFace } from "../components/CardImage";
 import { RateLimitedImg } from "../components/RateLimitedImg";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { SizeSlider } from "../components/CardSizeSlider";
+import { registerSettings } from "../components/SettingsDrawer";
 import {
   cardImage,
   createTableFromDeck,
@@ -52,6 +55,54 @@ import {
   type PlaySettings,
 } from "../lib/playtest/settings";
 import type { TableWire } from "../lib/playtest/sync";
+
+type PlaySizeControls = {
+  boardScale: number;
+  handScale: number;
+  setBoardScale: (n: number) => void;
+  setHandScale: (n: number) => void;
+};
+
+let playSizes: PlaySizeControls | null = null;
+const playSizeListeners = new Set<() => void>();
+let playSettingsReady = false;
+
+function publishPlaySizes(next: PlaySizeControls | null) {
+  playSizes = next;
+  playSizeListeners.forEach((listener) => listener());
+}
+
+function PlaySizeSettings() {
+  const controls = useSyncExternalStore(
+    (listener) => {
+      playSizeListeners.add(listener);
+      return () => playSizeListeners.delete(listener);
+    },
+    () => playSizes,
+    () => null
+  );
+  if (!controls) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <SizeSlider
+        label="Board"
+        min={70}
+        max={160}
+        step={5}
+        value={Math.round((controls.boardScale || 1) * 100)}
+        onChange={(n) => controls.setBoardScale(n / 100)}
+      />
+      <SizeSlider
+        label="Hand"
+        min={70}
+        max={140}
+        step={5}
+        value={Math.round((controls.handScale || 1) * 100)}
+        onChange={(n) => controls.setHandScale(n / 100)}
+      />
+    </div>
+  );
+}
 import { emptyJournal, recordAction, replayJournal, truncateJournal } from "../lib/playtest/view";
 import type { PlayAction, PlayCard, PlayZone, TableJournal, TableState } from "../lib/playtest/types";
 import transitions from "../styles/pageTransitions.module.css";
@@ -411,6 +462,25 @@ export function PlaytestPage() {
   const persist = useCallback((next: PlaySettings) => {
     setSettings(next);
     savePlaySettings(next);
+  }, []);
+
+  useEffect(() => {
+    publishPlaySizes({
+      boardScale: settings.boardScale ?? 1,
+      handScale: settings.handScale ?? 1,
+      setBoardScale: (n) => persist({ ...settings, boardScale: n }),
+      setHandScale: (n) => persist({ ...settings, handScale: n }),
+    });
+  });
+
+  useEffect(() => {
+    if (playSettingsReady) return;
+    playSettingsReady = true;
+    registerSettings((pathname) => {
+      if (!pathname.startsWith("/play/")) return null;
+      return { title: "Table", content: <PlaySizeSettings /> };
+    });
+    return () => publishPlaySizes(null);
   }, []);
   const xv = (n: number) => (settings.showXGlyph ? "X" : String(n));
 
@@ -955,6 +1025,7 @@ export function PlaytestPage() {
         className={`${transitions.page} ${styles.page}`}
         style={{
           ["--board-scale" as string]: String(settings.boardScale || 1),
+          ["--hand-scale" as string]: String(settings.handScale || 1),
         }}
         onPointerDown={(e) => {
           const t = e.target as HTMLElement;
@@ -1820,29 +1891,22 @@ export function PlaytestPage() {
               </label>
               <PillSwitch checked={settings.nextTurnUntap} onChange={(on) => persist({ ...settings, nextTurnUntap: on })} label="Next turn untaps" />
               <PillSwitch checked={settings.showXGlyph} onChange={(on) => persist({ ...settings, showXGlyph: on })} label="Show X on actions" />
-              <label className={styles.setting}>
-                Board card size
-                <select
-                  value={String(settings.boardScale ?? 1)}
-                  onChange={(e) => persist({ ...settings, boardScale: Number(e.target.value) })}
-                >
-                  <option value="0.85">Small</option>
-                  <option value="1">Normal</option>
-                  <option value="1.2">Large</option>
-                  <option value="1.4">XL</option>
-                </select>
-              </label>
-              <label className={styles.setting}>
-                Hand card size
-                <select
-                  value={String(settings.handScale ?? 1)}
-                  onChange={(e) => persist({ ...settings, handScale: Number(e.target.value) })}
-                >
-                  <option value="0.85">Small</option>
-                  <option value="1">Normal</option>
-                  <option value="1.15">Large</option>
-                </select>
-              </label>
+              <SizeSlider
+                label="Board cards"
+                min={70}
+                max={160}
+                step={5}
+                value={Math.round((settings.boardScale ?? 1) * 100)}
+                onChange={(n) => persist({ ...settings, boardScale: n / 100 })}
+              />
+              <SizeSlider
+                label="Hand cards"
+                min={70}
+                max={140}
+                step={5}
+                value={Math.round((settings.handScale ?? 1) * 100)}
+                onChange={(n) => persist({ ...settings, handScale: n / 100 })}
+              />
               <label className={styles.setting}>
                 Playmat
                 <select

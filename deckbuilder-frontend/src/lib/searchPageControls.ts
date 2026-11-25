@@ -13,8 +13,6 @@ export type SearchPageControls = {
   pageSize: number;
   pageSizes: number[];
   setPageSize: (n: number) => void;
-  columns: number;
-  setColumns: (n: number) => void;
   targets: SearchTargetRef[];
   targetKey: string;
   setTarget: (key: string) => void;

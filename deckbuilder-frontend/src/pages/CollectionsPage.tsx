@@ -18,6 +18,7 @@ import { DrawerTileField } from "../components/DrawerCardTile";
 import { CardTile } from "../components/CardTile";
 import { PillSwitch } from "../components/PillSwitch";
 import { CardInspectorModal } from "../components/CardInspectorModal";
+import { CardSizeSlider, useCardSize } from "../components/CardSizeSlider";
 import { ToolsMenu } from "../components/ToolsMenu";
 import {
   GroupPageShell,
@@ -52,6 +53,7 @@ export function CollectionsPage() {
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"text" | "image">(() => getCollectionViewMode());
+  const cardSize = useCardSize("collections");
   const [inspectId, setInspectId] = useState<string | null>(null);
   const [targetable, setTargetableOn] = useState(false);
 
@@ -172,6 +174,7 @@ export function CollectionsPage() {
           <div className={styles.mainHeader}>
             <h2 className={styles.drawerTitle}>{selected.name}</h2>
             <ToolsMenu placement="inline" menuLabel="Collection settings">
+              <CardSizeSlider sizeKey="collections" />
               <div className={styles.menuBlock}>
                 <span className={styles.menuLabel}>View</span>
                 <ViewModeToggle
@@ -216,7 +219,7 @@ export function CollectionsPage() {
               <p className={styles.muted}>{cards.length} cards</p>
               {viewMode === "image" ? (
                 <DrawerTileField>
-                  <div className={styles.tileGrid}>
+                  <div className={styles.tileGrid} style={{ ["--card-size" as string]: `${cardSize}px` }}>
                     {cards.map((card) => (
                       <CardTile
                         key={card.id}
