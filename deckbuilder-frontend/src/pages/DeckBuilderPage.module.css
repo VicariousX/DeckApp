@@ -1096,6 +1096,10 @@
 
 .stacksRow {
   --board-col-min-h: min(70vh, 640px);
+  --stack-width: var(--deck-card, 160px);
+  --stack-card-h: calc(var(--stack-width) * 88 / 63);
+  --stack-peek: calc(var(--stack-width) * 0.25);
+  --stack-reveal: var(--stack-card-h);
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -1121,7 +1125,7 @@
 
 .stackColumn {
   flex: 0 0 auto;
-  width: var(--deck-card, 160px);
+  width: calc(var(--stack-width, var(--deck-card, 160px)) + 12px);
   min-height: 0;
   height: auto;
   display: flex;
@@ -1169,11 +1173,6 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  /* overlap: each card after the first is pulled up */
-  --stack-peek: calc(var(--deck-card, 160px) * 0.25);
-  --stack-reveal: var(--stack-card-h);
-  --stack-width: var(--deck-card, 160px);
-  --stack-card-h: calc(var(--deck-card, 160px) * 88 / 63);
   min-height: 180px;
   padding-bottom: 1.5rem;
 }
@@ -1236,19 +1235,21 @@
   background: var(--color-surface);
 }
 
-.stackCardImg {
+.stackCardImg,
+.stackCardPlaceholder {
   display: block;
   width: 100%;
-  height: 204px;
+  height: var(--stack-card-h, 224px);
   object-fit: cover;
   object-position: top center;
+}
+
+.stackCardImg {
   pointer-events: none;
   user-select: none;
 }
 
 .stackCardPlaceholder {
-  width: 100%;
-  height: 204px;
   display: grid;
   place-items: center;
   padding: 0.5rem;
@@ -1354,7 +1355,7 @@
 
 @media (min-width: 1200px) {
   .stackColumn {
-    width: var(--deck-card, 160px);
+    width: calc(var(--stack-width, var(--deck-card, 160px)) + 12px);
   }
 }
 
@@ -2005,7 +2006,8 @@
 .stackColumn {
   flex: 0 0 auto;
   min-height: var(--board-col-min-h, min(70vh, 640px));
-  min-width: calc(var(--stack-width, 146px) + 12px);
+  min-width: calc(var(--stack-width, var(--deck-card, 160px)) + 12px);
+  width: calc(var(--stack-width, var(--deck-card, 160px)) + 12px);
   padding: 0.25rem;
   box-sizing: border-box;
   border-radius: 12px;
@@ -2754,7 +2756,7 @@
   }
   .stackFrame,
   .stackCards {
-    --stack-peek: calc(var(--deck-card, 160px) * 0.25);
+    width: var(--stack-width);
   }
   .stackCards {
     align-items: center;
