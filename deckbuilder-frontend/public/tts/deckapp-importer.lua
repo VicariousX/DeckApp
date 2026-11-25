@@ -1,9 +1,8 @@
 -- DeckApp importer for Tabletop Simulator.
 -- Paste this onto the importer object. Click Open Importer to open the panel.
--- Update inside the panel downloads the latest copy of this script.
+-- This object does not rewrite its own script, so tables that block that can still load it.
 
 local API = "https://deckapp-1.onrender.com/api/tts/"
-local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-importer.lua"
 local PLAIN_BACK = "https://backs.scryfall.io/large/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg"
 
 local decks = {}
@@ -92,25 +91,6 @@ function drawLauncher()
   })
 end
 
-function refreshScript()
-  broadcastToAll("Checking for a new importer...", {0.8, 0.8, 1})
-  WebRequest.get(SCRIPT_URL .. "?t=" .. tostring(os.time()), function(req)
-    if req.is_error or req.response_code ~= 200 then
-      broadcastToAll("Refresh failed.", {1, 0.45, 0.4})
-      return
-    end
-    local body = req.text or ""
-    if not body:find("DeckApp importer for Tabletop Simulator", 1, true) then
-      broadcastToAll("Refresh did not return the importer. Nothing was changed.", {1, 0.55, 0.35})
-      return
-    end
-    self.script_state = JSON.encode({ sleeve = selected })
-    self.setLuaScript(body)
-    broadcastToAll("Importer updated.", {0.7, 0.9, 0.7})
-    self.reload()
-  end)
-end
-
 function openPanel(_, color)
   uiColor = color or "White"
   if mode == "" then mode = "home" end
@@ -150,7 +130,6 @@ function renderUI()
   <Button class="btn" onClick="]] .. click("uiModeSleeves") .. [[" color="]] .. (mode == "sleeves" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -336" width="168" height="40" minHeight="40" preferredHeight="40">Sleeves</Button>
   <Button class="btn" onClick="]] .. click("uiModeDecks") .. [[" color="]] .. (mode == "decks" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -384" width="168" height="40" minHeight="40" preferredHeight="40">Decks</Button>
   <Button class="btn" onClick="]] .. click("uiModeUrl") .. [[" color="]] .. (mode == "url" and "#5b4588" or "#2c2544") .. [[" rectAlignment="UpperLeft" offsetXY="28 -432" width="168" height="40" minHeight="40" preferredHeight="40">Import URL</Button>
-  <Button class="btn" onClick="]] .. click("uiUpdate") .. [[" rectAlignment="LowerLeft" offsetXY="28 24" width="168" height="40" minHeight="40" preferredHeight="40">Update</Button>
   ]] .. body .. [[
 </Panel>]]
   UI.setXml(xml)
@@ -230,10 +209,6 @@ function urlForm()
 <InputField id="deckUrl" onValueChanged="]] .. click("uiUrl") .. [[" onEndEdit="]] .. click("uiUrl") .. [[" placeholder="https://" text="]] .. xmlEscape(importUrl) .. [[" rectAlignment="UpperLeft" offsetXY="230 -140" width="640" height="44" fontSize="16" color="#221c33" textColor="#f4f0ff" />
 <Button class="btn" onClick="]] .. click("uiImport") .. [[" rectAlignment="UpperLeft" offsetXY="230 -200" width="220" height="44">Import</Button>
 <Text class="label" fontSize="16" color="#b7aec9" alignment="UpperLeft" rectAlignment="UpperLeft" offsetXY="240 -260" width="620" height="80">DeckApp, Archidekt, Moxfield, MTGGoldfish, and Deckstats. Chat: !deckapp and the link.</Text>]]
-end
-
-function uiUpdate()
-  refreshScript()
 end
 
 function uiModeSleeves()

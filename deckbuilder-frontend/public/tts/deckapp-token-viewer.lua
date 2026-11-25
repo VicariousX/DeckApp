@@ -1,8 +1,8 @@
 -- DeckApp token viewer for Tabletop Simulator.
 -- The lineup is alphabetical, and the arrows move a page at a time.
--- The cog opens Clear and how many cards show on a page. Right-click the cog to reset and update.
+-- The cog opens Clear and how many cards show on a page. Right-click the cog to reset.
+-- This object does not rewrite its own script, so tables that block that can still load it.
 
-local SCRIPT_URL = "https://raw.githubusercontent.com/VicariousX/DeckApp/main/deckbuilder-frontend/public/tts/deckapp-token-viewer.lua"
 local COLORS = {"White","Brown","Red","Orange","Yellow","Green","Teal","Blue","Purple","Pink","Black"}
 local VISIBLE = 3
 local owner = ""
@@ -299,32 +299,10 @@ function scrollBy(pages)
   remember()
 end
 
-function refreshScript()
-  remember()
-  local who = owner ~= "" and owner or "White"
-  broadcastToColor("Checking for a new token viewer...", who, {0.8, 0.8, 1})
-  WebRequest.get(SCRIPT_URL .. "?t=" .. tostring(os.time()), function(req)
-    if req.is_error or req.response_code ~= 200 then
-      broadcastToColor("Refresh failed.", who, {1, 0.45, 0.4})
-      return
-    end
-    local body = req.text or ""
-    if not body:find("DeckApp token viewer for Tabletop Simulator", 1, true) then
-      broadcastToColor("Refresh did not return the viewer. Nothing was changed.", who, {1, 0.55, 0.35})
-      return
-    end
-    remember()
-    self.setLuaScript(body)
-    broadcastToColor("Token viewer updated.", who, {0.7, 0.9, 0.7})
-    self.reload()
-  end)
-end
-
 function toggleSettings(_, color, alt)
   claim(color)
   if alt then
     doReset(nil, color)
-    refreshScript()
     return
   end
   settingsOpen = not settingsOpen
