@@ -742,14 +742,51 @@ export function DrawerPanel({
     </>
   );
 
+  const overlays = (
+    <>
+      {hover &&
+        createPortal(
+          <div className={styles.hoverPreview} style={{ left: hover.x, top: hover.y }}>
+            <img src={hover.src} alt={hover.name} />
+          </div>,
+          document.body
+        )}
+      {applyConfirm && (
+        <ConfirmDialog
+          title="Apply drawer"
+          message={applyConfirm}
+          confirmLabel="Apply"
+          cancelLabel="Cancel"
+          onConfirm={() => void confirmApply()}
+          onCancel={() => setApplyConfirm(null)}
+        />
+      )}
+      {lightbox &&
+        createPortal(
+          <div
+            className={styles.lightbox}
+            role="dialog"
+            aria-label={lightbox.name}
+            onClick={() => setLightbox(null)}
+          >
+            <img src={lightbox.src} alt={lightbox.name} />
+          </div>,
+          document.body
+        )}
+    </>
+  );
+
   if (embedded) {
     return (
-      <div className={styles.embedded}>
-        <Link to="/drawers" className={styles.manageLink}>
-          Manage drawers
-        </Link>
-        {panelBody}
-      </div>
+      <>
+        <div className={styles.embedded}>
+          <Link to="/drawers" className={styles.manageLink}>
+            Manage drawers
+          </Link>
+          {panelBody}
+        </div>
+        {overlays}
+      </>
     );
   }
 
@@ -826,40 +863,7 @@ export function DrawerPanel({
         </div>
         , document.body)}
 
-      {hover &&
-        createPortal(
-          <div
-            className={styles.hoverPreview}
-            style={{ left: hover.x, top: hover.y }}
-          >
-            <img src={hover.src} alt={hover.name} />
-          </div>,
-          document.body
-        )}
-
-      {applyConfirm && (
-        <ConfirmDialog
-          title="Apply drawer"
-          message={applyConfirm}
-          confirmLabel="Apply"
-          cancelLabel="Cancel"
-          onConfirm={() => void confirmApply()}
-          onCancel={() => setApplyConfirm(null)}
-        />
-      )}
-
-      {lightbox &&
-        createPortal(
-          <div
-            className={styles.lightbox}
-            role="dialog"
-            aria-label={lightbox.name}
-            onClick={() => setLightbox(null)}
-          >
-            <img src={lightbox.src} alt={lightbox.name} />
-          </div>,
-          document.body
-        )}
+      {overlays}
     </div>
   );
 }
