@@ -214,7 +214,7 @@ export function CardResult({
   useEffect(() => {
     if (browseMode !== "scroll" || viewMode !== "image") {
       openedScroll.current = false;
-      if (browseMode !== "scroll") setPreviewIndex(null);
+      if (browseMode !== "scroll" && previewMode !== "tilt") setPreviewIndex(null);
       return;
     }
     if (openedScroll.current || !list.length) return;
@@ -226,7 +226,7 @@ export function CardResult({
     const start = found >= 0 ? found : Math.min(Math.max(0, scrollStartIndex), list.length - 1);
     setPreviewIndex(start);
     stableId.current = list[start]?.originalId ?? null;
-  }, [browseMode, viewMode, list.length, scrollStartIndex]);
+  }, [browseMode, viewMode, list.length, scrollStartIndex, previewMode]);
 
   useEffect(() => {
     if (browseMode !== "scroll" || previewIndex == null) return;
@@ -488,6 +488,28 @@ export function CardResult({
         />
         </div>,
         document.body
+      )}
+
+      {previewMode === "tilt" && browseMode !== "scroll" && preview && previewIndex != null && (
+        <CardEnlargeOverlay
+          frontSrc={getFaceImage(preview.display, 0) || ""}
+          backSrc={getFaceImage(preview.display, 1) || ""}
+          frontName={preview.display.name}
+          backName={preview.display.card_faces?.[1]?.name ?? "Back"}
+          multi={isMultiCard(preview.display)}
+          onClose={() => {
+            setPreviewIndex(null);
+            stableId.current = null;
+            setPreviewMode("swipe");
+          }}
+          onActivate={() => {
+            setSelectedIndex(previewIndex);
+            setPreviewIndex(null);
+            stableId.current = null;
+            setPreviewMode("swipe");
+          }}
+          hint="Click the card for details · click outside to close"
+        />
       )}
 
       {ctx && list[ctx.index] && (
