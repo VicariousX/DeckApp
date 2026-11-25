@@ -15,7 +15,7 @@ local busy = false
 local pipCount = 0
 local settingsOpen = false
 local tileW, tileD, tileT = nil, nil, nil
-local lastX, lastY, lastZ, lastYaw = nil, nil, nil, nil
+local lastX, lastY, lastZ, lastPitch, lastYaw, lastRoll = nil, nil, nil, nil, nil, nil
 
 function hiddenFrom(color)
   if not color or color == "" then return {} end
@@ -370,18 +370,6 @@ function doClear(_, color)
   buildChrome()
 end
 
-function tryRotate(spin, flip, player_color, old_spin, old_flip)
-  local dSpin = (spin or 0) - (old_spin or 0)
-  local dFlip = (flip or 0) - (old_flip or 0)
-  if dSpin > 180 then dSpin = dSpin - 360 end
-  if dSpin < -180 then dSpin = dSpin + 360 end
-  if math.abs(dFlip) < 8 and math.abs(dSpin) > 1 and math.abs(dSpin) < 45 then
-    claim(player_color)
-    if dSpin > 0 then scrollBy(1) else scrollBy(-1) end
-    return false
-  end
-end
-
 function safeTag(obj)
   if not obj then return "" end
   local tag = ""
@@ -564,7 +552,8 @@ function layout()
     scroll = page * VISIBLE
   end
   local origin = self.getPosition()
-  local forward, right, yaw = basis()
+  local forward, right = basis()
+  local rot = self.getRotation()
   local up = { x = 0, y = 1, z = 0 }
   local okUp, lifted = pcall(function() return self.getTransformUp() end)
   if okUp and lifted then up = lifted end
@@ -590,7 +579,7 @@ function layout()
         pcall(function()
           obj.use_gravity = false
           obj.sticky = false
-          obj.setRotation({ x = 0, y = yaw, z = 0 })
+          obj.setRotation(rot)
           obj.setInvisibleTo(hiddenFrom(owner))
           if picked[guid] then
             obj.setLock(false)
@@ -619,7 +608,7 @@ end
 function releaseHeld(guid, index)
   local obj = getObjectFromGUID(guid)
   if not obj then return end
-  local _, _, yaw = basis()
+  local rot = self.getRotation()
   local pos = { x = 0, y = 2, z = 0 }
   pcall(function() pos = obj.getPosition() end)
   local copy = nil
@@ -640,7 +629,7 @@ function releaseHeld(guid, index)
       order[index] = copyGuid
       pcall(function()
         copy.use_gravity = false
-        copy.setRotation({ x = 0, y = yaw, z = 0 })
+        copy.setRotation(rot)
         copy.setInvisibleTo(hiddenFrom(owner))
       end)
     end
@@ -656,12 +645,18 @@ local wasTouched = false
 function onUpdate()
   local moved = false
   local p = self.getPosition()
-  local yaw = 0
-  pcall(function() yaw = self.getRotation().y end)
+  local rot = self.getRotation()
+  local function turned(a, b)
+    local d = (a or 0) - (b or 0)
+    if d > 180 then d = d - 360 end
+    if d < -180 then d = d + 360 end
+    return math.abs(d) > 0.4
+  end
   if not lastX
     or math.abs(p.x - lastX) + math.abs(p.y - lastY) + math.abs(p.z - lastZ) > 0.02
-    or math.abs((yaw or 0) - (lastYaw or 0)) > 0.5 then
-    lastX, lastY, lastZ, lastYaw = p.x, p.y, p.z, yaw
+    or turned(rot.x, lastPitch) or turned(rot.y, lastYaw) or turned(rot.z, lastRoll) then
+    lastX, lastY, lastZ = p.x, p.y, p.z
+    lastPitch, lastYaw, lastRoll = rot.x, rot.y, rot.z
     moved = true
   end
   if #order == 0 then
