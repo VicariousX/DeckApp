@@ -76,6 +76,23 @@ function colorPred(have: string[], op: string, raw: string): boolean | null {
   return null;
 }
 
+function sideCanBeCommander(typeLine: string, oracle: string): boolean {
+  const type = typeLine.toLowerCase();
+  const text = oracle.toLowerCase();
+  if (text.includes("can't be your commander") || text.includes("cannot be your commander")) return false;
+  if (type.includes("legendary") && type.includes("creature")) return true;
+  return text.includes("can be your commander");
+}
+
+/** Scryfall `is:commander`: can lead a Commander deck, not merely legal in the format. */
+function canBeCommander(card: ScryfallCard): boolean {
+  const faces = card.card_faces?.filter((face) => face.type_line || face.oracle_text) ?? [];
+  if (faces.length) {
+    return faces.some((face) => sideCanBeCommander(face.type_line || "", face.oracle_text || ""));
+  }
+  return sideCanBeCommander(card.type_line || "", card.oracle_text || "");
+}
+
 function textOf(card: ScryfallCard): string {
   return [card.oracle_text, ...(card.card_faces ?? []).map((face) => face.oracle_text)]
     .filter(Boolean)
@@ -117,7 +134,7 @@ function predicate(text: string): Pred | null {
     return (card) => card.name.toLowerCase().includes(needle);
   }
   if (key === "is" && value.toLowerCase() === "commander") {
-    return (card) => card.legalities?.commander === "legal";
+    return (card) => canBeCommander(card);
   }
   if (key === "mv" || key === "cmc" || key === "edhrec") {
     const n = Number(value);
