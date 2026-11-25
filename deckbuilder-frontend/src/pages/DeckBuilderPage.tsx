@@ -14,7 +14,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useArtPreferences } from "../auth/ArtPreferencesProvider";
 import { ManaCost } from "../components/ManaCost";
-import { fetchAutocomplete, fetchCardById, fetchCollectionByIds, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
+import { fetchAutocomplete, fetchCardById, fetchCardsByOracleIds, fetchCollectionByIds, fetchNamedCard, fetchTokenAutocomplete } from "../lib/scryfallApi";
 import { parseExternalCardDrop } from "../lib/cardDrag";
 import { getFaceImage, getOracleText, isMultiCard } from "../utils/scryfall";
 import {
@@ -1522,36 +1522,53 @@ export function DeckBuilderPage() {
   }
 
   async function onApplyDrawer(cards: DrawerCardView[]) {
-    if (!detail || !isOwner || !user || cards.length === 0) return;
+    if (!detail || !isOwner || !user || cards.length === 0) return 0;
     setError(null);
+    const { cards: resolved, error: lookupError } = await fetchCardsByOracleIds(
+      cards.map((card) => card.oracle_id)
+    );
+    const byOracle = new Map<string, ScryfallCard>();
+    for (const card of resolved) {
+      const key = card.oracle_id?.toLowerCase();
+      if (key) byOracle.set(key, card);
+    }
+    let addedCount = 0;
+    const missed: string[] = [];
     for (const dc of cards) {
-      const scryfallId = dc.scryfall_id;
-      if (!scryfallId) continue;
-      const { card: sc, error: sErr } = await fetchCardById(scryfallId);
-      if (sErr || !sc) continue;
+      const sc = byOracle.get(dc.oracle_id.toLowerCase());
+      if (!sc) {
+        missed.push(dc.name || "a card");
+        continue;
+      }
       void ensureUserCardFromScryfall(user.id, sc);
-      const oracleId = (sc.oracle_id ?? sc.id).toLowerCase();
       const { card: added, error: aErr } = await addCardToDeck(detail.deck.id, {
-        oracle_id: oracleId,
+        oracle_id: (sc.oracle_id ?? dc.oracle_id).toLowerCase(),
         scryfall_id: sc.id,
         name: sc.name,
-        type_line: sc.type_line ?? "",
+        type_line: sc.type_line ?? dc.type_line ?? "",
         mana_cost: sc.mana_cost,
         cmc: sc.cmc,
         quantity: 1,
         board: "main",
       });
-      if (aErr || !added) continue;
+      if (aErr || !added) {
+        missed.push(dc.name || sc.name);
+        continue;
+      }
+      addedCount += 1;
       setDetail((prev) => {
         if (!prev) return prev;
         const withoutDup = prev.cards.filter(
-          (c) =>
-            !(c.scryfall_id === added.scryfall_id && c.board === added.board)
+          (c) => !(c.scryfall_id === added.scryfall_id && c.board === added.board)
         );
         return { ...prev, cards: sortCards([...withoutDup, added]) };
       });
     }
+    if (addedCount === 0) {
+      throw new Error(lookupError || `Could not add ${missed.slice(0, 3).join(", ") || "those cards"}.`);
+    }
     void loadDeck({ silent: true });
+    return addedCount;
   }
 
   useEffect(() => {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CardResult } from "../CardResult";
+import { CardTile } from "../CardTile";
 import { useSearchStream } from "../../hooks/useSearchStream";
+import { getFaceImage } from "../../utils/scryfall";
 import type { ScryfallCard } from "../../types/scryfallCard";
 import resultStyles from "../../pages/SearchResultsPage.module.css";
 
@@ -223,12 +225,66 @@ export function SearchResultsPanel({
             ? () => void goApiPage((stream[0]?.page ?? apiPage) - 1)
             : undefined
         }
-        cardSize={browseMode === "catalog" ? 112 : 180}
+        cardSize={browseMode === "catalog" ? 200 : 180}
         viewMode={viewMode}
         browseMode={browseMode}
         onEnterScroll={() => setBrowseMode("scroll")}
         onExitScroll={() => setBrowseMode("catalog")}
         onAddToDeck={onAddToDeck}
+        catalogTile={
+          browseMode === "catalog"
+            ? (card, _index, open, onContext) => {
+                const key = card.oracle_id || card.id;
+                const n = countInDeck?.(card) ?? 0;
+                return (
+                  <CardTile
+                    face={{
+                      name: card.name,
+                      imageUrl: getFaceImage(card, 0),
+                      scryfallId: card.id,
+                      oracleId: card.oracle_id,
+                    }}
+                    ear={n > 0 ? n : undefined}
+                    onOpen={open}
+                    onContextMenu={onContext}
+                    right={
+                      onAddToDeck
+                        ? [
+                            <button
+                              key="add"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToDeck(card);
+                              }}
+                              style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center", fontWeight: 700 }}
+                              aria-label="Add to deck"
+                            >
+                              +
+                            </button>,
+                          ]
+                        : undefined
+                    }
+                    bottom={
+                      onUndoAdd && n > 0 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUndoAdd(card);
+                          }}
+                          style={{ all: "unset", cursor: "pointer", width: "100%", textAlign: "center" }}
+                          aria-label="Remove from deck"
+                        >
+                          Remove
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                );
+              }
+            : undefined
+        }
       />
       <div className={resultStyles.moreRow}>
         <button

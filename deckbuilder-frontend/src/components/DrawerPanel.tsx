@@ -34,7 +34,7 @@ type Props = {
   onAddCard: (card: DrawerCardView) => void;
   /** Adjust quantity in deck by delta (-1 or +1). */
   onAdjustCard?: (card: DrawerCardView, delta: number) => void;
-  onApplyDrawer?: (cards: DrawerCardView[]) => Promise<void> | void;
+  onApplyDrawer?: (cards: DrawerCardView[]) => Promise<number | void> | number | void;
   commanderColorIdentity?: string[];
   applyBoardLabel?: string;
   deckQtyByOracle?: Record<string, number>;
@@ -272,7 +272,8 @@ export function DrawerPanel({
     setApplyResult(null);
     setError(null);
     try {
-      await onApplyDrawer(applySet);
+      const added = await onApplyDrawer(applySet);
+      const count = typeof added === "number" ? added : applySet.length;
       const extra: string[] = [];
       if (applyMissingOnly && alreadyInDeck > 0) {
         extra.push(`skipped ${alreadyInDeck} already in deck`);
@@ -280,8 +281,8 @@ export function DrawerPanel({
       if (excluded.length > 0) extra.push(`filtered ${excluded.length}`);
       setApplyResult(
         extra.length
-          ? `Added ${applySet.length}, ${extra.join(", ")}`
-          : `Added ${applySet.length} card${applySet.length === 1 ? "" : "s"}`
+          ? `Added ${count}, ${extra.join(", ")}`
+          : `Added ${count} card${count === 1 ? "" : "s"}`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Apply failed.");
