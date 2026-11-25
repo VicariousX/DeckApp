@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   addCardToDeck,
+  createDeck,
   listDecksContainingOracle,
   listMyDecks,
   type DeckCardPresence,
@@ -144,6 +145,7 @@ function AddToDeckPanel({
   const [memberships, setMemberships] = useState<MembershipMeasure[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deckName, setDeckName] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -159,6 +161,19 @@ function AddToDeckPanel({
     }).then(setMemberships);
   }, [user, oracleId, scryfallId, name]);
 
+  async function refresh() {
+    if (!user) return;
+    const oracle = oracleId || scryfallId;
+    const [{ decks: list }, { rows }, nextMemberships] = await Promise.all([
+      listMyDecks(user.id),
+      listDecksContainingOracle(user.id, oracle),
+      listMembershipsForCard(user.id, { oracleId: oracle, scryfallId, name }),
+    ]);
+    setDecks(list ?? []);
+    setPresence(rows);
+    setMemberships(nextMemberships);
+  }
+
   async function add(deckId: string) {
     setBusy(true);
     const { error } = await addCardToDeck(deckId, {
@@ -171,11 +186,33 @@ function AddToDeckPanel({
     });
     setBusy(false);
     setStatus(error ?? "Added to maybeboard");
-    if (!error && user) {
-      const oracle = oracleId || scryfallId;
-      const { rows } = await listDecksContainingOracle(user.id, oracle);
-      setPresence(rows);
+    if (!error) await refresh();
+  }
+
+  async function createAndAdd(e: FormEvent) {
+    e.preventDefault();
+    if (!user || busy) return;
+    const title = deckName.trim();
+    if (!title) return;
+    setBusy(true);
+    const { deck, error } = await createDeck(user.id, { name: title, format: "commander" });
+    if (error || !deck) {
+      setBusy(false);
+      setStatus(error ?? "Could not create deck.");
+      return;
     }
+    const added = await addCardToDeck(deck.id, {
+      oracle_id: oracleId || scryfallId,
+      scryfall_id: scryfallId,
+      name,
+      type_line: typeLine || "",
+      quantity: 1,
+      board: "maybe",
+    });
+    setBusy(false);
+    setDeckName("");
+    setStatus(added.error ?? `Created ${deck.name} and added this card`);
+    await refresh();
   }
 
   if (!user) {
@@ -195,6 +232,19 @@ function AddToDeckPanel({
         emptyClassName={styles.muted}
       />
       <p className={styles.extraLabel}>{heading ?? `Add ${name} to a deck`}</p>
+      <form className={styles.tagCreate} onSubmit={(e) => void createAndAdd(e)}>
+        <input
+          className={styles.tagCreateInput}
+          value={deckName}
+          onChange={(e) => setDeckName(e.target.value)}
+          placeholder="New deck name"
+          maxLength={80}
+          aria-label="New deck name"
+        />
+        <button type="submit" className={styles.tagCreateBtn} disabled={busy || !deckName.trim()}>
+          Create
+        </button>
+      </form>
       {status && <p className={styles.muted}>{status}</p>}
       {!decks && <p className={styles.muted}>Loading decks…</p>}
       {decks?.length === 0 && <p className={styles.muted}>No decks yet.</p>}
