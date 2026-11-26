@@ -43,8 +43,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-
-  display: flex;
 }
 
 .backLink {
@@ -74,6 +72,87 @@
   font-size: 1.55rem;
   font-weight: 750;
   color: var(--color-text);
+}
+
+.titleBtn {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.55rem;
+  font-weight: 750;
+  color: var(--color-text);
+  text-align: left;
+  cursor: text;
+}
+
+.titleBtn:hover {
+  color: var(--color-accent);
+}
+
+.titleInput,
+.descInput {
+  width: min(36rem, 100%);
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.titleInput {
+  font-size: 1.55rem;
+  font-weight: 750;
+  padding: 0 0 0.15rem;
+}
+
+.titleInput:focus,
+.descInput:focus {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+}
+
+.deckDesc,
+.descBtn {
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}
+
+.descBtn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: text;
+}
+
+.descBtn:hover {
+  color: var(--color-text);
+}
+
+.descInput {
+  margin-top: 0.35rem;
+  min-height: 2.6rem;
+  resize: vertical;
+  font-size: 0.88rem;
+  padding: 0.25rem 0;
+}
+
+.identityForm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.identityActions {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .meta {
@@ -520,6 +599,28 @@
   gap: 0.4rem;
   margin-top: 0.65rem;
   align-items: center;
+}
+
+.tagNameBtn,
+.tagNameInput {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  padding: 0;
+}
+
+.tagNameBtn {
+  cursor: text;
+}
+
+.tagNameInput {
+  width: 7rem;
+}
+
+.tagNameInput:focus {
+  outline: none;
 }
 
 .tagChip {

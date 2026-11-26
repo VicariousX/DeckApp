@@ -82,6 +82,14 @@ export function loadBranchParent(deckId: string): string | null {
   return readNodes()[deckId]?.parentId ?? null;
 }
 
+export function renameBranchLabel(deckId: string, name: string) {
+  const nodes = readNodes();
+  const node = nodes[deckId];
+  if (!node) return;
+  nodes[deckId] = { ...node, name: name.trim() || node.name };
+  writeNodes(nodes);
+}
+
 export function rememberBranchNode(node: BranchNode) {
   const nodes = readNodes();
   nodes[node.id] = node;

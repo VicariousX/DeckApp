@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { createDeck, deleteDeck, listMyDecks } from "../services/deckService";
+import { createDeck, deleteDeck, listMyDecks, updateDeck } from "../services/deckService";
 import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
 import { hasBranches, pruneBranches } from "../services/deckHistory";
 import {
   deleteFolder,
   loadFolderAssignments,
   loadFolders,
+  renameFolder,
   saveFolders,
   setDeckFolder,
   type DeckFolder,
@@ -57,6 +58,9 @@ export function MyDecksPage() {
   const [format, setFormat] = useState("commander");
   const [houseFormats, setHouseFormats] = useState(loadHouseFormats());
   const [busy, setBusy] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [folderDraft, setFolderDraft] = useState("");
 
   const reload = useCallback(async () => {
     if (!user) return;
@@ -91,6 +95,12 @@ export function MyDecksPage() {
     }
     return ids;
   }
+
+  const shownFolderId = activeSubfolder || (activeFolder !== "all" && activeFolder !== "unfiled" ? activeFolder : "");
+  useEffect(() => {
+    const folder = folders.find((f) => f.id === shownFolderId);
+    setFolderDraft(folder?.name ?? "");
+  }, [shownFolderId, folders]);
 
   const visibleDecks = decks.filter((d) => {
     if (activeFolder === "all") return true;
@@ -138,6 +148,32 @@ export function MyDecksPage() {
     setAssignments(loadFolderAssignments(user.id));
   }
 
+  function onRenameFolder(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    const folderId = activeSubfolder || activeFolder;
+    const folder = folders.find((f) => f.id === folderId);
+    const next = folderDraft.trim();
+    if (!folder || !next || next === folder.name) return;
+    renameFolder(user.id, folder.id, next);
+    setFolders(loadFolders(user.id));
+  }
+
+  async function onRenameDeck(deck: Deck) {
+    const next = renameValue.trim();
+    if (!next || next === deck.name) {
+      setRenamingId(null);
+      return;
+    }
+    const { deck: updated, error: err } = await updateDeck(deck.id, { name: next });
+    if (err || !updated) {
+      setError(err ?? "Could not rename deck.");
+      return;
+    }
+    setDecks((prev) => prev.map((d) => (d.id === deck.id ? updated : d)));
+    setRenamingId(null);
+  }
+
   function onMove(deckId: string, folderId: string) {
     if (!user) return;
     setDeckFolder(user.id, deckId, folderId || null);
@@ -155,8 +191,30 @@ export function MyDecksPage() {
     const [open, setOpen] = useState(false);
     return (
       <li className={styles.deckItem}>
+        {renamingId === deck.id ? (
+          <form
+            className={styles.deckLink}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void onRenameDeck(deck);
+            }}
+          >
+            <input
+              className={styles.input}
+              value={renameValue}
+              maxLength={80}
+              aria-label={`Rename ${deck.name}`}
+              autoFocus
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setRenamingId(null);
+              }}
+            />
+            <span className={styles.deckMeta}>Enter to save · Esc to cancel</span>
+          </form>
+        ) : (
         <Link to={`/deck/${deck.id}`} className={styles.deckLink}>
-          <span className={styles.deckName}>{deck.name}</span>
+            <span className={styles.deckName}>{deck.name}</span>
           <span className={styles.deckMeta}>
             {deck.format}
             {deck.is_public ? " · public" : " · private"}
@@ -167,6 +225,7 @@ export function MyDecksPage() {
             </span>
           ) : null}
         </Link>
+        )}
         <div className={styles.menuWrap}>
           <button
             type="button"
@@ -196,6 +255,17 @@ export function MyDecksPage() {
               {hasBranches(deck.id) && (
                 <Link to={`/deck/${deck.id}/branches`} className={styles.menuLink}>View Branches</Link>
               )}
+              <button
+                type="button"
+                className={styles.menuLink}
+                onClick={() => {
+                  setRenameValue(deck.name);
+                  setRenamingId(deck.id);
+                  setOpen(false);
+                }}
+              >
+                Rename
+              </button>
               <button
                 type="button"
                 className={styles.menuLink}
@@ -290,11 +360,19 @@ export function MyDecksPage() {
       )}
 
       {activeFolder !== "all" && activeFolder !== "unfiled" && (
-        <div className={styles.folderHead}>
+        <form className={styles.folderHead} onSubmit={onRenameFolder}>
+          <input
+            className={styles.input}
+            aria-label="Folder name"
+            value={folderDraft}
+            maxLength={60}
+            onChange={(e) => setFolderDraft(e.target.value)}
+          />
+          <button type="submit" className={styles.primaryBtn}>Rename</button>
           <button type="button" className={styles.deleteBtn} onClick={() => onRemoveFolder(folders.find((f) => f.id === (activeSubfolder || activeFolder))!)}>
             Delete {activeSubfolder ? "subfolder" : "folder"}
           </button>
-        </div>
+        </form>
       )}
 
       {!loading && visibleDecks.length === 0 && (

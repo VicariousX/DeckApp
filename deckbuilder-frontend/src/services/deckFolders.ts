@@ -40,6 +40,15 @@ export function setDeckFolder(userId: string, deckId: string, folderId: string |
   localStorage.setItem(assignKey(userId), JSON.stringify(next));
 }
 
+export function renameFolder(userId: string, folderId: string, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  saveFolders(
+    userId,
+    loadFolders(userId).map((folder) => (folder.id === folderId ? { ...folder, name: trimmed } : folder))
+  );
+}
+
 export function deleteFolder(userId: string, folderId: string) {
   const all = loadFolders(userId);
   const remove = new Set<string>([folderId]);

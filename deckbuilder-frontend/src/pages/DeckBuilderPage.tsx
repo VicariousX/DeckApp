@@ -90,6 +90,7 @@ import {
   cloneDeck,
   createDeckTag,
   deleteDeckTag,
+  renameDeckTag,
   fetchDeckDetail,
   removeCardFromDeck,
   reorderBoardCards,
@@ -99,7 +100,8 @@ import {
   stackDeckCards,
   updateDeck,
 } from "../services/deckService";
-import { branchTree, loadBranchParent, loadHistory, rememberBranchNode, rememberDeck, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
+import { loadSearchTargets, setTargetable } from "../services/searchTargetService";
+import { branchTree, loadBranchParent, loadHistory, rememberBranchNode, rememberDeck, renameBranchLabel, saveBranchParent, type DeckSnapshot } from "../services/deckHistory";
 import { CopyReadyDialog } from "../components/CopyReadyDialog";
 import type { DeckBoard, DeckCard, DeckDetail, DeckTag } from "../types/deck";
 import { checkDeck, type CardLegality, type LegalityIssue } from "../lib/formats/checkLegality";
@@ -115,6 +117,7 @@ import { DeckImageView } from "../components/DeckImageView";
 import { DeckTextView } from "../components/DeckTextView";
 import { DeckCardActions } from "../components/DeckCardActions";
 import { DeckTagsPanel } from "../components/DeckTagsPanel";
+import { DeckTitleEditor } from "../components/DeckTitleEditor";
 import { DeckInspectorHost } from "../components/DeckInspectorHost";
 import { DeckScrollStage } from "../components/DeckScrollStage";
 import { registerSettings } from "../components/SettingsDrawer";
@@ -853,6 +856,36 @@ export function DeckBuilderPage() {
     setDetail((prev) =>
       prev ? { ...prev, tags: [...prev.tags, tag].sort((a, b) => a.name.localeCompare(b.name)) } : prev
     );
+  }
+
+  async function onRenameTag(tag: DeckTag, name: string) {
+    if (!isOwner) return;
+    const next = name.trim();
+    if (!next || next === tag.name) return;
+    const { error: err } = await renameDeckTag(tag.id, next);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setDetail((prev) =>
+      prev
+        ? { ...prev, tags: prev.tags.map((t) => (t.id === tag.id ? { ...t, name: next } : t)).sort((a, b) => a.name.localeCompare(b.name)) }
+        : prev
+    );
+  }
+
+  async function onSaveIdentity(next: { name: string; description: string }) {
+    if (!id) return "Missing deck.";
+    const { deck, error: err } = await updateDeck(id, next);
+    if (err || !deck) return err ?? "Could not update the deck.";
+    setDetail((prev) => (prev ? { ...prev, deck } : prev));
+    renameBranchLabel(id, deck.name);
+    if (user) {
+      const targets = await loadSearchTargets(user.id);
+      const hit = targets.find((t) => t.kind === "deck" && t.id === id);
+      if (hit && hit.name !== deck.name) await setTargetable(user.id, { ...hit, name: deck.name }, true);
+    }
+    return null;
   }
 
   async function onDeleteTag(tag: DeckTag) {
@@ -1732,7 +1765,12 @@ export function DeckBuilderPage() {
         <>
           <header className={styles.header}>
             <div>
-              <h1 className={styles.title}>{detail.deck.name}</h1>
+              <DeckTitleEditor
+                name={detail.deck.name}
+                description={detail.deck.description ?? ""}
+                isOwner={isOwner}
+                onSave={onSaveIdentity}
+              />
               <p className={styles.meta}>
                 <span className={styles.format}>{formatRule.name}</span>
                 <span>
@@ -1841,6 +1879,7 @@ export function DeckBuilderPage() {
               newTagName={newTagName}
               onNewTagName={setNewTagName}
               onCreate={onCreateTag}
+              onRename={(tag, name) => void onRenameTag(tag, name)}
               onDelete={(t) => void onDeleteTag(t)}
             />
           )}

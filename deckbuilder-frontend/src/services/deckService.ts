@@ -457,6 +457,16 @@ export async function createDeckTag(
   return { tag: data as DeckTag, error: null };
 }
 
+export async function renameDeckTag(
+  tagId: string,
+  name: string
+): Promise<{ error: string | null }> {
+  const n = name.trim();
+  if (!n) return { error: "Tag name required." };
+  const { error } = await supabase.from("deck_tags").update({ name: n }).eq("id", tagId);
+  return { error: error?.message ?? null };
+}
+
 export async function deleteDeckTag(
   tagId: string
 ): Promise<{ error: string | null }> {
