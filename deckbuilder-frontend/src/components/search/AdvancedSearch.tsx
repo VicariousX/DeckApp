@@ -669,7 +669,7 @@ export function AdvancedSearch({
         >
           ✓
         </button>
-        <button type="button" className={styles.primary} onClick={() => submit(barDirty ? validateBar() : bar)}>
+        <button type="button" className={`${styles.primary} ${styles.submit}`} onClick={() => submit(barDirty ? validateBar() : bar)}>
           Search
         </button>
         <button

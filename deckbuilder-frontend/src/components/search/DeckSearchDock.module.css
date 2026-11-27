@@ -9,10 +9,12 @@
 .cycleBtn {
   appearance: none;
   border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  background: transparent;
   color: var(--color-text);
-  border-radius: 999px;
-  padding: 0.38rem 0.75rem;
+  border-radius: var(--radius-control);
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
   font: inherit;
   font-size: 0.82rem;
   font-weight: 650;
@@ -29,12 +31,12 @@
   position: absolute;
   top: calc(100% + 0.25rem);
   right: 0;
-  z-index: 12;
+  z-index: var(--z-menu);
   min-width: 9rem;
   margin: 0;
   padding: 0.25rem;
   list-style: none;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
@@ -42,12 +44,13 @@
 
 .menu button {
   width: 100%;
+  min-height: var(--control-h);
   text-align: left;
   border: none;
   background: transparent;
   color: var(--color-text);
-  padding: 0.32rem 0.5rem;
-  border-radius: 7px;
+  padding: 0 0.55rem;
+  border-radius: 6px;
   cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
@@ -72,8 +75,9 @@
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.28rem;
-  margin-bottom: 0.45rem;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: var(--space-lg);
 }
 
 .tab,
@@ -82,8 +86,9 @@
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-muted);
-  border-radius: 999px;
-  padding: 0.18rem 0.55rem;
+  border-radius: var(--radius-control);
+  min-height: var(--control-h);
+  padding: 0 0.65rem;
   font-size: 0.75rem;
   font-weight: 650;
   cursor: pointer;
@@ -113,11 +118,12 @@
 .tabMode {
   appearance: none;
   margin-left: auto;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  color: var(--color-accent);
-  border-radius: 999px;
-  padding: 0.18rem 0.65rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-control);
+  min-height: var(--control-h);
+  padding: 0 0.7rem;
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -141,21 +147,22 @@
   padding-bottom: 0.35rem;
 }
 .searchOpenBtn {
-  height: 2.5rem;
-  min-height: 2.5rem;
+  height: var(--control-h);
+  min-height: var(--control-h);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  background: var(--color-accent);
-  color: var(--color-on-accent, #fff);
-  border-color: transparent;
-  font-weight: 800;
-  padding: 0.5rem 0.95rem;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+  font-weight: 650;
+  padding: 0 0.75rem;
+  box-shadow: none;
 }
 .searchOpenBtn:hover {
-  color: var(--color-on-accent, #fff);
-  filter: brightness(1.05);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  filter: none;
 }
 
 .sheetCol {
@@ -185,14 +192,15 @@
 .identityBtn {
   appearance: none;
   margin: 0.35rem 0 0.15rem;
-  border: 1px solid var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border: 1px solid var(--color-border);
+  background: transparent;
   color: var(--color-text);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 750;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
