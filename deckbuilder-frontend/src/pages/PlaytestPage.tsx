@@ -1092,7 +1092,7 @@ export function PlaytestPage() {
             ))}
           </div>
           <div className={styles.tools}>
-            <button type="button" className={styles.btn} onClick={() => setSettingsOpen(true)}>
+            <button type="button" className={`${styles.btn} ${styles.chrome}`} onClick={() => setSettingsOpen(true)}>
               Settings
             </button>
             <button type="button" className={styles.btn} onClick={() => setKit({ kind: "tokens", tab: "tokens" })}>
