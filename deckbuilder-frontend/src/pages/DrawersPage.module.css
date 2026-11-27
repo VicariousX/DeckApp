@@ -43,8 +43,9 @@
 }
 
 .sortSelect {
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  padding: 0 0.5rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-surface);
   color: var(--color-text);
@@ -53,17 +54,21 @@
 
 .viewToggle {
   display: inline-flex;
-  padding: 3px;
-  border-radius: 10px;
+  align-items: center;
+  height: var(--control-h);
+  box-sizing: border-box;
+  padding: 2px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
   gap: 2px;
 }
 
 .viewBtn {
-  padding: 0.32rem 0.7rem;
+  height: 100%;
+  padding: 0 0.7rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.78rem;
@@ -132,8 +137,9 @@
 
 .input {
   width: 100%;
-  padding: 0.45rem 0.55rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  padding: 0 0.55rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-bg);
   color: var(--color-text);
@@ -311,8 +317,10 @@
 
 .toolBtn,
 .toolSelect {
-  padding: 0.32rem 0.7rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  box-sizing: border-box;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
   background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 8%);
   color: var(--color-text);
@@ -336,8 +344,10 @@
 }
 
 .toolRow :global(button) {
-  padding: 0.32rem 0.7rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  box-sizing: border-box;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
@@ -565,11 +575,10 @@
 }
 
 .addSection {
-  margin-bottom: 0.85rem;
-  padding: 0.6rem 0.65rem;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 12%);
-  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent) 4%);
+  margin-bottom: var(--space-lg);
+  padding: 0;
+  border: none;
+  background: transparent;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

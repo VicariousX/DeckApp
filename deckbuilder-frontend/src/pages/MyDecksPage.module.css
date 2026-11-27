@@ -130,11 +130,14 @@
 .tabs,
 .subTabs {
   display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 2px;
   width: fit-content;
   max-width: 100%;
+  height: var(--control-h);
   padding: 2px;
+  box-sizing: border-box;
   border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-bg) 55%, transparent);
@@ -154,7 +157,8 @@
   font: inherit;
   font-size: 0.82rem;
   font-weight: 650;
-  min-height: var(--control-h);
+  height: 100%;
+  min-height: 0;
   padding: 0 0.75rem;
   cursor: pointer;
 }
@@ -333,8 +337,8 @@
 }
 
 .menuBtn {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: var(--control-h);
+  height: var(--control-h);
 }
 
 .deleteBtn {
@@ -342,8 +346,9 @@
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text-muted);
-  border-radius: 999px;
-  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-control);
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
