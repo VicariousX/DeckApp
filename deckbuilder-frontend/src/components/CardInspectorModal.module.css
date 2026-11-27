@@ -20,8 +20,8 @@
 .mobileNav .navBtn,
 .mobileNav .closeText {
   width: 100%;
-  height: 2.35rem;
-  min-height: 2.35rem;
+  height: var(--control-h);
+  min-height: var(--control-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,7 +37,7 @@
   font: inherit;
   font-size: 0.78rem;
   font-weight: 750;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   padding: 0;
   cursor: pointer;
 }
@@ -51,10 +51,10 @@
 }
 
 .navBtn {
-  height: 2.35rem;
+  height: var(--control-h);
   min-width: 5.5rem;
   padding: 0 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-surface);
   color: var(--color-text);
@@ -112,7 +112,7 @@
   height: auto;
   max-height: min(58vh, 460px);
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
 }
 
 .imagePlaceholder {
@@ -120,7 +120,7 @@
   max-height: min(58vh, 460px);
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-alt);
   color: var(--color-text-muted);
   font-size: 0.85rem;
@@ -193,8 +193,8 @@
   font-weight: 750;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 0.32rem 0.75rem;
-  border-radius: 999px;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -230,10 +230,11 @@
 }
 
 .quickBtn {
-  min-width: 2.2rem;
-  padding: 0.35rem 0.55rem;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 0.55rem;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -250,16 +251,21 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-lg);
   overflow: hidden;
 }
 
 .tabBar {
   display: flex;
   flex-shrink: 0;
-  gap: 0;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 2px;
   overflow-x: auto;
-  border-bottom: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
   scrollbar-width: none;
 }
 
@@ -271,21 +277,22 @@
 .tabBtnOn {
   appearance: none;
   flex: 0 0 auto;
+  height: 100%;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.55rem 0.75rem;
+  padding: 0 0.7rem;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .tabBtnOn {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .tabPanel {
@@ -375,29 +382,36 @@
 
 .subTabRail {
   display: flex;
+  align-items: center;
   flex-shrink: 0;
-  gap: 0;
-  padding: 0 0.4rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  gap: 2px;
+  height: var(--control-h);
+  margin: 0.45rem 0.55rem 0;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
-.subTab {
+.subTab,
+.subTabActive {
   appearance: none;
+  flex: 1;
+  height: 100%;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 0.45rem 0.7rem;
+  padding: 0 0.55rem;
   cursor: pointer;
 }
 
 .subTabActive {
   color: var(--color-text);
-  border-bottom-color: var(--color-accent);
-  background: transparent;
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .error {
@@ -542,18 +556,21 @@
 .tagCreateInput {
   flex: 1;
   min-width: 0;
-  padding: 0.32rem 0.5rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  padding: 0 0.55rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
   background: var(--color-bg);
   color: var(--color-text);
   font-size: 0.8rem;
+  box-sizing: border-box;
 }
 
 .tagCreateBtn {
-  padding: 0.32rem 0.65rem;
+  min-height: var(--control-h);
+  padding: 0 0.7rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-accent);
   color: var(--color-on-accent, #fff);
   font-size: 0.75rem;
@@ -635,8 +652,9 @@
 }
 
 .removeBtn {
-  padding: 0.28rem 0.55rem;
-  border-radius: 8px;
+  min-height: var(--control-h);
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-error) 50%, transparent);
   background: transparent;
   color: var(--color-error);
@@ -722,7 +740,7 @@
 
 .ruling {
   padding: 0.55rem 0.6rem;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 10%);
   background: color-mix(in srgb, var(--color-surface) 86%, var(--color-accent) 5%);
 }
@@ -846,7 +864,7 @@
   font: inherit;
   font-weight: 650;
   padding: 0.6rem 0.7rem;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 .addDeckBtn:hover {
@@ -888,11 +906,13 @@
     position: sticky;
     bottom: 0;
     z-index: 4;
+    height: var(--control-h);
     margin-top: auto;
-    border-bottom: none;
-    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    border-top: none;
     background: color-mix(in srgb, var(--color-surface) 96%, transparent);
-    padding: 0.15rem 0.2rem calc(0.2rem + env(safe-area-inset-bottom));
+    padding: 2px;
+    margin-bottom: env(safe-area-inset-bottom);
   }
   .tabPanel {
     order: 1;
@@ -907,8 +927,9 @@
   .tabBtnOn {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 3rem;
-    padding: 0.85rem 0.15rem 0.7rem;
+    height: 100%;
+    min-height: 0;
+    padding: 0 0.35rem;
     font-size: 0.7rem;
     text-align: center;
   }
@@ -917,21 +938,17 @@
     padding: 0.35rem 0.15rem 0.5rem;
   }
   .subTabRail {
-    gap: 0.35rem;
-    padding: 0.35rem 0.15rem 0.45rem;
-    border-bottom: none;
+    margin: 0.35rem 0.15rem 0;
   }
   .subTab,
   .subTabActive {
-    flex: 1;
-    min-height: 2.3rem;
-    border: 1px solid var(--color-border);
-    border-radius: 999px;
-    text-align: center;
-    font-size: 0.8rem;
+    min-height: 0;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
   }
   .subTabActive {
-    border-color: var(--color-accent);
+    border-color: transparent;
     background: color-mix(in srgb, var(--color-accent) 18%, transparent);
   }
   .resizeHandle {
