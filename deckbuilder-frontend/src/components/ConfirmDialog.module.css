@@ -31,10 +31,11 @@
 .cancel,
 .confirm {
   appearance: none;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  border-radius: var(--radius-control);
   font-size: 0.82rem;
   font-weight: 700;
-  padding: 0.42rem 0.95rem;
+  padding: 0 0.95rem;
   cursor: pointer;
 }
 
@@ -49,6 +50,8 @@
 }
 
 .confirm {
+  min-height: var(--control-h-primary);
+  border-radius: 999px;
   border: 1px solid transparent;
   background: linear-gradient(
     135deg,

@@ -6,8 +6,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.55rem;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  padding: 0 0.65rem;
+  border-radius: var(--radius-control);
   border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
   background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   color: var(--color-text);

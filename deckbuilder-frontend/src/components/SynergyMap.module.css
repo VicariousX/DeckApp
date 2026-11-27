@@ -125,9 +125,9 @@
 .verdictOn,
 .verdictOff {
   appearance: none;
-  height: 2.25rem;
+  height: var(--control-h);
   padding: 0 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text);

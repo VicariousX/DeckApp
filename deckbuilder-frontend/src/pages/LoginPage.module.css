@@ -36,32 +36,34 @@
 
 .tabs {
   display: flex;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  box-sizing: border-box;
   margin-bottom: 1.15rem;
-  padding: 0.25rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
 .tab {
   flex: 1;
   appearance: none;
+  height: 100%;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 650;
-  padding: 0.45rem 0.75rem;
-  border-radius: 999px;
+  padding: 0 0.75rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition:
-    background var(--hover-transition),
-    color var(--hover-transition);
 }
 
 .tabActive {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
-  color: var(--color-on-accent);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
 }
 
 .field {
@@ -401,26 +403,28 @@
 
 .themeToggle {
   display: flex;
-  gap: 0.35rem;
-  padding: 0.25rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
 .themeOption {
   flex: 1;
   appearance: none;
+  height: 100%;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 650;
-  padding: 0.45rem 0.75rem;
-  border-radius: 999px;
+  padding: 0 0.75rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition:
-    background var(--hover-transition),
-    color var(--hover-transition);
 }
 
 .themeOption:hover {
