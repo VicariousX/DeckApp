@@ -1792,10 +1792,7 @@ export function DeckBuilderPage() {
             <>
               <div className={styles.composer}>
                 {isOwner && (
-                  <section className={styles.addSection}>
-                    <h2 className={styles.sectionLabel}>
-                      {panel === "tokens" ? "Add token" : "Add card"}
-                    </h2>
+                  <div className={styles.addSection}>
                     <AddCardRow
                       panel={panel}
                       query={query}
@@ -1823,7 +1820,7 @@ export function DeckBuilderPage() {
                       onToggleSearch={() => setSearchOpen((v) => !v)}
                       onRefreshTokens={() => void refreshTokens()}
                     />
-                  </section>
+                  </div>
                 )}
                 <DeckToolbar
                   groupMode={groupMode}

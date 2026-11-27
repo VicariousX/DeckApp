@@ -6,7 +6,7 @@
 
 .headerWrap {
   position: relative;
-  z-index: 20;
+  z-index: var(--z-nav);
 }
 
 :global(body.play-nav-hidden) .header {
@@ -79,17 +79,16 @@
 .navLink {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
+  border-radius: var(--radius-control);
   color: var(--color-text-muted);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
   font-weight: 550;
   transition:
     background var(--hover-transition),
-    color var(--hover-transition),
-    box-shadow var(--hover-transition);
+    color var(--hover-transition);
 }
 
 .navLink:hover {
@@ -98,15 +97,15 @@
 }
 
 .navLinkActive {
-  color: var(--color-on-accent);
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
-  box-shadow: 0 2px 12px var(--color-accent-glow);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  box-shadow: none;
   font-weight: 650;
 }
 
 .navLinkActive:hover {
-  color: var(--color-on-accent);
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
 .searchFly {
@@ -122,7 +121,7 @@
   top: calc(100% + 0.15rem);
   left: 0;
   min-width: 8.5rem;
-  z-index: 60;
+  z-index: var(--z-menu);
   padding: 0.35rem;
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -282,7 +281,7 @@
   background: color-mix(in srgb, var(--color-surface) 94%, black);
   border: 1px solid color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
   box-shadow: var(--shadow-lg);
-  z-index: 50;
+  z-index: var(--z-menu);
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -301,8 +300,8 @@
 .decksItem {
   display: flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0.55rem 0.8rem;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   text-decoration: none;
@@ -360,23 +359,23 @@
 /* Keep Decks control stable when route is active (not a NavLink) */
 .decksTrigger.navLinkActive,
 button.decksTrigger.navLinkActive {
-  color: var(--color-on-accent);
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-soft));
-  box-shadow: 0 2px 12px var(--color-accent-glow);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  box-shadow: none;
   font-weight: 650;
 }
 
 .decksTrigger.navLinkActive .chevron {
-  color: var(--color-on-accent);
+  color: var(--color-text);
   opacity: 0.9;
 }
 
 .userLink {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control);
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 0.875rem;

@@ -18,16 +18,38 @@
 .header p, .muted { margin: 0.3rem 0 0; color: var(--color-text-muted); }
 .muted { font-size: 0.85rem; }
 
-.tabs, .row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
-.tabs { margin: 0.85rem 0; }
-
-.tab, .tabOn, .row button, .stack button {
+.tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.85rem 0;
+  padding: 2px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+}
+.row { display: flex; flex-wrap: wrap; gap: var(--menu-gap); }
+
+.tab, .tabOn {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
+}
+.row button, .stack button {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text);
   font: inherit;
-  padding: 0.4rem 0.75rem;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
 }
 
 .tabOn, .voteOn {
@@ -112,9 +134,9 @@
 .breakdown dt { font-size: 0.75rem; color: var(--color-text-muted); }
 .breakdown dd { margin: 0.2rem 0 0; }
 .menuWrap { position: relative; }
-.menuBtn { border: 1px solid var(--color-border); border-radius: 999px; background: transparent; color: var(--color-text); padding: 0.2rem 0.55rem; }
-.menu { position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 5; min-width: 9rem; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.4rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
-.menu button { border: none; background: transparent; color: var(--color-text); text-align: left; padding: 0.4rem 0.5rem; }
+.menuBtn { min-height: var(--control-h); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: transparent; color: var(--color-text); padding: 0 0.65rem; }
+.menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: var(--z-menu); min-width: 9rem; display: flex; flex-direction: column; gap: 2px; padding: 0.25rem; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); box-shadow: var(--shadow-lg); }
+.menu button { border: none; background: transparent; color: var(--color-text); text-align: left; min-height: var(--control-h); padding: 0 0.55rem; border-radius: 6px; }
 
 @media (max-width: 900px) {
   .page {

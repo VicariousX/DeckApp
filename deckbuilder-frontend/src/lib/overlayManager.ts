@@ -39,7 +39,7 @@ let listening = false;
 let ignoring = false;
 let unlockScroll: (() => void) | null = null;
 
-/** Base stacking value. Each later overlay is 20 above the one below it. */
+/** Matches --z-modal. Each later overlay paints 20 above the one below it. */
 const Z_BASE = 5000;
 const Z_STEP = 20;
 

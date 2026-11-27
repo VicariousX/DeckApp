@@ -1,7 +1,7 @@
 .stage {
   position: fixed;
   inset: 0;
-  z-index: 4000;
+  z-index: var(--z-inspector);
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(280px, 460px) minmax(220px, 1fr);
   align-items: center;

@@ -672,7 +672,7 @@
 
 .overscrollDots {
   position: fixed;
-  z-index: 4200;
+  z-index: var(--z-inspector);
   display: flex;
   justify-content: center;
   align-items: center;

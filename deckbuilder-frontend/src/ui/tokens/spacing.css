@@ -18,4 +18,24 @@
   --pad-sm: var(--space-sm);
   --pad-md: var(--space-md);
   --pad-lg: var(--space-lg);
+
+  /* --- Controls ---
+     Chrome is 36px. One primary action per screen is 44px.
+     Fields and segments use a short radius, not a pill. */
+  --control-h: 36px;
+  --control-h-primary: 44px;
+  --menu-gap: 8px;
+  --radius-control: 8px;
+
+  /* --- Layers ---
+     Menus sit over the page. Modals start where overlayManager starts.
+     Pickers and enlarges stay above that stack. */
+  --z-nav: 30;
+  --z-menu: 50;
+  --z-tool: 80;
+  --z-sheet: 200;
+  --z-inspector: 4200;
+  --z-modal: 5000;
+  --z-picker: 8000;
+  --z-enlarge: 100001;
 }

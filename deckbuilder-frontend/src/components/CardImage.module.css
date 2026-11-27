@@ -299,7 +299,7 @@
 .enlargeOverlay {
   position: fixed;
   inset: 0;
-  z-index: 5000;
+  z-index: var(--z-enlarge);
   display: grid;
   place-items: center;
   padding: 1.5rem;

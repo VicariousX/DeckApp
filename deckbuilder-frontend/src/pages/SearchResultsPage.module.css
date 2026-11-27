@@ -70,14 +70,21 @@
 
 .toggles {
   display: inline-flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
 .viewBtn,
 .dirBtn {
-  padding: 0.28rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
+  height: 100%;
+  padding: 0 0.65rem;
+  border-radius: 6px;
+  border: none;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.78rem;
@@ -86,9 +93,9 @@
 }
 
 .viewOn {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border: none;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .targetChip {
@@ -129,11 +136,12 @@
 }
 
 .moreBtn {
-  padding: 0.45rem 0.9rem;
+  min-height: var(--control-h-primary);
+  padding: 0 1rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  color: var(--color-accent);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-on-accent, #111);
   font-weight: 700;
   cursor: pointer;
 }

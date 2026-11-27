@@ -417,7 +417,7 @@
 
 .hoverPreview {
   position: fixed;
-  z-index: 100000;
+  z-index: var(--z-picker);
   pointer-events: none;
   transform: translate(-50%, calc(-100% - 12px));
   width: 200px;
@@ -437,7 +437,7 @@
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 100001;
+  z-index: var(--z-enlarge);
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.75);

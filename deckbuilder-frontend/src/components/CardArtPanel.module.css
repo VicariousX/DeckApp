@@ -430,7 +430,7 @@
 
 .printHoverPreview {
   position: fixed;
-  z-index: 5000;
+  z-index: var(--z-picker);
   pointer-events: none;
   width: 220px;
   border-radius: 12px;

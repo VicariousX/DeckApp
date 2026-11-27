@@ -52,8 +52,9 @@
 .select {
   flex: 1 1 10rem;
   min-width: 0;
-  padding: 0.65rem 0.85rem;
-  border-radius: 999px;
+  min-height: var(--control-h);
+  padding: 0 0.8rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-surface-alt) 90%, transparent);
   color: var(--color-text);
@@ -72,8 +73,8 @@
   appearance: none;
   border: none;
   border-radius: 999px;
-  min-height: 2.75rem;
-  padding: 0.65rem 1.15rem;
+  min-height: var(--control-h-primary);
+  padding: 0 1.1rem;
   font-weight: 650;
   font-size: 0.9rem;
   cursor: pointer;
@@ -126,38 +127,43 @@
   gap: 0.65rem;
 }
 
-.tabs {
-  display: flex;
+.tabs,
+.subTabs {
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
 .subTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding-left: 0.4rem;
+  margin-left: 0;
+  padding-left: 2px;
 }
 
 .tab,
 .subTab {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 650;
-  min-height: 2.75rem;
-  padding: 0.35rem 0.85rem;
+  min-height: var(--control-h);
+  padding: 0 0.75rem;
   cursor: pointer;
 }
 
 .tabOn,
 .subTabOn {
   color: var(--color-text);
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .folderHead {
@@ -182,10 +188,10 @@
 }
 
 .menuBtn {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: var(--control-h);
+  height: var(--control-h);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 1.1rem;
@@ -195,7 +201,7 @@
 .menu,
 .popout {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-menu);
   min-width: 11rem;
   padding: 0.3rem;
   border: 1px solid var(--color-border);
@@ -244,7 +250,7 @@
 .menuDanger,
 .popout button {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--control-h);
   border: none;
   background: transparent;
   color: var(--color-text);

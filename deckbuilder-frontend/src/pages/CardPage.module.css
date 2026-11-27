@@ -344,9 +344,11 @@
 }
 
 .primaryBtn {
+  min-height: var(--control-h-primary);
   background: var(--color-accent);
   color: var(--color-accent-contrast, #fff);
   border: none;
+  border-radius: 999px;
   font-weight: 700;
   cursor: pointer;
 }

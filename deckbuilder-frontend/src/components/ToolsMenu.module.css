@@ -2,7 +2,7 @@
   position: absolute;
   top: calc(var(--space-xxl) + 0.35rem);
   right: var(--space-xl);
-  z-index: 40;
+  z-index: var(--z-menu);
 }
 
 .inline {
@@ -20,7 +20,7 @@
   padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--menu-gap);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   border: 1px solid var(--color-border);
@@ -32,9 +32,9 @@
 .trigger {
   display: grid;
   place-items: center;
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 999px;
+  width: var(--control-h);
+  height: var(--control-h);
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-surface) 72%, transparent);
   backdrop-filter: blur(12px);
@@ -72,36 +72,39 @@
 .menuSection {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--menu-gap);
 }
 
 .menuSection + .menuSection {
-  padding-top: 0.75rem;
+  padding-top: var(--menu-gap);
   border-top: 1px solid var(--color-border);
 }
 
 .seg {
   display: flex;
+  height: var(--control-h);
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: var(--radius-control);
 }
 
 .seg button {
   flex: 1;
   border: none;
+  border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 650;
-  padding: 0.38rem 0.3rem;
+  padding: 0 0.3rem;
   cursor: pointer;
 }
 
 .segOn {
-  background: var(--color-accent);
-  color: #000;
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
 }
 
 .menuHeading {

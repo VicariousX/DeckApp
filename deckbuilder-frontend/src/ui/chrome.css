@@ -1,0 +1,125 @@
+/* Shared control primitives. Pages should use these instead of local pills.
+   Landing marketing buttons are the exception and stay large on purpose. */
+
+.btn-chrome,
+.btn-primary,
+.segment-btn,
+.menu-item,
+.field-chrome {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.btn-chrome,
+.segment-btn,
+.menu-item,
+.field-chrome {
+  min-height: var(--control-h);
+  border-radius: var(--radius-control);
+}
+
+.btn-chrome {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h-primary);
+  padding: 0 1.05rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent, #111);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.btn-primary:disabled,
+.btn-chrome:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+}
+
+.segment-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  height: 100%;
+  padding: 0 0.7rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.segment-btn[aria-selected="true"],
+.segment-btn[data-on="true"] {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-text);
+}
+
+.menu-pop {
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 11rem;
+  padding: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.menu-item:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.field-chrome {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.8rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-alt, var(--color-surface)) 90%, transparent);
+  color: var(--color-text);
+  font-size: 0.92rem;
+  cursor: text;
+}

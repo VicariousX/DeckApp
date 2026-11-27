@@ -25,15 +25,24 @@
 }
 
 .modes {
-  display: flex;
-  gap: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h);
+  padding: 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
 }
 
 .mode,
 .modeOn {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: 6px;
+  min-height: calc(var(--control-h) - 6px);
+  padding: 0 0.7rem;
   text-decoration: none;
   font-weight: 700;
   font-size: 0.82rem;

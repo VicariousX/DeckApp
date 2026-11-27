@@ -161,7 +161,7 @@
 
 .moreMenu {
   position: fixed;
-  z-index: 8000;
+  z-index: var(--z-picker);
   width: 10.5rem;
   display: flex;
   flex-direction: column;
